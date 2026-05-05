@@ -47,80 +47,73 @@ brew install tesseract tesseract-lang poppler
 pip3 install pdfplumber pdf2image pytesseract Pillow
 ```
 
-### Étape 1 — Déposer les PDFs bruts
+### Étape 1 — Configurer les chemins (une seule fois)
+
+Copiez le template de configuration et renseignez les chemins vers vos dossiers existants :
 
 ```bash
-cp ~/Downloads/*.pdf curate-justificatifs-achat/inbox/
-# ou
-cp ~/Downloads/*.pdf curate-justificatifs-voyage/inbox/
+cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 ```
 
-### Étape 2 — Organiser les justificatifs
-
-Choisir le type de justificatif selon les fichiers téléchargés depuis SNCF Connect :
-
-```bash
-# Justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
-cd curate-justificatifs-achat/
-python3 curate-justificatifs-achat.py          # dry-run — vérifie les noms générés
-python3 curate-justificatifs-achat.py --real   # applique — copie dans output/
-cd ..
-
-# Justificatifs de voyage (justificatif-voyage-*.pdf)
-cd curate-justificatifs-voyage/
-python3 curate-justificatifs-voyage.py          # dry-run — vérifie les noms générés
-python3 curate-justificatifs-voyage.py --real   # applique — copie dans output/
-cd ..
-```
-
-Les fichiers sources dans `inbox/` ne sont **jamais modifiés**.
-
-### Étape 3 — Générer le bilan
-
-```bash
-# Depuis les justificatifs d'achat
-python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output
-
-# Depuis les justificatifs de voyage
-python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-voyage/output
-
-# Dossier de sortie distinct
-python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output ./bilans/
-```
-
-Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `output/` (ou dans `OUT` si précisé).
-
----
-
-## Configuration globale (optionnelle)
-
-Copiez `config.example.json` en `config.json` (gitignore, local) pour pré-configurer les chemins de chaque script :
-
-```bash
-cp config.example.json config.json
-```
+Éditez `config.json` avec vos chemins réels :
 
 ```json
 {
   "curate-justificatifs-voyage": {
-    "in": "/Users/alice/sncf/inbox-voyage",
-    "out": "/Users/alice/sncf/output-voyage"
+    "in": "/Users/alice/Documents/sncf/bruts-voyage",
+    "out": "/Users/alice/Documents/sncf/renommes-voyage"
   },
   "curate-justificatifs-achat": {
-    "in": "/Users/alice/sncf/inbox-achat",
-    "out": "/Users/alice/sncf/output-achat"
+    "in": "/Users/alice/Documents/sncf/bruts-achat",
+    "out": "/Users/alice/Documents/sncf/renommes-achat"
   },
   "draw-bilan-depenses-train": {
-    "in": "/Users/alice/sncf/output-achat",
-    "out": "/Users/alice/sncf/bilans"
+    "in": "/Users/alice/Documents/sncf/renommes-achat",
+    "out": "/Users/alice/Documents/sncf/bilans"
   }
 }
 ```
 
-- Chemin vide `""` → comportement par défaut (`inbox/`, `output/`, ou répertoire courant).
-- Chemins absolus ou relatifs au répertoire de travail.
-- Les arguments CLI ont **toujours la priorité** sur la configuration.
-- Applicable uniquement quand aucun argument n'est passé (pour `draw-bilan-depenses-train`).
+Les dossiers `in` et `out` sont créés automatiquement si besoin. Les fichiers sources ne sont **jamais modifiés**.
+
+### Étape 2 — Organiser les justificatifs
+
+Choisir le script selon le type de fichier téléchargé depuis SNCF Connect :
+
+```bash
+# Justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
+python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py          # dry-run — vérifie les noms
+python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py --real   # applique
+
+# Justificatifs de voyage (justificatif-voyage-*.pdf)
+python3 sncf-trip-proofs/curate-justificatifs-voyage/curate-justificatifs-voyage.py          # dry-run — vérifie les noms
+python3 sncf-trip-proofs/curate-justificatifs-voyage/curate-justificatifs-voyage.py --real   # applique
+```
+
+### Étape 3 — Générer le bilan
+
+```bash
+python3 sncf-trip-proofs/draw-bilan-depenses-train/draw-bilan-depenses-train.py
+```
+
+Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `out` configuré.
+
+---
+
+### Sans configuration (usage ponctuel)
+
+Sans `config.json`, les scripts utilisent des chemins par défaut relatifs à leur propre dossier :
+
+```bash
+# Déposer les PDFs dans inbox/, lancer depuis le dossier du script
+cd sncf-trip-proofs/curate-justificatifs-achat/
+python3 curate-justificatifs-achat.py          # dry-run
+python3 curate-justificatifs-achat.py --real   # applique dans output/
+cd ..
+
+# Bilan depuis un dossier explicite
+python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output/ ./bilans/
+```
 
 ---
 
