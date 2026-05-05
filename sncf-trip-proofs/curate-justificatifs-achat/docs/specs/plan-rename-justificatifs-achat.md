@@ -16,7 +16,7 @@ Exemples :
 ## Structure des dossiers
 
 ```
-justificatif-achat/
+curate-justificatifs-achat/
 ├── inbox/    ← PDFs bruts déposés ici (non modifiés)
 ├── output/   ← PDFs organisés (vidé et recréé à chaque --real)
 ├── curate-justificatifs-achat.py

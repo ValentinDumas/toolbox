@@ -14,7 +14,7 @@ Exemples :
 ## Structure des dossiers
 
 ```
-justificatif-voyage/
+curate-justificatifs-voyage/
 ├── inbox/    ← PDFs bruts déposés ici (non modifiés)
 ├── output/   ← PDFs organisés (vidé et recréé à chaque --real)
 ├── curate-justificatifs-voyage.py

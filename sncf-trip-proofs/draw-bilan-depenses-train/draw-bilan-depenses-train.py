@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-bilan-depenses-train.py — Génère un bilan de dépenses train à partir des justificatifs d'achat.
+draw-bilan-depenses-train.py — Génère un bilan de dépenses train à partir des justificatifs d'achat.
 
 Usage:
-    python3 bilan-depenses-train.py [IN] [OUT]
+    python3 draw-bilan-depenses-train.py [IN] [OUT]
 
     Aucun argument  → IN = OUT = répertoire courant
     IN seul         → OUT = IN

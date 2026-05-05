@@ -2,32 +2,93 @@
 
 Outils pour déclarer les frais de train au réel, à partir des justificatifs SNCF Connect.
 
----
+Pour déclarer des frais de train au réel, il faut fournir chaque justificatif avec sa date, son montant et sa référence — et totaliser le tout par mois. SNCF Connect livre des fichiers avec des noms inutilisables (`JustificatifAchat_SNCFCONNECT.pdf`) : impossible de savoir sans les ouvrir à quoi ils correspondent.
 
-## Utilisation rapide
+Ces outils lisent chaque justificatif, en extraient automatiquement la date, le montant et la référence, renomment les fichiers en conséquence, puis produisent un récapitulatif prêt à soumettre.
 
-```bash
-# 1. Poser les PDFs bruts dans le bon inbox
-cp ~/Downloads/*.pdf justificatif-achat/inbox/
-# ou
-cp ~/Downloads/*.pdf justificatif-voyage/inbox/
+```mermaid
+flowchart TD
+    classDef input    fill:#4477AA,stroke:#2E5580,color:#fff
+    classDef script   fill:#EE7733,stroke:#C05A1A,color:#fff
+    classDef artifact fill:#AA3377,stroke:#7A2255,color:#fff
 
-# 2. Organiser (dry-run d'abord, puis --real)
-cd justificatif-achat/ && python3 curate-justificatifs-achat.py --real
-# ou
-cd justificatif-voyage/ && python3 curate-justificatifs-voyage.py --real
+    V[/"JustificatifVoyage.pdf (bruts)"/]:::input
+    A[/"justificatif_achat.pdf (bruts)"/]:::input
 
-# 3. Générer le bilan
-python3 bilan-depenses-train.py justificatif-achat/output
-# ou
-python3 bilan-depenses-train.py justificatif-voyage/output
+    V --> CV["curate-justificatifs-voyage --real"]:::script
+    A --> CA["curate-justificatifs-achat --real"]:::script
+
+    CV --> OV[/"JustificatifVoyage_DATE_PRIX_REF.pdf"/]:::artifact
+    CA --> OA[/"justificatif_achat_DATE_PRIX_REF.pdf"/]:::artifact
+
+    OV --> B["draw-bilan-depenses-train"]:::script
+    OA --> B
+
+    B --> R[/"bilan-depenses-train-YYYY.md"/]:::artifact
+
+    subgraph legend["Légende"]
+        direction LR
+        Li[/"Input"/]:::input
+        Ls["Script"]:::script
+        La[/"Artefact"/]:::artifact
+    end
 ```
 
-Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `output/`.
+> **Affichage en local** — VS Code : extension [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid) + `Cmd+Shift+V`. JetBrains : preview Markdown intégrée.
 
 ---
 
-Workflow en deux étapes : **organiser** les PDFs bruts pour les normaliser, puis **générer un bilan** chiffré par mois et par an.
+## Comment utiliser (ordre d'exécution)
+
+### Prérequis (une seule fois)
+
+```bash
+brew install tesseract tesseract-lang poppler
+pip3 install pdfplumber pdf2image pytesseract Pillow
+```
+
+### Étape 1 — Déposer les PDFs bruts
+
+```bash
+cp ~/Downloads/*.pdf curate-justificatifs-achat/inbox/
+# ou
+cp ~/Downloads/*.pdf curate-justificatifs-voyage/inbox/
+```
+
+### Étape 2 — Organiser les justificatifs
+
+Choisir le type de justificatif selon les fichiers téléchargés depuis SNCF Connect :
+
+```bash
+# Justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
+cd curate-justificatifs-achat/
+python3 curate-justificatifs-achat.py          # dry-run — vérifie les noms générés
+python3 curate-justificatifs-achat.py --real   # applique — copie dans output/
+cd ..
+
+# Justificatifs de voyage (JustificatifVoyage_*.pdf)
+cd curate-justificatifs-voyage/
+python3 curate-justificatifs-voyage.py          # dry-run — vérifie les noms générés
+python3 curate-justificatifs-voyage.py --real   # applique — copie dans output/
+cd ..
+```
+
+Les fichiers sources dans `inbox/` ne sont **jamais modifiés**.
+
+### Étape 3 — Générer le bilan
+
+```bash
+# Depuis les justificatifs d'achat
+python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output
+
+# Depuis les justificatifs de voyage
+python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-voyage/output
+
+# Dossier de sortie distinct
+python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output ./bilans/
+```
+
+Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `output/` (ou dans `OUT` si précisé).
 
 ---
 
@@ -35,37 +96,36 @@ Workflow en deux étapes : **organiser** les PDFs bruts pour les normaliser, pui
 
 ```
 sncf-trip-proofs/
-├── justificatif-achat/
-│   ├── inbox/                          ← PDFs bruts d'achat
-│   ├── output/                         ← PDFs organisés (vidé/recréé à chaque --real)
-│   ├── curate-justificatifs-achat.py
-│   └── README.md
-├── justificatif-voyage/
-│   ├── inbox/                          ← PDFs bruts de voyage
-│   ├── output/                         ← PDFs organisés (vidé/recréé à chaque --real)
-│   ├── curate-justificatifs-voyage.py
-│   └── README.md
-├── bilan-depenses-train.py             ← génère le bilan
-├── plan-bilan-depenses-train.md
-└── README.md
+├── curate-justificatifs-achat/          ← organise les justificatifs d'achat
+│   ├── inbox/                           ← déposer les PDFs bruts d'achat ici
+│   ├── output/                          ← PDFs renommés (vidé et recréé à chaque --real)
+│   ├── curate-justificatifs-achat.py    ← script d'organisation
+│   ├── docs/specs/                      ← spécifications internes
+│   └── README.md                        ← doc détaillée (formats, comportement, dépannage)
+│
+├── curate-justificatifs-voyage/         ← organise les justificatifs de voyage
+│   ├── inbox/                           ← déposer les PDFs bruts de voyage ici
+│   ├── output/                          ← PDFs renommés (vidé et recréé à chaque --real)
+│   ├── curate-justificatifs-voyage.py   ← script d'organisation
+│   ├── docs/specs/                      ← spécifications internes
+│   └── README.md                        ← doc détaillée (formats, comportement, dépannage)
+│
+├── draw-bilan-depenses-train/           ← génère le bilan chiffré
+│   ├── draw-bilan-depenses-train.py     ← script de génération du bilan Markdown
+│   └── docs/specs/                      ← spécifications internes
+│
+└── README.md                            ← ce fichier
 ```
 
 ---
 
-## Prérequis (une seule fois)
+## Formats de noms produits
 
-```bash
-brew install tesseract tesseract-lang poppler
-pip3 install pdfplumber pdf2image pytesseract Pillow
+### Justificatifs d'achat (`curate-justificatifs-achat`)
+
 ```
-
----
-
-## Étape 1 — Organiser les justificatifs
-
-### Justificatifs d'achat
-
-Format de sortie : `justificatif_achat_<DATES>_<PRIX>_<REF>[_N].pdf`
+justificatif_achat_<DATES>_<PRIX>_<REF>[_N].pdf
+```
 
 ```
 20260402_0701_JustificatifAchat_SNCFCONNECT.pdf
@@ -75,52 +135,23 @@ Format de sortie : `justificatif_achat_<DATES>_<PRIX>_<REF>[_N].pdf`
     → justificatif_achat_20260423-20260424_57-00TTC_1480540391-20260504.pdf
 ```
 
-```bash
-cd justificatif-achat/
-python3 curate-justificatifs-achat.py            # dry-run (défaut)
-python3 curate-justificatifs-achat.py --real     # copie dans output/
+### Justificatifs de voyage (`curate-justificatifs-voyage`)
+
 ```
-
-### Justificatifs de voyage
-
-Format de sortie : `JustificatifVoyage_<DATE>_<PRIX>_<REF>[_<TCN>][_N].pdf`
+JustificatifVoyage_<DATE>_<PRIX>_<REF>[_<TCN>][_N].pdf
+```
 
 ```
 JustificatifVoyage_brut.pdf
     → JustificatifVoyage_20260402_18-50TTC_NE3ERM_016487606.pdf
 ```
 
-```bash
-cd justificatif-voyage/
-python3 curate-justificatifs-voyage.py           # dry-run (défaut)
-python3 curate-justificatifs-voyage.py --real    # copie dans output/
-```
-
-Les fichiers sources dans `inbox/` ne sont **jamais modifiés**.
-
 ---
 
-## Étape 2 — Générer le bilan
-
-Lit les justificatifs organisés (achat ou voyage) et génère `bilan-depenses-train-YYYY.md`.
-
-Les deux formats de noms sont reconnus directement depuis le nom de fichier — aucune relecture PDF nécessaire.
-
-```bash
-# Justificatifs d'achat
-python3 bilan-depenses-train.py justificatif-achat/output
-
-# Justificatifs de voyage
-python3 bilan-depenses-train.py justificatif-voyage/output
-
-# IN et OUT distincts
-python3 bilan-depenses-train.py justificatif-achat/output ./bilans/
-```
-
-### Sortie console (exemple)
+## Sortie du bilan (exemple console)
 
 ```
-Lecture de : /…/justificatif-voyage/output
+Lecture de : /…/curate-justificatifs-voyage/output
 22 fichier(s) PDF trouvé(s)
 
 ✓ 22 trajet(s) extrait(s) depuis 22 ticket(s)
@@ -136,34 +167,10 @@ Lecture de : /…/justificatif-voyage/output
   …
 
 ✓ Bilan généré : bilan-depenses-train-2026.md
-  → /…/justificatif-voyage/output/bilan-depenses-train-2026.md
+  → /…/curate-justificatifs-voyage/output/bilan-depenses-train-2026.md
 ```
 
 `[PDF]` = prix extrait du PDF (multi-tickets achat). `[calc]` = montant du nom de fichier.
-
-### Fichier généré (extrait)
-
-```markdown
-# Bilan dépenses train — 2026
-
-Généré le 2026-05-04 | 22 trajet(s) depuis 22 ticket(s) analysé(s) sur 22 | 0 erreur(s)
-
-## Récapitulatif global
-
-| Métrique              | Valeur        |
-|-----------------------|---------------|
-| **Total TTC**         | **346,10 €**  |
-| Nombre de trajets     | 22            |
-| Coût moyen / trajet   | 15,73 €       |
-| Période couverte      | Mars 2026 → Avril 2026 |
-
-## Détail par mois
-
-| Mois        | Trajets | Total TTC |
-|-------------|---------|-----------|
-| Mars 2026   |       3 |   44,10 € |
-| Avril 2026  |      19 |  302,00 € |
-```
 
 ---
 
