@@ -40,6 +40,26 @@ python3 draw-bilan-depenses-train.py curate-justificatifs-achat/output/ ./bilans
 python3 draw-bilan-depenses-train.py
 ```
 
+### Via config.json (optionnel)
+
+Si `sncf-trip-proofs/config.json` contient des chemins non-vides pour `draw-bilan-depenses-train`, le script les utilise quand aucun argument n'est passé :
+
+```json
+{
+  "draw-bilan-depenses-train": {
+    "in": "/Users/alice/sncf/output-achat",
+    "out": "/Users/alice/sncf/bilans"
+  }
+}
+```
+
+```bash
+python3 draw-bilan-depenses-train.py   # lit in/out depuis config.json (0 args)
+```
+
+Priorité : arguments CLI > `config.json` > répertoire courant.
+La configuration ne s'applique que lorsqu'aucun argument n'est fourni.
+
 ---
 
 ## Fichiers en entrée acceptés

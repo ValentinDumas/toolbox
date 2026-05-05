@@ -70,6 +70,26 @@ python3 curate-justificatifs-achat.py mon_justificatif.pdf --dry-run
 python3 curate-justificatifs-achat.py mon_justificatif.pdf --real
 ```
 
+### Via config.json (optionnel)
+
+Si `sncf-trip-proofs/config.json` contient des chemins non-vides pour `curate-justificatifs-achat`, le script les utilise sans argument :
+
+```json
+{
+  "curate-justificatifs-achat": {
+    "in": "/Users/alice/sncf/inbox-achat",
+    "out": "/Users/alice/sncf/output-achat"
+  }
+}
+```
+
+```bash
+python3 curate-justificatifs-achat.py          # lit in/out depuis config.json
+python3 curate-justificatifs-achat.py --real
+```
+
+Priorité : argument CLI fichier > `config.json` > `inbox/` et `output/` locaux.
+
 ---
 
 ## Comportement

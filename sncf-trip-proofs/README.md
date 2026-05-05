@@ -92,6 +92,38 @@ Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `output/` 
 
 ---
 
+## Configuration globale (optionnelle)
+
+Copiez `config.example.json` en `config.json` (gitignore, local) pour pré-configurer les chemins de chaque script :
+
+```bash
+cp config.example.json config.json
+```
+
+```json
+{
+  "curate-justificatifs-voyage": {
+    "in": "/Users/alice/sncf/inbox-voyage",
+    "out": "/Users/alice/sncf/output-voyage"
+  },
+  "curate-justificatifs-achat": {
+    "in": "/Users/alice/sncf/inbox-achat",
+    "out": "/Users/alice/sncf/output-achat"
+  },
+  "draw-bilan-depenses-train": {
+    "in": "/Users/alice/sncf/output-achat",
+    "out": "/Users/alice/sncf/bilans"
+  }
+}
+```
+
+- Chemin vide `""` → comportement par défaut (`inbox/`, `output/`, ou répertoire courant).
+- Chemins absolus ou relatifs au répertoire de travail.
+- Les arguments CLI ont **toujours la priorité** sur la configuration.
+- Applicable uniquement quand aucun argument n'est passé (pour `draw-bilan-depenses-train`).
+
+---
+
 ## Structure du projet
 
 ```
