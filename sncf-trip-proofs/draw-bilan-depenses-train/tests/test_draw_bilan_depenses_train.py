@@ -23,6 +23,7 @@ parse_date_str = _mod.parse_date_str
 extract_ref_base = _mod.extract_ref_base
 fmt_eur = _mod.fmt_eur
 generate_report = _mod.generate_report
+load_config = _mod.load_config
 
 
 # ── 1. Reconnaissance des noms de fichiers ────────────────────────────────────
@@ -181,3 +182,54 @@ class TestGenerateReport:
         pos_mars = report.index("Mars 2026")
         pos_avril = report.index("Avril 2026")
         assert pos_mars < pos_avril
+
+
+# ── 6. Config ─────────────────────────────────────────────────────────────────
+
+class TestLoadConfig:
+    def test_missing_config(self, tmp_path):
+        in_p, out_p = load_config(tmp_path / "config.json")
+        assert in_p is None
+        assert out_p is None
+
+    def test_both_paths_configured(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"draw-bilan-depenses-train": {"in": "/c/in", "out": "/c/out"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p == Path("/c/in")
+        assert out_p == Path("/c/out")
+
+    def test_in_only_configured(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"draw-bilan-depenses-train": {"in": "/c/in", "out": ""}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p == Path("/c/in")
+        assert out_p is None
+
+    def test_out_only_configured(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"draw-bilan-depenses-train": {"out": "/c/out"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p == Path("/c/out")
+
+    def test_malformed_json(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text("not valid json{{{")
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p is None
+
+    def test_missing_script_section(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"curate-justificatifs-voyage": {"in": "/x", "out": "/y"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p is None
+
+    def test_empty_paths_treated_as_none(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"draw-bilan-depenses-train": {"in": "", "out": ""}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p is None

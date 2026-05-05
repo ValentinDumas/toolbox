@@ -12,6 +12,7 @@ Usage:
 
 import re
 import sys
+import json
 import logging
 import warnings
 import argparse
@@ -25,6 +26,21 @@ MOIS_FR = {
     5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
     9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre",
 }
+
+
+def load_config(config_path: Path | None = None) -> tuple[Path | None, Path | None]:
+    if config_path is None:
+        config_path = Path(__file__).parent.parent / "config.json"
+    if not config_path.exists():
+        return None, None
+    try:
+        cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        section = cfg.get("draw-bilan-depenses-train", {})
+        in_path = Path(section["in"]) if section.get("in") else None
+        out_path = Path(section["out"]) if section.get("out") else None
+        return in_path, out_path
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None, None
 
 RE_RENAMED_ACHAT = re.compile(
     r"justificatif-achat-(\d{8}(?:-\d{8})?)-(\d{1,4}-\d{2})ttc-(.+)\.pdf",
@@ -394,7 +410,9 @@ def main():
 
     match len(args.paths):
         case 0:
-            in_dir = out_dir = Path.cwd()
+            config_in, config_out = load_config()
+            in_dir = config_in if config_in else Path.cwd()
+            out_dir = config_out if config_out else Path.cwd()
         case 1:
             in_dir = out_dir = Path(args.paths[0])
         case 2:
