@@ -25,6 +25,7 @@ _parse_ref = _mod._parse_ref
 _parse_tcn = _mod._parse_tcn
 deduplicate_sources = _mod.deduplicate_sources
 resolve_conflicts = _mod.resolve_conflicts
+load_config = _mod.load_config
 
 
 # ── 1. Date ───────────────────────────────────────────────────────────────────
@@ -175,3 +176,54 @@ class TestDeduplication:
         result = resolve_conflicts([(a, self._fields()), (b, self._fields())])
         counters = sorted(f.counter for _, f in result if f is not None)
         assert counters == [1, 2]
+
+
+# ── 6. Config ─────────────────────────────────────────────────────────────────
+
+class TestLoadConfig:
+    def test_missing_config(self, tmp_path):
+        in_p, out_p = load_config(tmp_path / "config.json")
+        assert in_p is None
+        assert out_p is None
+
+    def test_both_paths_configured(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"curate-justificatifs-voyage": {"in": "/a/inbox", "out": "/a/output"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p == Path("/a/inbox")
+        assert out_p == Path("/a/output")
+
+    def test_in_only_configured(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"curate-justificatifs-voyage": {"in": "/a/inbox", "out": ""}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p == Path("/a/inbox")
+        assert out_p is None
+
+    def test_out_only_configured(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"curate-justificatifs-voyage": {"out": "/a/output"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p == Path("/a/output")
+
+    def test_malformed_json(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text("not valid json{{{")
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p is None
+
+    def test_missing_script_section(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"other-script": {"in": "/x", "out": "/y"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p is None
+
+    def test_empty_paths_treated_as_none(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"curate-justificatifs-voyage": {"in": "", "out": ""}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p is None
+        assert out_p is None

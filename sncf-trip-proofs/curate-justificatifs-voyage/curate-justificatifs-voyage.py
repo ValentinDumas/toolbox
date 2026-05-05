@@ -12,6 +12,7 @@ Structure attendue :
 
 import re
 import sys
+import json
 import hashlib
 import shutil
 import argparse
@@ -27,6 +28,21 @@ MOIS = {
 
 INBOX = Path("inbox")
 OUTPUT = Path("output")
+
+
+def load_config(config_path: Path | None = None) -> tuple[Path | None, Path | None]:
+    if config_path is None:
+        config_path = Path(__file__).parent.parent / "config.json"
+    if not config_path.exists():
+        return None, None
+    try:
+        cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        section = cfg.get("curate-justificatifs-voyage", {})
+        in_path = Path(section["in"]) if section.get("in") else None
+        out_path = Path(section["out"]) if section.get("out") else None
+        return in_path, out_path
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None, None
 
 
 # ── Modèle ────────────────────────────────────────────────────────────────────
@@ -265,6 +281,8 @@ def process_file(path: Path, fields: Fields, output_dir: Path, dry_run: bool) ->
 
 
 def main():
+    config_in, config_out = load_config()
+
     parser = argparse.ArgumentParser(description="Organise les justificatifs de voyage PDF")
     parser.add_argument("fichier", nargs="?", help="PDF à traiter (optionnel, sinon inbox/)")
     mode = parser.add_mutually_exclusive_group()
@@ -277,26 +295,28 @@ def main():
     dry_run = not args.real
 
     if args.fichier:
+        inbox = Path(args.fichier).parent
+        output_dir = inbox
         files = [Path(args.fichier)]
-        output_dir = Path(args.fichier).parent
     else:
-        if not INBOX.exists():
-            print(f"Dossier '{INBOX}' introuvable. Créez-le et déposez vos PDFs dedans.")
+        inbox = config_in if config_in else INBOX
+        output_dir = config_out if config_out else OUTPUT
+        if not inbox.exists():
+            print(f"Dossier '{inbox}' introuvable. Créez-le et déposez vos PDFs dedans.")
             sys.exit(1)
-        files = sorted(INBOX.glob("*.pdf"))
-        output_dir = OUTPUT
+        files = sorted(inbox.glob("*.pdf"))
 
     if not files:
-        print(f"Aucun fichier PDF trouvé dans '{INBOX}'.")
+        print(f"Aucun fichier PDF trouvé dans '{inbox}'.")
         sys.exit(0)
 
-    if not dry_run and output_dir == OUTPUT:
+    if not dry_run and not args.fichier:
         wipe_output(output_dir)
 
     files = deduplicate_sources(files)
 
     print(f"Mode    : {'DRY-RUN (simulation)' if dry_run else 'RÉEL (output/ régénéré)'}")
-    print(f"Source  : {args.fichier or INBOX}")
+    print(f"Source  : {inbox}")
     print(f"Sortie  : {output_dir}")
     print(f"Fichiers: {len(files)}")
 
