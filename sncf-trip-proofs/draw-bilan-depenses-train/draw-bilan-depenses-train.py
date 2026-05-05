@@ -27,12 +27,12 @@ MOIS_FR = {
 }
 
 RE_RENAMED_ACHAT = re.compile(
-    r"justificatif_achat_(\d{8}(?:-\d{8})?)_(\d{1,4}-\d{2})TTC_(.+)\.pdf",
+    r"justificatif-achat-(\d{8}(?:-\d{8})?)-(\d{1,4}-\d{2})ttc-(.+)\.pdf",
     re.IGNORECASE,
 )
 
 RE_RENAMED_VOYAGE = re.compile(
-    r"JustificatifVoyage_(\d{8})_(\d{1,4}-\d{2})TTC_([A-Z0-9]+(?:_\d{6,12})?)(?:_\d{1,3})?\.pdf",
+    r"justificatif-voyage-(\d{8})-(\d{1,4}-\d{2})ttc-([a-z0-9]+(?:-\d{6,12})?)(?:-\d{1,3})?\.pdf",
     re.IGNORECASE,
 )
 

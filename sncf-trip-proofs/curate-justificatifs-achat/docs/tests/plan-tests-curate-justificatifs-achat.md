@@ -46,11 +46,11 @@ Vérifier que le script renomme correctement les justificatifs d'achat SNCF Conn
 
 | # | Situation | Résultat attendu |
 |---|---|---|
-| 4.1 | Tous les champs présents | `justificatif_achat_20260402_18-50TTC_2668453920-20260330.pdf` |
-| 4.2 | Date manquante | `justificatif_achat_DATE_INCONNUE_18-50TTC_2668453920-20260330.pdf` |
-| 4.3 | Montant manquant | `justificatif_achat_20260402_PRIX_INCONNU_2668453920-20260330.pdf` |
-| 4.4 | Référence manquante | `justificatif_achat_20260402_18-50TTC_REF_INCONNUE.pdf` |
-| 4.5 | Conflit résolu — avec suffixe numérique | `justificatif_achat_20260402_18-50TTC_REF_1.pdf` (counter=1) |
+| 4.1 | Tous les champs présents | `justificatif-achat-20260402-18-50ttc-2668453920-20260330.pdf` |
+| 4.2 | Date manquante | `justificatif-achat-date-inconnue-18-50ttc-2668453920-20260330.pdf` |
+| 4.3 | Montant manquant | `justificatif-achat-20260402-prix-inconnu-2668453920-20260330.pdf` |
+| 4.4 | Référence manquante | `justificatif-achat-20260402-18-50ttc-ref-inconnue.pdf` |
+| 4.5 | Conflit résolu — avec suffixe numérique | `justificatif-achat-20260402-18-50ttc-ref-1.pdf` (counter=1) |
 
 ### 5. Déduplication — Passe 1 (sources identiques)
 

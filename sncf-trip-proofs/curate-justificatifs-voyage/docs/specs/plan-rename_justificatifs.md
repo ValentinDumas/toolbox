@@ -3,11 +3,11 @@
 ## Objectif
 
 Organiser automatiquement des PDFs de justificatifs de transport SNCF au format :
-`JustificatifVoyage_<DATE>_<PRIX>_<REFERENCE>[_<TCN>][_<N>].pdf`
+`justificatif-voyage-<DATE>-<PRIX>-<REFERENCE>[-<TCN>][-<N>].pdf`
 
 Exemples :
-- `JustificatifVoyage_20260316_15-60TTC_D56QEJ.pdf` (Structure A — pas de TCN)
-- `JustificatifVoyage_20260326_10-00TTC_M56QD3_016404373.pdf` (Structure B — avec TCN)
+- `justificatif-voyage-20260316-15-60ttc-D56qej.pdf` (Structure A — pas de TCN)
+- `justificatif-voyage-20260326-10-00ttc-M56qd3-016404373.pdf` (Structure B — avec TCN)
 
 ---
 
@@ -198,8 +198,8 @@ Appelée **après extraction**, sur la liste des `(path, fields)`.
    - **Différents** → trier par date de création, numéroter `_1`, `_2`, … en suffixe
 
 **Format résultant avec compteur** :
-- `JustificatifVoyage_20260416_18-50TTC_N4M4XX_016733616_1.pdf`
-- `JustificatifVoyage_20260416_18-50TTC_N4M4XX_016733616_2.pdf`
+- `justificatif-voyage-20260416-18-50ttc-N4M4xx-016733616-1.pdf`
+- `justificatif-voyage-20260416-18-50ttc-N4M4xx-016733616-2.pdf`
 
 ---
 

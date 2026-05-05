@@ -44,12 +44,13 @@ class Fields:
 
     @property
     def filename(self) -> str:
-        suffix = f"_{self.counter}" if self.counter is not None else ""
+        suffix = f"-{self.counter}" if self.counter is not None else ""
+        amount = (self.amount or "prix-inconnu").lower()
         return (
-            f"justificatif_achat"
-            f"_{self.date or 'DATE_INCONNUE'}"
-            f"_{self.amount or 'PRIX_INCONNU'}"
-            f"_{self.ref or 'REF_INCONNUE'}"
+            f"justificatif-achat"
+            f"-{self.date or 'date-inconnue'}"
+            f"-{amount}"
+            f"-{self.ref or 'ref-inconnue'}"
             f"{suffix}.pdf"
         )
 

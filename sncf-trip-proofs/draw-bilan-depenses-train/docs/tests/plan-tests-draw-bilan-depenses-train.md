@@ -12,11 +12,11 @@ Vérifier que le script lit correctement les justificatifs renommés et produit 
 
 | # | Situation | Nom de fichier | Résultat attendu |
 |---|---|---|---|
-| 1.1 | Justificatif d'achat simple | `justificatif_achat_20260402_18-50TTC_2668453920-20260330.pdf` | date=`20260402`, montant=`18.50`, ref=`2668453920-20260330` |
-| 1.2 | Justificatif d'achat multi-dates | `justificatif_achat_20260423-20260424_57-00TTC_1480540391-20260504.pdf` | date=`20260423` (première date), montant=`57.00` |
-| 1.3 | Justificatif de voyage sans TCN | `JustificatifVoyage_20260316_15-60TTC_D56QEJ.pdf` | date=`20260316`, montant=`15.60`, ref=`D56QEJ` |
-| 1.4 | Justificatif de voyage avec TCN | `JustificatifVoyage_20260326_10-00TTC_M56QD3_016404373.pdf` | date=`20260326`, montant=`10.00` |
-| 1.5 | Justificatif de voyage avec suffixe conflit | `JustificatifVoyage_20260416_18-50TTC_N4M4XX_016733616_1.pdf` | date=`20260416`, montant=`18.50` |
+| 1.1 | Justificatif d'achat simple | `justificatif-achat-20260402-18-50ttc-2668453920-20260330.pdf` | date=`20260402`, montant=`18.50`, ref=`2668453920-20260330` |
+| 1.2 | Justificatif d'achat multi-dates | `justificatif-achat-20260423-20260424-57-00ttc-1480540391-20260504.pdf` | date=`20260423` (première date), montant=`57.00` |
+| 1.3 | Justificatif de voyage sans TCN | `justificatif-voyage-20260316-15-60ttc-D56qej.pdf` | date=`20260316`, montant=`15.60`, ref=`D56QEJ` |
+| 1.4 | Justificatif de voyage avec TCN | `justificatif-voyage-20260326-10-00ttc-M56qd3-016404373.pdf` | date=`20260326`, montant=`10.00` |
+| 1.5 | Justificatif de voyage avec suffixe conflit | `justificatif-voyage-20260416-18-50ttc-N4M4xx-016733616-1.pdf` | date=`20260416`, montant=`18.50` |
 | 1.6 | Nom non reconnu | `facture_sncf.pdf` | `None` (non reconnu) |
 
 ### 2. Validation de date

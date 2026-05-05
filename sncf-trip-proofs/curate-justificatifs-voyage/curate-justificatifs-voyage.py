@@ -45,13 +45,14 @@ class Fields:
 
     @property
     def filename(self) -> str:
-        tcn_part = f"_{self.tcn}" if self.tcn else ""
-        counter_part = f"_{self.counter}" if self.counter is not None else ""
+        tcn_part = f"-{self.tcn}" if self.tcn else ""
+        counter_part = f"-{self.counter}" if self.counter is not None else ""
+        amount = (self.amount or "prix-inconnu").lower()
         return (
-            f"JustificatifVoyage"
-            f"_{self.date or 'DATE_INCONNUE'}"
-            f"_{self.amount or 'PRIX_INCONNU'}"
-            f"_{self.ref or 'REF_INCONNUE'}"
+            f"justificatif-voyage"
+            f"-{self.date or 'date-inconnue'}"
+            f"-{amount}"
+            f"-{(self.ref or 'ref-inconnue').lower()}"
             f"{tcn_part}{counter_part}.pdf"
         )
 

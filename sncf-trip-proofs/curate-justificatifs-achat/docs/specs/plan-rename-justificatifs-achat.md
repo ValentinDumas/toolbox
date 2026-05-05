@@ -3,13 +3,13 @@
 ## Objectif
 
 Organiser automatiquement des PDFs de justificatifs d'achat SNCF Connect au format :
-`justificatif_achat_<DATES>_<PRIX>_<REF>[_<N>].pdf`
+`justificatif-achat-<DATES>-<PRIX>-<REF>[-<N>].pdf`
 
 1 PDF = 1 commande. Une commande peut contenir plusieurs tickets sur plusieurs jours. `<DATES>` représente la période réelle couverte.
 
 Exemples :
-- `justificatif_achat_20260316_10-00TTC_2012890177-20260315.pdf` (1 ticket, 1 jour)
-- `justificatif_achat_20260423-20260424_57-00TTC_1480540391-20260504.pdf` (4 tickets, 2 jours)
+- `justificatif-achat-20260316-10-00ttc-2012890177-20260315.pdf` (1 ticket, 1 jour)
+- `justificatif-achat-20260423-20260424-57-00ttc-1480540391-20260504.pdf` (4 tickets, 2 jours)
 
 ---
 
@@ -158,8 +158,8 @@ Appelée **après extraction**, sur la liste des `(path, fields)`.
    - **Différents** → trier par date de création, numéroter `_1`, `_2`, … en suffixe
 
 **Format résultant avec compteur** :
-- `justificatif_achat_20260327_18-50TTC_2668453920-20260330_1.pdf`
-- `justificatif_achat_20260327_18-50TTC_2668453920-20260330_2.pdf`
+- `justificatif-achat-20260327-18-50ttc-2668453920-20260330-1.pdf`
+- `justificatif-achat-20260327-18-50ttc-2668453920-20260330-2.pdf`
 
 ---
 

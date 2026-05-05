@@ -29,7 +29,7 @@ generate_report = _mod.generate_report
 
 class TestParseRenamedFilename:
     def test_achat_simple(self):
-        r = parse_renamed_filename("justificatif_achat_20260402_18-50TTC_2668453920-20260330.pdf")
+        r = parse_renamed_filename("justificatif-achat-20260402-18-50ttc-2668453920-20260330.pdf")
         assert r is not None
         date_part, amount, ref = r
         assert date_part == "20260402"
@@ -37,35 +37,35 @@ class TestParseRenamedFilename:
         assert ref == "2668453920-20260330"
 
     def test_achat_multi_dates_utilise_premiere_date(self):
-        r = parse_renamed_filename("justificatif_achat_20260423-20260424_57-00TTC_1480540391-20260504.pdf")
+        r = parse_renamed_filename("justificatif-achat-20260423-20260424-57-00ttc-1480540391-20260504.pdf")
         assert r is not None
         date_part, amount, _ = r
         assert date_part[:8] == "20260423"
         assert amount == 57.00
 
     def test_voyage_sans_tcn(self):
-        r = parse_renamed_filename("JustificatifVoyage_20260316_15-60TTC_D56QEJ.pdf")
+        r = parse_renamed_filename("justificatif-voyage-20260316-15-60ttc-d56qej.pdf")
         assert r is not None
         date_part, amount, ref = r
         assert date_part == "20260316"
         assert amount == 15.60
-        assert ref == "D56QEJ"
+        assert ref == "d56qej"
 
     def test_voyage_avec_tcn(self):
-        r = parse_renamed_filename("JustificatifVoyage_20260326_10-00TTC_M56QD3_016404373.pdf")
+        r = parse_renamed_filename("justificatif-voyage-20260326-10-00ttc-m56qd3-016404373.pdf")
         assert r is not None
         _, amount, _ = r
         assert amount == 10.00
 
     def test_voyage_avec_suffixe_conflit(self):
-        r = parse_renamed_filename("JustificatifVoyage_20260416_18-50TTC_N4M4XX_016733616_1.pdf")
+        r = parse_renamed_filename("justificatif-voyage-20260416-18-50ttc-n4m4xx-016733616-1.pdf")
         assert r is not None
         date_part, amount, _ = r
         assert date_part == "20260416"
         assert amount == 18.50
 
     def test_nom_non_reconnu(self):
-        assert parse_renamed_filename("facture_sncf.pdf") is None
+        assert parse_renamed_filename("facture-sncf.pdf") is None
 
     def test_nom_vide(self):
         assert parse_renamed_filename("") is None

@@ -48,12 +48,12 @@ Vérifier que le script renomme correctement les justificatifs de voyage SNCF Co
 
 | # | Situation | Résultat attendu |
 |---|---|---|
-| 5.1 | Tous champs, sans TCN | `JustificatifVoyage_20260316_15-60TTC_D56QEJ.pdf` |
-| 5.2 | Tous champs, avec TCN | `JustificatifVoyage_20260326_10-00TTC_M56QD3_016404373.pdf` |
-| 5.3 | Date manquante | `JustificatifVoyage_DATE_INCONNUE_15-60TTC_D56QEJ.pdf` |
-| 5.4 | Montant manquant | `JustificatifVoyage_20260316_PRIX_INCONNU_D56QEJ.pdf` |
-| 5.5 | Référence manquante | `JustificatifVoyage_20260316_15-60TTC_REF_INCONNUE.pdf` |
-| 5.6 | Conflit résolu — avec suffixe numérique | `JustificatifVoyage_20260416_18-50TTC_N4M4XX_016733616_1.pdf` |
+| 5.1 | Tous champs, sans TCN | `justificatif-voyage-20260316-15-60ttc-D56qej.pdf` |
+| 5.2 | Tous champs, avec TCN | `justificatif-voyage-20260326-10-00ttc-M56qd3-016404373.pdf` |
+| 5.3 | Date manquante | `justificatif-voyage-date-inconnue-15-60ttc-D56qej.pdf` |
+| 5.4 | Montant manquant | `justificatif-voyage-20260316-prix-inconnu-D56qej.pdf` |
+| 5.5 | Référence manquante | `justificatif-voyage-20260316-15-60ttc-ref-inconnue.pdf` |
+| 5.6 | Conflit résolu — avec suffixe numérique | `justificatif-voyage-20260416-18-50ttc-N4M4xx-016733616-1.pdf` |
 
 ### 6. Déduplication — Passe 1 (sources identiques)
 

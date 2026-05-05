@@ -12,14 +12,14 @@ flowchart TD
     classDef script   fill:#EE7733,stroke:#C05A1A,color:#fff
     classDef artifact fill:#AA3377,stroke:#7A2255,color:#fff
 
-    V[/"JustificatifVoyage.pdf (bruts)"/]:::input
+    V[/"justificatif-voyage.pdf (bruts)"/]:::input
     A[/"justificatif_achat.pdf (bruts)"/]:::input
 
     V --> CV["curate-justificatifs-voyage --real"]:::script
     A --> CA["curate-justificatifs-achat --real"]:::script
 
-    CV --> OV[/"JustificatifVoyage_DATE_PRIX_REF.pdf"/]:::artifact
-    CA --> OA[/"justificatif_achat_DATE_PRIX_REF.pdf"/]:::artifact
+    CV --> OV[/"justificatif-voyage-date-prix-ref.pdf"/]:::artifact
+    CA --> OA[/"justificatif-achat-date-prix-ref.pdf"/]:::artifact
 
     OV --> B["draw-bilan-depenses-train"]:::script
     OA --> B
@@ -66,7 +66,7 @@ python3 curate-justificatifs-achat.py          # dry-run — vérifie les noms g
 python3 curate-justificatifs-achat.py --real   # applique — copie dans output/
 cd ..
 
-# Justificatifs de voyage (JustificatifVoyage_*.pdf)
+# Justificatifs de voyage (justificatif-voyage-*.pdf)
 cd curate-justificatifs-voyage/
 python3 curate-justificatifs-voyage.py          # dry-run — vérifie les noms générés
 python3 curate-justificatifs-voyage.py --real   # applique — copie dans output/
@@ -124,26 +124,26 @@ sncf-trip-proofs/
 ### Justificatifs d'achat (`curate-justificatifs-achat`)
 
 ```
-justificatif_achat_<DATES>_<PRIX>_<REF>[_N].pdf
+justificatif-achat-<DATES>-<PRIX>-<REF>[-N].pdf
 ```
 
 ```
 20260402_0701_JustificatifAchat_SNCFCONNECT.pdf
-    → justificatif_achat_20260402_18-50TTC_1917346212-20260504.pdf
+    → justificatif-achat-20260402-18-50ttc-1917346212-20260504.pdf
 
 20260423_JustificatifAchat_SNCFCONNECT.pdf   (4 tickets, 2 jours)
-    → justificatif_achat_20260423-20260424_57-00TTC_1480540391-20260504.pdf
+    → justificatif-achat-20260423-20260424-57-00ttc-1480540391-20260504.pdf
 ```
 
 ### Justificatifs de voyage (`curate-justificatifs-voyage`)
 
 ```
-JustificatifVoyage_<DATE>_<PRIX>_<REF>[_<TCN>][_N].pdf
+justificatif-voyage-<DATE>-<PRIX>-<REF>[-<TCN>][-N].pdf
 ```
 
 ```
-JustificatifVoyage_brut.pdf
-    → JustificatifVoyage_20260402_18-50TTC_NE3ERM_016487606.pdf
+justificatif-voyage-brut.pdf
+    → justificatif-voyage-20260402-18-50ttc-ne3erm-016487606.pdf
 ```
 
 ---
@@ -159,11 +159,11 @@ Lecture de : /…/curate-justificatifs-voyage/output
 ── Détail des trajets ──────────────────────────────
 
   16/03/2026  (1 trajet(s) — 15,60 €)
-    • [calc] 15,60 €  ←  JustificatifVoyage_20260316_15-60TTC_D56QEJ.pdf
+    • [calc] 15,60 €  ←  justificatif-voyage-20260316-15-60ttc-D56qej.pdf
 
   02/04/2026  (2 trajet(s) — 37,00 €)
-    • [calc] 18,50 €  ←  JustificatifVoyage_20260402_18-50TTC_NE3ERM_016487606.pdf
-    • [calc] 18,50 €  ←  JustificatifVoyage_20260402_18-50TTC_NE3T6X_016487554.pdf
+    • [calc] 18,50 €  ←  justificatif-voyage-20260402-18-50ttc-ne3erm-016487606.pdf
+    • [calc] 18,50 €  ←  justificatif-voyage-20260402-18-50ttc-ne3t6x-016487554.pdf
   …
 
 ✓ Bilan généré : bilan-depenses-train-2026.md

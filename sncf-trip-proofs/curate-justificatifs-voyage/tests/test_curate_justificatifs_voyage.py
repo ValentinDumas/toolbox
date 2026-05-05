@@ -104,27 +104,27 @@ class TestParseTcn:
 class TestFieldsFilename:
     def test_sans_tcn(self):
         f = Fields(date="20260316", amount="15-60TTC", ref="D56QEJ", tcn=None)
-        assert f.filename == "JustificatifVoyage_20260316_15-60TTC_D56QEJ.pdf"
+        assert f.filename == "justificatif-voyage-20260316-15-60ttc-d56qej.pdf"
 
     def test_avec_tcn(self):
         f = Fields(date="20260326", amount="10-00TTC", ref="M56QD3", tcn="016404373")
-        assert f.filename == "JustificatifVoyage_20260326_10-00TTC_M56QD3_016404373.pdf"
+        assert f.filename == "justificatif-voyage-20260326-10-00ttc-m56qd3-016404373.pdf"
 
     def test_date_manquante(self):
         f = Fields(date=None, amount="15-60TTC", ref="D56QEJ", tcn=None)
-        assert "DATE_INCONNUE" in f.filename
+        assert "date-inconnue" in f.filename
 
     def test_montant_manquant(self):
         f = Fields(date="20260316", amount=None, ref="D56QEJ", tcn=None)
-        assert "PRIX_INCONNU" in f.filename
+        assert "prix-inconnu" in f.filename
 
     def test_reference_manquante(self):
         f = Fields(date="20260316", amount="15-60TTC", ref=None, tcn=None)
-        assert "REF_INCONNUE" in f.filename
+        assert "ref-inconnue" in f.filename
 
     def test_avec_suffixe_conflit(self):
         f = Fields(date="20260416", amount="18-50TTC", ref="N4M4XX", tcn="016733616", counter=1)
-        assert f.filename == "JustificatifVoyage_20260416_18-50TTC_N4M4XX_016733616_1.pdf"
+        assert f.filename == "justificatif-voyage-20260416-18-50ttc-n4m4xx-016733616-1.pdf"
 
     def test_champs_manquants_listes(self):
         f = Fields(date=None, amount=None, ref="D56QEJ", tcn=None)

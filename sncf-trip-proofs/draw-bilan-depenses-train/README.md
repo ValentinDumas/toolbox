@@ -48,8 +48,8 @@ Les deux types de justificatifs renommés sont supportés :
 
 | Type | Format attendu |
 |---|---|
-| Achat | `justificatif_achat_DATE_PRIX_REF.pdf` |
-| Voyage | `JustificatifVoyage_DATE_PRIX_REF[_TCN][_N].pdf` |
+| Achat | `justificatif-achat-date-prix-ref.pdf` |
+| Voyage | `justificatif-voyage-date-prix-REF[-TCN][-N].pdf` |
 
 Les fichiers au nom non reconnu déclenchent une tentative de lecture PDF (fallback). S'ils sont illisibles, ils apparaissent dans la section "Fichiers non traités" du bilan.
 

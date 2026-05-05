@@ -121,23 +121,23 @@ class TestParseRef:
 class TestFieldsFilename:
     def test_tous_champs_presents(self):
         f = Fields(date="20260402", amount="18-50TTC", ref="2668453920-20260330")
-        assert f.filename == "justificatif_achat_20260402_18-50TTC_2668453920-20260330.pdf"
+        assert f.filename == "justificatif-achat-20260402-18-50ttc-2668453920-20260330.pdf"
 
     def test_date_manquante(self):
         f = Fields(date=None, amount="18-50TTC", ref="2668453920-20260330")
-        assert "DATE_INCONNUE" in f.filename
+        assert "date-inconnue" in f.filename
 
     def test_montant_manquant(self):
         f = Fields(date="20260402", amount=None, ref="2668453920-20260330")
-        assert "PRIX_INCONNU" in f.filename
+        assert "prix-inconnu" in f.filename
 
     def test_reference_manquante(self):
         f = Fields(date="20260402", amount="18-50TTC", ref=None)
-        assert "REF_INCONNUE" in f.filename
+        assert "ref-inconnue" in f.filename
 
     def test_avec_suffixe_conflit(self):
         f = Fields(date="20260402", amount="18-50TTC", ref="REF", counter=1)
-        assert f.filename.endswith("_1.pdf")
+        assert f.filename.endswith("-1.pdf")
 
     def test_champs_manquants_listes(self):
         f = Fields(date=None, amount=None, ref="REF")
