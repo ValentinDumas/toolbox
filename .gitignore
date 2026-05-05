@@ -219,6 +219,3 @@ __marimo__/
 
 # macOS
 .DS_Store
-
-# Local toolbox config (personal paths)
-sncf-trip-proofs/config.json
