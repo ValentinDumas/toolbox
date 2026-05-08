@@ -1,0 +1,20 @@
+# ── Données sensibles ─────────────────────────────────────────────────────────
+config.toml
+input/
+processed/
+errors/
+output/
+review/
+data/
+
+# ── Environnements Python ──────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── IDE / outils de brainstorm ────────────────────────────────────────────────
+.superpowers/
