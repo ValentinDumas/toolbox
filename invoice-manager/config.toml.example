@@ -1,0 +1,77 @@
+# Invoice Manager — Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Utilisation :
+#   cp config.toml.example config.toml
+#   Modifie les valeurs ci-dessous selon ton environnement.
+#
+# Ce fichier est OPTIONNEL. Si absent ou invalide, les scripts fonctionnent
+# avec les valeurs par défaut intégrées (voir config.py → DEFAULT_CONFIG).
+#
+# Priorité : arguments CLI > config.toml > valeurs par défaut
+# ─────────────────────────────────────────────────────────────────────────────
+
+[extraction]
+
+# Moteur d'extraction.
+#   local  → pdfplumber (texte natif) + pytesseract OCR (fallback) — offline, gratuit
+#   claude → Claude Vision API — meilleure qualité sur docs complexes, nécessite internet
+backend = "local"
+
+# Score de confiance minimum (0.0–1.0).
+# En dessous de ce seuil, l'entrée est flaggée "à réviser" dans review.csv.
+# 0.8 = au moins 4 des 5 champs clés extraits (date, TTC, HT, n° facture, SIREN/TVA).
+confidence_threshold = 0.8
+
+# Langues Tesseract OCR (séparées par "+").
+# Liste complète : https://github.com/tesseract-ocr/tessdata
+ocr_lang = "fra+eng"
+
+# Résolution utilisée pour convertir les PDFs en images avant OCR (DPI).
+# 300 = recommandé. Augmenter si l'OCR rate des caractères fins.
+ocr_dpi = 300
+
+
+[identity]
+
+# Ton identité fiscale — utilisée pour détecter automatiquement tes factures émises.
+# Laisser vide si non applicable.
+nom          = ""   # Nom ou raison sociale (ex: "Valentin Dumas" ou "VSDP SAS")
+siren        = ""   # 9 chiffres (ex: "123456789")
+tva_intracom = ""   # FR + 2 chiffres + SIREN (ex: "FR12123456789")
+
+
+[fiscal]
+
+# Profil fiscal par défaut appliqué à l'extraction et à l'export.
+# Valeurs : auto-entrepreneur | SASU | SARL | salarié
+# Peut être surchargé à l'export : python3 export.py --statut SASU
+default_profile = "auto-entrepreneur"
+
+# Cadence de déclaration fiscale.
+# Laisser vide pour utiliser le défaut du profil :
+#   auto-entrepreneur → trimestrielle
+#   SASU / SARL       → mensuelle
+#   salarié           → annuelle
+# Valeurs : mensuelle | trimestrielle | annuelle
+"cadence_déclaration" = ""   # guillemets requis — clé non-ASCII en TOML
+
+
+[paths]
+
+# Dossier de dépôt des fichiers à traiter.
+input = "input/"
+
+# Dossier de destination des fichiers traités avec succès.
+processed = "processed/"
+
+# Dossier de destination des fichiers non reconnus (révision manuelle requise).
+errors = "errors/"
+
+# Chemin de la base SQLite (source de vérité).
+db = "data/invoices.db"
+
+# Dossier de sortie pour les exports CSV et XLSX.
+output = "output/"
+
+# Dossier pour le fichier de révision batch.
+review = "review/"
