@@ -77,6 +77,26 @@ class TestLoadConfig:
         assert DEFAULT_CONFIG == before
 
 
+class TestNewOCRConfigKeys:
+    def test_defaults_present(self):
+        from config import DEFAULT_CONFIG
+        ext = DEFAULT_CONFIG["extraction"]
+        assert "ocr_preprocess" in ext
+        assert ext["ocr_preprocess"] is True
+        assert "ocr_easyocr_fallback" in ext
+        assert ext["ocr_easyocr_fallback"] is False
+        assert "ocr_easyocr_threshold" in ext
+        assert ext["ocr_easyocr_threshold"] == 0.4
+
+    def test_easyocr_keys_merged_from_toml(self, tmp_path):
+        from config import load_config
+        cfg_file = tmp_path / "config.toml"
+        cfg_file.write_text('[extraction]\nocr_easyocr_fallback = true\nocr_easyocr_threshold = 0.3\n')
+        cfg = load_config(cfg_file)
+        assert cfg["extraction"]["ocr_easyocr_fallback"] is True
+        assert cfg["extraction"]["ocr_easyocr_threshold"] == 0.3
+
+
 class TestCadenceDefaults:
     def test_ae_default_trimestrielle(self):
         from config import CADENCE_DEFAULTS

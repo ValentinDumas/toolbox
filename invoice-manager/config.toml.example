@@ -30,6 +30,23 @@ ocr_lang = "fra+eng"
 # 300 = recommandé. Augmenter si l'OCR rate des caractères fins.
 ocr_dpi = 300
 
+# Pré-traitement image avant OCR : dénoise bilateral, correction de perspective,
+# binarisation adaptative gaussienne, deskew.
+# Améliore la précision sur photos de téléphone (éclairage variable, angle, grain).
+# Nécessite : pip install opencv-python-headless numpy
+# Désactiver si régression sur certains documents.
+ocr_preprocess = true
+
+# Fallback EasyOCR si Tesseract retourne un résultat de faible qualité.
+# Nécessite : pip install easyocr
+# Plus lent (3–8s/image) mais bien meilleur sur photos difficiles.
+ocr_easyocr_fallback = false
+
+# Seuil de déclenchement EasyOCR (0.0–1.0).
+# Proxy = ratio alphanumérique dans le texte Tesseract.
+# 0.4 = moins de 40 % de caractères alphanumériques → texte probablement bruité.
+ocr_easyocr_threshold = 0.4
+
 
 [identity]
 
