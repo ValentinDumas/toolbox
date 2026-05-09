@@ -115,7 +115,7 @@ Priorité de résolution : **CLI args > config.toml > valeurs par défaut intég
 | `extraction.ocr_lang` | `fra+eng` | Langues Tesseract |
 | `extraction.ocr_dpi` | `300` | Résolution PDF→image pour l'OCR |
 | `extraction.ocr_preprocess` | `true` | Preprocessing image (denoise, perspective, binarisation, deskew) |
-| `extraction.ocr_easyocr_fallback` | `false` | Fallback EasyOCR si confiance Tesseract insuffisante (`pip install easyocr`) |
+| `extraction.ocr_easyocr_fallback` | `true` | Fallback EasyOCR si confiance Tesseract insuffisante — recommandé (`pip install easyocr`) |
 | `extraction.ocr_easyocr_threshold` | `0.4` | Seuil de déclenchement EasyOCR (ratio alphanumérique, 0–1) |
 | `fiscal.default_profile` | `auto-entrepreneur` | Profil fiscal — voir tableau statuts ci-dessous |
 | `fiscal.cadence_déclaration` | `""` | Vide = cadence par défaut du profil (`trimestrielle` pour AE) |

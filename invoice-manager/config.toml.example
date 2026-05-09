@@ -40,7 +40,9 @@ ocr_preprocess = true
 # Fallback EasyOCR si Tesseract retourne un résultat de faible qualité.
 # Nécessite : pip install easyocr
 # Plus lent (3–8s/image) mais bien meilleur sur photos difficiles.
-ocr_easyocr_fallback = false
+# Recommandé : true — améliore significativement la précision sur les photos de tickets.
+# Mettre à false uniquement si easyocr n'est pas installé ou si la vitesse prime sur la qualité.
+ocr_easyocr_fallback = true
 
 # Seuil de déclenchement EasyOCR (0.0–1.0).
 # Proxy = ratio alphanumérique dans le texte Tesseract.
