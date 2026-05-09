@@ -113,14 +113,16 @@ def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
     }
 
 
-def query_items_a_reviser(conn: sqlite3.Connection) -> list:
-    """Retourne les items non encore validés : à_réviser (prioritaires) puis auto_validé."""
+def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:
+    """Retourne les items non encore validés pour l'année donnée : à_réviser (prioritaires) puis auto_validé."""
     rows = conn.execute(
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
         "confiance, fichier_source, texte_brut, statut_révision "
         "FROM invoices WHERE statut_révision IN ('à_réviser', 'auto_validé') AND deleted_at IS NULL "
-        "ORDER BY CASE statut_révision WHEN 'à_réviser' THEN 0 ELSE 1 END, date_document"
+        "AND exercice_fiscal=? "
+        "ORDER BY CASE statut_révision WHEN 'à_réviser' THEN 0 ELSE 1 END, date_document",
+        (year,),
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -192,7 +194,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             summary = query_fiscal_summary(conn, year)
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, cfg)
-            items_a_reviser_list = query_items_a_reviser(conn)
+            items_a_reviser_list = query_items_a_reviser(conn, year)
             items_validés_list = _query_validés(conn)
             corbeille_list = query_corbeille(conn)
             years = [r[0] for r in conn.execute(
