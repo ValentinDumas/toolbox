@@ -133,7 +133,7 @@ darty     = "Darty"
 leroy     = "Leroy Merlin"
 ```
 
-Le mot-clé est insensible à la casse. Il ne s'applique que si aucun émetteur n'a été détecté dans l'en-tête — il ne remplace jamais un nom déjà trouvé.
+Le mot-clé est insensible à la casse et supporte le **fuzzy matching** : 1 à 2 caractères manquants ou corrompus (ex. `"BOULANGE"` au lieu de `"BOULANGER"`) sont tolérés automatiquement. Il ne s'applique que si aucun émetteur n'a été détecté dans l'en-tête — il ne remplace jamais un nom déjà trouvé. Aucune enseigne n'est codée en dur : tout passe par ce dictionnaire.
 
 Toutes les clés sont optionnelles individuellement — seules les valeurs que tu surcharges sont nécessaires.
 Voir `config.toml.example` pour la documentation complète et commentée de chaque option.
