@@ -127,24 +127,27 @@ def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:
     return [dict(r) for r in rows]
 
 
-def _query_validés(conn: sqlite3.Connection) -> list:
-    """Retourne les items validés — pour les formulaires de correction tracée."""
+def _query_validés(conn: sqlite3.Connection, year: int) -> list:
+    """Retourne les items validés pour l'année donnée."""
     rows = conn.execute(
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
         "confiance, fichier_source, texte_brut, statut_révision, corrections_log "
-        "FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL ORDER BY date_document DESC"
+        "FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL "
+        "AND exercice_fiscal=? ORDER BY date_document ASC",
+        (year,),
     ).fetchall()
     return [dict(r) for r in rows]
 
 
-def query_corbeille(conn: sqlite3.Connection) -> list:
-    """Retourne les items soft-deleted, les plus récents en premier."""
+def query_corbeille(conn: sqlite3.Connection, year: int) -> list:
+    """Retourne les items soft-deleted pour l'année donnée."""
     rows = conn.execute(
         "SELECT id, fichier_source, émetteur_nom, montant_ttc, type_document, "
         "date_document, deleted_at "
-        "FROM invoices WHERE deleted_at IS NOT NULL "
-        "ORDER BY deleted_at DESC"
+        "FROM invoices WHERE deleted_at IS NOT NULL AND exercice_fiscal=? "
+        "ORDER BY deleted_at DESC",
+        (year,),
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -195,8 +198,8 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, cfg)
             items_a_reviser_list = query_items_a_reviser(conn, year)
-            items_validés_list = _query_validés(conn)
-            corbeille_list = query_corbeille(conn)
+            items_validés_list = _query_validés(conn, year)
+            corbeille_list = query_corbeille(conn, year)
             years = [r[0] for r in conn.execute(
                 "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
             ).fetchall()] or [datetime.now().year]
