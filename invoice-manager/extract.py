@@ -107,6 +107,49 @@ def extract_text_pdf(path: Path, ocr_lang: str, ocr_dpi: int) -> str:
     images = convert_from_bytes(path.read_bytes(), dpi=ocr_dpi)
     return "\n".join(pytesseract.image_to_string(img, lang=ocr_lang) for img in images).strip()
 
+def _order_points(pts):
+    import numpy as np
+    rect = np.zeros((4, 2), dtype=np.float32)
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]    # top-left
+    rect[2] = pts[np.argmax(s)]    # bottom-right
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)] # top-right
+    rect[3] = pts[np.argmax(diff)] # bottom-left
+    return rect
+
+
+def _correct_perspective(arr):
+    import cv2
+    import numpy as np
+    h, w = arr.shape[:2]
+    gray = cv2.cvtColor(arr, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 75, 200)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return arr
+    for cnt in sorted(contours, key=cv2.contourArea, reverse=True)[:5]:
+        peri = cv2.arcLength(cnt, True)
+        approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+        if len(approx) != 4:
+            continue
+        if cv2.contourArea(approx) < 0.2 * h * w:
+            continue
+        pts = approx.reshape(4, 2).astype(np.float32)
+        rect = _order_points(pts)
+        widthA  = np.linalg.norm(rect[2] - rect[3])
+        widthB  = np.linalg.norm(rect[1] - rect[0])
+        heightA = np.linalg.norm(rect[1] - rect[2])
+        heightB = np.linalg.norm(rect[0] - rect[3])
+        maxW = max(int(widthA), int(widthB), 1)
+        maxH = max(int(heightA), int(heightB), 1)
+        dst = np.array([[0, 0], [maxW - 1, 0], [maxW - 1, maxH - 1], [0, maxH - 1]], dtype=np.float32)
+        M = cv2.getPerspectiveTransform(rect, dst)
+        return cv2.warpPerspective(arr, M, (maxW, maxH))
+    return arr
+
+
 def _deskew(arr):
     import cv2
     import numpy as np
@@ -135,10 +178,20 @@ def _preprocess_image(img):
         pass
     try:
         arr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        lab = cv2.cvtColor(arr, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        arr = cv2.cvtColor(cv2.merge([clahe.apply(l), a, b]), cv2.COLOR_LAB2BGR)
+        # Step 1: bilateral denoise — removes grain without blurring text edges
+        arr = cv2.bilateralFilter(arr, d=9, sigmaColor=75, sigmaSpace=75)
+        # Step 2: perspective correction (skips gracefully if no document quad found)
+        arr = _correct_perspective(arr)
+        # Step 3: adaptive binarization — handles uneven lighting and shadows
+        gray = cv2.cvtColor(arr, cv2.COLOR_BGR2GRAY)
+        gray = cv2.adaptiveThreshold(
+            gray, 255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            blockSize=25, C=11,
+        )
+        arr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        # Step 4: deskew
         arr = _deskew(arr)
         img = __import__("PIL.Image", fromlist=["Image"]).Image.fromarray(
             cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)

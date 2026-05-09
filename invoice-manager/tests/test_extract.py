@@ -291,6 +291,50 @@ class TestPipeline:
         assert count == 3
 
 
+# ── _correct_perspective + _preprocess_image ─────────────────────────────────
+
+class TestCorrectPerspective:
+    def _blank_bgr(self, h=200, w=100):
+        import numpy as np
+        return np.ones((h, w, 3), dtype=np.uint8) * 200
+
+    def test_returns_array_no_contour(self):
+        import numpy as np
+        arr = self._blank_bgr()
+        result = ex._correct_perspective(arr)
+        assert isinstance(result, np.ndarray)
+        assert result.shape[2] == 3
+
+    def test_no_crash_on_tiny_image(self):
+        import numpy as np
+        arr = np.zeros((10, 10, 3), dtype=np.uint8)
+        result = ex._correct_perspective(arr)
+        assert result.shape == arr.shape
+
+
+class TestPreprocessImage:
+    def _white_pil(self, w=80, h=120):
+        from PIL import Image
+        return Image.new("RGB", (w, h), color=(240, 240, 240))
+
+    def test_returns_pil_image(self):
+        from PIL import Image
+        img = self._white_pil()
+        result = ex._preprocess_image(img)
+        assert isinstance(result, Image.Image)
+
+    def test_does_not_crash_on_small_image(self):
+        from PIL import Image
+        img = Image.new("RGB", (20, 20), color=(200, 200, 200))
+        result = ex._preprocess_image(img)
+        assert isinstance(result, Image.Image)
+
+    def test_output_size_reasonable(self):
+        img = self._white_pil(80, 120)
+        result = ex._preprocess_image(img)
+        assert result.width > 0 and result.height > 0
+
+
 # ── _tesseract_confidence ─────────────────────────────────────────────────────
 
 class TestTesseractConfidence:
