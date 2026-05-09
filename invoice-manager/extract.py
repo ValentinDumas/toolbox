@@ -474,6 +474,22 @@ def _guess_doc_type(text: str, user_siren: str, montant_ttc: float | None) -> st
 
 # ── Invoice assembly ──────────────────────────────────────────────────────────
 
+def _match_known_emitter(text: str, known_emitters: dict, fuzzy_threshold: float = 0.85) -> str | None:
+    from difflib import SequenceMatcher
+    text_l = text.lower()
+    for keyword, name in known_emitters.items():
+        kw = keyword.lower()
+        # Exact match first
+        if kw in text_l:
+            return name
+        # Fuzzy: slide a window of len(kw) over the text
+        n = len(kw)
+        for i in range(len(text_l) - n + 1):
+            if SequenceMatcher(None, kw, text_l[i:i + n]).ratio() >= fuzzy_threshold:
+                return name
+    return None
+
+
 def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str = "", known_emitters: dict | None = None) -> dict:
     date_str  = _parse_date(text)
     date_obj  = datetime.fromisoformat(date_str) if date_str else None
@@ -489,11 +505,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
 
     émetteur_nom = _parse_emetteur_fallback(text)
     if not émetteur_nom and known_emitters:
-        text_l = text.lower()
-        for keyword, name in known_emitters.items():
-            if keyword.lower() in text_l:
-                émetteur_nom = name
-                break
+        émetteur_nom = _match_known_emitter(text, known_emitters)
 
     return {
         "id":                       str(uuid.uuid4()),

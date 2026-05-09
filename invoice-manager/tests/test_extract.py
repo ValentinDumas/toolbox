@@ -448,10 +448,29 @@ class TestEasyOCRFallback:
             mock_get.assert_not_called()
 
 
-# ── known_emitters ────────────────────────────────────────────────────────────
+# ── _match_known_emitter + known_emitters ─────────────────────────────────────
 
 # 8 lignes de bruit OCR pur — ne passent pas le filtre alpha de _parse_emetteur_fallback
 _GARBLED_HEADER = "!!! ##\n" * 8
+
+
+class TestMatchKnownEmitter:
+    def test_exact_match(self):
+        assert ex._match_known_emitter("boulanger paris", {"boulanger": "Boulanger"}) == "Boulanger"
+
+    def test_fuzzy_match_truncated(self):
+        # "boulange" manque le 'r' final — cas ticket froissé
+        assert ex._match_known_emitter("BOULANGE ENTIN", {"boulanger": "Boulanger"}) == "Boulanger"
+
+    def test_fuzzy_match_middle_missing(self):
+        # "bouanger" manque le 'l' — corruption OCR
+        assert ex._match_known_emitter("bouanger ref", {"boulanger": "Boulanger"}) == "Boulanger"
+
+    def test_no_match_unrelated_text(self):
+        assert ex._match_known_emitter("Total TTC 50,00 EUR", {"boulanger": "Boulanger"}) is None
+
+    def test_returns_none_on_empty_dict(self):
+        assert ex._match_known_emitter("boulanger", {}) is None
 
 class TestKnownEmitters:
     def test_known_emitter_matched_when_header_unreadable(self):
