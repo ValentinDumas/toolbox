@@ -88,10 +88,13 @@ def main() -> None:
         print(f"\n── Révision ({n} item{'s' if n > 1 else ''} à corriger) ──────────")
         subprocess.run([py, str(HERE / "review.py")] + cfg_args, check=True)
         print(f"\n  Fichier ouvert : {review_csv}")
-        print("  Corrige, sauvegarde, puis appuie sur Entrée.")
-        _open_file(review_csv)
-        input("\n  [Entrée pour continuer…] ")
-        subprocess.run([py, str(HERE / "review.py"), "--import"] + cfg_args, check=True)
+        try:
+            _open_file(review_csv)
+            print("  Corrige, sauvegarde, puis appuie sur Entrée.")
+            input("\n  [Entrée pour continuer…] ")
+            subprocess.run([py, str(HERE / "review.py"), "--import"] + cfg_args, check=True)
+        except EOFError:
+            print("  [Mode non-interactif — révision ignorée, relancer manuellement]")
 
     # 4. Export
     print("\n── Export ───────────────────────────────────────")

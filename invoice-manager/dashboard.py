@@ -170,6 +170,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             capture_output=True,
             text=True,
             cwd=str(HERE),
+            stdin=subprocess.DEVNULL,
         )
         if result.returncode != 0:
             error_snippet = result.stderr[-500:] if result.stderr else "Erreur inconnue"
