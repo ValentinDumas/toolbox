@@ -134,7 +134,7 @@ darty     = "Darty"
 leroy     = "Leroy Merlin"
 ```
 
-Le mot-clé est insensible à la casse et supporte le **fuzzy matching** : 1 à 2 caractères manquants ou corrompus (ex. `"BOULANGE"` au lieu de `"BOULANGER"`) sont tolérés automatiquement. Il ne s'applique que si aucun émetteur n'a été détecté dans l'en-tête — il ne remplace jamais un nom déjà trouvé. Aucune enseigne n'est codée en dur : tout passe par ce dictionnaire.
+Le mot-clé est insensible à la casse et supporte le **fuzzy matching** : 1 à 2 caractères manquants ou corrompus (ex. `"BOULANGE"` au lieu de `"BOULANGER"`) sont tolérés automatiquement. Le dictionnaire est consulté **en priorité** avant le scanner OCR libre — si une enseigne est reconnue, son nom canonique est utilisé directement. Le scanner OCR (premières lignes du texte brut) ne sert que de dernier recours si aucune enseigne ne matche. Aucune enseigne n'est codée en dur : tout passe par ce dictionnaire.
 
 Toutes les clés sont optionnelles individuellement — seules les valeurs que tu surcharges sont nécessaires.
 Voir `config.toml.example` pour la documentation complète et commentée de chaque option.
@@ -172,7 +172,7 @@ Voir `config.toml.example` pour la documentation complète et commentée de chaq
 ├── processed/              ← fichiers traités avec succès (auto-déplacés)
 ├── errors/                 ← fichiers non reconnus (révision manuelle)
 ├── review/
-│   └── review.csv          ← items confiance < 80% à corriger manuellement
+│   └── review.csv          ← items à valider (prêt_à_valider + à_réviser)
 ├── data/
 │   └── invoices.db         ← SQLite, source de vérité
 ├── output/
@@ -202,7 +202,7 @@ Voir `config.toml.example` pour la documentation complète et commentée de chaq
 
 **`extract.py`** — lit chaque fichier de `input/`, détecte le format (magic bytes), extrait le texte (pdfplumber pour les PDF natifs, pytesseract OCR pour les images et PDF scannés), parse les champs (montants, dates, SIREN, TVA…), détecte le type de document (facture émise vs reçue, avoir, reçu, note de frais) via ton SIREN et des mots-clés, calcule un score de confiance, insère dans SQLite, et déplace le fichier dans `processed/` ou `errors/`.
 
-**`review.py`** — exporte dans `review/review.csv` tous les items dont le score de confiance est sous le seuil (défaut 0.8). Tu corriges le CSV, puis `--import` applique les changements en base. Le mode `--reclassify` permet de corriger uniquement le `type_document` en masse (utile pour recatégoriser un stock existant).
+**`review.py`** — exporte dans `review/review.csv` tous les items en attente de validation (`prêt_à_valider` et `à_réviser`). Tu corriges le CSV, puis `--import` applique les changements et passe les items en `validé`. Le mode `--reclassify` permet de corriger uniquement le `type_document` en masse.
 
 **`export.py`** — lit la base SQLite, filtre par année et statut fiscal, applique les règles de déductibilité (TVA déductible ou non selon le régime), et génère `ledger-YYYY.csv` + `ledger-YYYY.xlsx` avec 4 onglets : Journal, Récapitulatif, Déclaration, Statistiques (avec deadlines de déclaration calculées offline).
 
@@ -458,12 +458,27 @@ python dashboard.py --config ~/compta/config.toml
 
 Le dashboard affiche :
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
-- **Ledger** : toutes les factures de l'année, paginées (50 / page)
-- **Santé** : fichiers en attente, items à réviser, erreurs
-- **Révision inline** : si des items ont un score de confiance < 80 %, une section "À réviser" apparaît entre santé et actions — chaque item est éditable directement dans le navigateur (8 champs essentiels + suppression), sans passer par `review.csv`
-- **Reset par item** : dans le ledger, chaque ligne avec le statut `révisé` affiche un bouton ↩ pour la remettre individuellement en `à_réviser`
+- **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne
+- **Santé** : fichiers en attente, items à valider (prêts + à réviser), erreurs
+- **Validation inline** : section "À valider" affiche tous les items non encore validés — édition directe dans le navigateur (8 champs) avec bouton "Valider". Pour les items `prêt_à_valider`, deux boutons dans le tableau : ✓ (valider en un clic) et ✎ (accéder au formulaire d'édition)
+- **Corrections tracées** : un document `validé` reste modifiable, chaque correction est enregistrée dans un log horodaté (champ + valeur avant/après). Badge ✎ dans le ledger si des corrections existent
+- **Reset par item** : bouton ↩ sur chaque ligne `validé` pour la remettre en `à_réviser`
+- **Suppression sécurisée** : le bouton Supprimer ouvre une modale de confirmation (fichier + émetteur + montant) avant toute action. La suppression est un soft-delete — le document reste en base avec un horodatage de suppression, conformément à l'obligation de conservation des pièces comptables (Code de commerce, 10 ans)
+- **Corbeille** : section visible dès qu'un item a été supprimé. Affiche les documents supprimés avec leur date de suppression. Bouton Restaurer pour remettre un item en `à_réviser` — aucune suppression définitive possible depuis l'interface
 
-Actions disponibles : lancer le pipeline, ouvrir `review.csv`, révision inline, reset par item.
+**Cycle de vie des statuts** :
+
+| Statut | Déclencheur | Signification |
+|---|---|---|
+| `auto_validé` | Extraction — confiance ≥ 80 % | OCR fiable, en attente de confirmation gérant |
+| `à_réviser` | Extraction — confiance < 80 % | Données incomplètes ou douteuses |
+| `validé` | Action manuelle explicite du gérant | Certifié fiscalement — corrections tracées |
+
+- `auto_validé` → boutons ✓ (valider en un clic) et ✎ (modifier avant validation)
+- `à_réviser` → formulaire inline dans la section "Non validés"
+- `validé` → bouton ✎ uniquement — chaque modification est tracée (champ + valeur avant/après + horodatage)
+
+Actions disponibles : lancer le pipeline, ouvrir `review.csv`, validation inline, reset par item.
 
 Prérequis : `pip install flask`
 
