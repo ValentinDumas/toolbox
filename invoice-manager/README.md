@@ -447,7 +447,8 @@ Prérequis : `pip install flask`
 
 - **Phase 1C** — ✅ Dashboard web local (`python dashboard.py` → http://localhost:7800)
 - **Phase 1D** — Watcher automatique (surveille `input/` en continu, thread `watchdog` dans `dashboard.py`)
-- **Phase 1E** — Actions complètes : révision inline dans le dashboard (sans passer par `review.csv`)
+- **Phase 1E** — ✅ Actions complètes : révision inline dans le dashboard (sans passer par `review.csv`)
+- **Phase 1E+** — Édition complète inline (40+ champs via panneau slide-over, sans CSV)
 - **Phase 1F** — Déduplication sémantique (voir ci-dessous)
 - **Phase 2** — Sync Notion API (push vers un board Notion structuré)
 

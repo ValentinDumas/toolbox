@@ -214,6 +214,104 @@
     .health-label { font-size: 13px; color: var(--on-surface-muted); }
     .health-sublabel       { font-size: 12px; color: var(--warning); }
     .health-sublabel-error { font-size: 12px; color: var(--negative); }
+    /* Review inline */
+    .review-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 2px solid var(--warning);
+    }
+    .review-item {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .review-item-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--on-surface-muted);
+    }
+    .review-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .review-field-full { grid-column: 1 / -1; }
+    .review-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      color: var(--on-surface-muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+    .review-input, .review-select, .review-textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--on-surface);
+      background: white;
+      box-sizing: border-box;
+    }
+    .review-input:focus, .review-select:focus, .review-textarea:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 0;
+      border-color: transparent;
+    }
+    .review-input-amount {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .review-textarea { resize: vertical; }
+    .review-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-destructive {
+      background: #B91C1C;
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-destructive:hover { background: #991B1B; }
+    .btn-destructive:focus { outline: 2px solid #B91C1C; outline-offset: 2px; }
+    .btn-save {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-save:hover { background: #1e40af; }
+    .btn-save:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .link-edit-all {
+      font-size: 14px;
+      color: var(--on-surface-muted);
+      text-decoration: none;
+      margin-left: auto;
+    }
+    .link-edit-all:hover { color: var(--primary); text-decoration: underline; }
     /* Error banner */
     .error-banner {
       background: #FEE2E2;
@@ -450,6 +548,100 @@
 
         </div>
       </section>
+
+      {# ── Bloc 4 : À réviser ─────────────────────────────────────────────── #}
+      {% if items_a_reviser_list %}
+      <section id="reviser" class="review-section" aria-label="Items à réviser">
+        <p class="section-label">À réviser ({{ items_a_reviser_list|length }})</p>
+        {% for item in items_a_reviser_list %}
+        <div class="review-item">
+          <div class="review-item-header">
+            <span>{{ item.émetteur_nom or '—' }}</span>
+            <span>{{ item.date_document or '—' }}</span>
+            {% if item.fichier_source %}
+            <span>{{ item.fichier_source|basename }}</span>
+            {% endif %}
+            {% if item.confiance is not none %}
+              {% if item.confiance < 0.8 %}
+              <span class="badge badge-pending">Confiance {{ (item.confiance * 100)|int }}%</span>
+              {% else %}
+              <span class="badge badge-paid">Confiance {{ (item.confiance * 100)|int }}%</span>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          <form method="post" action="/review/{{ item.id }}/save">
+            <div class="review-fields">
+              <div>
+                <label class="review-label" for="type-{{ item.id }}">Type</label>
+                <select class="review-select" id="type-{{ item.id }}" name="type_document">
+                  {% for dt in doc_types %}
+                  <option value="{{ dt }}" {{ 'selected' if item.type_document == dt }}>{{ dt }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="review-label" for="ht-{{ item.id }}">Montant HT</label>
+                <input class="review-input review-input-amount" type="number" step="0.01"
+                       id="ht-{{ item.id }}" name="montant_ht"
+                       value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
+              </div>
+              <div>
+                <label class="review-label" for="tva-{{ item.id }}">TVA</label>
+                <input class="review-input review-input-amount" type="number" step="0.01"
+                       id="tva-{{ item.id }}" name="montant_tva"
+                       value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
+              </div>
+              <div>
+                <label class="review-label" for="date-{{ item.id }}">Date</label>
+                <input class="review-input" type="date"
+                       id="date-{{ item.id }}" name="date_document"
+                       value="{{ item.date_document or '' }}">
+              </div>
+              <div>
+                <label class="review-label" for="emetteur-{{ item.id }}">Émetteur</label>
+                <input class="review-input" type="text"
+                       id="emetteur-{{ item.id }}" name="émetteur_nom"
+                       value="{{ item.émetteur_nom or '' }}">
+              </div>
+              <div>
+                <label class="review-label" for="num-{{ item.id }}">N° facture</label>
+                <input class="review-input" type="text"
+                       id="num-{{ item.id }}" name="numéro_facture"
+                       value="{{ item.numéro_facture or '' }}">
+              </div>
+              <div>
+                <label class="review-label" for="cat-{{ item.id }}">Catégorie</label>
+                <input class="review-input" type="text"
+                       id="cat-{{ item.id }}" name="catégorie"
+                       value="{{ item.catégorie or '' }}">
+              </div>
+              <div class="review-field-full">
+                <label class="review-label" for="notes-{{ item.id }}">Notes de correction</label>
+                <textarea class="review-textarea" id="notes-{{ item.id }}" name="notes_correction"
+                          rows="2">{{ item.notes_correction or '' }}</textarea>
+              </div>
+            </div>
+
+            <div class="review-actions">
+              <button type="submit" class="btn-save">Enregistrer</button>
+            </div>
+          </form>
+
+          <div class="review-actions" style="margin-top:10px;">
+            <form method="post" action="/review/{{ item.id }}/delete" style="display:inline">
+              <button type="submit" class="btn-destructive">Supprimer</button>
+            </form>
+            <form method="post" action="/open-review" style="display:inline; margin-left:auto;">
+              <button type="submit" class="link-edit-all" style="background:none;border:none;cursor:pointer;padding:0;">
+                Éditer tout →
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
 
     </main>
 

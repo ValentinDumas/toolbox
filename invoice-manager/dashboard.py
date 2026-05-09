@@ -104,6 +104,17 @@ def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
     }
 
 
+def query_items_a_reviser(conn: sqlite3.Connection) -> list:
+    """Retourne les items en attente de révision avec les champs essentiels."""
+    rows = conn.execute(
+        "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
+        "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
+        "confiance, fichier_source "
+        "FROM invoices WHERE statut_révision='à_réviser' ORDER BY date_document"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def _fr_currency(value) -> str:
     """Formate un float en monnaie française : 1 234,56 €. Négatif → (1 234,56 €)."""
     if value is None:
@@ -132,19 +143,24 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
 
     from flask import Flask, redirect, render_template, render_template_string, request
 
+    import os
+
     app = Flask(__name__, template_folder=str(HERE / "templates"))
     app.jinja_env.filters["fr_currency"] = _fr_currency
+    app.jinja_env.filters["basename"] = lambda p: os.path.basename(p) if p else ""
 
     @app.route("/")
     def index():
         year = request.args.get("year", datetime.now().year, type=int)
         page = request.args.get("page", 1, type=int)
         run_error = request.args.get("run_error")
+        review_error = request.args.get("review_error")
         try:
             conn = open_db(db_path)
             summary = query_fiscal_summary(conn, year)
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, cfg)
+            items_a_reviser_list = query_items_a_reviser(conn)
             years = [r[0] for r in conn.execute(
                 "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
             ).fetchall()] or [datetime.now().year]
@@ -159,8 +175,11 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             summary=summary,
             ledger=ledger,
             health=health,
+            items_a_reviser_list=items_a_reviser_list,
             run_error=run_error,
+            review_error=review_error,
             expense_types=EXPENSE_TYPES,
+            doc_types=("facture_émise", "facture_reçue", "reçu", "note_de_frais", "avoir", "devis"),
         )
 
     @app.route("/run", methods=["POST"])
@@ -194,6 +213,58 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         review_csv = Path(cfg["paths"]["review"]) / "review.csv"
         cmd = "open" if platform.system() == "Darwin" else "xdg-open"
         subprocess.Popen([cmd, str(review_csv)])
+        return redirect("/")
+
+    @app.route("/review/<item_id>/save", methods=["POST"])
+    def review_save(item_id):
+        from datetime import timezone
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            conn = open_db(db_path)
+            if not conn.execute("SELECT id FROM invoices WHERE id=?", (item_id,)).fetchone():
+                conn.close()
+                return redirect("/")
+
+            fields = {}
+            for field in ("type_document", "émetteur_nom", "numéro_facture",
+                          "catégorie", "date_document", "notes_correction"):
+                val = request.form.get(field, "").strip()
+                if val:
+                    fields[field] = val
+
+            for field in ("montant_ht", "montant_tva"):
+                val = request.form.get(field, "").strip()
+                if val:
+                    try:
+                        fields[field] = float(val.replace(",", "."))
+                    except ValueError:
+                        conn.close()
+                        return redirect(f"/?review_error={quote('Montant invalide : ' + val)}")
+
+            fields["statut_révision"] = "révisé"
+            fields["révisé_par"] = "user"
+            fields["date_révision"] = now
+
+            set_clause = ", ".join(f'"{k}" = ?' for k in fields)
+            conn.execute(
+                f"UPDATE invoices SET {set_clause} WHERE id = ?",
+                list(fields.values()) + [item_id],
+            )
+            conn.commit()
+            conn.close()
+        except sqlite3.DatabaseError:
+            pass
+        return redirect("/")
+
+    @app.route("/review/<item_id>/delete", methods=["POST"])
+    def review_delete(item_id):
+        try:
+            conn = open_db(db_path)
+            conn.execute("DELETE FROM invoices WHERE id = ?", (item_id,))
+            conn.commit()
+            conn.close()
+        except sqlite3.DatabaseError:
+            pass
         return redirect("/")
 
     return app
