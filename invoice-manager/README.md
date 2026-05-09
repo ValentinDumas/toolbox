@@ -461,7 +461,7 @@ Le dashboard affiche :
 - **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page
 
 Navigation par onglets (sous la synthèse) :
-- **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne
+- **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Chaque ligne avec un fichier affiche deux icônes : 🔍 ouvre une prévisualisation PDF inline (modale dans le navigateur), 📥 télécharge le fichier directement
 - **À réviser (N)** : items non encore validés — édition directe dans le navigateur (8 champs). Onglet grisé et non cliquable si aucun item
 - **Corbeille (N)** : documents supprimés avec date de suppression et bouton Restaurer. Onglet grisé si vide
 
