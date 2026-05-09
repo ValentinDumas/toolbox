@@ -3,6 +3,7 @@ dashboard.py — Dashboard web local pour invoice-manager.
 Usage: python dashboard.py [--config FILE] [--port PORT]
 """
 import argparse
+import os
 import platform
 import sqlite3
 import subprocess
@@ -26,20 +27,20 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
         return conn.execute(sql, args).fetchone()[0] or 0.0
 
     ca_ht = scalar(
-        "SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document=?",
+        "SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND deleted_at IS NULL",
         year, "facture_émise",
     )
     tva_collectee = scalar(
-        "SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document=?",
+        "SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND deleted_at IS NULL",
         year, "facture_émise",
     )
     ph = ",".join("?" * len(EXPENSE_TYPES))
     tva_deductible = conn.execute(
-        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph})",
+        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
     total_charges = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph})",
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
 
@@ -56,21 +57,21 @@ def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: i
     """Retourne une page du ledger pour une année."""
     offset = (page - 1) * per_page
     rows = conn.execute(
-        "SELECT * FROM invoices WHERE exercice_fiscal=? ORDER BY date_document DESC LIMIT ? OFFSET ?",
+        "SELECT * FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL ORDER BY date_document DESC LIMIT ? OFFSET ?",
         (year, per_page, offset),
     ).fetchall()
     total_count = conn.execute(
-        "SELECT COUNT(*) FROM invoices WHERE exercice_fiscal=?", (year,)
+        "SELECT COUNT(*) FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL", (year,)
     ).fetchone()[0]
 
     ph_in = ",".join("?" * len(INCOME_TYPES))
     ph_ex = ",".join("?" * len(EXPENSE_TYPES))
     total_credit = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_in})",
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_in}) AND deleted_at IS NULL",
         (year, *INCOME_TYPES),
     ).fetchone()[0] or 0.0
     total_debit = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_ex})",
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_ex}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
 
@@ -91,26 +92,57 @@ def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
         p = Path(cfg["paths"][key])
         if not p.exists():
             return 0
-        return sum(1 for f in p.iterdir() if f.is_file())
+        return sum(1 for f in p.iterdir() if f.is_file() and not f.name.startswith("."))
 
     items_a_reviser = conn.execute(
-        "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser'"
+        "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser' AND deleted_at IS NULL"
+    ).fetchone()[0]
+    auto_validés = conn.execute(
+        "SELECT COUNT(*) FROM invoices WHERE statut_révision='auto_validé' AND deleted_at IS NULL"
+    ).fetchone()[0]
+    validés_count = conn.execute(
+        "SELECT COUNT(*) FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL"
     ).fetchone()[0]
 
     return {
         "pending_files": count_files("input"),
         "items_a_reviser": items_a_reviser,
+        "auto_validés": auto_validés,
+        "validés_count": validés_count,
         "error_files": count_files("errors"),
     }
 
 
 def query_items_a_reviser(conn: sqlite3.Connection) -> list:
-    """Retourne les items en attente de révision avec les champs essentiels."""
+    """Retourne les items non encore validés : à_réviser (prioritaires) puis auto_validé."""
     rows = conn.execute(
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
-        "confiance, fichier_source "
-        "FROM invoices WHERE statut_révision='à_réviser' ORDER BY date_document"
+        "confiance, fichier_source, texte_brut, statut_révision "
+        "FROM invoices WHERE statut_révision IN ('à_réviser', 'auto_validé') AND deleted_at IS NULL "
+        "ORDER BY CASE statut_révision WHEN 'à_réviser' THEN 0 ELSE 1 END, date_document"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _query_validés(conn: sqlite3.Connection) -> list:
+    """Retourne les items validés — pour les formulaires de correction tracée."""
+    rows = conn.execute(
+        "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
+        "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
+        "confiance, fichier_source, texte_brut, statut_révision, corrections_log "
+        "FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL ORDER BY date_document DESC"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def query_corbeille(conn: sqlite3.Connection) -> list:
+    """Retourne les items soft-deleted, les plus récents en premier."""
+    rows = conn.execute(
+        "SELECT id, fichier_source, émetteur_nom, montant_ttc, type_document, "
+        "date_document, deleted_at "
+        "FROM invoices WHERE deleted_at IS NOT NULL "
+        "ORDER BY deleted_at DESC"
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -161,6 +193,8 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, cfg)
             items_a_reviser_list = query_items_a_reviser(conn)
+            items_validés_list = _query_validés(conn)
+            corbeille_list = query_corbeille(conn)
             years = [r[0] for r in conn.execute(
                 "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
             ).fetchall()] or [datetime.now().year]
@@ -176,6 +210,8 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ledger=ledger,
             health=health,
             items_a_reviser_list=items_a_reviser_list,
+            items_validés_list=items_validés_list,
+            corbeille_list=corbeille_list,
             run_error=run_error,
             review_error=review_error,
             expense_types=EXPENSE_TYPES,
@@ -217,13 +253,18 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
 
     @app.route("/review/<item_id>/save", methods=["POST"])
     def review_save(item_id):
+        import json
         from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
         try:
             conn = open_db(db_path)
-            if not conn.execute("SELECT id FROM invoices WHERE id=?", (item_id,)).fetchone():
+            current = conn.execute("SELECT * FROM invoices WHERE id=?", (item_id,)).fetchone()
+            if not current:
                 conn.close()
                 return redirect("/")
+
+            current = dict(current)
+            already_validated = current["statut_révision"] == "validé"
 
             fields = {}
             for field in ("type_document", "émetteur_nom", "numéro_facture",
@@ -232,7 +273,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
                 if val:
                     fields[field] = val
 
-            for field in ("montant_ht", "montant_tva"):
+            for field in ("montant_ht", "montant_tva", "montant_ttc"):
                 val = request.form.get(field, "").strip()
                 if val:
                     try:
@@ -241,9 +282,48 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
                         conn.close()
                         return redirect(f"/?review_error={quote('Montant invalide : ' + val)}")
 
-            fields["statut_révision"] = "révisé"
-            fields["révisé_par"] = "user"
-            fields["date_révision"] = now
+            # Validation : date requise pour exercice_fiscal
+            has_date = fields.get("date_document") or conn.execute(
+                "SELECT date_document FROM invoices WHERE id=? AND date_document IS NOT NULL", (item_id,)
+            ).fetchone()
+            if not has_date:
+                conn.close()
+                return redirect(f"/?review_error={quote('Date du document requise pour apparaître dans le ledger')}")
+
+            # Validation : au moins un montant requis
+            has_amount = fields.get("montant_ht") or fields.get("montant_ttc")
+            if not has_amount:
+                if not current.get("montant_ht") and not current.get("montant_ttc"):
+                    conn.close()
+                    return redirect(f"/?review_error={quote('Au moins un montant (HT ou TTC) est requis')}")
+
+            # Recompute exercice_fiscal
+            date_doc = fields.get("date_document") or current.get("date_document")
+            if date_doc:
+                try:
+                    fields["exercice_fiscal"] = int(str(date_doc)[:4])
+                except (ValueError, IndexError):
+                    pass
+
+            # Sync montant_eur
+            eur = fields.get("montant_ttc") or fields.get("montant_ht")
+            if eur is not None:
+                fields["montant_eur"] = eur
+
+            if already_validated:
+                # Post-validation correction — append diff to corrections_log
+                log = json.loads(current.get("corrections_log") or "[]")
+                for champ, new_val in fields.items():
+                    old_val = current.get(champ)
+                    if old_val != new_val:
+                        log.append({"ts": now, "champ": champ, "avant": old_val, "après": new_val})
+                fields["corrections_log"] = json.dumps(log, ensure_ascii=False)
+                fields["date_révision"] = now
+            else:
+                fields["statut_révision"] = "validé"
+                fields["révisé_par"] = "user"
+                fields["date_révision"] = now
+                fields["validé_le"] = now
 
             set_clause = ", ".join(f'"{k}" = ?' for k in fields)
             conn.execute(
@@ -256,16 +336,89 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             pass
         return redirect("/")
 
-    @app.route("/review/<item_id>/delete", methods=["POST"])
-    def review_delete(item_id):
+    @app.route("/review/<item_id>/validate", methods=["POST"])
+    def review_validate(item_id):
+        from datetime import timezone
+        now = datetime.now(timezone.utc).isoformat()
         try:
             conn = open_db(db_path)
-            conn.execute("DELETE FROM invoices WHERE id = ?", (item_id,))
+            conn.execute(
+                "UPDATE invoices SET statut_révision='validé', révisé_par='user', "
+                "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN ('prêt_à_valider', 'à_réviser')",
+                (now, now, item_id),
+            )
             conn.commit()
             conn.close()
         except sqlite3.DatabaseError:
             pass
         return redirect("/")
+
+    @app.route("/review/<item_id>/delete", methods=["POST"])
+    def review_delete(item_id):
+        from datetime import timezone
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            conn = open_db(db_path)
+            conn.execute(
+                "UPDATE invoices SET deleted_at=?, deleted_by='user' WHERE id=?",
+                (now, item_id),
+            )
+            conn.commit()
+            conn.close()
+        except sqlite3.DatabaseError:
+            pass
+        return redirect("/")
+
+    @app.route("/review/<item_id>/restore", methods=["POST"])
+    def review_restore(item_id):
+        try:
+            conn = open_db(db_path)
+            conn.execute(
+                "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL, "
+                "statut_révision='à_réviser', révisé_par=NULL, "
+                "date_révision=NULL, validé_le=NULL WHERE id=?",
+                (item_id,),
+            )
+            conn.commit()
+            conn.close()
+        except sqlite3.DatabaseError:
+            pass
+        return redirect("/")
+
+    @app.route("/review/<item_id>/reset", methods=["POST"])
+    def review_reset(item_id):
+        conn = open_db(db_path)
+        conn.execute(
+            "UPDATE invoices SET statut_révision='à_réviser', révisé_par=NULL, "
+            "date_révision=NULL, validé_le=NULL "
+            "WHERE id=?",
+            (item_id,),
+        )
+        conn.commit()
+        conn.close()
+        return redirect("/")
+
+    @app.route("/reset-revises", methods=["POST"])
+    def reset_revises():
+        conn = open_db(db_path)
+        conn.execute(
+            "UPDATE invoices SET statut_révision='à_réviser', révisé_par=NULL, "
+            "date_révision=NULL, validé_le=NULL "
+            "WHERE statut_révision='validé'"
+        )
+        conn.commit()
+        conn.close()
+        return redirect("/")
+
+    @app.route("/files/<path:filename>")
+    def serve_file(filename):
+        from flask import abort, send_file
+        basename = Path(filename).name
+        for subdir in ("processed", "errors", "input"):
+            candidate = HERE / subdir / basename
+            if candidate.is_file():
+                return send_file(candidate)
+        abort(404)
 
     return app
 
@@ -285,7 +438,7 @@ def main() -> None:
     app = create_app(cfg, db_path)
     print(f"  Dashboard : http://localhost:{args.port}")
     print("  Ctrl+C pour arrêter.")
-    app.run(port=args.port, debug=False)
+    app.run(port=args.port, debug=os.getenv("FLASK_DEBUG", "0") == "1")
 
 
 if __name__ == "__main__":

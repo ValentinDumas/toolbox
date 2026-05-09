@@ -224,9 +224,12 @@ def test_query_items_a_reviser_populated(mem_db):
     from dashboard import query_items_a_reviser
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="ok1", statut_révision="auto_validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="done1", statut_révision="validé", exercice_fiscal=2025)
     items = query_items_a_reviser(mem_db)
-    assert len(items) == 1
-    assert items[0]["id"] == "rev1"
+    ids = [i["id"] for i in items]
+    assert "rev1" in ids
+    assert "ok1" in ids
+    assert "done1" not in ids
 
 
 def test_post_review_save_validates_item(mem_db, tmp_path, monkeypatch):
@@ -249,7 +252,7 @@ def test_post_review_save_validates_item(mem_db, tmp_path, monkeypatch):
     check.row_factory = _sq.Row
     row = check.execute("SELECT statut_révision FROM invoices WHERE id='rev1'").fetchone()
     check.close()
-    assert row["statut_révision"] == "révisé"
+    assert row["statut_révision"] == "validé"
 
 
 def test_post_review_save_updates_fields(mem_db, tmp_path, monkeypatch):
@@ -291,6 +294,7 @@ def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
 
 
 def test_post_review_delete(mem_db, tmp_path, monkeypatch):
+    """Delete must soft-delete (set deleted_at), not remove the row."""
     _insert_invoice(mem_db, id="del1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
@@ -298,9 +302,76 @@ def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     assert resp.status_code == 302
     import sqlite3 as _sq
     check = _sq.connect(str(db_path))
-    row = check.execute("SELECT id FROM invoices WHERE id='del1'").fetchone()
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT deleted_at, deleted_by FROM invoices WHERE id='del1'").fetchone()
     check.close()
-    assert row is None
+    assert row is not None, "Row must still exist after soft delete"
+    assert row["deleted_at"] is not None
+    assert row["deleted_by"] == "user"
+
+
+def test_soft_deleted_excluded_from_fiscal_summary(mem_db):
+    from dashboard import query_fiscal_summary
+    _insert_invoice(mem_db, id="alive", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="dead", type_document="facture_émise",
+                    montant_ht=500.0, montant_tva=100.0, exercice_fiscal=2025,
+                    deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["ca_ht"] == 1000.0
+
+
+def test_soft_deleted_excluded_from_ledger(mem_db):
+    from dashboard import query_ledger
+    _insert_invoice(mem_db, id="alive", type_document="facture_reçue",
+                    montant_ht=100.0, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="dead", type_document="facture_reçue",
+                    montant_ht=100.0, exercice_fiscal=2025,
+                    deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
+    result = query_ledger(mem_db, 2025)
+    assert result["total_count"] == 1
+    ids = [r["id"] for r in result["rows"]]
+    assert "dead" not in ids
+
+
+def test_soft_deleted_excluded_from_items_a_reviser(mem_db):
+    from dashboard import query_items_a_reviser
+    _insert_invoice(mem_db, id="alive", statut_révision="à_réviser", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="dead", statut_révision="à_réviser", exercice_fiscal=2025,
+                    deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
+    items = query_items_a_reviser(mem_db)
+    ids = [i["id"] for i in items]
+    assert "alive" in ids
+    assert "dead" not in ids
+
+
+def test_query_corbeille_returns_deleted_rows(mem_db):
+    from dashboard import query_corbeille
+    _insert_invoice(mem_db, id="alive", statut_révision="validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="dead", statut_révision="à_réviser", exercice_fiscal=2025,
+                    deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
+    rows = query_corbeille(mem_db)
+    ids = [r["id"] for r in rows]
+    assert "dead" in ids
+    assert "alive" not in ids
+
+
+def test_post_review_restore(mem_db, tmp_path, monkeypatch):
+    _insert_invoice(mem_db, id="dead1", statut_révision="validé", exercice_fiscal=2025,
+                    deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/review/dead1/restore")
+    assert resp.status_code == 302
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute(
+        "SELECT deleted_at, statut_révision FROM invoices WHERE id='dead1'"
+    ).fetchone()
+    check.close()
+    assert row["deleted_at"] is None
+    assert row["statut_révision"] == "à_réviser"
 
 
 def test_get_root_shows_review_section(mem_db, tmp_path, monkeypatch):

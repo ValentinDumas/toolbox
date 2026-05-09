@@ -67,8 +67,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     révisé_par              TEXT DEFAULT 'auto',
     date_révision           TEXT,
     notes_correction        TEXT,
+    validé_le               TEXT,
+    corrections_log         TEXT DEFAULT '[]',
     date_extraction         TEXT,
-    texte_brut              TEXT
+    texte_brut              TEXT,
+    deleted_at              TEXT,
+    deleted_by              TEXT
 )
 """
 
@@ -77,10 +81,20 @@ def open_db(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute(SCHEMA)
-    # Non-destructive migration for existing DBs without texte_brut
     existing = {row[1] for row in conn.execute("PRAGMA table_info(invoices)")}
-    if "texte_brut" not in existing:
-        conn.execute("ALTER TABLE invoices ADD COLUMN texte_brut TEXT")
+    migrations = [
+        ("texte_brut",      "ALTER TABLE invoices ADD COLUMN texte_brut TEXT"),
+        ("validé_le",       "ALTER TABLE invoices ADD COLUMN validé_le TEXT"),
+        ("corrections_log", "ALTER TABLE invoices ADD COLUMN corrections_log TEXT DEFAULT '[]'"),
+        ("deleted_at",      "ALTER TABLE invoices ADD COLUMN deleted_at TEXT"),
+        ("deleted_by",      "ALTER TABLE invoices ADD COLUMN deleted_by TEXT"),
+    ]
+    for col, sql in migrations:
+        if col not in existing:
+            conn.execute(sql)
+    # Rename legacy statuses
+    conn.execute("UPDATE invoices SET statut_révision='auto_validé' WHERE statut_révision='prêt_à_valider'")
+    conn.execute("UPDATE invoices SET statut_révision='validé' WHERE statut_révision='révisé'")
     conn.commit()
     return conn
 
@@ -503,9 +517,9 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     confiance    = _confidence_score(date_str, ttc, ht, invoice_num, siren or tva_intracom)
     doc_type     = _guess_doc_type(text, user_siren, ttc)
 
-    émetteur_nom = _parse_emetteur_fallback(text)
-    if not émetteur_nom and known_emitters:
-        émetteur_nom = _match_known_emitter(text, known_emitters)
+    émetteur_nom = _match_known_emitter(text, known_emitters) if known_emitters else None
+    if not émetteur_nom:
+        émetteur_nom = _parse_emetteur_fallback(text)
 
     return {
         "id":                       str(uuid.uuid4()),
@@ -554,6 +568,8 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "révisé_par":               "auto",
         "date_révision":            datetime.now(timezone.utc).isoformat(),
         "notes_correction":         None,
+        "validé_le":                None,
+        "corrections_log":          "[]",
         "date_extraction":          datetime.now(timezone.utc).isoformat(),
         "texte_brut":               text,
     }
