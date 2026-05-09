@@ -452,6 +452,17 @@
       .health-grid { flex-direction: column; }
       .actions { flex-direction: column; }
     }
+    .btn-icon-preview { background:none; border:none; cursor:pointer; font-size:1rem; padding:0 2px; opacity:.7; }
+    .btn-icon-preview:hover { opacity:1; }
+    .btn-icon-download { text-decoration:none; font-size:1rem; padding:0 2px; opacity:.7; }
+    .btn-icon-download:hover { opacity:1; }
+    #pdf-modal { border:none; border-radius:8px; padding:0; width:90vw; max-width:900px; box-shadow:0 24px 48px rgba(0,0,0,.35); }
+    #pdf-modal::backdrop { background:rgba(0,0,0,.45); }
+    .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
+    .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; }
+    .pdf-modal-close:hover { color:#334155; }
+    #pdf-modal-frame { display:block; width:100%; height:80vh; border:none; }
+    .pdf-modal-hint { margin:0; padding:6px 14px; font-size:.75rem; color:#94a3b8; text-align:right; border-top:1px solid #f1f5f9; }
   </style>
 </head>
 <body>
@@ -631,6 +642,7 @@
                     {% elif s == 'auto_validé' %}
                       <span class="badge badge-draft">Auto-validé</span>
                       <form method="post" action="/review/{{ row.id }}/validate" style="display:inline;margin-left:2px">
+                        <input type="hidden" name="year" value="{{ year }}">
                         <button type="submit" class="btn-validate-item" title="Valider">✓</button>
                       </form>
                       <a href="#review-{{ row.id }}" class="btn-edit-item" title="Modifier">✎</a>
@@ -645,7 +657,7 @@
                   <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
                   <td class="text-center">
                     {%- if row.fichier_source -%}
-                    <a href="/files/{{ row.fichier_source|basename }}" target="_blank" rel="noopener" title="{{ row.fichier_source|basename }}" style="text-decoration:none;font-size:1rem">🔍</a>
+                    <button onclick="openPdfPreview('/files/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a>
                     {%- endif -%}
                   </td>
                 </tr>
@@ -688,6 +700,7 @@
             <span class="badge badge-paid">Validé — correction tracée</span>
           </div>
           <form method="post" action="/review/{{ item.id }}/save">
+            <input type="hidden" name="year" value="{{ year }}">
             <div class="review-fields">
               <div>
                 <label class="review-label" for="type-v-{{ item.id }}">Type</label>
@@ -765,7 +778,7 @@
               <span>{{ item.émetteur_nom or '—' }}</span>
               <span>{{ item.date_document or '—' }}</span>
               {% if item.fichier_source %}
-              <a href="/files/{{ item.fichier_source|basename }}" target="_blank" rel="noopener">{{ item.fichier_source|basename }}</a>
+              <button onclick="openPdfPreview('/files/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a>
               {% endif %}
               {% if item.confiance is not none %}
                 {% if item.confiance < 0.8 %}
@@ -777,6 +790,7 @@
             </div>
 
             <form method="post" action="/review/{{ item.id }}/save">
+              <input type="hidden" name="year" value="{{ year }}">
               <div class="review-fields">
                 <div>
                   <label class="review-label" for="type-{{ item.id }}">Type</label>
@@ -853,6 +867,7 @@
                       data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
                       onclick="openDeleteModal(this)">Supprimer</button>
               <form method="post" action="/open-review" style="display:inline; margin-left:auto;">
+                <input type="hidden" name="year" value="{{ year }}">
                 <button type="submit" class="link-edit-all" style="background:none;border:none;cursor:pointer;padding:0;">
                   Éditer tout →
                 </button>
@@ -895,6 +910,7 @@
                   <td class="text-muted" style="font-size:12px">{{ item.deleted_at[:10] if item.deleted_at else '—' }}</td>
                   <td>
                     <form method="post" action="/review/{{ item.id }}/restore" style="display:inline">
+                      <input type="hidden" name="year" value="{{ year }}">
                       <button type="submit" class="btn-restore">Restaurer</button>
                     </form>
                   </td>
@@ -919,6 +935,7 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" id="modal-cancel">Annuler</button>
           <form method="post" id="modal-form" action="">
+            <input type="hidden" name="year" value="{{ year }}">
             <button type="submit" class="btn-destructive">Supprimer</button>
           </form>
         </div>
@@ -928,6 +945,7 @@
     {# ── Actions ────────────────────────────────────────────────────────────── #}
     <div class="actions">
       <form method="post" action="/run" id="run-form">
+        <input type="hidden" name="year" value="{{ year }}">
         <button type="submit" class="btn-primary" id="run-btn"
                 aria-label="Lancer le pipeline de traitement des factures">
           Lancer le pipeline
@@ -935,6 +953,7 @@
       </form>
       {% if health.items_a_reviser > 0 %}
       <form method="post" action="/open-review">
+        <input type="hidden" name="year" value="{{ year }}">
         <button type="submit" class="btn-secondary"
                 aria-label="Ouvrir le fichier review.csv pour révision manuelle">
           Ouvrir review.csv
@@ -1014,6 +1033,26 @@
     document.getElementById('delete-modal').addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { this.classList.remove('open'); }
     });
+
+    function openPdfPreview(url, name) {
+      document.getElementById('pdf-modal-frame').src = url;
+      document.getElementById('pdf-modal-title').textContent = name;
+      document.getElementById('pdf-modal').showModal();
+    }
+    function closePdfModal() {
+      var d = document.getElementById('pdf-modal');
+      d.close();
+      document.getElementById('pdf-modal-frame').src = '';
+    }
   </script>
+
+  <dialog id="pdf-modal" aria-labelledby="pdf-modal-title" onclick="if(event.target===this)closePdfModal()">
+    <div class="pdf-modal-header">
+      <span id="pdf-modal-title"></span>
+      <button class="pdf-modal-close" onclick="closePdfModal()" aria-label="Fermer">✕</button>
+    </div>
+    <iframe id="pdf-modal-frame" src="" title="Prévisualisation PDF"></iframe>
+    <p class="pdf-modal-hint">Échap ou clic en dehors pour fermer</p>
+  </dialog>
 </body>
 </html>
