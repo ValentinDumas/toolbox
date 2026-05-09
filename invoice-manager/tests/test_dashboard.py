@@ -1,0 +1,208 @@
+"""Tests du dashboard Flask."""
+import sqlite3
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from extract import open_db
+
+
+def _insert_invoice(conn, **kwargs):
+    defaults = {
+        "id": "test-id",
+        "type_document": "facture_reçue",
+        "montant_ht": 100.0,
+        "montant_tva": 20.0,
+        "montant_ttc": 120.0,
+        "exercice_fiscal": 2025,
+        "statut_révision": "auto_validé",
+        "émetteur_nom": "OVH SAS",
+        "destinataire_nom": "Jean Dupont",
+        "date_document": "2025-03-01",
+    }
+    row = {**defaults, **kwargs}
+    cols = ", ".join(f'"{k}"' for k in row)
+    placeholders = ", ".join("?" for _ in row)
+    conn.execute(f"INSERT INTO invoices ({cols}) VALUES ({placeholders})", list(row.values()))
+    conn.commit()
+
+
+@pytest.fixture
+def mem_db():
+    conn = open_db(Path(":memory:"))
+    yield conn
+    conn.close()
+
+
+# ── Data queries ──────────────────────────────────────────────────────────────
+
+def test_fiscal_summary_empty(mem_db):
+    from dashboard import query_fiscal_summary
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["ca_ht"] == 0.0
+    assert s["tva_collectee"] == 0.0
+    assert s["tva_deductible"] == 0.0
+    assert s["tva_a_reverser"] == 0.0
+    assert s["total_charges"] == 0.0
+
+
+def test_fiscal_summary_populated(mem_db):
+    from dashboard import query_fiscal_summary
+    _insert_invoice(mem_db, id="e1", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
+                    montant_ht=400.0, montant_tva=80.0, exercice_fiscal=2025)
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["ca_ht"] == 1000.0
+    assert s["tva_collectee"] == 200.0
+    assert s["tva_deductible"] == 80.0
+    assert abs(s["tva_a_reverser"] - 120.0) < 0.01
+    assert s["total_charges"] == 400.0
+
+
+def test_fiscal_summary_year_filter(mem_db):
+    from dashboard import query_fiscal_summary
+    _insert_invoice(mem_db, id="e2025", type_document="facture_émise",
+                    montant_ht=500.0, montant_tva=100.0, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="e2024", type_document="facture_émise",
+                    montant_ht=200.0, montant_tva=40.0, exercice_fiscal=2024)
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["ca_ht"] == 500.0
+
+
+def test_ledger_pagination(mem_db):
+    from dashboard import query_ledger
+    for i in range(55):
+        _insert_invoice(mem_db, id=f"row-{i}", type_document="facture_reçue",
+                        montant_ht=10.0, montant_tva=2.0, exercice_fiscal=2025)
+    page1 = query_ledger(mem_db, 2025, page=1)
+    assert len(page1["rows"]) == 50
+    assert page1["total_count"] == 55
+    assert page1["total_pages"] == 2
+    page2 = query_ledger(mem_db, 2025, page=2)
+    assert len(page2["rows"]) == 5
+
+
+def test_ledger_totals(mem_db):
+    from dashboard import query_ledger
+    _insert_invoice(mem_db, id="inc", type_document="facture_émise",
+                    montant_ht=300.0, montant_tva=60.0, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="exp", type_document="facture_reçue",
+                    montant_ht=150.0, montant_tva=30.0, exercice_fiscal=2025)
+    result = query_ledger(mem_db, 2025)
+    assert result["total_credit"] == 300.0
+    assert result["total_debit"] == 150.0
+
+
+def test_health_counts(mem_db, tmp_path):
+    from dashboard import query_health
+    (tmp_path / "input").mkdir()
+    (tmp_path / "errors").mkdir()
+    (tmp_path / "input" / "facture.pdf").touch()
+    (tmp_path / "errors" / "broken.pdf").touch()
+    _insert_invoice(mem_db, id="rev", statut_révision="à_réviser", exercice_fiscal=2025)
+    cfg = {"paths": {"input": str(tmp_path / "input"), "errors": str(tmp_path / "errors")}}
+    h = query_health(mem_db, cfg)
+    assert h["pending_files"] == 1
+    assert h["items_a_reviser"] == 1
+    assert h["error_files"] == 1
+
+
+# ── Flask routes ──────────────────────────────────────────────────────────────
+
+def _make_app(mem_db, tmp_path, monkeypatch):
+    """Helper : crée une app Flask avec une DB en mémoire."""
+    import dashboard as dash_mod
+    monkeypatch.setattr(dash_mod, "open_db", lambda path: mem_db)
+
+    (tmp_path / "input").mkdir(exist_ok=True)
+    (tmp_path / "errors").mkdir(exist_ok=True)
+    (tmp_path / "review").mkdir(exist_ok=True)
+
+    cfg = {
+        "paths": {
+            "input": str(tmp_path / "input"),
+            "errors": str(tmp_path / "errors"),
+            "review": str(tmp_path / "review"),
+            "db": str(tmp_path / "data" / "invoices.db"),
+        }
+    }
+    from dashboard import create_app
+    app = create_app(cfg, tmp_path / "data" / "invoices.db")
+    app.config["TESTING"] = True
+    return app
+
+
+def test_get_root_empty_db(mem_db, tmp_path, monkeypatch):
+    app = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    assert b"ProLedger" in resp.data
+
+
+def test_get_root_populated(mem_db, tmp_path, monkeypatch):
+    _insert_invoice(mem_db, id="e1", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
+    app = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    assert resp.status_code == 200
+    assert b"1" in resp.data
+
+
+def test_year_filter(mem_db, tmp_path, monkeypatch):
+    _insert_invoice(mem_db, id="e2025", type_document="facture_émise",
+                    montant_ht=500.0, montant_tva=100.0, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="e2024", type_document="facture_émise",
+                    montant_ht=999.0, montant_tva=199.0, exercice_fiscal=2024)
+    app = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    assert b"999" not in resp.data
+
+
+def test_post_run_calls_subprocess(mem_db, tmp_path, monkeypatch):
+    app = _make_app(mem_db, tmp_path, monkeypatch)
+    with patch("dashboard.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        with app.test_client() as client:
+            resp = client.post("/run")
+    assert resp.status_code in (302, 200)
+    mock_run.assert_called_once()
+    called_cmd = mock_run.call_args[0][0]
+    assert "run.py" in called_cmd[-1]
+
+
+def test_post_run_error_shows_in_redirect(mem_db, tmp_path, monkeypatch):
+    app = _make_app(mem_db, tmp_path, monkeypatch)
+    with patch("dashboard.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=1, stderr="ERREUR GRAVE")
+        with app.test_client() as client:
+            resp = client.post("/run")
+    assert resp.status_code == 302
+    assert "run_error" in resp.headers["Location"]
+
+
+def test_post_open_review_no_items_redirects(mem_db, tmp_path, monkeypatch):
+    app = _make_app(mem_db, tmp_path, monkeypatch)
+    with patch("dashboard.subprocess.Popen") as mock_popen:
+        with app.test_client() as client:
+            resp = client.post("/open-review")
+    assert resp.status_code == 302
+    mock_popen.assert_not_called()
+
+
+def test_post_open_review_with_items_opens_file(mem_db, tmp_path, monkeypatch):
+    _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
+    app = _make_app(mem_db, tmp_path, monkeypatch)  # crée review/ en premier
+    (tmp_path / "review" / "review.csv").touch()
+    with patch("dashboard.subprocess.Popen") as mock_popen:
+        with app.test_client() as client:
+            resp = client.post("/open-review")
+    assert resp.status_code == 302
+    mock_popen.assert_called_once()
