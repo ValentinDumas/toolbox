@@ -448,7 +448,65 @@ Prérequis : `pip install flask`
 - **Phase 1C** — ✅ Dashboard web local (`python dashboard.py` → http://localhost:7800)
 - **Phase 1D** — Watcher automatique (surveille `input/` en continu, thread `watchdog` dans `dashboard.py`)
 - **Phase 1E** — Actions complètes : révision inline dans le dashboard (sans passer par `review.csv`)
+- **Phase 1F** — Déduplication sémantique (voir ci-dessous)
 - **Phase 2** — Sync Notion API (push vers un board Notion structuré)
+
+### Phase 1F — Déduplication sémantique
+
+La déduplication actuelle est **structurelle** (SHA256 sur le fichier binaire). Elle couvre les cas simples mais pas ceux où un humain importe deux représentations différentes du même document.
+
+#### Cas non couverts
+
+| Cas | Raison de l'échec |
+|---|---|
+| Deux photos du même reçu (angles différents) | SHA256 différents |
+| PDF + photo du même document | SHA256 différents |
+| PDF re-téléchargé avec métadonnées mises à jour (horodatage, commentaire Adobe) | SHA256 différent à cause des métadonnées |
+| PDF imprimé puis re-scanné | SHA256 différent, qualité OCR potentiellement dégradée |
+| Même PDF converti dans un autre format (PDF → HEIC, PDF → PNG) | SHA256 différent |
+| Même facture reçue en double par email (deux PDFs "identiques" visuellement mais générés séparément par le fournisseur) | SHA256 différents si le fournisseur a regénéré le fichier |
+
+#### Solutions proposées (par ordre de fiabilité)
+
+**1. Déduplication sur clé métier forte** *(recommandé, à implémenter en premier)*
+
+Avant insertion, vérifier si une ligne existe déjà avec le même `(numéro_facture, émetteur_siren)`. Ce couple est unique par définition comptable — deux factures du même fournisseur ne peuvent pas avoir le même numéro.
+
+```sql
+SELECT id FROM invoices
+WHERE numéro_facture = ? AND émetteur_siren = ?
+  AND numéro_facture IS NOT NULL AND émetteur_siren IS NOT NULL
+```
+
+Limite : ne couvre pas les reçus sans numéro de facture (tickets de caisse, notes de frais photo).
+
+**2. Déduplication floue sur triplet financier** *(filet de sécurité pour les reçus)*
+
+Si la clé métier échoue (champs absents), vérifier le triplet `(montant_ttc ± 0,01 €, date_document, émetteur_nom ~=)`. Deux reçus du même montant, à la même date, du même émetteur sont très probablement le même document.
+
+```sql
+SELECT id FROM invoices
+WHERE ABS(montant_ttc - ?) < 0.02
+  AND date_document = ?
+  AND émetteur_nom = ?
+```
+
+Limite : faux positifs possibles si un fournisseur émet deux factures identiques le même jour (rare mais légal).
+
+**3. Flagging "suspect doublon" plutôt que blocage automatique**
+
+Pour les cas ambigus (triplet financier match mais clé métier absente), ne pas bloquer l'insertion — insérer avec `statut_révision = 'suspect_doublon'` et afficher un avertissement dans le bloc santé du dashboard. L'utilisateur décide.
+
+**4. Strip des métadonnées PDF avant hachage** *(optionnel, complexe)*
+
+Utiliser `pikepdf` pour extraire uniquement le contenu visuel du PDF (sans métadonnées), puis hacher ce contenu normalisé. Couvre le cas "même PDF avec commentaire ajouté". Dépendance lourde, gain marginal.
+
+#### Implémentation suggérée
+
+1. Ajouter `_semantic_duplicate(conn, row) -> str | None` dans `extract.py` — retourne l'`id` du doublon existant si trouvé, sinon `None`.
+2. Dans la boucle d'extraction : appeler après le SHA256 check, avant `insert()`.
+3. Si doublon sémantique détecté : `[SKIP-SEM] doublon de {id_existant}` + déplacement dans `processed/` (pas `errors/`).
+4. Ajouter `suspect_doublon` comme valeur de `statut_révision` + badge dédié dans le dashboard.
 
 ---
 
