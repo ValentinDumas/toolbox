@@ -415,9 +415,39 @@ config.toml.example   scripts (.py)   tests/   demo/   sample-data/   README.md 
 
 ---
 
+## Dashboard local
+
+Lance un serveur web local pour visualiser les données en temps réel.
+
+```bash
+# Depuis ton dossier de travail (même que pour run.py)
+python /chemin/vers/dashboard.py
+# → http://localhost:7800
+```
+
+Options :
+
+```bash
+python dashboard.py --port 8080                       # changer le port
+python dashboard.py --config ~/compta/config.toml
+```
+
+Le dashboard affiche :
+- **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
+- **Ledger** : toutes les factures de l'année, paginées (50 / page)
+- **Santé** : fichiers en attente, items à réviser, erreurs
+
+Actions disponibles : lancer le pipeline, ouvrir `review.csv` (visible uniquement si des items sont à réviser).
+
+Prérequis : `pip install flask`
+
+---
+
 ## Roadmap
 
-- **Phase 1C** — Watcher automatique (surveille `input/` en continu) + dashboard web local
+- **Phase 1C** — ✅ Dashboard web local (`python dashboard.py` → http://localhost:7800)
+- **Phase 1D** — Watcher automatique (surveille `input/` en continu, thread `watchdog` dans `dashboard.py`)
+- **Phase 1E** — Actions complètes : révision inline dans le dashboard (sans passer par `review.csv`)
 - **Phase 2** — Sync Notion API (push vers un board Notion structuré)
 
 ---

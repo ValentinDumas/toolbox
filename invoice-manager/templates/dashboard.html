@@ -1,8 +1,493 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>ProLedger — {{ year }}</title></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProLedger — {{ year }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1C4ED8;
+      --secondary: #475569;
+      --surface: #F8FAFC;
+      --surface-variant: #F1F5F9;
+      --on-surface: #0F172A;
+      --on-surface-muted: #64748B;
+      --positive: #059669;
+      --negative: #DC2626;
+      --warning: #D97706;
+      --error: #B91C1C;
+      --border: #E2E8F0;
+      --radius: 6px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--on-surface);
+      background: var(--surface);
+      line-height: 1.5;
+    }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    /* Layout */
+    .page { max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    h1 { font-size: 22px; font-weight: 600; }
+    .page-period { font-size: 13px; color: var(--on-surface-muted); margin-top: 2px; }
+    /* Year filter */
+    .year-form { display: flex; align-items: center; gap: 8px; }
+    .year-label { font-size: 13px; color: var(--on-surface-muted); }
+    .year-select {
+      font-family: inherit;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      background: white;
+      color: var(--on-surface);
+      cursor: pointer;
+    }
+    .year-select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+    /* Section */
+    section { margin-bottom: 40px; }
+    .section-label {
+      font-size: 13px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--secondary);
+      margin-bottom: 16px;
+    }
+    /* KPI cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .kpi-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums lining-nums;
+      line-height: 1.2;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--on-surface-muted);
+    }
+    .color-positive { color: var(--positive); }
+    .color-negative { color: var(--negative); }
+    .color-neutral  { color: var(--on-surface); }
+    /* Table */
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: white;
+      font-size: 13px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--secondary);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr:nth-child(odd)  { background: var(--surface); }
+    tbody tr:nth-child(even) { background: var(--surface-variant); }
+    tbody tr:hover    { background: var(--surface-variant); }
+    tbody tr:focus    { outline: 2px solid var(--primary); outline-offset: -2px; }
+    tbody tr.selected { border-left: 2px solid var(--primary); }
+    td {
+      padding: 12px 16px;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+    .text-right  { text-align: right; }
+    .text-center { text-align: center; }
+    .text-muted  { color: var(--on-surface-muted); }
+    .amount {
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    tfoot tr { background: white !important; }
+    tfoot td {
+      font-weight: 600;
+      border-top: 2px solid var(--border);
+      padding: 12px 16px;
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+    .empty-row td {
+      text-align: center;
+      color: var(--on-surface-muted);
+      padding: 40px 16px;
+    }
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .badge-paid    { background: #DCFCE7; color: #166534; }
+    .badge-pending { background: #FEF3C7; color: #92400E; }
+    .badge-overdue { background: #FEE2E2; color: #991B1B; }
+    .badge-draft   { background: #F1F5F9; color: #475569; }
+    /* Pagination */
+    .pagination {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--on-surface-muted);
+    }
+    .pagination a {
+      color: var(--primary);
+      text-decoration: none;
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: white;
+    }
+    .pagination a:hover { background: var(--surface-variant); }
+    .pagination a:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+    /* Health */
+    .health-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+    .health-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 200px;
+    }
+    .health-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-ok      { background: var(--positive); }
+    .dot-warning { background: var(--warning); }
+    .dot-error   { background: var(--negative); }
+    .health-info { display: flex; flex-direction: column; gap: 2px; }
+    .health-count {
+      font-weight: 600;
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .health-label { font-size: 13px; color: var(--on-surface-muted); }
+    .health-sublabel       { font-size: 12px; color: var(--warning); }
+    .health-sublabel-error { font-size: 12px; color: var(--negative); }
+    /* Error banner */
+    .error-banner {
+      background: #FEE2E2;
+      border: 1px solid #FECACA;
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: var(--error);
+    }
+    /* Actions */
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-primary:hover:not(:disabled) { background: #1e40af; }
+    .btn-primary:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary {
+      background: white;
+      color: var(--on-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: var(--surface-variant); }
+    .btn-secondary:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    /* Responsive */
+    @media (max-width: 768px) {
+      .page { padding: 16px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .health-grid { flex-direction: column; }
+      .actions { flex-direction: column; }
+    }
+  </style>
+</head>
 <body>
-<h1>ProLedger</h1>
-<p>{{ year }}</p>
+  <div class="page">
+
+    <header>
+      <div>
+        <h1>ProLedger</h1>
+        <p class="page-period">Exercice fiscal {{ year }}</p>
+      </div>
+      <form method="get" action="/" class="year-form" role="search" aria-label="Filtre par année">
+        <label for="year-select" class="year-label">Année</label>
+        <select id="year-select" name="year" class="year-select"
+                onchange="this.form.submit()"
+                aria-label="Sélectionner l'année fiscale">
+          {% for y in years %}
+            <option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </header>
+
+    {% if run_error %}
+    <div class="error-banner" role="alert" aria-live="assertive">
+      <strong>Erreur pipeline :</strong> {{ run_error }}
+    </div>
+    {% endif %}
+
+    <main>
+
+      {# ── Bloc 1 : Synthèse fiscale ─────────────────────────────────────── #}
+      <section aria-label="Synthèse fiscale {{ year }}">
+        <p class="section-label">Synthèse fiscale</p>
+        <div class="kpi-grid">
+
+          <div class="kpi-card">
+            <div class="kpi-value color-positive">{{ summary.ca_ht | fr_currency }}</div>
+            <div class="kpi-label">CA HT</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-value {% if summary.tva_collectee > 0 %}color-positive{% else %}color-neutral{% endif %}">
+              {{ summary.tva_collectee | fr_currency }}
+            </div>
+            <div class="kpi-label">TVA collectée</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-value color-neutral">{{ summary.tva_deductible | fr_currency }}</div>
+            <div class="kpi-label">TVA déductible</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
+              {{ summary.tva_a_reverser | fr_currency }}
+            </div>
+            <div class="kpi-label">TVA à reverser</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-value color-negative">{{ summary.total_charges | fr_currency }}</div>
+            <div class="kpi-label">Total charges</div>
+          </div>
+
+        </div>
+      </section>
+
+      {# ── Bloc 2 : Ledger ───────────────────────────────────────────────── #}
+      <section aria-label="Ledger {{ year }}">
+        <p class="section-label">Ledger — {{ ledger.total_count }} entrée{{ 's' if ledger.total_count != 1 }}</p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Fournisseur / Client</th>
+                <th scope="col" class="text-right">Débit HT</th>
+                <th scope="col" class="text-right">Crédit HT</th>
+                <th scope="col" class="text-right">TVA</th>
+                <th scope="col" class="text-center">Statut</th>
+                <th scope="col" class="text-center">Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in ledger.rows %}
+              {% set is_expense = row.type_document in expense_types %}
+              {% set party = row.émetteur_nom if is_expense else row.destinataire_nom %}
+              <tr tabindex="0">
+                <td>{{ row.date_document or '—' }}</td>
+                <td>{{ party or '—' }}</td>
+                <td class="text-right amount{% if is_expense and row.montant_ht %} color-negative{% endif %}">
+                  {%- if is_expense and row.montant_ht -%}{{ row.montant_ht | fr_currency }}{%- else -%}—{%- endif -%}
+                </td>
+                <td class="text-right amount{% if not is_expense and row.montant_ht %} color-positive{% endif %}">
+                  {%- if not is_expense and row.montant_ht -%}{{ row.montant_ht | fr_currency }}{%- else -%}—{%- endif -%}
+                </td>
+                <td class="text-right amount">{{ (row.montant_tva or 0) | fr_currency }}</td>
+                <td class="text-center">
+                  {% set s = row.statut_révision %}
+                  {% if s in ('validé', 'auto_validé') %}
+                    <span class="badge badge-paid">Validé</span>
+                  {% elif s == 'à_réviser' %}
+                    <span class="badge badge-pending">À réviser</span>
+                  {% elif s == 'erreur' %}
+                    <span class="badge badge-overdue">Erreur</span>
+                  {% else %}
+                    <span class="badge badge-draft">{{ s }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
+              </tr>
+              {% else %}
+              <tr class="empty-row">
+                <td colspan="7">Aucune facture pour {{ year }}.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2"><strong>Total {{ year }}</strong></td>
+                <td class="text-right amount color-negative">{{ ledger.total_debit | fr_currency }}</td>
+                <td class="text-right amount color-positive">{{ ledger.total_credit | fr_currency }}</td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {% if ledger.total_pages > 1 %}
+        <nav class="pagination" aria-label="Pagination du ledger">
+          {% if ledger.page > 1 %}
+            <a href="/?year={{ year }}&page={{ ledger.page - 1 }}" aria-label="Page précédente">‹ Préc.</a>
+          {% endif %}
+          <span>Page {{ ledger.page }} / {{ ledger.total_pages }}</span>
+          {% if ledger.page < ledger.total_pages %}
+            <a href="/?year={{ year }}&page={{ ledger.page + 1 }}" aria-label="Page suivante">Suiv. ›</a>
+          {% endif %}
+        </nav>
+        {% endif %}
+      </section>
+
+      {# ── Bloc 3 : Santé ────────────────────────────────────────────────── #}
+      <section aria-label="Vue de santé du workspace">
+        <p class="section-label">Santé</p>
+        <div class="health-grid">
+
+          <div class="health-card">
+            <div class="health-dot {{ 'dot-error' if health.pending_files > 0 else 'dot-ok' }}"
+                 aria-hidden="true"></div>
+            <div class="health-info">
+              <div class="health-count">{{ health.pending_files }}</div>
+              <div class="health-label">Fichier{{ 's' if health.pending_files != 1 }} en attente</div>
+              {% if health.pending_files > 0 %}
+              <div class="health-sublabel-error">À traiter — lancer le pipeline</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="health-card">
+            <div class="health-dot {{ 'dot-warning' if health.items_a_reviser > 0 else 'dot-ok' }}"
+                 aria-hidden="true"></div>
+            <div class="health-info">
+              <div class="health-count">{{ health.items_a_reviser }}</div>
+              <div class="health-label">Item{{ 's' if health.items_a_reviser != 1 }} à réviser</div>
+              {% if health.items_a_reviser > 0 %}
+              <div class="health-sublabel">Action requise</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="health-card">
+            <div class="health-dot {{ 'dot-error' if health.error_files > 0 else 'dot-ok' }}"
+                 aria-hidden="true"></div>
+            <div class="health-info">
+              <div class="health-count">{{ health.error_files }}</div>
+              <div class="health-label">Fichier{{ 's' if health.error_files != 1 }} en erreur</div>
+              {% if health.error_files > 0 %}
+              <div class="health-sublabel-error">Vérifier errors/</div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    {# ── Actions ────────────────────────────────────────────────────────────── #}
+    <div class="actions">
+      <form method="post" action="/run" id="run-form">
+        <button type="submit" class="btn-primary" id="run-btn"
+                aria-label="Lancer le pipeline de traitement des factures">
+          Lancer le pipeline
+        </button>
+      </form>
+      {% if health.items_a_reviser > 0 %}
+      <form method="post" action="/open-review">
+        <button type="submit" class="btn-secondary"
+                aria-label="Ouvrir le fichier review.csv pour révision manuelle">
+          Ouvrir review.csv
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <script>
+    // Spinner sur le bouton pipeline — pas d'animation sur les données financières
+    document.getElementById('run-form').addEventListener('submit', function () {
+      var btn = document.getElementById('run-btn');
+      btn.disabled = true;
+      btn.textContent = 'Pipeline en cours…';
+    });
+
+    // Navigation clavier sur les lignes de la table
+    document.querySelectorAll('tbody tr[tabindex]').forEach(function (row) {
+      row.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { row.classList.toggle('selected'); }
+        if (e.key === 'Escape') { row.classList.remove('selected'); }
+      });
+    });
+  </script>
 </body>
 </html>
