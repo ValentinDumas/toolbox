@@ -866,12 +866,6 @@
                       data-delete-id="{{ item.id }}"
                       data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
                       onclick="openDeleteModal(this)">Supprimer</button>
-              <form method="post" action="/open-review" style="display:inline; margin-left:auto;">
-                <input type="hidden" name="year" value="{{ year }}">
-                <button type="submit" class="link-edit-all" style="background:none;border:none;cursor:pointer;padding:0;">
-                  Éditer tout →
-                </button>
-              </form>
             </div>
           </div>
           {% endfor %}
@@ -951,15 +945,6 @@
           Lancer le pipeline
         </button>
       </form>
-      {% if health.items_a_reviser > 0 %}
-      <form method="post" action="/open-review">
-        <input type="hidden" name="year" value="{{ year }}">
-        <button type="submit" class="btn-secondary"
-                aria-label="Ouvrir le fichier review.csv pour révision manuelle">
-          Ouvrir review.csv
-        </button>
-      </form>
-      {% endif %}
     </div>
 
   </div>
