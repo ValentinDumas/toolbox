@@ -15,6 +15,8 @@ from pathlib import Path
 
 from config import load_config
 
+HERE = Path(__file__).parent
+
 # ── DB ────────────────────────────────────────────────────────────────────────
 
 SCHEMA = """
@@ -105,14 +107,61 @@ def extract_text_pdf(path: Path, ocr_lang: str, ocr_dpi: int) -> str:
     images = convert_from_bytes(path.read_bytes(), dpi=ocr_dpi)
     return "\n".join(pytesseract.image_to_string(img, lang=ocr_lang) for img in images).strip()
 
-def extract_text_image(path: Path, ocr_lang: str, ocr_dpi: int) -> str:
+def _deskew(arr):
+    import cv2
+    import numpy as np
+    gray = cv2.cvtColor(arr, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    coords = np.column_stack(np.where(thresh > 0))
+    if len(coords) < 10:
+        return arr
+    angle = cv2.minAreaRect(coords)[-1]
+    if angle < -45:
+        angle = 90 + angle
+    if abs(angle) < 0.5:
+        return arr
+    h, w = arr.shape[:2]
+    M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+    return cv2.warpAffine(arr, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+
+def _preprocess_image(img):
+    import cv2
+    import numpy as np
+    from PIL import ImageOps
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+    try:
+        arr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        lab = cv2.cvtColor(arr, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        arr = cv2.cvtColor(cv2.merge([clahe.apply(l), a, b]), cv2.COLOR_LAB2BGR)
+        arr = _deskew(arr)
+        img = __import__("PIL.Image", fromlist=["Image"]).Image.fromarray(
+            cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+        )
+    except Exception:
+        pass
+    return img
+
+
+def extract_text_image(path: Path, ocr_lang: str, ocr_dpi: int, preprocess: bool = True) -> str:
     import pytesseract
     from PIL import Image
     if path.suffix.lower() in {".heic", ".heif"}:
         from pillow_heif import register_heif_opener
         register_heif_opener()
     img = Image.open(path).convert("RGB")
-    return pytesseract.image_to_string(img, lang=ocr_lang).strip()
+    if preprocess:
+        img = _preprocess_image(img)
+    text = pytesseract.image_to_string(img, lang=ocr_lang, config="--psm 3")
+    if not _parse_date(text):
+        text_psm6 = pytesseract.image_to_string(img, lang=ocr_lang, config="--psm 6")
+        text = text + "\n" + text_psm6
+    return text.strip()
 
 def extract_text(path: Path, cfg: dict) -> str:
     lang = cfg["extraction"]["ocr_lang"]
@@ -121,7 +170,8 @@ def extract_text(path: Path, cfg: dict) -> str:
     if suffix == ".pdf":
         return extract_text_pdf(path, lang, dpi)
     if suffix in {".jpg", ".jpeg", ".png", ".tiff", ".bmp", ".webp", ".heic", ".heif"}:
-        return extract_text_image(path, lang, dpi)
+        preprocess = cfg["extraction"].get("ocr_preprocess", True)
+        return extract_text_image(path, lang, dpi, preprocess=preprocess)
     raise ValueError(f"Format non supporté : {suffix}")
 
 # ── Parsers ───────────────────────────────────────────────────────────────────
@@ -135,7 +185,16 @@ _MONTHS_FR = {
 def _parse_date(text: str) -> str | None:
     from datetime import date as _date
 
+    current_year = datetime.now().year
+
     def _valid(y: int, m: int, d: int) -> str | None:
+        # Corrige les années OCR proches mais invalides (ex. 2086 → 2026)
+        if y > current_year + 1:
+            # OCR confond parfois un chiffre (ex. 2086 → 2026 : "0" lu "8")
+            # Remplace les 2 derniers chiffres par ceux de l'année courante
+            y_corrected = int(str(y)[:2] + str(current_year)[2:])
+            if abs(y_corrected - current_year) <= 5:
+                y = y_corrected
         try:
             _date(y, m, d)
             return f"{y:04d}-{m:02d}-{d:02d}"
@@ -191,6 +250,11 @@ def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None,
     elif ht and tva and not ttc:
         ttc = round(ht + tva, 2)
 
+    if not ttc and not ht:
+        bare = re.findall(r"[€$£]\s*(\d[\d\s]*[\.,]\d{2})", text)
+        if bare:
+            ttc = max(float(a.replace(" ", "").replace(",", ".")) for a in bare)
+
     taux_tva = round((tva / ht) * 100, 1) if ht and tva and ht > 0 else None
     return ht, tva, ttc, taux_tva
 
@@ -206,13 +270,54 @@ def _parse_tva_intracom(text: str) -> str | None:
     m = re.search(r"\b(FR\s*\d{2}\s*\d{9})\b", text, re.I)
     return m.group(1).replace(" ", "").upper() if m else None
 
+_INVOICE_PATTERNS = [
+    r"(?:facture|invoice|n°|ref|référence)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
+    r"(?:ticket|reçu|recu|transaction)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
+    r"\b(RT\d{8,})\b",
+]
+
 def _parse_invoice_number(text: str) -> str | None:
-    m = re.search(r"\b(?:facture|invoice|n°|ref|référence)\b[^\w]*([A-Z0-9][A-Z0-9\-_/]{3,})", text, re.I)
-    return m.group(1) if m else None
+    for pattern in _INVOICE_PATTERNS:
+        m = re.search(pattern, text, re.I)
+        if m:
+            return m.group(1)
+    return None
+
+_EMETTEUR_SKIP = frozenset([
+    "tva", "ht", "ttc", "total", "date", "heure", "carte", "siret", "siren",
+    "montant", "prix", "quantite", "qte", "description", "article", "facture",
+    "merci", "ticket", "caisse", "recu", "reçu", "magasin",
+    "pan", "seq", "mode", "type", "nom", "usage", "paiement", "visa",
+])
+
+def _parse_emetteur_fallback(text: str) -> str | None:
+    for line in text.splitlines()[:8]:
+        line = line.strip()
+        if not (3 <= len(line) <= 60):
+            continue
+        if line[-1] in (",", ":", ";"):   # labels "Clé: valeur"
+            continue
+        if "(" in line:                   # adresses "ROUEN (Riboudet)"
+            continue
+        alpha = sum(c.isalpha() for c in line)
+        if alpha / len(line) < 0.6:
+            continue
+        words = re.findall(r"[a-zéèêëàâùûîïôœç]+", line.lower())
+        if any(w in _EMETTEUR_SKIP for w in words):
+            continue
+        return line
+    return None
 
 def _parse_email(text: str) -> str | None:
     m = re.search(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", text, re.I)
     return m.group(0) if m else None
+
+def _tesseract_confidence(text: str) -> float:
+    if not text:
+        return 0.0
+    alphanum = sum(c.isalnum() for c in text)
+    return alphanum / len(text)
+
 
 def _confidence_score(date: str | None, ttc, ht, invoice_num: str | None, fiscal_id: str | None) -> float:
     fields = [date, ttc, ht, invoice_num, fiscal_id]
@@ -305,7 +410,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "date_document":            date_str,
         "date_échéance":            None,
         "date_paiement":            None,
-        "émetteur_nom":             None,
+        "émetteur_nom":             _parse_emetteur_fallback(text),
         "émetteur_siren":           siren,
         "émetteur_siret":           siret,
         "émetteur_tva_intracom":    tva_intracom,
@@ -382,11 +487,12 @@ def _collect_files(input_dir: Path) -> list[Path]:
                 files.append(new_path)
     return files
 
-def _move_safely(src: Path, dest_dir: Path, suffix: str = "") -> None:
+def _move_safely(src: Path, dest_dir: Path, suffix: str = "") -> Path:
     dest = dest_dir / src.name
     if dest.exists():
         dest = dest_dir / f"{src.stem}{suffix}{src.suffix}"
     shutil.move(str(src), dest)
+    return dest
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -433,7 +539,12 @@ def main() -> None:
             row = parse_invoice(text, str(f), profil, user_siren)
             row["hash_fichier"] = h
             insert(conn, row)
-            _move_safely(f, processed_dir, f"_{row['id'][:8]}")
+            dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")
+            conn.execute(
+                "UPDATE invoices SET fichier_source=? WHERE id=?",
+                (str(dest.resolve().relative_to(HERE.resolve())), row["id"]),
+            )
+            conn.commit()
             traités += 1
             flag = f"  [OK] confiance={row['confiance']:.0%}"
             if row["statut_révision"] == "à_réviser":

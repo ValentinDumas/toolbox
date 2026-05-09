@@ -291,6 +291,31 @@ class TestPipeline:
         assert count == 3
 
 
+# ── _tesseract_confidence ─────────────────────────────────────────────────────
+
+class TestTesseractConfidence:
+    def test_empty_string_returns_zero(self):
+        assert ex._tesseract_confidence("") == 0.0
+
+    def test_all_alphanum(self):
+        assert ex._tesseract_confidence("abc123") == 1.0
+
+    def test_mixed(self):
+        result = ex._tesseract_confidence("abc!!!")
+        assert abs(result - 0.5) < 0.001
+
+    def test_only_noise(self):
+        assert ex._tesseract_confidence("~~~|||") == 0.0
+
+    def test_realistic_good_text(self):
+        t = "Total TTC 129,46 EUR Facture FR76061464"
+        assert ex._tesseract_confidence(t) > 0.5
+
+    def test_realistic_noisy_text(self):
+        t = "||~~ !!@# $%^ &*()"
+        assert ex._tesseract_confidence(t) < 0.3
+
+
 # ── _guess_doc_type ───────────────────────────────────────────────────────────
 
 class TestGuessDocType:
