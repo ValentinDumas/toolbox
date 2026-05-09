@@ -474,7 +474,7 @@ def _guess_doc_type(text: str, user_siren: str, montant_ttc: float | None) -> st
 
 # ── Invoice assembly ──────────────────────────────────────────────────────────
 
-def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str = "") -> dict:
+def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str = "", known_emitters: dict | None = None) -> dict:
     date_str  = _parse_date(text)
     date_obj  = datetime.fromisoformat(date_str) if date_str else None
     ht, tva, ttc, taux_tva = _parse_amounts(text)
@@ -487,6 +487,14 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     confiance    = _confidence_score(date_str, ttc, ht, invoice_num, siren or tva_intracom)
     doc_type     = _guess_doc_type(text, user_siren, ttc)
 
+    émetteur_nom = _parse_emetteur_fallback(text)
+    if not émetteur_nom and known_emitters:
+        text_l = text.lower()
+        for keyword, name in known_emitters.items():
+            if keyword.lower() in text_l:
+                émetteur_nom = name
+                break
+
     return {
         "id":                       str(uuid.uuid4()),
         "type_document":            doc_type,
@@ -494,7 +502,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "date_document":            date_str,
         "date_échéance":            None,
         "date_paiement":            None,
-        "émetteur_nom":             _parse_emetteur_fallback(text),
+        "émetteur_nom":             émetteur_nom,
         "émetteur_siren":           siren,
         "émetteur_siret":           siret,
         "émetteur_tva_intracom":    tva_intracom,
@@ -592,9 +600,10 @@ def main() -> None:
     processed_dir = root / cfg["paths"]["processed"]
     errors_dir    = root / cfg["paths"]["errors"]
     db_path       = root / cfg["paths"]["db"]
-    threshold     = cfg["extraction"]["confidence_threshold"]
-    profil        = cfg["fiscal"]["default_profile"]
-    user_siren    = cfg["identity"]["siren"]
+    threshold      = cfg["extraction"]["confidence_threshold"]
+    profil         = cfg["fiscal"]["default_profile"]
+    user_siren     = cfg["identity"]["siren"]
+    known_emitters = cfg.get("known_emitters", {})
 
     for d in (input_dir, processed_dir, errors_dir):
         d.mkdir(parents=True, exist_ok=True)
@@ -620,7 +629,7 @@ def main() -> None:
             text = extract_text(f, cfg)
             if not text.strip():
                 raise ValueError("Texte vide après extraction")
-            row = parse_invoice(text, str(f), profil, user_siren)
+            row = parse_invoice(text, str(f), profil, user_siren, known_emitters)
             row["hash_fichier"] = h
             insert(conn, row)
             dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")

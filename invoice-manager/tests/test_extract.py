@@ -446,3 +446,41 @@ class TestEasyOCRFallback:
              patch("extract._get_easyocr_reader") as mock_get:
             ex.extract_text_image(img_path, "fra", 300, preprocess=False)
             mock_get.assert_not_called()
+
+
+# ── known_emitters ────────────────────────────────────────────────────────────
+
+# 8 lignes de bruit OCR pur — ne passent pas le filtre alpha de _parse_emetteur_fallback
+_GARBLED_HEADER = "!!! ##\n" * 8
+
+class TestKnownEmitters:
+    def test_known_emitter_matched_when_header_unreadable(self):
+        # Header illisible + "boulanger" dans le corps du ticket
+        text = _GARBLED_HEADER + "Total TTC: 249,99 EUR\nDate: 01/05/2026\nSIRET: 12345678900012\nboulanger ref 42"
+        row = ex.parse_invoice(text, "boulanger.jpg", "auto-entrepreneur",
+                               known_emitters={"boulanger": "Boulanger"})
+        assert row["émetteur_nom"] == "Boulanger"
+
+    def test_known_emitter_keyword_case_insensitive(self):
+        # Clé en minuscule dans config, texte en majuscules dans le ticket
+        text = _GARBLED_HEADER + "Total TTC: 99,00 EUR\nBOULANGER ref produit"
+        row = ex.parse_invoice(text, "b.jpg", "auto-entrepreneur",
+                               known_emitters={"boulanger": "Boulanger"})
+        assert row["émetteur_nom"] == "Boulanger"
+
+    def test_known_emitter_not_overrides_existing(self):
+        # _parse_emetteur_fallback trouve un nom → known_emitters ne doit PAS l'écraser
+        text = "Fnac\nTotal TTC 49,99 EUR\nDate: 01/05/2026\nboulanger quelque chose"
+        row = ex.parse_invoice(text, "fnac.jpg", "auto-entrepreneur",
+                               known_emitters={"boulanger": "Boulanger"})
+        assert row["émetteur_nom"] == "Fnac"
+
+    def test_no_match_returns_none(self):
+        text = _GARBLED_HEADER + "Total TTC: 249,99 EUR"
+        row = ex.parse_invoice(text, "b.jpg", "auto-entrepreneur", known_emitters={})
+        assert row["émetteur_nom"] is None
+
+    def test_default_no_known_emitters(self):
+        text = _GARBLED_HEADER + "Total TTC: 249,99 EUR"
+        row = ex.parse_invoice(text, "b.jpg", "auto-entrepreneur")
+        assert row["émetteur_nom"] is None

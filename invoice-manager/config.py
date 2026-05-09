@@ -35,6 +35,7 @@ DEFAULT_CONFIG: dict = {
         "output": "output/",
         "review": "review/",
     },
+    "known_emitters": {},
 }
 
 # Cadence de déclaration par défaut par statut fiscal.
