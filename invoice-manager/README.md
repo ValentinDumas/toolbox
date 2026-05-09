@@ -23,7 +23,13 @@ brew install tesseract tesseract-lang poppler
 ### 2. Dépendances Python
 
 ```bash
-pip install pdfplumber pdf2image pytesseract Pillow openpyxl pillow-heif
+pip install pdfplumber pdf2image pytesseract Pillow openpyxl pillow-heif opencv-python-headless numpy
+```
+
+Optionnel — fallback OCR sur photos difficiles :
+
+```bash
+pip install easyocr
 ```
 
 ### 3. Initialiser ton espace de travail
@@ -108,6 +114,9 @@ Priorité de résolution : **CLI args > config.toml > valeurs par défaut intég
 | `extraction.confidence_threshold` | `0.8` | Seuil sous lequel l'item va en révision |
 | `extraction.ocr_lang` | `fra+eng` | Langues Tesseract |
 | `extraction.ocr_dpi` | `300` | Résolution PDF→image pour l'OCR |
+| `extraction.ocr_preprocess` | `true` | Preprocessing image (denoise, perspective, binarisation, deskew) |
+| `extraction.ocr_easyocr_fallback` | `false` | Fallback EasyOCR si confiance Tesseract insuffisante (`pip install easyocr`) |
+| `extraction.ocr_easyocr_threshold` | `0.4` | Seuil de déclenchement EasyOCR (ratio alphanumérique, 0–1) |
 | `fiscal.default_profile` | `auto-entrepreneur` | Profil fiscal — voir tableau statuts ci-dessous |
 | `fiscal.cadence_déclaration` | `""` | Vide = cadence par défaut du profil (`trimestrielle` pour AE) |
 | `paths.*` | `input/`, `output/`… | Tous les dossiers sont configurables |
@@ -575,11 +584,23 @@ Ensuite relance `python3 export.py` — l'export est idempotent (écrase les fic
 
 ### L'OCR donne de mauvais résultats sur mes photos de tickets
 
-Quelques pistes :
-- Augmente la résolution : `ocr_dpi = 400` dans `config.toml`
+Le pipeline applique automatiquement un pré-traitement en 4 étapes : dénoise bilateral (retire le grain sans flouter les contours), correction de perspective (redresse les tickets pris en angle), binarisation adaptative gaussienne (gère l'éclairage inégal et les ombres), et deskew. Deux passes Tesseract (PSM 3 + PSM 6) sont essayées si aucune date n'est détectée.
+
+Si les résultats restent insuffisants :
+- Vérifie que `ocr_preprocess = true` est dans `config.toml`
+- Augmente la résolution : `ocr_dpi = 400`
 - Assure-toi que `tesseract-lang` est installé (`brew install tesseract-lang`)
-- Pour des tickets très petits, retouche le contraste avant de déposer le fichier
-- Les tickets avec confiance < 0.8 atterrissent automatiquement dans `review.csv` pour correction manuelle
+- Active le fallback EasyOCR pour les photos vraiment difficiles (éclairage extrême, fort angle, ticket froissé) :
+  ```bash
+  pip install easyocr
+  ```
+  Puis dans `config.toml` :
+  ```toml
+  ocr_easyocr_fallback = true
+  ocr_easyocr_threshold = 0.4  # déclencher si < 40 % alphanumérique
+  ```
+  EasyOCR est plus lent (3–8s/image) mais bien meilleur sur fond complexe et texte incliné.
+- Les items avec confiance < 0.8 atterrissent automatiquement en section "À réviser" dans le dashboard pour correction manuelle — le texte OCR brut y est visible pour diagnostiquer
 
 ---
 
