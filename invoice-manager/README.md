@@ -121,6 +121,20 @@ Priorité de résolution : **CLI args > config.toml > valeurs par défaut intég
 | `fiscal.cadence_déclaration` | `""` | Vide = cadence par défaut du profil (`trimestrielle` pour AE) |
 | `paths.*` | `input/`, `output/`… | Tous les dossiers sont configurables |
 
+### Enseignes connues (`[known_emitters]`)
+
+Quand l'en-tête d'un ticket est illisible (froissé, coupé, mal éclairé), l'émetteur ne peut pas être détecté automatiquement. La section `[known_emitters]` permet d'associer un mot-clé — cherché n'importe où dans le texte OCR — à un nom d'enseigne :
+
+```toml
+[known_emitters]
+boulanger = "Boulanger"
+fnac      = "Fnac"
+darty     = "Darty"
+leroy     = "Leroy Merlin"
+```
+
+Le mot-clé est insensible à la casse. Il ne s'applique que si aucun émetteur n'a été détecté dans l'en-tête — il ne remplace jamais un nom déjà trouvé.
+
 Toutes les clés sont optionnelles individuellement — seules les valeurs que tu surcharges sont nécessaires.
 Voir `config.toml.example` pour la documentation complète et commentée de chaque option.
 
