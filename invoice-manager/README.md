@@ -74,12 +74,13 @@ cp ~/Downloads/photo_ticket.HEIC input/
 python3 run.py
 ```
 
-C'est tout. `run.py` enchaîne quatre étapes automatiquement :
+C'est tout. `run.py` enchaîne trois étapes automatiquement :
 
 1. **Déduplication** — compare les fichiers de `input/` par checksum SHA256 ; si deux fichiers sont identiques, conserve celui au nom le plus court et supprime les autres
 2. **Extraction** — lit les fichiers de `input/`, parse les montants/dates/SIREN, insère en base, déplace dans `processed/`
-3. **Révision** *(si nécessaire)* — si des items ont une confiance < 80 %, ouvre `review/review.csv` dans le Finder, attend que tu le corriges et que tu appuies sur Entrée, puis importe les corrections
-4. **Export** — génère `output/ledger-YYYY.csv` et `output/ledger-YYYY.xlsx`
+3. **Export** — génère `output/ledger-YYYY.csv` et `output/ledger-YYYY.xlsx`
+
+Les items avec confiance < 80 % sont marqués `à_réviser` et accessibles via le bouton **Révision** du dashboard.
 
 ```bash
 # Options
@@ -460,8 +461,9 @@ Le dashboard affiche :
 - **Ledger** : toutes les factures de l'année, paginées (50 / page)
 - **Santé** : fichiers en attente, items à réviser, erreurs
 - **Révision inline** : si des items ont un score de confiance < 80 %, une section "À réviser" apparaît entre santé et actions — chaque item est éditable directement dans le navigateur (8 champs essentiels + suppression), sans passer par `review.csv`
+- **Reset par item** : dans le ledger, chaque ligne avec le statut `révisé` affiche un bouton ↩ pour la remettre individuellement en `à_réviser`
 
-Actions disponibles : lancer le pipeline, ouvrir `review.csv`, révision inline.
+Actions disponibles : lancer le pipeline, ouvrir `review.csv`, révision inline, reset par item.
 
 Prérequis : `pip install flask`
 
@@ -589,8 +591,9 @@ Chaque fichier est dédoublonné par son hash SHA256. Si tu redéposes le même 
 
 Deux options :
 
-1. **Via review.csv** : mets le statut révision de l'item à `à_réviser` directement en SQL, puis relance `python3 review.py` pour l'exporter, corrige, et `--import`.
-2. **Via SQLite** : ouvre `data/invoices.db` dans DB Browser for SQLite et modifie `catégorie`, `sous_catégorie`, `déductible`, `taux_déductibilité` directement.
+1. **Via le dashboard** : clique ↩ sur la ligne concernée dans le ledger — l'item repasse en `à_réviser` et réapparaît dans la section de révision inline.
+2. **Via review.csv** : mets le statut révision de l'item à `à_réviser` directement en SQL, puis relance `python3 review.py` pour l'exporter, corrige, et `--import`.
+3. **Via SQLite** : ouvre `data/invoices.db` dans DB Browser for SQLite et modifie `catégorie`, `sous_catégorie`, `déductible`, `taux_déductibilité` directement.
 
 Ensuite relance `python3 export.py` — l'export est idempotent (écrase les fichiers existants).
 

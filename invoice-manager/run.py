@@ -82,21 +82,7 @@ def main() -> None:
     print("\n── Extraction ──────────────────────────────────")
     subprocess.run([py, str(HERE / "extract.py")] + cfg_args, check=True)
 
-    # 3. Révision si nécessaire
-    n = _count_pending_review(db_path)
-    if n > 0:
-        print(f"\n── Révision ({n} item{'s' if n > 1 else ''} à corriger) ──────────")
-        subprocess.run([py, str(HERE / "review.py")] + cfg_args, check=True)
-        print(f"\n  Fichier ouvert : {review_csv}")
-        try:
-            _open_file(review_csv)
-            print("  Corrige, sauvegarde, puis appuie sur Entrée.")
-            input("\n  [Entrée pour continuer…] ")
-            subprocess.run([py, str(HERE / "review.py"), "--import"] + cfg_args, check=True)
-        except EOFError:
-            print("  [Mode non-interactif — révision ignorée, relancer manuellement]")
-
-    # 4. Export
+    # 3. Export
     print("\n── Export ───────────────────────────────────────")
     export_args = [py, str(HERE / "export.py")] + cfg_args
     if args.year:
