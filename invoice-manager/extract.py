@@ -201,7 +201,14 @@ def _preprocess_image(img):
     return img
 
 
-def extract_text_image(path: Path, ocr_lang: str, ocr_dpi: int, preprocess: bool = True) -> str:
+def extract_text_image(
+    path: Path,
+    ocr_lang: str,
+    ocr_dpi: int,
+    preprocess: bool = True,
+    easyocr_fallback: bool = False,
+    easyocr_threshold: float = 0.4,
+) -> str:
     import pytesseract
     from PIL import Image
     if path.suffix.lower() in {".heic", ".heif"}:
@@ -214,6 +221,13 @@ def extract_text_image(path: Path, ocr_lang: str, ocr_dpi: int, preprocess: bool
     if not _parse_date(text):
         text_psm6 = pytesseract.image_to_string(img, lang=ocr_lang, config="--psm 6")
         text = text + "\n" + text_psm6
+    if easyocr_fallback and _tesseract_confidence(text) < easyocr_threshold:
+        import numpy as np
+        reader = _get_easyocr_reader()
+        easy_lines = reader.readtext(np.array(img), detail=0)
+        text_easy = "\n".join(easy_lines)
+        if len(text_easy) > len(text):
+            text = text_easy
     return text.strip()
 
 def extract_text(path: Path, cfg: dict) -> str:
@@ -224,7 +238,14 @@ def extract_text(path: Path, cfg: dict) -> str:
         return extract_text_pdf(path, lang, dpi)
     if suffix in {".jpg", ".jpeg", ".png", ".tiff", ".bmp", ".webp", ".heic", ".heif"}:
         preprocess = cfg["extraction"].get("ocr_preprocess", True)
-        return extract_text_image(path, lang, dpi, preprocess=preprocess)
+        easyocr_fallback = cfg["extraction"].get("ocr_easyocr_fallback", False)
+        easyocr_threshold = cfg["extraction"].get("ocr_easyocr_threshold", 0.4)
+        return extract_text_image(
+            path, lang, dpi,
+            preprocess=preprocess,
+            easyocr_fallback=easyocr_fallback,
+            easyocr_threshold=easyocr_threshold,
+        )
     raise ValueError(f"Format non supporté : {suffix}")
 
 # ── Parsers ───────────────────────────────────────────────────────────────────
@@ -370,6 +391,16 @@ def _tesseract_confidence(text: str) -> float:
         return 0.0
     alphanum = sum(c.isalnum() for c in text)
     return alphanum / len(text)
+
+
+_easyocr_reader = None
+
+def _get_easyocr_reader():
+    global _easyocr_reader
+    if _easyocr_reader is None:
+        import easyocr
+        _easyocr_reader = easyocr.Reader(["fr", "en"], gpu=False)
+    return _easyocr_reader
 
 
 def _confidence_score(date: str | None, ttc, ht, invoice_num: str | None, fiscal_id: str | None) -> float:

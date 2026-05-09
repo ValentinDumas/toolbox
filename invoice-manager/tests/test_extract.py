@@ -6,7 +6,7 @@ import shutil
 import sqlite3
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -395,3 +395,54 @@ class TestGuessDocType:
         # avoir keyword takes priority before user_siren check
         text = "credit note remboursement 123456789"
         assert ex._guess_doc_type(text, "123456789", 30.0) == "avoir_émis"
+
+
+# ── EasyOCR fallback ──────────────────────────────────────────────────────────
+
+class TestEasyOCRFallback:
+    def test_tesseract_confidence_above_threshold_no_easyocr(self, tmp_path):
+        """EasyOCR must NOT be called when Tesseract confidence is sufficient."""
+        img_path = tmp_path / "test.png"
+        from PIL import Image
+        Image.new("RGB", (100, 50), "white").save(img_path)
+
+        with patch("pytesseract.image_to_string", return_value="Total TTC 50,00 EUR Facture"), \
+             patch("extract._get_easyocr_reader") as mock_get:
+            result = ex.extract_text_image(
+                img_path, "fra", 300,
+                preprocess=False,
+                easyocr_fallback=True,
+                easyocr_threshold=0.4,
+            )
+        assert "Total" in result
+        mock_get.assert_not_called()
+
+    def test_low_confidence_triggers_easyocr(self, tmp_path):
+        """EasyOCR is called and its result used when Tesseract confidence < threshold."""
+        img_path = tmp_path / "test.png"
+        from PIL import Image
+        Image.new("RGB", (100, 50), "white").save(img_path)
+
+        mock_reader = MagicMock()
+        mock_reader.readtext.return_value = ["Total TTC", "129,46 EUR", "Facture OVH"]
+
+        with patch("pytesseract.image_to_string", return_value="~~||~~"), \
+             patch("extract._get_easyocr_reader", return_value=mock_reader):
+            result = ex.extract_text_image(
+                img_path, "fra", 300,
+                preprocess=False,
+                easyocr_fallback=True,
+                easyocr_threshold=0.4,
+            )
+        assert "Total TTC" in result
+
+    def test_easyocr_disabled_by_default(self, tmp_path):
+        """With easyocr_fallback=False (default), EasyOCR is never invoked."""
+        img_path = tmp_path / "test.png"
+        from PIL import Image
+        Image.new("RGB", (100, 50), "white").save(img_path)
+
+        with patch("pytesseract.image_to_string", return_value="~~||~~"), \
+             patch("extract._get_easyocr_reader") as mock_get:
+            ex.extract_text_image(img_path, "fra", 300, preprocess=False)
+            mock_get.assert_not_called()
