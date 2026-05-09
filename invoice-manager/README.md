@@ -436,8 +436,9 @@ Le dashboard affiche :
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
 - **Ledger** : toutes les factures de l'année, paginées (50 / page)
 - **Santé** : fichiers en attente, items à réviser, erreurs
+- **Révision inline** : si des items ont un score de confiance < 80 %, une section "À réviser" apparaît entre santé et actions — chaque item est éditable directement dans le navigateur (8 champs essentiels + suppression), sans passer par `review.csv`
 
-Actions disponibles : lancer le pipeline, ouvrir `review.csv` (visible uniquement si des items sont à réviser).
+Actions disponibles : lancer le pipeline, ouvrir `review.csv`, révision inline.
 
 Prérequis : `pip install flask`
 
