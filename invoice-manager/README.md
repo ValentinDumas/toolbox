@@ -458,13 +458,17 @@ python dashboard.py --config ~/compta/config.toml
 
 Le dashboard affiche :
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
+- **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page
+
+Navigation par onglets (sous la synthèse) :
 - **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne
-- **Santé** : fichiers en attente, items à valider (prêts + à réviser), erreurs
-- **Validation inline** : section "À valider" affiche tous les items non encore validés — édition directe dans le navigateur (8 champs) avec bouton "Valider". Pour les items `prêt_à_valider`, deux boutons dans le tableau : ✓ (valider en un clic) et ✎ (accéder au formulaire d'édition)
-- **Corrections tracées** : un document `validé` reste modifiable, chaque correction est enregistrée dans un log horodaté (champ + valeur avant/après). Badge ✎ dans le ledger si des corrections existent
-- **Reset par item** : bouton ↩ sur chaque ligne `validé` pour la remettre en `à_réviser`
-- **Suppression sécurisée** : le bouton Supprimer ouvre une modale de confirmation (fichier + émetteur + montant) avant toute action. La suppression est un soft-delete — le document reste en base avec un horodatage de suppression, conformément à l'obligation de conservation des pièces comptables (Code de commerce, 10 ans)
-- **Corbeille** : section visible dès qu'un item a été supprimé. Affiche les documents supprimés avec leur date de suppression. Bouton Restaurer pour remettre un item en `à_réviser` — aucune suppression définitive possible depuis l'interface
+- **À réviser (N)** : items non encore validés — édition directe dans le navigateur (8 champs). Onglet grisé et non cliquable si aucun item
+- **Corbeille (N)** : documents supprimés avec date de suppression et bouton Restaurer. Onglet grisé si vide
+
+L'onglet actif est persisté dans l'URL (`#ledger`, `#reviser`, `#corbeille`) — rechargement ou partage de lien restaure la vue.
+
+- **Corrections tracées** : un document `validé` reste modifiable depuis le ledger (lien ✎), chaque correction est enregistrée dans un log horodaté (champ + valeur avant/après). Badge ✎ dans le ledger si des corrections existent
+- **Suppression sécurisée** : le bouton Supprimer ouvre une modale de confirmation avant toute action. La suppression est un soft-delete — aucune suppression définitive possible depuis l'interface (obligation de conservation 10 ans, Code de commerce)
 
 **Cycle de vie des statuts** :
 

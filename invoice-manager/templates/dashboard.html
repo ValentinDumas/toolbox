@@ -412,6 +412,39 @@
       cursor: pointer;
     }
     .btn-restore:hover { background: var(--surface-variant); }
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--on-surface-muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab-btn:hover:not(:disabled) { color: var(--on-surface); }
+    .tab-btn[aria-selected="true"] {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
+    }
+    .tab-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .tab-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .tab-empty {
+      text-align: center;
+      color: var(--on-surface-muted);
+      padding: 48px 16px;
+      font-size: 14px;
+    }
     /* Responsive */
     @media (max-width: 768px) {
       .page { padding: 16px; }
@@ -491,96 +524,7 @@
         </div>
       </section>
 
-      {# ── Bloc 2 : Ledger ───────────────────────────────────────────────── #}
-      <section aria-label="Ledger {{ year }}">
-        <p class="section-label">Ledger — {{ ledger.total_count }} entrée{{ 's' if ledger.total_count != 1 }}</p>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Fournisseur / Client</th>
-                <th scope="col" class="text-right">Débit HT</th>
-                <th scope="col" class="text-right">Crédit HT</th>
-                <th scope="col" class="text-right">TVA</th>
-                <th scope="col" class="text-center">Statut</th>
-                <th scope="col" class="text-center">Type</th>
-                <th scope="col" class="text-center" style="width:2rem"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in ledger.rows %}
-              {% set is_expense = row.type_document in expense_types %}
-              {% set party = row.émetteur_nom if is_expense else row.destinataire_nom %}
-              <tr tabindex="0">
-                <td>{{ row.date_document or '—' }}</td>
-                <td>{{ party or '—' }}</td>
-                {% set amt = row.montant_ht or row.montant_ttc %}
-                <td class="text-right amount{% if is_expense and amt %} color-negative{% endif %}">
-                  {%- if is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
-                </td>
-                <td class="text-right amount{% if not is_expense and amt %} color-positive{% endif %}">
-                  {%- if not is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
-                </td>
-                <td class="text-right amount">{{ (row.montant_tva or 0) | fr_currency }}</td>
-                <td class="text-center" style="white-space:nowrap">
-                  {% set s = row.statut_révision %}
-                  {% if s == 'validé' %}
-                    {% set has_corrections = row.corrections_log and row.corrections_log != '[]' %}
-                    <span class="badge badge-paid">Validé {{ '✎' if has_corrections else '✓' }}</span>
-                    <a href="#review-{{ row.id }}" class="btn-edit-item" title="Modifier (tracé)">✎</a>
-                  {% elif s == 'auto_validé' %}
-                    <span class="badge badge-draft">Auto-validé</span>
-                    <form method="post" action="/review/{{ row.id }}/validate" style="display:inline;margin-left:2px">
-                      <button type="submit" class="btn-validate-item" title="Valider">✓</button>
-                    </form>
-                    <a href="#review-{{ row.id }}" class="btn-edit-item" title="Modifier">✎</a>
-                  {% elif s == 'à_réviser' %}
-                    <span class="badge badge-pending">À réviser</span>
-                  {% elif s == 'erreur' %}
-                    <span class="badge badge-overdue">Erreur</span>
-                  {% else %}
-                    <span class="badge badge-draft">{{ s }}</span>
-                  {% endif %}
-                </td>
-                <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
-                <td class="text-center">
-                  {%- if row.fichier_source -%}
-                  <a href="/files/{{ row.fichier_source|basename }}" target="_blank" rel="noopener" title="{{ row.fichier_source|basename }}" style="text-decoration:none;font-size:1rem">🔍</a>
-                  {%- endif -%}
-                </td>
-              </tr>
-              {% else %}
-              <tr class="empty-row">
-                <td colspan="8">Aucune facture pour {{ year }}.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="2"><strong>Total {{ year }}</strong></td>
-                <td class="text-right amount color-negative">{{ ledger.total_debit | fr_currency }}</td>
-                <td class="text-right amount color-positive">{{ ledger.total_credit | fr_currency }}</td>
-                <td colspan="4"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {% if ledger.total_pages > 1 %}
-        <nav class="pagination" aria-label="Pagination du ledger">
-          {% if ledger.page > 1 %}
-            <a href="/?year={{ year }}&page={{ ledger.page - 1 }}" aria-label="Page précédente">‹ Préc.</a>
-          {% endif %}
-          <span>Page {{ ledger.page }} / {{ ledger.total_pages }}</span>
-          {% if ledger.page < ledger.total_pages %}
-            <a href="/?year={{ year }}&page={{ ledger.page + 1 }}" aria-label="Page suivante">Suiv. ›</a>
-          {% endif %}
-        </nav>
-        {% endif %}
-      </section>
-
-      {# ── Bloc 3 : Santé ────────────────────────────────────────────────── #}
+      {# ── Bloc 2 : Santé ────────────────────────────────────────────────── #}
       <section aria-label="Vue de santé du workspace">
         <p class="section-label">Santé</p>
         <div class="health-grid">
@@ -626,225 +570,344 @@
         </div>
       </section>
 
-      {# ── Bloc 4 : À réviser ─────────────────────────────────────────────── #}
-      {% if items_a_reviser_list %}
-      <section id="reviser" class="review-section" aria-label="Items non validés">
-        <p class="section-label">Non validés ({{ items_a_reviser_list|length }})</p>
-        {% for item in items_a_reviser_list %}
-        <div class="review-item" id="review-{{ item.id }}">
+      {# ── Tab bar ───────────────────────────────────────────────────────────── #}
+      <div role="tablist" class="tab-bar" aria-label="Navigation">
+        <button role="tab" id="tab-ledger" aria-controls="panel-ledger"
+                aria-selected="true" class="tab-btn" tabindex="0">
+          Ledger ({{ ledger.total_count }})
+        </button>
+        <button role="tab" id="tab-reviser" aria-controls="panel-reviser"
+                aria-selected="false" class="tab-btn" tabindex="-1"
+                {% if not items_a_reviser_list %}disabled aria-disabled="true"{% endif %}>
+          À réviser ({{ items_a_reviser_list|length }})
+        </button>
+        <button role="tab" id="tab-corbeille" aria-controls="panel-corbeille"
+                aria-selected="false" class="tab-btn" tabindex="-1"
+                {% if not corbeille_list %}disabled aria-disabled="true"{% endif %}>
+          Corbeille ({{ corbeille_list|length }})
+        </button>
+      </div>
+
+      {# ── Panel : Ledger ────────────────────────────────────────────────────── #}
+      <div role="tabpanel" id="panel-ledger" aria-labelledby="tab-ledger">
+
+        <section aria-label="Ledger {{ year }}">
+          <p class="section-label">Ledger — {{ ledger.total_count }} entrée{{ 's' if ledger.total_count != 1 }}</p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Fournisseur / Client</th>
+                  <th scope="col" class="text-right">Débit HT</th>
+                  <th scope="col" class="text-right">Crédit HT</th>
+                  <th scope="col" class="text-right">TVA</th>
+                  <th scope="col" class="text-center">Statut</th>
+                  <th scope="col" class="text-center">Type</th>
+                  <th scope="col" class="text-center" style="width:2rem"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in ledger.rows %}
+                {% set is_expense = row.type_document in expense_types %}
+                {% set party = row.émetteur_nom if is_expense else row.destinataire_nom %}
+                <tr tabindex="0">
+                  <td>{{ row.date_document or '—' }}</td>
+                  <td>{{ party or '—' }}</td>
+                  {% set amt = row.montant_ht or row.montant_ttc %}
+                  <td class="text-right amount{% if is_expense and amt %} color-negative{% endif %}">
+                    {%- if is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
+                  </td>
+                  <td class="text-right amount{% if not is_expense and amt %} color-positive{% endif %}">
+                    {%- if not is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
+                  </td>
+                  <td class="text-right amount">{{ (row.montant_tva or 0) | fr_currency }}</td>
+                  <td class="text-center" style="white-space:nowrap">
+                    {% set s = row.statut_révision %}
+                    {% if s == 'validé' %}
+                      {% set has_corrections = row.corrections_log and row.corrections_log != '[]' %}
+                      <span class="badge badge-paid">Validé {{ '✎' if has_corrections else '✓' }}</span>
+                      <a href="#review-{{ row.id }}" class="btn-edit-item" title="Modifier (tracé)">✎</a>
+                    {% elif s == 'auto_validé' %}
+                      <span class="badge badge-draft">Auto-validé</span>
+                      <form method="post" action="/review/{{ row.id }}/validate" style="display:inline;margin-left:2px">
+                        <button type="submit" class="btn-validate-item" title="Valider">✓</button>
+                      </form>
+                      <a href="#review-{{ row.id }}" class="btn-edit-item" title="Modifier">✎</a>
+                    {% elif s == 'à_réviser' %}
+                      <span class="badge badge-pending">À réviser</span>
+                    {% elif s == 'erreur' %}
+                      <span class="badge badge-overdue">Erreur</span>
+                    {% else %}
+                      <span class="badge badge-draft">{{ s }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
+                  <td class="text-center">
+                    {%- if row.fichier_source -%}
+                    <a href="/files/{{ row.fichier_source|basename }}" target="_blank" rel="noopener" title="{{ row.fichier_source|basename }}" style="text-decoration:none;font-size:1rem">🔍</a>
+                    {%- endif -%}
+                  </td>
+                </tr>
+                {% else %}
+                <tr class="empty-row">
+                  <td colspan="8">Aucune facture pour {{ year }}.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2"><strong>Total {{ year }}</strong></td>
+                  <td class="text-right amount color-negative">{{ ledger.total_debit | fr_currency }}</td>
+                  <td class="text-right amount color-positive">{{ ledger.total_credit | fr_currency }}</td>
+                  <td colspan="4"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {% if ledger.total_pages > 1 %}
+          <nav class="pagination" aria-label="Pagination du ledger">
+            {% if ledger.page > 1 %}
+              <a href="/?year={{ year }}&page={{ ledger.page - 1 }}" aria-label="Page précédente">‹ Préc.</a>
+            {% endif %}
+            <span>Page {{ ledger.page }} / {{ ledger.total_pages }}</span>
+            {% if ledger.page < ledger.total_pages %}
+              <a href="/?year={{ year }}&page={{ ledger.page + 1 }}" aria-label="Page suivante">Suiv. ›</a>
+            {% endif %}
+          </nav>
+          {% endif %}
+        </section>
+
+        {# Correction de docs validés — ancres depuis le ledger #}
+        {% for item in items_validés_list %}
+        <div class="review-item review-item-hidden" id="review-{{ item.id }}">
           <div class="review-item-header">
             <span>{{ item.émetteur_nom or '—' }}</span>
             <span>{{ item.date_document or '—' }}</span>
-            {% if item.fichier_source %}
-            <a href="/files/{{ item.fichier_source|basename }}" target="_blank" rel="noopener">{{ item.fichier_source|basename }}</a>
-            {% endif %}
-            {% if item.confiance is not none %}
-              {% if item.confiance < 0.8 %}
-              <span class="badge badge-pending">Confiance {{ (item.confiance * 100)|int }}%</span>
-              {% else %}
-              <span class="badge badge-paid">Confiance {{ (item.confiance * 100)|int }}%</span>
-              {% endif %}
-            {% endif %}
+            <span class="badge badge-paid">Validé — correction tracée</span>
           </div>
-
           <form method="post" action="/review/{{ item.id }}/save">
             <div class="review-fields">
               <div>
-                <label class="review-label" for="type-{{ item.id }}">Type</label>
-                <select class="review-select" id="type-{{ item.id }}" name="type_document">
+                <label class="review-label" for="type-v-{{ item.id }}">Type</label>
+                <select class="review-select" id="type-v-{{ item.id }}" name="type_document">
                   {% for dt in doc_types %}
                   <option value="{{ dt }}" {{ 'selected' if item.type_document == dt }}>{{ dt }}</option>
                   {% endfor %}
                 </select>
               </div>
               <div>
-                <label class="review-label" for="ht-{{ item.id }}">Montant HT</label>
+                <label class="review-label" for="ht-v-{{ item.id }}">Montant HT</label>
                 <input class="review-input review-input-amount" type="number" step="0.01"
-                       id="ht-{{ item.id }}" name="montant_ht"
+                       id="ht-v-{{ item.id }}" name="montant_ht"
                        value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
               </div>
               <div>
-                <label class="review-label" for="tva-{{ item.id }}">TVA</label>
+                <label class="review-label" for="tva-v-{{ item.id }}">TVA</label>
                 <input class="review-input review-input-amount" type="number" step="0.01"
-                       id="tva-{{ item.id }}" name="montant_tva"
+                       id="tva-v-{{ item.id }}" name="montant_tva"
                        value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
               </div>
               <div>
-                <label class="review-label" for="ttc-{{ item.id }}">TTC</label>
+                <label class="review-label" for="ttc-v-{{ item.id }}">TTC</label>
                 <input class="review-input review-input-amount" type="number" step="0.01"
-                       id="ttc-{{ item.id }}" name="montant_ttc"
+                       id="ttc-v-{{ item.id }}" name="montant_ttc"
                        value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
               </div>
               <div>
-                <label class="review-label" for="date-{{ item.id }}">Date</label>
+                <label class="review-label" for="date-v-{{ item.id }}">Date</label>
                 <input class="review-input" type="date" required
-                       id="date-{{ item.id }}" name="date_document"
+                       id="date-v-{{ item.id }}" name="date_document"
                        value="{{ item.date_document or '' }}">
               </div>
               <div>
-                <label class="review-label" for="emetteur-{{ item.id }}">Émetteur</label>
+                <label class="review-label" for="emetteur-v-{{ item.id }}">Émetteur</label>
                 <input class="review-input" type="text"
-                       id="emetteur-{{ item.id }}" name="émetteur_nom"
+                       id="emetteur-v-{{ item.id }}" name="émetteur_nom"
                        value="{{ item.émetteur_nom or '' }}">
               </div>
               <div>
-                <label class="review-label" for="num-{{ item.id }}">N° facture</label>
+                <label class="review-label" for="num-v-{{ item.id }}">N° facture</label>
                 <input class="review-input" type="text"
-                       id="num-{{ item.id }}" name="numéro_facture"
+                       id="num-v-{{ item.id }}" name="numéro_facture"
                        value="{{ item.numéro_facture or '' }}">
               </div>
               <div>
-                <label class="review-label" for="cat-{{ item.id }}">Catégorie</label>
+                <label class="review-label" for="cat-v-{{ item.id }}">Catégorie</label>
                 <input class="review-input" type="text"
-                       id="cat-{{ item.id }}" name="catégorie"
+                       id="cat-v-{{ item.id }}" name="catégorie"
                        value="{{ item.catégorie or '' }}">
               </div>
               <div class="review-field-full">
-                <label class="review-label" for="notes-{{ item.id }}">Notes de correction</label>
-                <textarea class="review-textarea" id="notes-{{ item.id }}" name="notes_correction"
+                <label class="review-label" for="notes-v-{{ item.id }}">Notes</label>
+                <textarea class="review-textarea" id="notes-v-{{ item.id }}" name="notes_correction"
                           rows="2">{{ item.notes_correction or '' }}</textarea>
               </div>
             </div>
-
             <div class="review-actions">
-              <button type="submit" class="btn-save">Valider</button>
+              <button type="submit" class="btn-save">Enregistrer la correction</button>
             </div>
           </form>
-
-          {% if item.texte_brut %}
-          <details class="ocr-preview">
-            <summary>Texte extrait (OCR)</summary>
-            <pre>{{ item.texte_brut }}</pre>
-          </details>
-          {% endif %}
-
-          <div class="review-actions" style="margin-top:10px;">
-            <button type="button" class="btn-destructive"
-                    data-delete-id="{{ item.id }}"
-                    data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
-                    onclick="openDeleteModal(this)">Supprimer</button>
-            <form method="post" action="/open-review" style="display:inline; margin-left:auto;">
-              <button type="submit" class="link-edit-all" style="background:none;border:none;cursor:pointer;padding:0;">
-                Éditer tout →
-              </button>
-            </form>
-          </div>
         </div>
         {% endfor %}
-      </section>
-      {% endif %}
 
-      {# ── Bloc 5 : Correction de docs validés (ancres depuis le ledger) ─────── #}
-      {% for item in items_validés_list %}
-      <div class="review-item review-item-hidden" id="review-{{ item.id }}">
-        <div class="review-item-header">
-          <span>{{ item.émetteur_nom or '—' }}</span>
-          <span>{{ item.date_document or '—' }}</span>
-          <span class="badge badge-paid">Validé — correction tracée</span>
-        </div>
-        <form method="post" action="/review/{{ item.id }}/save">
-          <div class="review-fields">
-            <div>
-              <label class="review-label" for="type-v-{{ item.id }}">Type</label>
-              <select class="review-select" id="type-v-{{ item.id }}" name="type_document">
-                {% for dt in doc_types %}
-                <option value="{{ dt }}" {{ 'selected' if item.type_document == dt }}>{{ dt }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div>
-              <label class="review-label" for="ht-v-{{ item.id }}">Montant HT</label>
-              <input class="review-input review-input-amount" type="number" step="0.01"
-                     id="ht-v-{{ item.id }}" name="montant_ht"
-                     value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
-            </div>
-            <div>
-              <label class="review-label" for="tva-v-{{ item.id }}">TVA</label>
-              <input class="review-input review-input-amount" type="number" step="0.01"
-                     id="tva-v-{{ item.id }}" name="montant_tva"
-                     value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
-            </div>
-            <div>
-              <label class="review-label" for="ttc-v-{{ item.id }}">TTC</label>
-              <input class="review-input review-input-amount" type="number" step="0.01"
-                     id="ttc-v-{{ item.id }}" name="montant_ttc"
-                     value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
-            </div>
-            <div>
-              <label class="review-label" for="date-v-{{ item.id }}">Date</label>
-              <input class="review-input" type="date" required
-                     id="date-v-{{ item.id }}" name="date_document"
-                     value="{{ item.date_document or '' }}">
-            </div>
-            <div>
-              <label class="review-label" for="emetteur-v-{{ item.id }}">Émetteur</label>
-              <input class="review-input" type="text"
-                     id="emetteur-v-{{ item.id }}" name="émetteur_nom"
-                     value="{{ item.émetteur_nom or '' }}">
-            </div>
-            <div>
-              <label class="review-label" for="num-v-{{ item.id }}">N° facture</label>
-              <input class="review-input" type="text"
-                     id="num-v-{{ item.id }}" name="numéro_facture"
-                     value="{{ item.numéro_facture or '' }}">
-            </div>
-            <div>
-              <label class="review-label" for="cat-v-{{ item.id }}">Catégorie</label>
-              <input class="review-input" type="text"
-                     id="cat-v-{{ item.id }}" name="catégorie"
-                     value="{{ item.catégorie or '' }}">
-            </div>
-            <div class="review-field-full">
-              <label class="review-label" for="notes-v-{{ item.id }}">Notes</label>
-              <textarea class="review-textarea" id="notes-v-{{ item.id }}" name="notes_correction"
-                        rows="2">{{ item.notes_correction or '' }}</textarea>
-            </div>
-          </div>
-          <div class="review-actions">
-            <button type="submit" class="btn-save">Enregistrer la correction</button>
-          </div>
-        </form>
       </div>
-      {% endfor %}
 
-      {# ── Bloc 6 : Corbeille ──────────────────────────────────────────────────── #}
-      {% if corbeille_list %}
-      <section class="corbeille-section" aria-label="Corbeille">
-        <p class="section-label">Corbeille ({{ corbeille_list|length }})</p>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Fichier</th>
-                <th scope="col">Émetteur</th>
-                <th scope="col" class="text-right">Montant TTC</th>
-                <th scope="col">Type</th>
-                <th scope="col">Date doc.</th>
-                <th scope="col" class="text-muted">Supprimé le</th>
-                <th scope="col"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in corbeille_list %}
-              <tr>
-                <td class="text-muted">{{ item.fichier_source|basename if item.fichier_source else '—' }}</td>
-                <td>{{ item.émetteur_nom or '—' }}</td>
-                <td class="text-right amount">{{ item.montant_ttc | fr_currency if item.montant_ttc is not none else '—' }}</td>
-                <td class="text-muted">{{ item.type_document or '—' }}</td>
-                <td>{{ item.date_document or '—' }}</td>
-                <td class="text-muted" style="font-size:12px">{{ item.deleted_at[:10] if item.deleted_at else '—' }}</td>
-                <td>
-                  <form method="post" action="/review/{{ item.id }}/restore" style="display:inline">
-                    <button type="submit" class="btn-restore">Restaurer</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      {% endif %}
+      {# ── Panel : À réviser ─────────────────────────────────────────────────── #}
+      <div role="tabpanel" id="panel-reviser" aria-labelledby="tab-reviser" hidden>
+        {% if items_a_reviser_list %}
+        <section class="review-section" aria-label="Items non validés">
+          <p class="section-label">Non validés ({{ items_a_reviser_list|length }})</p>
+          {% for item in items_a_reviser_list %}
+          <div class="review-item" id="review-{{ item.id }}">
+            <div class="review-item-header">
+              <span>{{ item.émetteur_nom or '—' }}</span>
+              <span>{{ item.date_document or '—' }}</span>
+              {% if item.fichier_source %}
+              <a href="/files/{{ item.fichier_source|basename }}" target="_blank" rel="noopener">{{ item.fichier_source|basename }}</a>
+              {% endif %}
+              {% if item.confiance is not none %}
+                {% if item.confiance < 0.8 %}
+                <span class="badge badge-pending">Confiance {{ (item.confiance * 100)|int }}%</span>
+                {% else %}
+                <span class="badge badge-paid">Confiance {{ (item.confiance * 100)|int }}%</span>
+                {% endif %}
+              {% endif %}
+            </div>
+
+            <form method="post" action="/review/{{ item.id }}/save">
+              <div class="review-fields">
+                <div>
+                  <label class="review-label" for="type-{{ item.id }}">Type</label>
+                  <select class="review-select" id="type-{{ item.id }}" name="type_document">
+                    {% for dt in doc_types %}
+                    <option value="{{ dt }}" {{ 'selected' if item.type_document == dt }}>{{ dt }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label class="review-label" for="ht-{{ item.id }}">Montant HT</label>
+                  <input class="review-input review-input-amount" type="number" step="0.01"
+                         id="ht-{{ item.id }}" name="montant_ht"
+                         value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
+                </div>
+                <div>
+                  <label class="review-label" for="tva-{{ item.id }}">TVA</label>
+                  <input class="review-input review-input-amount" type="number" step="0.01"
+                         id="tva-{{ item.id }}" name="montant_tva"
+                         value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
+                </div>
+                <div>
+                  <label class="review-label" for="ttc-{{ item.id }}">TTC</label>
+                  <input class="review-input review-input-amount" type="number" step="0.01"
+                         id="ttc-{{ item.id }}" name="montant_ttc"
+                         value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
+                </div>
+                <div>
+                  <label class="review-label" for="date-{{ item.id }}">Date</label>
+                  <input class="review-input" type="date" required
+                         id="date-{{ item.id }}" name="date_document"
+                         value="{{ item.date_document or '' }}">
+                </div>
+                <div>
+                  <label class="review-label" for="emetteur-{{ item.id }}">Émetteur</label>
+                  <input class="review-input" type="text"
+                         id="emetteur-{{ item.id }}" name="émetteur_nom"
+                         value="{{ item.émetteur_nom or '' }}">
+                </div>
+                <div>
+                  <label class="review-label" for="num-{{ item.id }}">N° facture</label>
+                  <input class="review-input" type="text"
+                         id="num-{{ item.id }}" name="numéro_facture"
+                         value="{{ item.numéro_facture or '' }}">
+                </div>
+                <div>
+                  <label class="review-label" for="cat-{{ item.id }}">Catégorie</label>
+                  <input class="review-input" type="text"
+                         id="cat-{{ item.id }}" name="catégorie"
+                         value="{{ item.catégorie or '' }}">
+                </div>
+                <div class="review-field-full">
+                  <label class="review-label" for="notes-{{ item.id }}">Notes de correction</label>
+                  <textarea class="review-textarea" id="notes-{{ item.id }}" name="notes_correction"
+                            rows="2">{{ item.notes_correction or '' }}</textarea>
+                </div>
+              </div>
+
+              <div class="review-actions">
+                <button type="submit" class="btn-save">Valider</button>
+              </div>
+            </form>
+
+            {% if item.texte_brut %}
+            <details class="ocr-preview">
+              <summary>Texte extrait (OCR)</summary>
+              <pre>{{ item.texte_brut }}</pre>
+            </details>
+            {% endif %}
+
+            <div class="review-actions" style="margin-top:10px;">
+              <button type="button" class="btn-destructive"
+                      data-delete-id="{{ item.id }}"
+                      data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
+                      onclick="openDeleteModal(this)">Supprimer</button>
+              <form method="post" action="/open-review" style="display:inline; margin-left:auto;">
+                <button type="submit" class="link-edit-all" style="background:none;border:none;cursor:pointer;padding:0;">
+                  Éditer tout →
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </section>
+        {% else %}
+        <p class="tab-empty">Aucun item à réviser.</p>
+        {% endif %}
+      </div>
+
+      {# ── Panel : Corbeille ─────────────────────────────────────────────────── #}
+      <div role="tabpanel" id="panel-corbeille" aria-labelledby="tab-corbeille" hidden>
+        {% if corbeille_list %}
+        <section class="corbeille-section" aria-label="Corbeille">
+          <p class="section-label">Corbeille ({{ corbeille_list|length }})</p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Fichier</th>
+                  <th scope="col">Émetteur</th>
+                  <th scope="col" class="text-right">Montant TTC</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Date doc.</th>
+                  <th scope="col" class="text-muted">Supprimé le</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in corbeille_list %}
+                <tr>
+                  <td class="text-muted">{{ item.fichier_source|basename if item.fichier_source else '—' }}</td>
+                  <td>{{ item.émetteur_nom or '—' }}</td>
+                  <td class="text-right amount">{{ item.montant_ttc | fr_currency if item.montant_ttc is not none else '—' }}</td>
+                  <td class="text-muted">{{ item.type_document or '—' }}</td>
+                  <td>{{ item.date_document or '—' }}</td>
+                  <td class="text-muted" style="font-size:12px">{{ item.deleted_at[:10] if item.deleted_at else '—' }}</td>
+                  <td>
+                    <form method="post" action="/review/{{ item.id }}/restore" style="display:inline">
+                      <button type="submit" class="btn-restore">Restaurer</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {% else %}
+        <p class="tab-empty">Corbeille vide.</p>
+        {% endif %}
+      </div>
 
     </main>
 
@@ -878,19 +941,48 @@
         </button>
       </form>
       {% endif %}
-      {% if health.validés_count > 0 %}
-      <form method="post" action="/reset-revises">
-        <button type="submit" class="btn-secondary"
-                aria-label="Remettre les items validés en attente de révision">
-          Reset {{ health.validés_count }} validé{{ 's' if health.validés_count != 1 }}
-        </button>
-      </form>
-      {% endif %}
     </div>
 
   </div>
 
   <script>
+    // Tab navigation
+    (function () {
+      var TABS = ['ledger', 'reviser', 'corbeille'];
+      function activateTab(id) {
+        TABS.forEach(function (t) {
+          var btn = document.getElementById('tab-' + t);
+          var panel = document.getElementById('panel-' + t);
+          var active = t === id;
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+          btn.tabIndex = active ? 0 : -1;
+          if (active) panel.removeAttribute('hidden');
+          else panel.setAttribute('hidden', '');
+        });
+        history.replaceState(null, '', '#' + id);
+      }
+      var hash = location.hash.replace('#', '');
+      activateTab(TABS.indexOf(hash) !== -1 ? hash : 'ledger');
+      TABS.forEach(function (t) {
+        var btn = document.getElementById('tab-' + t);
+        if (btn.disabled) return;
+        btn.addEventListener('click', function () { activateTab(t); });
+      });
+      document.querySelector('[role="tablist"]').addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        var dir = e.key === 'ArrowRight' ? 1 : -1;
+        var cur = TABS.findIndex(function (t) {
+          return document.getElementById('tab-' + t).getAttribute('aria-selected') === 'true';
+        });
+        var next = cur;
+        do { next = (next + dir + TABS.length) % TABS.length; }
+        while (document.getElementById('tab-' + TABS[next]).disabled && next !== cur);
+        document.getElementById('tab-' + TABS[next]).focus();
+        activateTab(TABS[next]);
+        e.preventDefault();
+      });
+    })();
+
     // Spinner sur le bouton pipeline — pas d'animation sur les données financières
     document.getElementById('run-form').addEventListener('submit', function () {
       var btn = document.getElementById('run-btn');
