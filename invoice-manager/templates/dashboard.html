@@ -6,6 +6,8 @@
   <title>ProLedger — {{ year }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/viewerjs@1/dist/viewer.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/viewerjs@1/dist/viewer.min.js"></script>
   <style>
     :root {
       --primary: #1C4ED8;
@@ -165,11 +167,11 @@
     .badge-draft   { background: #F1F5F9; color: #475569; }
     .btn-reset-item, .btn-validate-item, .btn-edit-item {
       background: none; border: none; cursor: pointer;
-      font-size: 13px; color: #6B7280; padding: 0 2px;
+      font-size: 13px; color: var(--on-surface-muted); padding: 0 2px;
       vertical-align: middle; line-height: 1;
     }
-    .btn-reset-item:hover, .btn-edit-item:hover { color: #111827; }
-    .btn-validate-item { color: #16A34A; }
+    .btn-reset-item:hover, .btn-edit-item:hover { color: var(--on-surface); }
+    .btn-validate-item { color: var(--positive); }
     .btn-validate-item:hover { color: #14532D; }
     /* Expandable edit row */
     tr.editing {
@@ -305,7 +307,7 @@
       flex-wrap: wrap;
     }
     .btn-destructive {
-      background: #B91C1C;
+      background: var(--error);
       color: white;
       border: none;
       border-radius: var(--radius);
@@ -316,7 +318,7 @@
       cursor: pointer;
     }
     .btn-destructive:hover { background: #991B1B; }
-    .btn-destructive:focus { outline: 2px solid #B91C1C; outline-offset: 2px; }
+    .btn-destructive:focus { outline: 2px solid var(--error); outline-offset: 2px; }
     .btn-save {
       background: var(--primary);
       color: white;
@@ -427,6 +429,7 @@
       cursor: pointer;
     }
     .btn-restore:hover { background: var(--surface-variant); }
+    .btn-restore:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     /* Tabs */
     .tab-bar {
       display: flex;
@@ -479,13 +482,6 @@
     .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; flex-shrink:0; }
     .pdf-modal-close:hover { color:#334155; }
     #pdf-modal-frame { display:block; width:100%; height:80vh; border:none; }
-    #img-modal-container { display:none; width:100%; height:80vh; overflow:auto; background:#1e293b; cursor:grab; }
-    #img-modal-container:active { cursor:grabbing; }
-    #img-modal-preview { display:block; max-width:100%; max-height:80vh; object-fit:contain; transform-origin:center center; transition:transform .12s; margin:auto; }
-    .zoom-controls { display:none; align-items:center; gap:4px; flex-shrink:0; }
-    .zoom-controls button { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; font-size:.85rem; width:24px; height:24px; display:flex; align-items:center; justify-content:center; color:#475569; }
-    .zoom-controls button:hover { background:#e2e8f0; }
-    .zoom-controls span { font-size:.75rem; color:#64748b; min-width:36px; text-align:center; }
     .pdf-modal-hint { margin:0; padding:6px 14px; font-size:.75rem; color:#94a3b8; text-align:right; border-top:1px solid #f1f5f9; }
   </style>
 </head>
@@ -1048,90 +1044,36 @@
       if (e.key === 'Escape') { this.classList.remove('open'); }
     });
 
-    var _imgScale = 1;
-    function _setImgScale(s) {
-      _imgScale = Math.min(5, Math.max(0.2, s));
-      var img = document.getElementById('img-modal-preview');
-      img.style.transform = _imgScale === 1 ? '' : 'scale(' + _imgScale + ')';
-      document.getElementById('zoom-level').textContent = Math.round(_imgScale * 100) + '%';
-    }
-    function adjustZoom(factor) { _setImgScale(_imgScale * factor); }
-    function resetZoom() { _setImgScale(1); }
-
+    var _viewer = null;
     function openPdfPreview(url, name) {
-      var isPdf = url.toLowerCase().endsWith('.pdf');
-      var frame = document.getElementById('pdf-modal-frame');
-      var imgContainer = document.getElementById('img-modal-container');
-      var imgEl = document.getElementById('img-modal-preview');
-      var zoomControls = document.getElementById('zoom-controls');
-
-      if (isPdf) {
-        frame.src = url;
-        frame.style.display = 'block';
-        imgContainer.style.display = 'none';
-        zoomControls.style.display = 'none';
+      if (url.toLowerCase().endsWith('.pdf')) {
+        document.getElementById('pdf-modal-frame').src = url;
+        document.getElementById('pdf-modal-title').textContent = name;
+        document.getElementById('pdf-modal').showModal();
       } else {
-        imgEl.src = url;
-        imgContainer.style.display = 'block';
-        frame.style.display = 'none';
-        zoomControls.style.display = 'flex';
-        resetZoom();
+        var img = document.getElementById('img-viewer-src');
+        img.src = url;
+        img.alt = name;
+        if (_viewer) { _viewer.destroy(); }
+        _viewer = new Viewer(img, { title: false, navbar: false, toolbar: true });
+        _viewer.show();
       }
-      document.getElementById('pdf-modal-title').textContent = name;
-      document.getElementById('pdf-modal').showModal();
     }
     function closePdfModal() {
-      var d = document.getElementById('pdf-modal');
-      d.close();
+      document.getElementById('pdf-modal').close();
       document.getElementById('pdf-modal-frame').src = '';
-      document.getElementById('img-modal-preview').src = '';
-      resetZoom();
     }
-    document.getElementById('img-modal-container').addEventListener('wheel', function(e) {
-      e.preventDefault();
-      adjustZoom(e.deltaY < 0 ? 1.15 : 0.87);
-    }, { passive: false });
-
-    (function() {
-      var container = document.getElementById('img-modal-container');
-      var dragging = false, startX, startY, scrollLeft, scrollTop;
-      container.addEventListener('mousedown', function(e) {
-        if (e.button !== 0) return;
-        dragging = true;
-        startX = e.pageX - container.offsetLeft;
-        startY = e.pageY - container.offsetTop;
-        scrollLeft = container.scrollLeft;
-        scrollTop = container.scrollTop;
-        e.preventDefault();
-      });
-      window.addEventListener('mouseup', function() { dragging = false; });
-      container.addEventListener('mousemove', function(e) {
-        if (!dragging) return;
-        var dx = e.pageX - container.offsetLeft - startX;
-        var dy = e.pageY - container.offsetTop - startY;
-        container.scrollLeft = scrollLeft - dx;
-        container.scrollTop = scrollTop - dy;
-      });
-    }());
   </script>
 
   <dialog id="pdf-modal" aria-labelledby="pdf-modal-title" onclick="if(event.target===this)closePdfModal()">
     <div class="pdf-modal-header">
       <span id="pdf-modal-title"></span>
-      <div class="zoom-controls" id="zoom-controls">
-        <button onclick="adjustZoom(0.8)" title="Dézoomer">−</button>
-        <span id="zoom-level">100%</span>
-        <button onclick="adjustZoom(1.25)" title="Zoomer">+</button>
-        <button onclick="resetZoom()" title="Réinitialiser">↺</button>
-      </div>
       <button class="pdf-modal-close" onclick="closePdfModal()" aria-label="Fermer">✕</button>
     </div>
     <iframe id="pdf-modal-frame" src="" title="Prévisualisation PDF"></iframe>
-    <div id="img-modal-container">
-      <img id="img-modal-preview" src="" alt="Prévisualisation" />
-    </div>
-    <p class="pdf-modal-hint">Échap ou clic en dehors pour fermer • molette pour zoomer</p>
+    <p class="pdf-modal-hint">Échap ou clic en dehors pour fermer</p>
   </dialog>
+  <img id="img-viewer-src" src="" alt="" style="display:none">
 
   <script>
   (function () {
