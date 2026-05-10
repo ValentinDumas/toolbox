@@ -327,6 +327,40 @@ button:hover{background:#1D4ED8cc}
         threading.Thread(target=_run_extraction, daemon=True).start()
         return jsonify({"ok": True, "files": saved, "count": len(saved)})
 
+    @app.route("/errors/<filename>/retry", methods=["POST"])
+    def errors_retry(filename):
+        slug = _active_slug()
+        if not slug:
+            return jsonify({"ok": False, "error": "Aucun profil actif"}), 400
+        paths = resolve_paths(slug)
+        src = paths["errors"] / Path(filename).name
+        if not src.is_file():
+            return jsonify({"ok": False, "error": "Fichier introuvable"}), 404
+        dest = paths["input"] / src.name
+        shutil.move(str(src), dest)
+
+        def _run():
+            subprocess.run(
+                [sys.executable, str(HERE / "run.py"), "--profile", slug],
+                cwd=str(HERE), capture_output=True,
+            )
+
+        threading.Thread(target=_run, daemon=True).start()
+        return jsonify({"ok": True})
+
+    @app.route("/errors/<filename>/delete", methods=["POST"])
+    def errors_delete(filename):
+        slug = _active_slug()
+        if not slug:
+            return jsonify({"ok": False, "error": "Aucun profil actif"}), 400
+        year = request.form.get("year", datetime.now().year)
+        paths = resolve_paths(slug)
+        target = paths["errors"] / Path(filename).name
+        if not target.is_file():
+            return jsonify({"ok": False, "error": "Fichier introuvable"}), 404
+        target.unlink()
+        return redirect(f"/?year={year}")
+
     @app.route("/setup", methods=["GET", "POST"])
     def setup():
         conn = open_db(_active_db())

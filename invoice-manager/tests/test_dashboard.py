@@ -473,3 +473,60 @@ def test_get_root_no_review_section(mem_db, tmp_path, monkeypatch):
         resp = client.get("/")
     assert b'id="tab-reviser"' in resp.data
     assert b'aria-disabled="true"' in resp.data
+
+
+# ── /errors routes ────────────────────────────────────────────────────────────
+
+def test_errors_retry_moves_file(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    profile_dir = tmp_path / "data" / "profiles" / "test-profile"
+    errors_dir  = profile_dir / "errors"
+    input_dir   = profile_dir / "input"
+    f = errors_dir / "broken.pdf"
+    f.write_bytes(b"fake pdf")
+
+    import dashboard as _dash
+    monkeypatch.setattr(_dash.threading, "Thread", MagicMock)
+
+    with app.test_client() as client:
+        resp = client.post("/errors/broken.pdf/retry")
+
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    assert not f.exists()
+    assert (input_dir / "broken.pdf").exists()
+
+
+def test_errors_retry_404_if_missing(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/errors/nonexistent.pdf/retry")
+    assert resp.status_code == 404
+
+
+def test_errors_delete_removes_file(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    profile_dir = tmp_path / "data" / "profiles" / "test-profile"
+    errors_dir  = profile_dir / "errors"
+    f = errors_dir / "broken.pdf"
+    f.write_bytes(b"fake pdf")
+
+    with app.test_client() as client:
+        resp = client.post("/errors/broken.pdf/delete", data={"year": "2025"})
+
+    assert resp.status_code == 302
+    assert not f.exists()
+
+
+def test_errors_delete_404_if_missing(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/errors/nonexistent.pdf/delete", data={"year": "2025"})
+    assert resp.status_code == 404
+
+
+def test_errors_delete_rejects_path_traversal(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/errors/../../etc/passwd/delete", data={"year": "2025"})
+    assert resp.status_code == 404
