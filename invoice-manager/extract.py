@@ -20,6 +20,7 @@ from parsers import (
     _guess_doc_type,
     _guess_payment_mode,
     _match_known_emitter,
+    _parse_amount,
     _parse_amounts,
     _parse_date,
     _parse_email,

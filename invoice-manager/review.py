@@ -15,9 +15,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from config import load_config
-from extract import _guess_doc_type, open_db
-
-REVIEW_ENCODING = "utf-8-sig"
+from constants import REVIEW_ENCODING, STATUT_A_REVISER, STATUT_VALIDE
+from db import open_db
+from parsers import _guess_doc_type
 ACTION_KEEP    = "garder"
 ACTION_CORRECT = "corriger"
 ACTION_DELETE  = "supprimer"
@@ -41,7 +41,8 @@ REVIEW_COLS = [
 
 def export_review(conn: sqlite3.Connection, review_dir: Path) -> Path:
     rows = conn.execute(
-        "SELECT * FROM invoices WHERE statut_révision = 'à_réviser' ORDER BY date_document"
+        "SELECT * FROM invoices WHERE statut_révision = ? ORDER BY date_document",
+        (STATUT_A_REVISER,),
     ).fetchall()
 
     if not rows:
@@ -90,7 +91,7 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
             elif action == ACTION_CORRECT:
                 updatable = {k: v for k, v in row.items()
                              if k not in ("id", "action") and k in REVIEW_COLS}
-                updatable["statut_révision"] = "validé"
+                updatable["statut_révision"] = STATUT_VALIDE
                 updatable["révisé_par"] = "user"
                 updatable["date_révision"] = now
                 set_clause = ", ".join(f'"{k}" = ?' for k in updatable)
@@ -102,9 +103,9 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
 
             elif action == ACTION_KEEP:
                 conn.execute(
-                    "UPDATE invoices SET statut_révision = 'validé', révisé_par = 'user', "
+                    "UPDATE invoices SET statut_révision = ?, révisé_par = 'user', "
                     "date_révision = ?, validé_le = ? WHERE id = ?",
-                    (now, now, rid)
+                    (STATUT_VALIDE, now, now, rid)
                 )
                 skipped += 1
 
@@ -116,7 +117,8 @@ RECLASSIFY_COLS = ["id", "type_document", "date_document", "émetteur_nom",
 
 def export_reclassify(conn: sqlite3.Connection, review_dir: Path) -> None:
     rows = conn.execute(
-        "SELECT * FROM invoices WHERE type_document = 'facture_reçue' AND statut_révision != 'à_réviser'"
+        "SELECT * FROM invoices WHERE type_document = 'facture_reçue' AND statut_révision != ?",
+        (STATUT_A_REVISER,),
     ).fetchall()
 
     if not rows:
@@ -137,7 +139,8 @@ def export_reclassify(conn: sqlite3.Connection, review_dir: Path) -> None:
 def auto_reclassify(conn: sqlite3.Connection, user_siren: str) -> None:
     rows = conn.execute(
         "SELECT id, texte_brut, montant_ttc FROM invoices "
-        "WHERE type_document = 'facture_reçue' AND statut_révision != 'à_réviser'"
+        "WHERE type_document = 'facture_reçue' AND statut_révision != ?",
+        (STATUT_A_REVISER,),
     ).fetchall()
 
     auto_done = manual_needed = 0

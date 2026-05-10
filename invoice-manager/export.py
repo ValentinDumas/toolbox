@@ -15,6 +15,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from config import load_config, CADENCE_DEFAULTS
+from constants import FISCAL_RULES, MONTHS_FR_SHORT, STATUT_A_REVISER
 
 try:
     import openpyxl
@@ -24,16 +25,6 @@ try:
 except ImportError:
     HAS_OPENPYXL = False
 
-# ── Déductibilité par statut ──────────────────────────────────────────────────
-
-# Certains profils ont des règles spécifiques (ex: AE n'est pas assujettie à TVA)
-FISCAL_RULES = {
-    "auto-entrepreneur": {"tva_déductible": False, "regime": "micro"},
-    "SASU": {"tva_déductible": True, "regime": "réel"},
-    "SARL": {"tva_déductible": True, "regime": "réel"},
-    "salarié": {"tva_déductible": False, "regime": "frais_pro"},
-}
-
 def open_db(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
@@ -42,8 +33,8 @@ def open_db(path: Path) -> sqlite3.Connection:
 # ── Requête ───────────────────────────────────────────────────────────────────
 
 def fetch_rows(conn: sqlite3.Connection, year: int | None, statut: str | None) -> list[dict]:
-    query = "SELECT * FROM invoices WHERE statut_révision != 'à_réviser'"
-    params: list = []
+    query = "SELECT * FROM invoices WHERE statut_révision != ?"
+    params: list = [STATUT_A_REVISER]
     if year:
         query += " AND exercice_fiscal = ?"
         params.append(year)
@@ -241,9 +232,7 @@ def _period_label(cadence: str, period_key: str) -> str:
         return f"T{q} {year}"
     if cadence == "mensuelle":
         year, month = period_key.split("-")
-        mois = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
-                "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
-        return f"{mois[int(month)]} {year}"
+        return f"{MONTHS_FR_SHORT[int(month)]} {year}"
     return period_key  # annuelle
 
 def _compute_deadlines(rows: list[dict], cadence: str, statut: str | None) -> list[tuple]:
