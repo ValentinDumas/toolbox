@@ -379,9 +379,9 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             conn = open_db(db_path)
             conn.execute(
                 "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL, "
-                "statut_révision='à_réviser', révisé_par=NULL, "
+                "statut_révision=?, révisé_par=NULL, "
                 "date_révision=NULL, validé_le=NULL WHERE id=?",
-                (item_id,),
+                (STATUT_A_REVISER, item_id),
             )
             conn.commit()
             conn.close()
@@ -394,10 +394,10 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         year = request.form.get("year", datetime.now().year)
         conn = open_db(db_path)
         conn.execute(
-            "UPDATE invoices SET statut_révision='à_réviser', révisé_par=NULL, "
+            "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
             "date_révision=NULL, validé_le=NULL "
             "WHERE id=?",
-            (item_id,),
+            (STATUT_A_REVISER, item_id),
         )
         conn.commit()
         conn.close()
@@ -408,9 +408,10 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         year = request.form.get("year", datetime.now().year)
         conn = open_db(db_path)
         conn.execute(
-            "UPDATE invoices SET statut_révision='à_réviser', révisé_par=NULL, "
+            "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
             "date_révision=NULL, validé_le=NULL "
-            "WHERE statut_révision='validé'"
+            "WHERE statut_révision=?",
+            (STATUT_A_REVISER, STATUT_VALIDE),
         )
         conn.commit()
         conn.close()
