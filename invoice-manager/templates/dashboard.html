@@ -22,6 +22,15 @@
       --error: #B91C1C;
       --border: #E2E8F0;
       --radius: 6px;
+      /* Semantic badge/panel tokens */
+      --warning-bg: #FFFBEB;
+      --warning-bg-subtle: #FEF3C7;
+      --warning-border: #F59E0B;
+      --warning-text: #92400E;
+      --success-bg: #DCFCE7;
+      --success-text: #166534;
+      --error-bg: #FEE2E2;
+      --error-text: #991B1B;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -36,6 +45,18 @@
       position: absolute; width: 1px; height: 1px;
       padding: 0; margin: -1px; overflow: hidden;
       clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    .skip-link {
+      position: absolute; top: -100%; left: 8px; z-index: 9999;
+      background: var(--primary); color: white;
+      padding: 8px 16px; border-radius: var(--radius);
+      font-size: 14px; font-weight: 500; text-decoration: none;
+    }
+    .skip-link:focus { top: 8px; }
+    .btn-full-width { width: 100%; }
+    .review-input-missing {
+      border-color: var(--warning-border);
+      background: var(--warning-bg);
     }
     /* Layout */
     .page { max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
@@ -100,8 +121,8 @@
     .color-positive { color: var(--positive); }
     .color-negative { color: var(--negative); }
     .kpi-pending {
-      font-size: 11px;
-      color: #92400E;
+      font-size: 12px;
+      color: var(--warning-text);
       margin-top: 4px;
       font-variant-numeric: tabular-nums;
     }
@@ -166,10 +187,10 @@
       font-weight: 500;
       white-space: nowrap;
     }
-    .badge-paid    { background: #DCFCE7; color: #166534; }
-    .badge-pending { background: #FEF3C7; color: #92400E; }
-    .badge-overdue { background: #FEE2E2; color: #991B1B; }
-    .badge-draft   { background: #F1F5F9; color: #475569; }
+    .badge-paid    { background: var(--success-bg);        color: var(--success-text); }
+    .badge-pending { background: var(--warning-bg-subtle); color: var(--warning-text); }
+    .badge-overdue { background: var(--error-bg);          color: var(--error-text); }
+    .badge-draft   { background: #F1F5F9;                  color: #475569; }
     .btn-reset-item, .btn-validate-item, .btn-edit-item {
       background: none; border: none; cursor: pointer;
       font-size: 13px; color: var(--on-surface-muted); padding: 0 2px;
@@ -180,13 +201,13 @@
     .btn-validate-item:hover { color: #14532D; }
     /* Expandable edit row */
     tr.editing {
-      background: #FFFBEB !important;
-      box-shadow: inset 3px 0 0 #F59E0B;
+      background: var(--warning-bg) !important;
+      box-shadow: inset 3px 0 0 var(--warning-border);
     }
     .edit-row > td { padding: 0; border-top: none; }
     .edit-row-inner {
-      background: #FFFBEB;
-      border-left: 3px solid #F59E0B;
+      background: var(--warning-bg);
+      border-left: 3px solid var(--warning-border);
       padding: 16px 20px;
     }
     .edit-row-header {
@@ -194,7 +215,7 @@
       margin-bottom: 14px; font-size: 13px; font-weight: 500;
       color: var(--on-surface-muted);
     }
-    .badge-editing { background: #FEF3C7; color: #92400E; }
+    .badge-editing { background: var(--warning-bg-subtle); color: var(--warning-text); }
     /* Pagination */
     .pagination {
       display: flex;
@@ -337,22 +358,22 @@
     }
     .review-textarea { resize: vertical; }
     .field-error {
-      color: #DC2626;
-      font-size: 0.72rem;
+      color: var(--negative);
+      font-size: 12px;
       margin: 3px 0 0;
       display: none;
     }
     .field-error.visible { display: block; }
-    .review-input.input-error, .review-select.input-error { border-color: #DC2626; }
+    .review-input.input-error, .review-select.input-error { border-color: var(--negative); }
     #save-warning-banner {
       display: none;
       position: fixed;
       top: 16px;
       left: 50%;
       transform: translateX(-50%);
-      background: #FFFBEB;
-      border: 1px solid #F59E0B;
-      color: #92400E;
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--warning-text);
       border-radius: 8px;
       padding: 12px 20px;
       font-size: 14px;
@@ -450,7 +471,7 @@
     }
     .entity-badge-info { display: flex; flex-direction: column; gap: 1px; }
     .entity-badge-name { font-size: 13px; font-weight: 600; color: var(--on-surface); line-height: 1.2; }
-    .entity-badge-meta { font-size: 11px; color: var(--on-surface-muted); line-height: 1.2; }
+    .entity-badge-meta { font-size: 12px; color: var(--on-surface-muted); line-height: 1.2; }
     .health-sublabel-ok { font-size: 12px; color: var(--on-surface-muted); }
     .health-card-action {
       cursor: pointer;
@@ -578,12 +599,13 @@
   </style>
 </head>
 <body>
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
   <div class="page">
 
     <header>
       <div>
         <h1>ProLedger</h1>
-        <form method="get" action="/" class="year-form" role="search" aria-label="Filtre par année">
+        <form method="get" action="/" class="year-form" aria-label="Filtre par année">
           <label for="year-select" class="year-label">Exercice fiscal</label>
           <select id="year-select" name="year" class="year-select"
                   onchange="this.form.submit()"
@@ -621,11 +643,11 @@
     </div>
     {% endif %}
 
-    <main>
+    <main id="main-content">
 
       {# ── Bloc 1 : Synthèse fiscale ─────────────────────────────────────── #}
       <section aria-label="Synthèse fiscale {{ year }}">
-        <p class="section-label">Synthèse fiscale</p>
+        <h2 class="section-label">Synthèse fiscale</h2>
         <div class="kpi-grid">
 
           <div class="kpi-card">
@@ -665,7 +687,7 @@
 
       {# ── Bloc 2 : Santé ────────────────────────────────────────────────── #}
       <section aria-label="Vue de santé du workspace">
-        <p class="section-label">Santé</p>
+        <h2 class="section-label">Santé</h2>
         <div class="health-grid">
 
           <form method="post" action="/run" id="run-form" style="display:contents">
@@ -731,7 +753,7 @@
       <div role="tabpanel" id="panel-ledger" aria-labelledby="tab-ledger">
 
         <section aria-label="Ledger {{ year }}">
-          <p class="section-label">Ledger — {{ ledger.total_count }} entrée{{ 's' if ledger.total_count != 1 }}</p>
+          <h2 class="section-label">Ledger — {{ ledger.total_count }} entrée{{ 's' if ledger.total_count != 1 }}</h2>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -768,7 +790,7 @@
                       <span class="badge badge-paid">Validé {{ '✎' if has_corrections else '✓' }}</span>
                       <button type="button" class="btn-edit-item"
                               aria-expanded="false" aria-controls="edit-row-{{ row.id }}"
-                              title="Modifier">✎</button>
+                              aria-label="Modifier — {{ party or '—' }} — {{ row.date_document or '—' }}">✎</button>
                     {% elif s == 'à_réviser' %}
                       <span class="badge badge-pending">À réviser</span>
                     {% elif s == 'erreur' %}
@@ -781,14 +803,14 @@
                   <td class="text-center">
                     <span class="file-actions">
                       {%- if row.fichier_source -%}
-                      <button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                      <a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                      <button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" aria-label="Prévisualiser {{ row.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                      <a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" aria-label="Télécharger {{ row.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
                       {%- endif -%}
                       <button type="button" class="btn-icon-trash"
                               data-delete-id="{{ row.id }}"
                               data-delete-label="{{ (row.fichier_source|basename) if row.fichier_source else '—' }} · {{ party or '—' }} · {{ (amt | fr_currency) if amt is not none else '—' }}"
                               onclick="openDeleteModal(this)"
-                              title="Mettre à la corbeille">
+                              aria-label="Mettre à la corbeille — {{ party or (row.fichier_source|basename) or 'ce document' }}">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                       </button>
                     </span>
@@ -917,33 +939,41 @@
       <div role="tabpanel" id="panel-reviser" aria-labelledby="tab-reviser" hidden>
         {% if items_a_reviser_list %}
         <section class="review-section" aria-label="Items à réviser">
-          <p class="section-label">À réviser ({{ items_a_reviser_list|length }})</p>
+          <h2 class="section-label">À réviser ({{ items_a_reviser_list|length }})</h2>
           {% for item in items_a_reviser_list %}
+          {% set item_label = item.émetteur_nom or (item.fichier_source|basename) or 'Document inconnu' %}
           <div class="review-item" id="review-{{ item.id }}">
             <div class="review-item-header">
-              <span>{{ item.émetteur_nom or '—' }}</span>
+              <span>{{ item_label }}</span>
               <span>{{ item.date_document or '—' }}</span>
               {% if item.confiance is not none %}
                 {% if item.confiance < 0.8 %}
-                <span class="badge badge-pending">Confiance {{ (item.confiance * 100)|int }}%</span>
+                <span class="badge badge-pending" title="Score basé sur les champs extraits : date, TTC, HT, n° facture, SIREN">Confiance {{ (item.confiance * 100)|int }}%</span>
                 {% else %}
-                <span class="badge badge-paid">Confiance {{ (item.confiance * 100)|int }}%</span>
+                <span class="badge badge-paid" title="Score basé sur les champs extraits : date, TTC, HT, n° facture, SIREN">Confiance {{ (item.confiance * 100)|int }}%</span>
                 {% endif %}
               {% endif %}
               <div class="review-item-header-actions">
                 {% if item.fichier_source %}
-                <button onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                <a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                <button onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" aria-label="Prévisualiser {{ item.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                <a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" aria-label="Télécharger {{ item.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
                 {% endif %}
                 <button type="button" class="btn-icon-delete"
                         data-delete-id="{{ item.id }}"
                         data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
                         onclick="openDeleteModal(this)"
-                        title="Supprimer ce document">
+                        aria-label="Supprimer — {{ item.émetteur_nom or (item.fichier_source|basename) or 'ce document' }}">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 </button>
               </div>
             </div>
+
+            {% if item.texte_brut %}
+            <details class="ocr-preview" {% if item.confiance is not none and item.confiance < 0.6 %}open{% endif %}>
+              <summary>Texte source (référence OCR)</summary>
+              <pre>{{ item.texte_brut }}</pre>
+            </details>
+            {% endif %}
 
             <form method="post" action="/review/{{ item.id }}/save">
               <input type="hidden" name="year" value="{{ year }}">
@@ -957,9 +987,10 @@
                   </select>
                   <p class="field-error" data-field="type_document"></p>
                 </div>
+                {% set missing_amounts = item.montant_ht is none and item.montant_ttc is none %}
                 <div>
                   <label class="review-label" for="ht-{{ item.id }}">Montant HT</label>
-                  <input class="review-input review-input-amount" type="number" step="0.01"
+                  <input class="review-input review-input-amount {% if missing_amounts %}review-input-missing{% endif %}" type="number" step="0.01"
                          id="ht-{{ item.id }}" name="montant_ht"
                          value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
                   <p class="field-error" data-field="montant_ht"></p>
@@ -973,28 +1004,28 @@
                 </div>
                 <div>
                   <label class="review-label" for="ttc-{{ item.id }}">TTC</label>
-                  <input class="review-input review-input-amount" type="number" step="0.01"
+                  <input class="review-input review-input-amount {% if missing_amounts %}review-input-missing{% endif %}" type="number" step="0.01"
                          id="ttc-{{ item.id }}" name="montant_ttc"
                          value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
                   <p class="field-error" data-field="montant_ttc"></p>
                 </div>
                 <div>
                   <label class="review-label" for="date-{{ item.id }}">Date</label>
-                  <input class="review-input" type="date" required
+                  <input class="review-input {% if not item.date_document %}review-input-missing{% endif %}" type="date" required
                          id="date-{{ item.id }}" name="date_document"
                          value="{{ item.date_document or '' }}">
                   <p class="field-error" data-field="date_document"></p>
                 </div>
                 <div>
                   <label class="review-label" for="emetteur-{{ item.id }}">Émetteur</label>
-                  <input class="review-input" type="text"
+                  <input class="review-input {% if not item.émetteur_nom %}review-input-missing{% endif %}" type="text"
                          id="emetteur-{{ item.id }}" name="émetteur_nom"
                          value="{{ item.émetteur_nom or '' }}">
                   <p class="field-error" data-field="émetteur_nom"></p>
                 </div>
                 <div>
                   <label class="review-label" for="num-{{ item.id }}">N° facture</label>
-                  <input class="review-input" type="text"
+                  <input class="review-input {% if not item.numéro_facture %}review-input-missing{% endif %}" type="text"
                          id="num-{{ item.id }}" name="numéro_facture"
                          value="{{ item.numéro_facture or '' }}">
                   <p class="field-error" data-field="numéro_facture"></p>
@@ -1015,17 +1046,13 @@
               </div>
 
               <div class="review-actions">
-                <button type="submit" class="btn-primary" style="width:100%">Valider</button>
+                <button type="submit" class="btn-primary btn-full-width"
+                        aria-label="Valider — {{ item_label }}{% if item.date_document %} — {{ item.date_document }}{% endif %}">
+                  Valider
+                </button>
                 <p class="field-error" data-field="_base" style="width:100%;text-align:center"></p>
               </div>
             </form>
-
-            {% if item.texte_brut %}
-            <details class="ocr-preview">
-              <summary>Texte source</summary>
-              <pre>{{ item.texte_brut }}</pre>
-            </details>
-            {% endif %}
 
           </div>
           {% endfor %}
@@ -1039,7 +1066,7 @@
       <div role="tabpanel" id="panel-corbeille" aria-labelledby="tab-corbeille" hidden>
         {% if corbeille_list %}
         <section class="corbeille-section" aria-label="Corbeille">
-          <p class="section-label">Corbeille ({{ corbeille_list|length }})</p>
+          <h2 class="section-label">Corbeille ({{ corbeille_list|length }})</h2>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -1317,6 +1344,6 @@
   }());
   </script>
 
-  <div id="save-warning-banner" role="alert" aria-live="polite"></div>
+  <div id="save-warning-banner" role="status" aria-live="polite"></div>
 </body>
 </html>
