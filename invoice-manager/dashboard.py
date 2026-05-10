@@ -5,6 +5,7 @@ Usage: python dashboard.py [--config FILE] [--port PORT]
 import argparse
 import os
 import platform
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -124,6 +125,22 @@ def query_health(conn: sqlite3.Connection, paths: dict) -> dict:
         "validés_count": validés_count,
         "error_files": count_files("errors"),
     }
+
+
+def query_error_files(paths: dict) -> list[dict]:
+    errors_dir = paths["errors"]
+    if not errors_dir.exists():
+        return []
+    files = []
+    for f in sorted(errors_dir.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
+        if f.is_file() and not f.name.startswith("."):
+            stat = f.stat()
+            files.append({
+                "name": f.name,
+                "size_kb": round(stat.st_size / 1024, 1),
+                "mtime": datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M"),
+            })
+    return files
 
 
 def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:

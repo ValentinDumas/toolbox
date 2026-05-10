@@ -154,6 +154,26 @@ def test_health_counts(mem_db, tmp_path):
     assert h["error_files"] == 1
 
 
+def test_query_error_files_empty(tmp_path):
+    from dashboard import query_error_files
+    paths = {"errors": tmp_path / "nonexistent"}
+    assert query_error_files(paths) == []
+
+
+def test_query_error_files_lists_files(tmp_path):
+    from dashboard import query_error_files
+    errors_dir = tmp_path / "errors"
+    errors_dir.mkdir()
+    (errors_dir / "broken.pdf").write_bytes(b"x" * 2048)
+    (errors_dir / ".hidden").touch()
+    paths = {"errors": errors_dir}
+    result = query_error_files(paths)
+    assert len(result) == 1
+    assert result[0]["name"] == "broken.pdf"
+    assert result[0]["size_kb"] == 2.0
+    assert "mtime" in result[0]
+
+
 # ── Flask routes ──────────────────────────────────────────────────────────────
 
 def _make_app(mem_db, tmp_path, monkeypatch):
