@@ -196,6 +196,20 @@ Voir `config.toml.example` pour la documentation complète et commentée de chaq
     └── generate_fixtures.py       ← script pour regénérer les PDFs si besoin
 ```
 
+## Guides de développement
+
+| Fichier | Contenu |
+|---------|---------|
+| [`GOOD_PRACTICES.md`](GOOD_PRACTICES.md) | Bonnes pratiques Python (nommage, boucles, lisibilité) |
+| [`ARCHITECTURE_PYTHON.md`](ARCHITECTURE_PYTHON.md) | Structure de projet, séparation des couches, outils |
+| [`UI_DESIGN.md`](UI_DESIGN.md) | Lois de Gestalt, hiérarchie visuelle, couleurs, typographie, tableaux |
+| [`UX_DESIGN.md`](UX_DESIGN.md) | Lois UX (Hick, Fitts, Miller…), formulaires, états vides, charge cognitive |
+| [`ACCESSIBILITY.md`](ACCESSIBILITY.md) | WCAG 2.1 AA — contraste, clavier, ARIA, HTML sémantique, tests |
+
+Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
+
+---
+
 ### Rôle de chaque brique
 
 **`run.py`** — orchestrateur. Lance les 3 étapes en séquence et gère la révision interactive : si des items ont une confiance < 80 %, ouvre `review.csv` dans le Finder, attend que tu le corriges, puis continue.

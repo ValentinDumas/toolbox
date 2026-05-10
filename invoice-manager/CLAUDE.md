@@ -9,6 +9,14 @@ Apply the following practices to **all Python code written or modified in this r
 @GOOD_PRACTICES.md
 @ARCHITECTURE_PYTHON.md
 
+## UI / UX / Accessibility rules
+
+Apply the following practices to **all dashboard or frontend code written or modified in this repo**:
+
+@UI_DESIGN.md
+@UX_DESIGN.md
+@ACCESSIBILITY.md
+
 ---
 
 ## Commands
