@@ -216,20 +216,20 @@ def _write_declaration(wb, rows: list[dict], year: int | None, statut: str | Non
 def _deadline_trimestrielle(quarter: int, year: int) -> date:
     # AE trimestriel : fin du mois suivant la fin du trimestre
     ends = {1: (year, 4, 30), 2: (year, 7, 31), 3: (year, 10, 31), 4: (year + 1, 1, 31)}
-    y, m, d = ends[quarter]
-    return date(y, m, d)
+    year_end, month_end, day_end = ends[quarter]
+    return date(year_end, month_end, day_end)
 
 def _deadline_mensuelle_ae(month: int, year: int) -> date:
     # AE mensuel : fin du mois suivant
-    m = month % 12 + 1
-    y = year + (1 if month == 12 else 0)
-    return date(y, m, calendar.monthrange(y, m)[1])
+    next_month = month % 12 + 1
+    next_year = year + (1 if month == 12 else 0)
+    return date(next_year, next_month, calendar.monthrange(next_year, next_month)[1])
 
 def _deadline_tva_mensuelle(month: int, year: int) -> date:
     # SASU/SARL TVA CA3 : 19 du mois suivant (télédéclaration)
-    m = month % 12 + 1
-    y = year + (1 if month == 12 else 0)
-    return date(y, m, 19)
+    next_month = month % 12 + 1
+    next_year = year + (1 if month == 12 else 0)
+    return date(next_year, next_month, 19)
 
 def _deadline_annuelle(year: int) -> date:
     # IR salarié : 31 mai de l'année suivante
@@ -255,26 +255,26 @@ def _compute_deadlines(rows: list[dict], cadence: str, statut: str | None) -> li
         if not raw_date:
             continue
         try:
-            d = datetime.fromisoformat(raw_date)
+            dt = datetime.fromisoformat(raw_date)
         except ValueError:
             continue
 
         if cadence == "trimestrielle":
-            key = f"{d.year}-Q{(d.month - 1) // 3 + 1}"
+            key = f"{dt.year}-Q{(dt.month - 1) // 3 + 1}"
         elif cadence == "mensuelle":
-            key = f"{d.year}-{d.month:02d}"
+            key = f"{dt.year}-{dt.month:02d}"
         else:
-            key = str(d.year)
+            key = str(dt.year)
 
-        p = periods.setdefault(key, {"ca": 0.0, "charges": 0.0})
+        period = periods.setdefault(key, {"ca": 0.0, "charges": 0.0})
         if r.get("type_document") == "facture_émise":
-            p["ca"] += r.get("montant_ttc") or 0
+            period["ca"] += r.get("montant_ttc") or 0
         elif r.get("déductible"):
-            p["charges"] += (r.get("montant_ht") or r.get("montant_ttc") or 0) * (r.get("taux_déductibilité") or 1)
+            period["charges"] += (r.get("montant_ht") or r.get("montant_ttc") or 0) * (r.get("taux_déductibilité") or 1)
 
     result = []
     for key in sorted(periods):
-        p = periods[key]
+        period = periods[key]
         label = _period_label(cadence, key)
 
         if cadence == "trimestrielle":
@@ -288,7 +288,7 @@ def _compute_deadlines(rows: list[dict], cadence: str, statut: str | None) -> li
             year = int(key)
             dl = _deadline_annuelle(year)
 
-        result.append((label, round(p["ca"], 2), round(p["charges"], 2), dl.strftime("%d/%m/%Y")))
+        result.append((label, round(period["ca"], 2), round(period["charges"], 2), dl.strftime("%d/%m/%Y")))
 
     return result
 
@@ -317,10 +317,10 @@ def _write_stats(wb, rows: list[dict], year: int | None, statut: str | None, cad
         if not raw:
             continue
         try:
-            d = datetime.fromisoformat(raw)
+            dt = datetime.fromisoformat(raw)
         except ValueError:
             continue
-        key = f"{d.year}-{d.month:02d}"
+        key = f"{dt.year}-{dt.month:02d}"
         mc = monthly_counts.setdefault(key, {t: 0 for t in type_cols})
         mc[r.get("type_document", "facture_reçue")] = mc.get(r.get("type_document", "facture_reçue"), 0) + 1
 
@@ -342,10 +342,10 @@ def _write_stats(wb, rows: list[dict], year: int | None, statut: str | None, cad
         if not raw:
             continue
         try:
-            d = datetime.fromisoformat(raw)
+            dt = datetime.fromisoformat(raw)
         except ValueError:
             continue
-        key = f"{d.year}-{d.month:02d}"
+        key = f"{dt.year}-{dt.month:02d}"
         ma = monthly_amounts.setdefault(key, {"charges": 0.0, "ca": 0.0})
         if r.get("type_document") == "facture_émise":
             ma["ca"] += r.get("montant_ht") or 0
@@ -437,9 +437,9 @@ def main() -> None:
     stem = f"ledger{suffix}"
 
     for ext in (".csv", ".xlsx"):
-        p = output_dir / f"{stem}{ext}"
-        if p.exists():
-            p.unlink()
+        output_path = output_dir / f"{stem}{ext}"
+        if output_path.exists():
+            output_path.unlink()
 
     print(f"Export {len(rows)} entrées — exercice {year or 'tous'} — statut {statut} — cadence {cadence}")
     write_csv(rows, output_dir / f"{stem}.csv")

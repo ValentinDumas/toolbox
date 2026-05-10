@@ -100,10 +100,10 @@ def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: i
 def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
     """Retourne les indicateurs de santé du workspace."""
     def count_files(key):
-        p = Path(cfg["paths"][key])
-        if not p.exists():
+        dir_path = Path(cfg["paths"][key])
+        if not dir_path.exists():
             return 0
-        return sum(1 for f in p.iterdir() if f.is_file() and not f.name.startswith("."))
+        return sum(1 for f in dir_path.iterdir() if f.is_file() and not f.name.startswith("."))
 
     items_a_reviser = conn.execute(
         "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser' AND deleted_at IS NULL"
@@ -152,10 +152,10 @@ def _fr_currency(value) -> str:
     if value is None:
         value = 0.0
     neg = value < 0
-    s = f"{abs(value):,.2f}"                                        # "1,234.56"
-    s = s.replace(",", "X").replace(".", ",").replace("X", " ")  # "1 234,56"
-    s += " €"
-    return f"({s})" if neg else s
+    formatted = f"{abs(value):,.2f}"
+    formatted = formatted.replace(",", "X").replace(".", ",").replace("X", " ")
+    formatted += " €"
+    return f"({formatted})" if neg else formatted
 
 
 _ERROR_TMPL = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -236,14 +236,14 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
-            n = conn.execute(
+            count = conn.execute(
                 "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser'"
             ).fetchone()[0]
             conn.close()
         except sqlite3.DatabaseError:
             return redirect(f"/?year={year}")
 
-        if n == 0:
+        if count == 0:
             return redirect(f"/?year={year}")
 
         review_csv = Path(cfg["paths"]["review"]) / "review.csv"

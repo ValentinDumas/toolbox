@@ -17,6 +17,8 @@ from config import load_config
 
 HERE = Path(__file__).parent
 
+DEFAULT_CONFIDENCE_THRESHOLD = 0.8
+
 # ── DB ────────────────────────────────────────────────────────────────────────
 
 SCHEMA = """
@@ -123,9 +125,9 @@ def extract_text_pdf(path: Path, ocr_lang: str, ocr_dpi: int) -> str:
 def _order_points(pts):
     import numpy as np
     rect = np.zeros((4, 2), dtype=np.float32)
-    s = pts.sum(axis=1)
-    rect[0] = pts[np.argmin(s)]    # top-left
-    rect[2] = pts[np.argmax(s)]    # bottom-right
+    corner_sums = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(corner_sums)]    # top-left
+    rect[2] = pts[np.argmax(corner_sums)]    # bottom-right
     diff = np.diff(pts, axis=1)
     rect[1] = pts[np.argmin(diff)] # top-right
     rect[3] = pts[np.argmax(diff)] # bottom-left
@@ -308,9 +310,9 @@ def _parse_date(text: str) -> str | None:
 
 def _parse_amount(text: str, keywords: list[str]) -> float | None:
     pattern = "(?:" + "|".join(re.escape(k) for k in keywords) + r")[^\d]*(\d[\d\s]*[\.,]\d{2})"
-    m = re.search(pattern, text, re.I)
-    if m:
-        return float(m.group(1).replace(" ", "").replace(",", "."))
+    match = re.search(pattern, text, re.I)
+    if match:
+        return float(match.group(1).replace(" ", "").replace(",", "."))
     return None
 
 def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None, float | None]:
@@ -346,16 +348,16 @@ def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None,
     return ht, tva, ttc, taux_tva
 
 def _parse_siren(text: str) -> str | None:
-    m = re.search(r"\b(\d{3}\s?\d{3}\s?\d{3})\b", text)
-    return m.group(1).replace(" ", "") if m else None
+    match = re.search(r"\b(\d{3}\s?\d{3}\s?\d{3})\b", text)
+    return match.group(1).replace(" ", "") if match else None
 
 def _parse_siret(text: str) -> str | None:
-    m = re.search(r"\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b", text)
-    return m.group(1).replace(" ", "") if m else None
+    match = re.search(r"\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b", text)
+    return match.group(1).replace(" ", "") if match else None
 
 def _parse_tva_intracom(text: str) -> str | None:
-    m = re.search(r"\b(FR\s*\d{2}\s*\d{9})\b", text, re.I)
-    return m.group(1).replace(" ", "").upper() if m else None
+    match = re.search(r"\b(FR\s*\d{2}\s*\d{9})\b", text, re.I)
+    return match.group(1).replace(" ", "").upper() if match else None
 
 _INVOICE_PATTERNS = [
     r"(?:facture|invoice|n°|ref|référence)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
@@ -365,9 +367,9 @@ _INVOICE_PATTERNS = [
 
 def _parse_invoice_number(text: str) -> str | None:
     for pattern in _INVOICE_PATTERNS:
-        m = re.search(pattern, text, re.I)
-        if m:
-            return m.group(1)
+        match = re.search(pattern, text, re.I)
+        if match:
+            return match.group(1)
     return None
 
 _EMETTEUR_SKIP = frozenset([
@@ -467,17 +469,17 @@ def _guess_payment_mode(text: str) -> str | None:
     return None
 
 def _guess_doc_type(text: str, user_siren: str, montant_ttc: float | None) -> str:
-    t = text.lower()
-    is_avoir = any(k in t for k in ["avoir", "credit note", "note de crédit"])
+    text_lower = text.lower()
+    is_avoir = any(k in text_lower for k in ["avoir", "credit note", "note de crédit"])
     user_is_emitter = bool(user_siren and user_siren in text)
 
     if is_avoir:
         return "avoir_émis" if user_is_emitter else "avoir_reçu"
-    if any(k in t for k in ["note de frais", "remboursement de frais"]):
+    if any(k in text_lower for k in ["note de frais", "remboursement de frais"]):
         return "note_de_frais"
-    if any(k in t for k in ["devis", "cotation", "quote"]):
+    if any(k in text_lower for k in ["devis", "cotation", "quote"]):
         return "devis"
-    if any(k in t for k in ["relevé de compte", "extrait de compte"]):
+    if any(k in text_lower for k in ["relevé de compte", "extrait de compte"]):
         return "relevé_bancaire"
     if user_is_emitter:
         return "facture_émise"
@@ -496,9 +498,9 @@ def _match_known_emitter(text: str, known_emitters: dict, fuzzy_threshold: float
         if kw in text_l:
             return name
         # Fuzzy: slide a window of len(kw) over the text
-        n = len(kw)
-        for i in range(len(text_l) - n + 1):
-            if SequenceMatcher(None, kw, text_l[i:i + n]).ratio() >= fuzzy_threshold:
+        kw_length = len(kw)
+        for i in range(len(text_l) - kw_length + 1):
+            if SequenceMatcher(None, kw, text_l[i:i + kw_length]).ratio() >= fuzzy_threshold:
                 return name
     return None
 
@@ -563,7 +565,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "fichier_source":           fichier_source,
         "hash_fichier":             None,
         "confiance":                round(confiance, 2),
-        "statut_révision":          "validé" if confiance >= 0.8 else "à_réviser",
+        "statut_révision":          "validé" if confiance >= DEFAULT_CONFIDENCE_THRESHOLD else "à_réviser",
         "révisé_par":               "auto",
         "date_révision":            datetime.now(timezone.utc).isoformat(),
         "notes_correction":         None,
@@ -645,9 +647,9 @@ def main() -> None:
 
     for f in files:
         print(f"→ {f.name}")
-        h = hashlib.sha256(f.read_bytes()).hexdigest()
+        file_hash = hashlib.sha256(f.read_bytes()).hexdigest()
 
-        if hash_exists(conn, h):
+        if hash_exists(conn, file_hash):
             print("  [SKIP] déjà en base")
             doublons += 1
             continue
@@ -657,7 +659,7 @@ def main() -> None:
             if not text.strip():
                 raise ValueError("Texte vide après extraction")
             row = parse_invoice(text, str(f), profil, user_siren, known_emitters)
-            row["hash_fichier"] = h
+            row["hash_fichier"] = file_hash
             insert(conn, row)
             dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")
             conn.execute(

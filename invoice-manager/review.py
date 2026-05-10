@@ -17,6 +17,11 @@ from pathlib import Path
 from config import load_config
 from extract import _guess_doc_type, open_db
 
+REVIEW_ENCODING = "utf-8-sig"
+ACTION_KEEP    = "garder"
+ACTION_CORRECT = "corriger"
+ACTION_DELETE  = "supprimer"
+
 REVIEW_COLS = [
     "id", "action",
     "type_document", "numéro_facture", "date_document", "date_échéance", "date_paiement",
@@ -46,20 +51,20 @@ def export_review(conn: sqlite3.Connection, review_dir: Path) -> Path:
     review_dir.mkdir(parents=True, exist_ok=True)
     out = review_dir / "review.csv"
 
-    with open(out, "w", newline="", encoding="utf-8-sig") as f:
+    with open(out, "w", newline="", encoding=REVIEW_ENCODING) as f:
         writer = csv.DictWriter(f, fieldnames=REVIEW_COLS, extrasaction="ignore",
                                 lineterminator="\n")
         writer.writeheader()
         for r in rows:
-            d = dict(r)
-            d["action"] = "garder"   # garder | corriger | supprimer
-            writer.writerow(d)
+            row = dict(r)
+            row["action"] = ACTION_KEEP
+            writer.writerow(row)
 
     print(f"{len(rows)} item(s) exportés → {out}")
     print("Instructions : ouvre review.csv, corrige les valeurs, change 'action' si besoin :")
-    print("  garder    → valide l'extraction telle quelle")
-    print("  corriger  → applique tes modifications")
-    print("  supprimer → supprime l'entrée de la base")
+    print(f"  {ACTION_KEEP}    → valide l'extraction telle quelle")
+    print(f"  {ACTION_CORRECT}  → applique tes modifications")
+    print(f"  {ACTION_DELETE} → supprime l'entrée de la base")
     print("Puis relance : python review.py --import")
     return out
 
@@ -72,17 +77,17 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
     now = datetime.now(timezone.utc).isoformat()
     updated = deleted = skipped = 0
 
-    with open(review_file, newline="", encoding="utf-8-sig") as f:
+    with open(review_file, newline="", encoding=REVIEW_ENCODING) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            action = row.get("action", "garder").strip().lower()
+            action = row.get("action", ACTION_KEEP).strip().lower()
             rid = row["id"]
 
-            if action == "supprimer":
+            if action == ACTION_DELETE:
                 conn.execute("DELETE FROM invoices WHERE id = ?", (rid,))
                 deleted += 1
 
-            elif action == "corriger":
+            elif action == ACTION_CORRECT:
                 updatable = {k: v for k, v in row.items()
                              if k not in ("id", "action") and k in REVIEW_COLS}
                 updatable["statut_révision"] = "validé"
@@ -95,7 +100,7 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
                 )
                 updated += 1
 
-            elif action == "garder":
+            elif action == ACTION_KEEP:
                 conn.execute(
                     "UPDATE invoices SET statut_révision = 'validé', révisé_par = 'user', "
                     "date_révision = ?, validé_le = ? WHERE id = ?",
@@ -120,7 +125,7 @@ def export_reclassify(conn: sqlite3.Connection, review_dir: Path) -> None:
 
     review_dir.mkdir(parents=True, exist_ok=True)
     out = review_dir / "reclassify.csv"
-    with open(out, "w", newline="", encoding="utf-8-sig") as f:
+    with open(out, "w", newline="", encoding=REVIEW_ENCODING) as f:
         writer = csv.DictWriter(f, fieldnames=RECLASSIFY_COLS, extrasaction="ignore",
                                 lineterminator="\n")
         writer.writeheader()
@@ -150,13 +155,13 @@ def auto_reclassify(conn: sqlite3.Connection, user_siren: str) -> None:
         print("Lance : python review.py --reclassify  pour exporter les entrées à corriger manuellement")
 
 def import_reclassify(conn: sqlite3.Connection, review_dir: Path) -> None:
-    f = review_dir / "reclassify.csv"
-    if not f.exists():
-        print(f"Fichier introuvable : {f}")
+    reclassify_path = review_dir / "reclassify.csv"
+    if not reclassify_path.exists():
+        print(f"Fichier introuvable : {reclassify_path}")
         return
 
     updated = 0
-    with open(f, newline="", encoding="utf-8") as fh:
+    with open(reclassify_path, newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             conn.execute("UPDATE invoices SET type_document = ? WHERE id = ?",
                          (row["type_document"].strip(), row["id"]))
