@@ -144,10 +144,18 @@ Voir `config.toml.example` pour la documentation commentée.
 ├── extract.py              ← brique 1 : lecture et structuration des fichiers
 ├── review.py               ← brique 2 : révision batch des extractions incertaines
 ├── export.py               ← brique 3 : génération du carnet de compte
-├── config.py               ← chargement config + DEFAULT_CONFIG + fallback
+├── dashboard.py            ← interface web locale (http://localhost:7800)
+├── db.py                   ← schéma SQLite, migrations, helpers (profil, OCR, enseignes)
+├── config.py               ← chargement config.toml (chemins uniquement) + fallback
+├── constants.py            ← constantes partagées (statuts, seuils, types)
 │
-├── config.toml.example     ← template versionné à copier
-├── config.toml             ← ta configuration locale (non versionné)
+├── config.toml.example     ← template versionné (chemins uniquement)
+├── config.toml             ← ta configuration locale (non versionné, optionnel)
+│
+├── templates/
+│   ├── dashboard.html      ← vue principale du ledger
+│   ├── setup.html          ← wizard de premier lancement (SIREN + profil fiscal)
+│   └── settings.html       ← paramètres utilisateur (/settings)
 │
 ├── input/                  ← déposer les fichiers ici
 ├── processed/              ← fichiers traités avec succès (auto-déplacés)
@@ -155,16 +163,17 @@ Voir `config.toml.example` pour la documentation commentée.
 ├── review/
 │   └── review.csv          ← items à valider (prêt_à_valider + à_réviser)
 ├── data/
-│   └── invoices.db         ← SQLite, source de vérité
+│   └── invoices.db         ← SQLite, source de vérité (profil + factures + enseignes)
 ├── output/
 │   ├── ledger-YYYY.csv     ← export brut complet
 │   └── ledger-YYYY.xlsx    ← classeur 4 onglets
 │
-├── tests/                  ← suite pytest (101 tests)
+├── tests/                  ← suite pytest (154 tests)
 │   ├── test_config.py
 │   ├── test_extract.py
 │   ├── test_review.py
-│   └── test_export.py
+│   ├── test_export.py
+│   └── test_dashboard.py
 │
 ├── demo/                   ← simulation pipeline complète (PDFs générés à la volée)
 │   └── run_all.py          ← génère des PDFs synthétiques et vérifie chaque profil
@@ -203,6 +212,10 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 
 **`config.py`** — charge `config.toml` et le merge sur `DEFAULT_CONFIG` (chemins uniquement). Priorité : CLI args > config.toml > defaults. Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont lues depuis la DB via `db.py`.
 
+**`db.py`** — source de vérité pour le schéma SQLite. Gère les migrations (ALTER TABLE idempotentes), définit les tables `invoices`, `user_profile` et `known_emitters`. Expose `open_db()`, `get_user_profile()`, `get_known_emitters()` et `get_extraction_cfg()` — utilisés par tous les scripts.
+
+**`dashboard.py`** — interface web Flask sur `http://localhost:7800`. Wizard de setup au premier lancement (`/setup`) bloquant jusqu'à saisie du SIREN et du profil fiscal. Page `/settings` pour gérer le profil complet, les enseignes connues et les paramètres OCR. Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
+
 **`demo/run_all.py`** — génère des PDFs synthétiques à la volée avec fpdf, exécute le pipeline complet pour les 4 profils fiscaux, vérifie que la DB contient les bons types de documents et que les XLSX ont les 4 onglets attendus.
 
 **`sample-data/`** — fixtures PDF statiques : des vrais fichiers commités dans le repo, un par type de document et par profil. Permet de tester manuellement en lançant `run.py` depuis un sous-dossier, sans code à exécuter. Les PDFs sont générés par `generate_fixtures.py` (à relancer si les fixtures sont supprimées).
@@ -227,6 +240,13 @@ flowchart TD
         L4["Optionnel"]:::optional
     end
 
+    %% ── Setup / Dashboard ────────────────────────────
+    subgraph DASH["🖥️ Dashboard"]
+        direction LR
+        WIZ["dashboard.py /setup\nwizard SIREN + profil fiscal"]:::input
+        SETT["dashboard.py /settings\nprofil · enseignes · OCR"]:::process
+    end
+
     %% ── Configuration ────────────────────────────────
     subgraph CFG["⚙️ Configuration"]
         direction LR
@@ -239,7 +259,7 @@ flowchart TD
     subgraph S1["① Extraction"]
         IN["input/\nPDF · JPG · PNG · HEIC\navec ou sans extension"]:::input
         EX["extract.py\n· détection magic bytes → extension\n· SHA256 → dédoublonnage\n· pdfplumber / OCR / HEIC\n· _guess_doc_type() via SIREN/keywords\n· parser regex → JSON structuré\n· score de confiance · texte_brut stocké"]:::process
-        DB[("invoices.db\nSQLite — source de vérité")]:::artifact
+        DB[("invoices.db\nfactures · profil · enseignes")]:::artifact
         PR["processed/\nfichiers traités"]:::artifact
         ER["errors/\nnon reconnus"]:::artifact
     end
@@ -261,6 +281,11 @@ flowchart TD
     end
 
     %% ── Connexions ───────────────────────────────────
+    WIZ -- "profil + setup_complete" --> DB
+    SETT -- "profil · OCR · enseignes" --> DB
+    DB -. "profil · OCR · enseignes" .-> EX
+    DB -. "profil fiscal" .-> EXP
+
     M_CFG -. "paths" .-> EX
     M_CFG -. "paths" .-> RV
     M_CFG -. "paths" .-> EXP
