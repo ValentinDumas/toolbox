@@ -19,7 +19,7 @@ from constants import (
     CONFIDENCE_THRESHOLD, INCOME_TYPES, EXPENSE_TYPES,
     STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES,
 )
-from db import open_db
+from db import get_known_emitters, get_user_profile, open_db
 
 
 def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
@@ -175,13 +175,128 @@ h1{color:#B91C1C}pre{background:#F1F5F9;padding:12px;border-radius:6px;font-size
 def create_app(cfg: dict, db_path: Path) -> "Flask":
     from urllib.parse import quote
 
-    from flask import Flask, jsonify, redirect, render_template, render_template_string, request
+    from flask import Flask, jsonify, redirect, render_template, render_template_string, request, url_for
 
     import os
 
     app = Flask(__name__, template_folder=str(HERE / "templates"))
+    app.secret_key = os.urandom(24)
     app.jinja_env.filters["fr_currency"] = _fr_currency
     app.jinja_env.filters["basename"] = lambda p: os.path.basename(p) if p else ""
+
+    def _get_profile():
+        conn = open_db(db_path)
+        profile = get_user_profile(conn)
+        conn.close()
+        return profile
+
+    @app.before_request
+    def require_setup():
+        if request.endpoint in ("setup", "static"):
+            return
+        if _get_profile() is None:
+            return redirect(url_for("setup"))
+
+    @app.route("/setup", methods=["GET", "POST"])
+    def setup():
+        conn = open_db(db_path)
+        error = None
+        step = request.args.get("step", "siren")
+
+        if request.method == "POST":
+            step = request.form.get("step", "siren")
+            if step == "siren":
+                siren = request.form.get("siren", "").strip().replace(" ", "")
+                if not siren or not siren.isdigit() or len(siren) != 9:
+                    error = "SIREN invalide — 9 chiffres requis."
+                else:
+                    conn.execute(
+                        "INSERT INTO user_profile (id, siren) VALUES (1, ?) "
+                        "ON CONFLICT(id) DO UPDATE SET siren=excluded.siren",
+                        (siren,),
+                    )
+                    conn.commit()
+                    conn.close()
+                    return redirect(url_for("setup", step="fiscal"))
+            elif step == "fiscal":
+                fiscal = request.form.get("fiscal_profile", "").strip()
+                valid = ("auto-entrepreneur", "SASU", "SARL", "salarié")
+                if fiscal not in valid:
+                    error = "Profil fiscal invalide."
+                else:
+                    conn.execute(
+                        "INSERT INTO user_profile (id, fiscal_profile, setup_complete) VALUES (1, ?, 1) "
+                        "ON CONFLICT(id) DO UPDATE SET fiscal_profile=excluded.fiscal_profile, setup_complete=1",
+                        (fiscal,),
+                    )
+                    conn.commit()
+                    conn.close()
+                    return redirect(url_for("index"))
+
+        existing = conn.execute("SELECT * FROM user_profile WHERE id=1").fetchone()
+        conn.close()
+        return render_template("setup.html", step=step, error=error, existing=existing)
+
+    @app.route("/settings")
+    def settings():
+        conn = open_db(db_path)
+        profile = get_user_profile(conn)
+        emitters = conn.execute("SELECT * FROM known_emitters ORDER BY keyword").fetchall()
+        conn.close()
+        section = request.args.get("section", "profil")
+        from config import CADENCE_DEFAULTS
+        return render_template(
+            "settings.html",
+            profile=profile,
+            emitters=emitters,
+            section=section,
+            cadence_defaults=CADENCE_DEFAULTS,
+            extraction_cfg=cfg["extraction"],
+        )
+
+    @app.route("/settings/profil", methods=["POST"])
+    def settings_profil_save():
+        data = {
+            "nom":            request.form.get("nom", "").strip(),
+            "siren":          request.form.get("siren", "").strip().replace(" ", ""),
+            "tva_intracom":   request.form.get("tva_intracom", "").strip(),
+            "fiscal_profile": request.form.get("fiscal_profile", "").strip(),
+            "cadence":        request.form.get("cadence", "").strip(),
+        }
+        conn = open_db(db_path)
+        conn.execute(
+            "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, setup_complete) "
+            "VALUES (1, :nom, :siren, :tva_intracom, :fiscal_profile, :cadence, 1) "
+            "ON CONFLICT(id) DO UPDATE SET "
+            "nom=excluded.nom, siren=excluded.siren, tva_intracom=excluded.tva_intracom, "
+            "fiscal_profile=excluded.fiscal_profile, cadence=excluded.cadence",
+            data,
+        )
+        conn.commit()
+        conn.close()
+        return redirect(url_for("settings", section="profil"))
+
+    @app.route("/settings/enseignes/add", methods=["POST"])
+    def settings_enseignes_add():
+        keyword = request.form.get("keyword", "").strip().lower()
+        nom = request.form.get("nom", "").strip()
+        if keyword and nom:
+            conn = open_db(db_path)
+            try:
+                conn.execute("INSERT INTO known_emitters (keyword, nom) VALUES (?, ?)", (keyword, nom))
+                conn.commit()
+            except Exception:
+                pass
+            conn.close()
+        return redirect(url_for("settings", section="enseignes"))
+
+    @app.route("/settings/enseignes/<int:emitter_id>/delete", methods=["POST"])
+    def settings_enseignes_delete(emitter_id):
+        conn = open_db(db_path)
+        conn.execute("DELETE FROM known_emitters WHERE id=?", (emitter_id,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("settings", section="enseignes"))
 
     @app.route("/")
     def index():
@@ -203,6 +318,9 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         except sqlite3.DatabaseError as exc:
             return render_template_string(_ERROR_TMPL, message=str(exc), hint="python run.py"), 500
 
+        profile = get_user_profile(conn) or {}
+        profile_incomplete = not (profile.get("nom") and profile.get("tva_intracom"))
+
         return render_template(
             "dashboard.html",
             year=year,
@@ -216,8 +334,8 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             review_error=review_error,
             expense_types=EXPENSE_TYPES,
             doc_types=("facture_émise", "facture_reçue", "reçu", "note_de_frais", "avoir", "devis"),
-            identity=cfg["identity"],
-            fiscal_profile=cfg["fiscal"]["default_profile"],
+            profile=profile,
+            profile_incomplete=profile_incomplete,
         )
 
     @app.route("/run", methods=["POST"])

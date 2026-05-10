@@ -15,6 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 
 from config import load_config
+from db import get_user_profile, open_db
 
 
 def _dedup_input(input_dir: Path) -> int:
@@ -67,6 +68,13 @@ def main() -> None:
     db_path = Path(cfg["paths"]["db"])
     review_dir = Path(cfg["paths"]["review"])
     review_csv = review_dir / "review.csv"
+
+    conn = open_db(db_path)
+    profile = get_user_profile(conn)
+    conn.close()
+    if profile is None:
+        print("Profil non configuré. Lance le dashboard d'abord : python dashboard.py")
+        sys.exit(1)
 
     py = sys.executable
     cfg_args = ["--config", str(args.config)]

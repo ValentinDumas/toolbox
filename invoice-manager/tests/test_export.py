@@ -171,6 +171,7 @@ class TestXLSXExport:
 class TestExportCLI:
     def test_missing_db_prints_message(self, tmp_project, monkeypatch, capsys):
         monkeypatch.chdir(tmp_project)
+        (tmp_project / "data" / "invoices.db").unlink()  # remove DB created by fixture
         import sys as _sys
         _sys.argv = ["export.py", "--year", "2025", "--config", str(tmp_project / "config.toml")]
         exp.main()

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paramètres — ProLedger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1C4ED8;
+      --surface: #FFFFFF;
+      --bg: #F8FAFC;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --error: #DC2626;
+      --success: #059669;
+      --radius: 8px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .page { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* Header */
+    header { display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .header-logo { font-weight: 700; font-size: 1rem; color: var(--primary); text-decoration: none; }
+    .header-back { font-size: .875rem; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 6px; }
+    .header-back:hover { color: var(--text); }
+
+    /* Layout */
+    .settings-layout { display: flex; flex: 1; max-width: 900px; margin: 2rem auto; width: 100%; padding: 0 1.5rem; gap: 2rem; }
+
+    /* Sidebar */
+    .settings-sidebar { width: 200px; flex-shrink: 0; }
+    .sidebar-title { font-size: .7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; padding: .25rem .75rem; margin-bottom: .5rem; }
+    .sidebar-nav { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+    .sidebar-nav a { display: block; padding: .5rem .75rem; border-radius: 6px; font-size: .875rem; color: var(--text-muted); text-decoration: none; transition: background .1s, color .1s; }
+    .sidebar-nav a:hover { background: var(--bg); color: var(--text); }
+    .sidebar-nav a.active { background: #EFF6FF; color: var(--primary); font-weight: 500; }
+
+    /* Content */
+    .settings-content { flex: 1; }
+    .settings-section { display: none; }
+    .settings-section.active { display: block; }
+    h1 { font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem; }
+
+    /* Card */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card-title { font-size: .875rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text); }
+
+    /* Form fields */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .field-row.full { grid-template-columns: 1fr; }
+    .field { display: flex; flex-direction: column; gap: .375rem; }
+    label { font-size: .8rem; font-weight: 500; color: var(--text-muted); }
+    input[type="text"], select {
+      padding: .5rem .75rem; border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: .9rem; font-family: inherit; background: var(--bg); color: var(--text); outline: none;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,78,216,.12); }
+    .field-hint { font-size: .75rem; color: var(--text-muted); line-height: 1.4; }
+
+    /* Buttons */
+    .btn { padding: .5rem 1.25rem; border-radius: var(--radius); font-size: .875rem; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid transparent; transition: background .15s; }
+    .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-primary:hover { background: #1D4ED8CC; }
+    .btn-ghost { background: none; color: var(--text-muted); border-color: var(--border); }
+    .btn-ghost:hover { background: var(--bg); color: var(--text); }
+    .btn-danger { background: none; color: var(--error); border-color: #FECACA; font-size: .8rem; padding: .3rem .75rem; }
+    .btn-danger:hover { background: #FEE2E2; }
+    .form-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th { text-align: left; font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
+    td { padding: .625rem .75rem; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    .empty-state { text-align: center; color: var(--text-muted); padding: 2rem; font-size: .875rem; }
+
+    /* Add enseigne form */
+    .add-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: .75rem; align-items: end; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+    .add-form .field { margin: 0; }
+
+    /* App config readonly */
+    .config-row { display: flex; justify-content: space-between; align-items: center; padding: .625rem 0; border-bottom: 1px solid var(--border); font-size: .875rem; }
+    .config-row:last-child { border-bottom: none; }
+    .config-key { color: var(--text-muted); font-family: monospace; font-size: .8rem; }
+    .config-value { font-weight: 500; }
+    .config-note { font-size: .78rem; color: var(--text-muted); margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <a href="/" class="header-logo">ProLedger</a>
+      <a href="/" class="header-back">← Retour au dashboard</a>
+    </header>
+
+    <div class="settings-layout">
+      <nav class="settings-sidebar" aria-label="Navigation paramètres">
+        <div class="sidebar-title">Paramètres</div>
+        <ul class="sidebar-nav">
+          <li><a href="/settings?section=profil" class="{{ 'active' if section == 'profil' else '' }}">Mon profil</a></li>
+          <li><a href="/settings?section=enseignes" class="{{ 'active' if section == 'enseignes' else '' }}">Enseignes connues</a></li>
+          <li><a href="/settings?section=app" class="{{ 'active' if section == 'app' else '' }}">Application</a></li>
+        </ul>
+      </nav>
+
+      <div class="settings-content">
+
+        {# ── Profil ─────────────────────────────────────────────────────────── #}
+        <div class="settings-section {{ 'active' if section == 'profil' else '' }}">
+          <h1>Mon profil</h1>
+          <form method="post" action="/settings/profil">
+            <div class="card">
+              <div class="card-title">Identité</div>
+              <div class="field-row full">
+                <div class="field">
+                  <label for="nom">Nom / raison sociale</label>
+                  <input type="text" id="nom" name="nom" value="{{ profile.nom or '' }}" placeholder="Valentin Dumas ou VSDP SAS">
+                  <span class="field-hint">Affiché dans le header du dashboard.</span>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="siren">SIREN</label>
+                  <input type="text" id="siren" name="siren" value="{{ profile.siren or '' }}" placeholder="123456789" maxlength="9" inputmode="numeric">
+                  <span class="field-hint">9 chiffres — détecte tes factures émises.</span>
+                </div>
+                <div class="field">
+                  <label for="tva_intracom">TVA intracommunautaire</label>
+                  <input type="text" id="tva_intracom" name="tva_intracom" value="{{ profile.tva_intracom or '' }}" placeholder="FR12123456789">
+                  <span class="field-hint">FR + 2 chiffres + SIREN. Laisser vide si non assujetti.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Fiscal</div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="fiscal_profile">Statut fiscal</label>
+                  <select id="fiscal_profile" name="fiscal_profile">
+                    {% for p in ["auto-entrepreneur", "SASU", "SARL", "salarié"] %}
+                    <option value="{{ p }}" {{ 'selected' if profile.fiscal_profile == p else '' }}>{{ p }}</option>
+                    {% endfor %}
+                  </select>
+                  <span class="field-hint">Détermine les règles TVA à l'export.</span>
+                </div>
+                <div class="field">
+                  <label for="cadence">Cadence de déclaration</label>
+                  <select id="cadence" name="cadence">
+                    <option value="" {{ 'selected' if not profile.cadence else '' }}>Défaut du profil ({% for k,v in cadence_defaults.items() %}{% if k == profile.fiscal_profile %}{{ v }}{% endif %}{% endfor %})</option>
+                    {% for c in ["mensuelle", "trimestrielle", "annuelle"] %}
+                    <option value="{{ c }}" {{ 'selected' if profile.cadence == c else '' }}>{{ c }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <a href="/" class="btn btn-ghost">Annuler</a>
+              <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+          </form>
+        </div>
+
+        {# ── Enseignes connues ──────────────────────────────────────────────── #}
+        <div class="settings-section {{ 'active' if section == 'enseignes' else '' }}">
+          <h1>Enseignes connues</h1>
+          <div class="card">
+            <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1.25rem;line-height:1.5;">
+              Associe un mot-clé (cherché partout dans le texte OCR) à un nom d'enseigne. Utile quand l'en-tête d'un ticket est illisible.
+              Le fuzzy matching tolère 1–2 caractères manquants.
+            </p>
+            {% if emitters %}
+            <table>
+              <thead>
+                <tr>
+                  <th>Mot-clé</th>
+                  <th>Enseigne</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in emitters %}
+                <tr>
+                  <td><code>{{ e.keyword }}</code></td>
+                  <td>{{ e.nom }}</td>
+                  <td style="text-align:right;">
+                    <form method="post" action="/settings/enseignes/{{ e.id }}/delete" style="display:inline;">
+                      <button type="submit" class="btn btn-danger" onclick="return confirm('Supprimer « {{ e.keyword }} » ?')">Supprimer</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">Aucune enseigne configurée.</div>
+            {% endif %}
+
+            <form method="post" action="/settings/enseignes/add" class="add-form">
+              <div class="field">
+                <label for="keyword">Mot-clé</label>
+                <input type="text" id="keyword" name="keyword" placeholder="boulanger" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="nom">Nom affiché</label>
+                <input type="text" id="nom" name="nom" placeholder="Boulanger" autocomplete="off">
+              </div>
+              <button type="submit" class="btn btn-primary">Ajouter</button>
+            </form>
+          </div>
+        </div>
+
+        {# ── Application ────────────────────────────────────────────────────── #}
+        <div class="settings-section {{ 'active' if section == 'app' else '' }}">
+          <h1>Application</h1>
+          <div class="card">
+            <div class="card-title">Paramètres OCR (config.toml)</div>
+            {% for key, val in extraction_cfg.items() %}
+            <div class="config-row">
+              <span class="config-key">extraction.{{ key }}</span>
+              <span class="config-value">{{ val }}</span>
+            </div>
+            {% endfor %}
+            <p class="config-note">Pour modifier ces paramètres, édite <code>config.toml</code> à la racine du projet.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

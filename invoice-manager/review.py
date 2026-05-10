@@ -16,7 +16,7 @@ from pathlib import Path
 
 from config import load_config
 from constants import REVIEW_ENCODING, STATUT_A_REVISER, STATUT_VALIDE
-from db import open_db
+from db import get_user_profile, open_db
 from parsers import _guess_doc_type
 ACTION_KEEP    = "garder"
 ACTION_CORRECT = "corriger"
@@ -187,13 +187,15 @@ def main() -> None:
     cfg = load_config(args.config)
     db_path = Path(cfg["paths"]["db"])
     review_dir = Path(cfg["paths"]["review"])
-    user_siren = cfg["identity"]["siren"]
 
     if not db_path.exists():
         print(f"Base introuvable : {db_path} — lance d'abord extract.py")
         return
 
     conn = open_db(db_path)
+
+    profile = get_user_profile(conn)
+    user_siren = profile["siren"] if profile else ""
 
     if args.reclassify:
         if args.auto:

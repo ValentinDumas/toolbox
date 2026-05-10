@@ -70,6 +70,7 @@ class TestExportReview:
 
     def test_missing_db(self, tmp_project, monkeypatch, capsys):
         monkeypatch.chdir(tmp_project)
+        (tmp_project / "data" / "invoices.db").unlink()  # remove DB created by fixture
         import sys as _sys
         _sys.argv = ["review.py", "--config", str(tmp_project / "config.toml")]
         rv.main()

@@ -244,7 +244,7 @@
       border-radius: var(--radius);
       padding: 16px 20px;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 14px;
       min-width: 200px;
     }
@@ -253,21 +253,23 @@
       height: 12px;
       border-radius: 50%;
       flex-shrink: 0;
+      margin-top: 5px; /* aligne optiquement avec le chiffre */
     }
     .dot-ok      { background: var(--positive); }
     .dot-warning { background: var(--warning); }
     .dot-error   { background: var(--negative); }
-    .health-info { display: flex; flex-direction: column; gap: 4px; }
+    .health-info { display: flex; flex-direction: column; gap: 0; }
     .health-count {
       font-weight: 600;
       font-size: 20px;
       font-variant-numeric: tabular-nums;
       line-height: 1;
+      margin-bottom: 4px;
     }
     .health-label { font-size: 13px; color: var(--on-surface-muted); }
     .health-sublabel,
     .health-sublabel-error,
-    .health-sublabel-ok { margin-top: 4px; }
+    .health-sublabel-ok { margin-top: 8px; }
     .health-sublabel       { font-size: 12px; color: var(--warning); }
     .health-sublabel-error { font-size: 12px; color: var(--negative); }
     /* Review inline */
@@ -482,7 +484,7 @@
     .health-card-action:hover { background: var(--surface-variant); }
     .health-card-action:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     .health-card-action:disabled { opacity: 0.6; cursor: not-allowed; }
-    .ocr-preview { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    .ocr-preview { margin-top: 16px; margin-bottom: 16px; font-size: 12px; color: var(--on-surface-muted); }
     .ocr-preview summary { cursor: pointer; user-select: none; }
     .ocr-preview pre { white-space: pre-wrap; word-break: break-word;
       background: var(--surface-variant); padding: 8px; border-radius: 4px;
@@ -617,20 +619,26 @@
         </form>
       </div>
       <div class="header-actions">
-        {% set nom_defini = identity.nom and identity.nom != 'À renseigner' %}
-        <div class="entity-badge" aria-label="Entité : {{ identity.nom if nom_defini else 'Non renseignée' }}">
+        {% set nom_defini = profile.nom and profile.nom != '' %}
+        <a href="/settings" class="entity-badge" aria-label="Paramètres — Entité : {{ profile.nom if nom_defini else 'Non renseignée' }}" style="text-decoration:none;color:inherit;">
           <div class="entity-badge-icon" aria-hidden="true">
-            {{ (identity.nom[0] | upper) if nom_defini else '?' }}
+            {{ (profile.nom[0] | upper) if nom_defini else '?' }}
           </div>
           <div class="entity-badge-info">
-            <span class="entity-badge-name">{{ identity.nom if nom_defini else 'Entité non renseignée' }}</span>
+            <span class="entity-badge-name">{{ profile.nom if nom_defini else 'Entité non renseignée' }}</span>
             <span class="entity-badge-meta">
-              {{ fiscal_profile }}{% if identity.siren and identity.siren != '000000000' %} · {{ identity.siren }}{% endif %}
+              {{ profile.fiscal_profile }}{% if profile.siren %} · {{ profile.siren }}{% endif %}
             </span>
           </div>
-        </div>
+        </a>
       </div>
     </header>
+
+    {% if profile_incomplete %}
+    <div class="error-banner" role="alert" style="background:#FEF3C7;border-color:#D97706;color:#92400E;">
+      Profil incomplet — <a href="/settings?section=profil" style="color:#92400E;font-weight:600;">Compléter dans les paramètres</a> (nom, TVA intracom).
+    </div>
+    {% endif %}
 
     {% if run_error %}
     <div class="error-banner" role="alert" aria-live="assertive">

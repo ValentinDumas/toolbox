@@ -42,11 +42,10 @@ class TestLoadConfig:
 
     def test_valid_config_overrides_defaults(self, tmp_path):
         (tmp_path / "config.toml").write_text(
-            '[extraction]\nocr_dpi = 600\n[fiscal]\ndefault_profile = "SASU"\n'
+            '[extraction]\nocr_dpi = 600\n'
         )
         cfg = load_config(tmp_path / "config.toml")
         assert cfg["extraction"]["ocr_dpi"] == 600
-        assert cfg["fiscal"]["default_profile"] == "SASU"
 
     def test_partial_config_keeps_unset_defaults(self, tmp_path):
         (tmp_path / "config.toml").write_text('[extraction]\nocr_dpi = 150\n')
@@ -106,10 +105,8 @@ class TestCadenceDefaults:
         from config import CADENCE_DEFAULTS
         assert CADENCE_DEFAULTS["SASU"] == "mensuelle"
 
-    def test_identity_in_default_config(self):
-        assert "identity" in DEFAULT_CONFIG
-        assert DEFAULT_CONFIG["identity"]["siren"] == ""
+    def test_identity_not_in_default_config(self):
+        assert "identity" not in DEFAULT_CONFIG
 
-    def test_cadence_in_default_config(self):
-        assert "cadence_déclaration" in DEFAULT_CONFIG["fiscal"]
-        assert DEFAULT_CONFIG["fiscal"]["cadence_déclaration"] == ""
+    def test_fiscal_not_in_default_config(self):
+        assert "fiscal" not in DEFAULT_CONFIG

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration — ProLedger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1C4ED8;
+      --primary-hover: #1D4ED8CC;
+      --surface: #FFFFFF;
+      --bg: #F8FAFC;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --error: #DC2626;
+      --warning-bg: #FEF3C7;
+      --warning-border: #D97706;
+      --warning-text: #92400E;
+      --radius: 8px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+    .setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 480px; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+    .setup-logo { font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-bottom: 2rem; }
+    .step-indicator { display: flex; gap: 8px; margin-bottom: 2rem; }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+    .step-dot.active { background: var(--primary); }
+    .step-dot.done { background: #10B981; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: .5rem; }
+    .step-subtitle { color: var(--text-muted); font-size: .9rem; margin-bottom: 1.75rem; line-height: 1.5; }
+    label { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .375rem; }
+    input[type="text"] {
+      width: 100%; padding: .625rem .875rem; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 1rem; font-family: inherit;
+      background: var(--bg); color: var(--text); outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,78,216,.15); }
+    .field-hint { font-size: .8rem; color: var(--text-muted); margin-top: .5rem; line-height: 1.5; }
+    .radio-group { display: flex; flex-direction: column; gap: .625rem; margin-bottom: 1.75rem; }
+    .radio-option { display: flex; align-items: flex-start; gap: .75rem; padding: .875rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: border-color .15s; }
+    .radio-option:has(input:checked) { border-color: var(--primary); background: #EFF6FF; }
+    .radio-option input { margin-top: 2px; accent-color: var(--primary); }
+    .radio-option-body { flex: 1; }
+    .radio-option-label { font-weight: 500; font-size: .9rem; }
+    .radio-option-hint { font-size: .78rem; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+    .error-msg { background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: var(--radius); padding: .75rem 1rem; font-size: .875rem; color: var(--error); margin-bottom: 1.25rem; }
+    .btn-primary { width: 100%; padding: .75rem; background: var(--primary); color: #fff; border: none; border-radius: var(--radius); font-size: 1rem; font-weight: 600; font-family: inherit; cursor: pointer; margin-top: 1.75rem; transition: background .15s; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .field-wrap { margin-bottom: 1.75rem; }
+  </style>
+</head>
+<body>
+  <div class="setup-card">
+    <div class="setup-logo">ProLedger</div>
+
+    <div class="step-indicator">
+      <div class="step-dot {% if step == 'siren' %}active{% else %}done{% endif %}"></div>
+      <div class="step-dot {% if step == 'fiscal' %}active{% endif %}"></div>
+    </div>
+
+    {% if step == "siren" %}
+    <h1>Ton SIREN</h1>
+    <p class="step-subtitle">Indispensable pour distinguer automatiquement tes factures émises de celles que tu reçois. Sans lui, toutes les factures sont classées comme reçues.</p>
+
+    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/setup">
+      <input type="hidden" name="step" value="siren">
+      <div class="field-wrap">
+        <label for="siren">SIREN</label>
+        <input type="text" id="siren" name="siren" placeholder="123456789" maxlength="9" inputmode="numeric"
+               value="{{ existing.siren if existing else '' }}" autocomplete="off" autofocus>
+        <p class="field-hint">9 chiffres — visible sur ton Kbis, avis URSSAF, ou <strong>annuaire-entreprises.data.gouv.fr</strong></p>
+      </div>
+      <button type="submit" class="btn-primary">Continuer →</button>
+    </form>
+
+    {% elif step == "fiscal" %}
+    <h1>Ton statut fiscal</h1>
+    <p class="step-subtitle">Détermine les règles de déductibilité TVA appliquées à tes exports. Tu pourras le changer à tout moment dans les paramètres.</p>
+
+    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/setup">
+      <input type="hidden" name="step" value="fiscal">
+      <div class="radio-group">
+        {% for profil, hint in [
+          ("auto-entrepreneur", "TVA non applicable — régime micro. Déclaration trimestrielle."),
+          ("SASU",              "Société par actions simplifiée unipersonnelle. TVA mensuelle."),
+          ("SARL",              "Société à responsabilité limitée. TVA mensuelle."),
+          ("salarié",           "Frais professionnels uniquement. Déclaration annuelle.")
+        ] %}
+        <label class="radio-option">
+          <input type="radio" name="fiscal_profile" value="{{ profil }}"
+                 {% if existing and existing.fiscal_profile == profil %}checked{% endif %}>
+          <div class="radio-option-body">
+            <div class="radio-option-label">{{ profil }}</div>
+            <div class="radio-option-hint">{{ hint }}</div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn-primary">Accéder au dashboard →</button>
+    </form>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -18,15 +18,6 @@ DEFAULT_CONFIG: dict = {
         "ocr_easyocr_fallback": False,
         "ocr_easyocr_threshold": 0.4,
     },
-    "fiscal": {
-        "default_profile": "auto-entrepreneur",
-        "cadence_déclaration": "",  # vide = défaut par statut (voir CADENCE_DEFAULTS)
-    },
-    "identity": {
-        "nom": "",
-        "siren": "",
-        "tva_intracom": "",
-    },
     "paths": {
         "input": "input/",
         "processed": "processed/",
@@ -35,7 +26,6 @@ DEFAULT_CONFIG: dict = {
         "output": "output/",
         "review": "review/",
     },
-    "known_emitters": {},
 }
 
 # Cadence de déclaration par défaut par statut fiscal.

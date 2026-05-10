@@ -38,7 +38,6 @@ def make_heic_like(path: Path) -> Path:
 
 DEFAULT_CONFIG = {
     "extraction": {"backend": "local", "confidence_threshold": 0.8, "ocr_lang": "fra+eng", "ocr_dpi": 300},
-    "fiscal": {"default_profile": "auto-entrepreneur"},
     "paths": {
         "input": "input/", "processed": "processed/", "errors": "errors/",
         "db": "data/invoices.db", "output": "output/", "review": "review/",
@@ -51,22 +50,12 @@ def tmp_project(tmp_path):
     """Isolated project directory with all subdirs and config.toml."""
     for d in ("input", "processed", "errors", "data", "output", "review"):
         (tmp_path / d).mkdir()
-    import tomllib as _t
-    try:
-        import tomli_w
-        with open(tmp_path / "config.toml", "wb") as f:
-            tomli_w.dump(DEFAULT_CONFIG, f)
-    except ImportError:
-        # Write TOML manually (simple enough)
-        cfg_text = """
+    cfg_text = """
 [extraction]
 backend = "local"
 confidence_threshold = 0.8
 ocr_lang = "fra+eng"
 ocr_dpi = 300
-
-[fiscal]
-default_profile = "auto-entrepreneur"
 
 [paths]
 input = "input/"
@@ -76,16 +65,33 @@ db = "data/invoices.db"
 output = "output/"
 review = "review/"
 """
-        (tmp_path / "config.toml").write_text(cfg_text.strip())
+    (tmp_path / "config.toml").write_text(cfg_text.strip())
+
+    # Pre-populate user profile so CLI scripts don't exit on missing profile
+    from db import open_db
+    db_path = tmp_path / "data" / "invoices.db"
+    conn = open_db(db_path)
+    conn.execute(
+        "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, setup_complete) "
+        "VALUES (1, 'Test User', '123456789', '', 'auto-entrepreneur', '', 1)"
+    )
+    conn.commit()
+    conn.close()
+
     return tmp_path
 
 
 @pytest.fixture
 def tmp_db(tmp_project):
-    """Initialized SQLite DB in tmp_project."""
-    import extract as ex
+    """Initialized SQLite DB with a complete user profile for tests."""
+    from db import open_db
     db_path = tmp_project / "data" / "invoices.db"
-    conn = ex.open_db(db_path)
+    conn = open_db(db_path)
+    conn.execute(
+        "INSERT OR REPLACE INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, setup_complete) "
+        "VALUES (1, 'Test User', '123456789', '', 'auto-entrepreneur', '', 1)"
+    )
+    conn.commit()
     yield conn, db_path
     conn.close()
 

@@ -4,8 +4,9 @@
 #   cp config.toml.example config.toml
 #   Modifie les valeurs ci-dessous selon ton environnement.
 #
-# Ce fichier est OPTIONNEL. Si absent ou invalide, les scripts fonctionnent
-# avec les valeurs par défaut intégrées (voir config.py → DEFAULT_CONFIG).
+# Ce fichier contient uniquement les paramètres techniques de l'application.
+# L'identité (SIREN, TVA, profil fiscal) et les enseignes connues se configurent
+# dans le dashboard web : python dashboard.py → http://localhost:7800
 #
 # Priorité : arguments CLI > config.toml > valeurs par défaut
 # ─────────────────────────────────────────────────────────────────────────────
@@ -48,43 +49,6 @@ ocr_easyocr_fallback = true
 # Proxy = ratio alphanumérique dans le texte Tesseract.
 # 0.4 = moins de 40 % de caractères alphanumériques → texte probablement bruité.
 ocr_easyocr_threshold = 0.4
-
-
-[identity]
-
-# Ton identité fiscale — utilisée pour détecter automatiquement tes factures émises.
-# Laisser vide si non applicable.
-nom          = ""   # Nom ou raison sociale (ex: "Valentin Dumas" ou "VSDP SAS")
-siren        = ""   # 9 chiffres (ex: "123456789")
-tva_intracom = ""   # FR + 2 chiffres + SIREN (ex: "FR12123456789")
-
-
-[fiscal]
-
-# Profil fiscal par défaut appliqué à l'extraction et à l'export.
-# Valeurs : auto-entrepreneur | SASU | SARL | salarié
-# Peut être surchargé à l'export : python3 export.py --statut SASU
-default_profile = "auto-entrepreneur"
-
-# Cadence de déclaration fiscale.
-# Laisser vide pour utiliser le défaut du profil :
-#   auto-entrepreneur → trimestrielle
-#   SASU / SARL       → mensuelle
-#   salarié           → annuelle
-# Valeurs : mensuelle | trimestrielle | annuelle
-"cadence_déclaration" = ""   # guillemets requis — clé non-ASCII en TOML
-
-
-[known_emitters]
-
-# Associe un mot-clé (cherché n'importe où dans le texte OCR) à un nom d'enseigne.
-# Utile quand l'en-tête du ticket est illisible (froissé, coupé, mal éclairé).
-# Le mot-clé est insensible à la casse.
-# Exemples :
-# boulanger = "Boulanger"
-# fnac      = "Fnac"
-# darty     = "Darty"
-# leroy     = "Leroy Merlin"
 
 
 [paths]

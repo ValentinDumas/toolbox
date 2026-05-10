@@ -7,13 +7,14 @@ import argparse
 import hashlib
 import re
 import shutil
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from config import load_config
 from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
-from db import open_db
+from db import get_known_emitters, get_user_profile, open_db
 from parsers import (
     _confidence_score,
     _guess_category,
@@ -346,19 +347,25 @@ def main() -> None:
     processed_dir = root / cfg["paths"]["processed"]
     errors_dir    = root / cfg["paths"]["errors"]
     db_path       = root / cfg["paths"]["db"]
-    profil         = cfg["fiscal"]["default_profile"]
-    user_siren     = cfg["identity"]["siren"]
-    known_emitters = cfg.get("known_emitters", {})
 
     for d in (input_dir, processed_dir, errors_dir):
         d.mkdir(parents=True, exist_ok=True)
+
+    conn = open_db(db_path)
+
+    profile = get_user_profile(conn)
+    if profile is None:
+        print("Profil non configuré. Lance le dashboard d'abord : python dashboard.py")
+        sys.exit(1)
+
+    profil         = profile["fiscal_profile"]
+    user_siren     = profile["siren"]
+    known_emitters = get_known_emitters(conn)
 
     files = _collect_files(input_dir)
     if not files:
         print("Aucun fichier à traiter dans", input_dir)
         return
-
-    conn = open_db(db_path)
     traités = erreurs = à_réviser = doublons = 0
 
     for f in files:

@@ -11,11 +11,13 @@ import calendar
 import csv
 import shutil
 import sqlite3
+import sys
 from datetime import date, datetime
 from pathlib import Path
 
 from config import load_config, CADENCE_DEFAULTS
 from constants import FISCAL_RULES, MONTHS_FR_SHORT, STATUT_A_REVISER
+from db import get_user_profile, open_db
 
 try:
     import openpyxl
@@ -24,11 +26,6 @@ try:
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
-
-def open_db(path: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 # ── Requête ───────────────────────────────────────────────────────────────────
 
@@ -405,15 +402,22 @@ def main() -> None:
     cfg = load_config(args.config)
     db_path = Path(cfg["paths"]["db"])
     output_dir = Path(cfg["paths"]["output"])
-    statut = args.statut or cfg["fiscal"]["default_profile"]
     year = None if args.all_years else (args.year or datetime.now().year)
-    cadence = cfg["fiscal"]["cadence_déclaration"] or CADENCE_DEFAULTS.get(statut, "trimestrielle")
 
     if not db_path.exists():
         print(f"Base introuvable : {db_path} — lance d'abord extract.py")
         return
 
     conn = open_db(db_path)
+
+    profile = get_user_profile(conn)
+    if profile is None:
+        print("Profil non configuré. Lance le dashboard d'abord : python dashboard.py")
+        sys.exit(1)
+
+    statut = args.statut or profile["fiscal_profile"]
+    cadence = profile["cadence"] or CADENCE_DEFAULTS.get(statut, "trimestrielle")
+
     rows = fetch_rows(conn, year, statut)
     conn.close()
 
