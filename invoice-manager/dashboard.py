@@ -8,6 +8,7 @@ import platform
 import sqlite3
 import subprocess
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +21,9 @@ from constants import (
     STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES,
 )
 from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
+from profiles import (
+    create_profile, get_profile_meta, load_profiles, maybe_migrate_legacy, resolve_paths,
+)
 
 
 def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
@@ -97,10 +101,10 @@ def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: i
     }
 
 
-def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
+def query_health(conn: sqlite3.Connection, paths: dict) -> dict:
     """Retourne les indicateurs de santé du workspace."""
     def count_files(key):
-        dir_path = Path(cfg["paths"][key])
+        dir_path = paths[key]
         if not dir_path.exists():
             return 0
         return sum(1 for f in dir_path.iterdir() if f.is_file() and not f.name.startswith("."))
@@ -172,34 +176,143 @@ h1{color:#B91C1C}pre{background:#F1F5F9;padding:12px;border-radius:6px;font-size
 </body></html>"""
 
 
-def create_app(cfg: dict, db_path: Path) -> "Flask":
+def create_app(cfg: dict) -> "Flask":
     from urllib.parse import quote
 
-    from flask import Flask, jsonify, redirect, render_template, render_template_string, request, url_for
+    from flask import Flask, jsonify, redirect, render_template, render_template_string, request, session, url_for
 
     import os
 
     app = Flask(__name__, template_folder=str(HERE / "templates"))
-    app.secret_key = os.urandom(24)
+    app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
     app.jinja_env.filters["fr_currency"] = _fr_currency
     app.jinja_env.filters["basename"] = lambda p: os.path.basename(p) if p else ""
 
+    def _active_slug() -> str | None:
+        return session.get("active_profile")
+
+    def _active_paths() -> dict | None:
+        slug = _active_slug()
+        return resolve_paths(slug) if slug else None
+
+    def _active_db() -> Path | None:
+        paths = _active_paths()
+        return paths["db"] if paths else None
+
     def _get_profile():
-        conn = open_db(db_path)
+        db = _active_db()
+        if db is None:
+            return None
+        conn = open_db(db)
         profile = get_user_profile(conn)
         conn.close()
         return profile
 
+    @app.context_processor
+    def inject_profile_context():
+        return {
+            "all_profiles": load_profiles(),
+            "active_slug": _active_slug(),
+        }
+
+    _PROFILE_EXEMPT = {"setup", "static", "profiles_list", "profiles_create", "profiles_switch", "upload"}
+
     @app.before_request
     def require_setup():
-        if request.endpoint in ("setup", "static"):
+        if request.endpoint in _PROFILE_EXEMPT:
             return
+        profiles = load_profiles()
+        if not profiles:
+            return redirect(url_for("profiles_list"))
+        if not _active_slug() or not get_profile_meta(_active_slug()):
+            session["active_profile"] = profiles[0]["slug"]
         if _get_profile() is None:
             return redirect(url_for("setup"))
 
+    # ── Gestion des profils ────────────────────────────────────────────────────
+
+    _FIRST_PROFILE_PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Bienvenue — Invoice Manager</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:480px;margin:120px auto;padding:0 24px;color:#0F172A}
+h1{font-size:22px;font-weight:600;margin-bottom:8px}
+p{color:#64748B;margin-bottom:28px;line-height:1.5}
+label{display:block;font-size:14px;font-weight:500;margin-bottom:6px}
+input{width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:15px;
+      font-family:inherit;box-sizing:border-box}
+input:focus{outline:2px solid #1C4ED8;outline-offset:1px}
+button{width:100%;margin-top:16px;padding:10px;background:#1C4ED8;color:white;border:none;
+       border-radius:6px;font-size:15px;font-weight:600;cursor:pointer}
+button:hover{background:#1D4ED8cc}
+</style></head><body>
+<h1>Bienvenue dans Invoice Manager</h1>
+<p>Commencez par nommer votre première entité légale (ex : SASU Dupont, Micro-entreprise...).</p>
+<form method="post" action="/profiles/create">
+  <label for="name">Nom de l'entité</label>
+  <input type="text" id="name" name="name" required autofocus placeholder="Ex : SASU Dupont">
+  <button type="submit">Créer et configurer →</button>
+</form>
+</body></html>"""
+
+    @app.route("/profiles")
+    def profiles_list():
+        profiles = load_profiles()
+        if profiles:
+            if not _active_slug():
+                session["active_profile"] = profiles[0]["slug"]
+            return redirect(url_for("index"))
+        return render_template_string(_FIRST_PROFILE_PAGE)
+
+    @app.route("/profiles/create", methods=["POST"])
+    def profiles_create():
+        name = request.form.get("name", "").strip()
+        if not name:
+            return redirect(url_for("profiles_list"))
+        entry = create_profile(name)
+        session["active_profile"] = entry["slug"]
+        return redirect(url_for("setup"))
+
+    @app.route("/profiles/switch/<slug>", methods=["POST"])
+    def profiles_switch(slug):
+        if get_profile_meta(slug):
+            session["active_profile"] = slug
+        return redirect(url_for("index"))
+
+    # ── Upload ─────────────────────────────────────────────────────────────────
+
+    @app.route("/upload", methods=["POST"])
+    def upload():
+        slug = _active_slug()
+        if not slug:
+            return jsonify({"ok": False, "error": "Aucun profil actif"}), 400
+        paths = resolve_paths(slug)
+        input_dir = paths["input"]
+        input_dir.mkdir(parents=True, exist_ok=True)
+
+        files = request.files.getlist("files")
+        if not files or all(not f.filename for f in files):
+            return jsonify({"ok": False, "error": "Aucun fichier reçu"}), 400
+
+        saved = []
+        for f in files:
+            if f.filename:
+                dest = input_dir / Path(f.filename).name
+                f.save(dest)
+                saved.append(f.filename)
+
+        def _run_extraction():
+            subprocess.run(
+                [sys.executable, str(HERE / "run.py"), "--profile", slug],
+                cwd=str(HERE),
+                capture_output=True,
+            )
+
+        threading.Thread(target=_run_extraction, daemon=True).start()
+        return jsonify({"ok": True, "files": saved, "count": len(saved)})
+
     @app.route("/setup", methods=["GET", "POST"])
     def setup():
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         error = None
         step = request.args.get("step", "siren")
 
@@ -239,12 +352,12 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
 
     @app.route("/settings")
     def settings():
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         profile = get_user_profile(conn)
         emitters = conn.execute("SELECT * FROM known_emitters ORDER BY keyword").fetchall()
         conn.close()
         section = request.args.get("section", "profil")
-        conn2 = open_db(db_path)
+        conn2 = open_db(_active_db())
         extraction_cfg = get_extraction_cfg(conn2)
         conn2.close()
         from config import CADENCE_DEFAULTS
@@ -266,7 +379,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             "fiscal_profile": request.form.get("fiscal_profile", "").strip(),
             "cadence":        request.form.get("cadence", "").strip(),
         }
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         conn.execute(
             "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, setup_complete) "
             "VALUES (1, :nom, :siren, :tva_intracom, :fiscal_profile, :cadence, 1) "
@@ -284,7 +397,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         keyword = request.form.get("keyword", "").strip().lower()
         nom = request.form.get("nom", "").strip()
         if keyword and nom:
-            conn = open_db(db_path)
+            conn = open_db(_active_db())
             try:
                 conn.execute("INSERT INTO known_emitters (keyword, nom) VALUES (?, ?)", (keyword, nom))
                 conn.commit()
@@ -295,7 +408,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
 
     @app.route("/settings/enseignes/<int:emitter_id>/delete", methods=["POST"])
     def settings_enseignes_delete(emitter_id):
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         conn.execute("DELETE FROM known_emitters WHERE id=?", (emitter_id,))
         conn.commit()
         conn.close()
@@ -311,7 +424,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             try: return int(request.form.get(key, default))
             except ValueError: return default
 
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         conn.execute(
             "INSERT INTO user_profile (id, ocr_backend, ocr_confidence_threshold, ocr_lang, "
             "ocr_dpi, ocr_preprocess, ocr_easyocr_fallback, ocr_easyocr_threshold, setup_complete) "
@@ -344,10 +457,11 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         run_error = request.args.get("run_error")
         review_error = request.args.get("review_error")
         try:
-            conn = open_db(db_path)
+            paths = _active_paths()
+            conn = open_db(_active_db())
             summary = query_fiscal_summary(conn, year)
             ledger = query_ledger(conn, year, page=page)
-            health = query_health(conn, cfg)
+            health = query_health(conn, paths)
             items_a_reviser_list = query_items_a_reviser(conn, year)
             corbeille_list = query_corbeille(conn, year)
             years = [r[0] for r in conn.execute(
@@ -380,8 +494,9 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     @app.route("/run", methods=["POST"])
     def run_pipeline():
         year = request.form.get("year", datetime.now().year)
+        slug = _active_slug()
         result = subprocess.run(
-            [sys.executable, str(HERE / "run.py")],
+            [sys.executable, str(HERE / "run.py"), "--profile", slug],
             capture_output=True,
             text=True,
             cwd=str(HERE),
@@ -396,7 +511,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     def open_review():
         year = request.form.get("year", datetime.now().year)
         try:
-            conn = open_db(db_path)
+            conn = open_db(_active_db())
             count = conn.execute(
                 "SELECT COUNT(*) FROM invoices WHERE statut_révision=?",
                 (STATUT_A_REVISER,),
@@ -408,7 +523,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         if count == 0:
             return redirect(f"/?year={year}")
 
-        review_csv = Path(cfg["paths"]["review"]) / "review.csv"
+        review_csv = _active_paths()["review"] / "review.csv"
         cmd = "open" if platform.system() == "Darwin" else "xdg-open"
         subprocess.Popen([cmd, str(review_csv)])
         return redirect(f"/?year={year}")
@@ -421,7 +536,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
 
         now = datetime.now(timezone.utc).isoformat()
         try:
-            conn = open_db(db_path)
+            conn = open_db(_active_db())
             current = conn.execute("SELECT * FROM invoices WHERE id=?", (item_id,)).fetchone()
             if not current:
                 conn.close()
@@ -527,7 +642,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         now = datetime.now(timezone.utc).isoformat()
         year = request.form.get("year", datetime.now().year)
         try:
-            conn = open_db(db_path)
+            conn = open_db(_active_db())
             conn.execute(
                 "UPDATE invoices SET statut_révision=?, révisé_par='user', "
                 "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN (?, ?)",
@@ -545,7 +660,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         now = datetime.now(timezone.utc).isoformat()
         year = request.form.get("year", datetime.now().year)
         try:
-            conn = open_db(db_path)
+            conn = open_db(_active_db())
             conn.execute(
                 "UPDATE invoices SET deleted_at=?, deleted_by='user' WHERE id=?",
                 (now, item_id),
@@ -560,7 +675,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     def review_restore(item_id):
         year = request.form.get("year", datetime.now().year)
         try:
-            conn = open_db(db_path)
+            conn = open_db(_active_db())
             conn.execute(
                 "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL, "
                 "statut_révision=?, révisé_par=NULL, "
@@ -576,7 +691,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     @app.route("/review/<item_id>/reset", methods=["POST"])
     def review_reset(item_id):
         year = request.form.get("year", datetime.now().year)
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         conn.execute(
             "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
             "date_révision=NULL, validé_le=NULL "
@@ -590,7 +705,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     @app.route("/reset-revises", methods=["POST"])
     def reset_revises():
         year = request.form.get("year", datetime.now().year)
-        conn = open_db(db_path)
+        conn = open_db(_active_db())
         conn.execute(
             "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
             "date_révision=NULL, validé_le=NULL "
@@ -604,9 +719,10 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     @app.route("/files/<path:filename>")
     def serve_file(filename):
         from flask import abort, send_file
+        paths = _active_paths() or {}
         basename = Path(filename).name
         for subdir in ("processed", "errors", "input"):
-            candidate = HERE / subdir / basename
+            candidate = paths.get(subdir, HERE / subdir) / basename
             if candidate.is_file():
                 suffix = candidate.suffix.lower()
                 mime = "application/pdf" if suffix == ".pdf" else None
@@ -617,9 +733,10 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     def preview_file(filename):
         import io
         from flask import abort, send_file, Response
+        paths = _active_paths() or {}
         basename = Path(filename).name
         for subdir in ("processed", "errors", "input"):
-            candidate = HERE / subdir / basename
+            candidate = paths.get(subdir, HERE / subdir) / basename
             if candidate.is_file():
                 suffix = candidate.suffix.lower()
                 if suffix == ".pdf":
@@ -650,10 +767,12 @@ def main() -> None:
     if not args.config.exists():
         print(f"  [info] {args.config} introuvable — valeurs par défaut utilisées.")
 
-    cfg = load_config(args.config)
-    db_path = Path(cfg["paths"]["db"])
+    migrated = maybe_migrate_legacy()
+    if migrated:
+        print(f"  [migration] data/invoices.db → profil '{migrated}'")
 
-    app = create_app(cfg, db_path)
+    cfg = load_config(args.config)
+    app = create_app(cfg)
     print(f"  Dashboard : http://localhost:{args.port}")
     print("  Ctrl+C pour arrêter.")
     app.run(port=args.port, debug=os.getenv("FLASK_DEBUG", "0") == "1")

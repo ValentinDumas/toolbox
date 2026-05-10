@@ -397,11 +397,18 @@ def main() -> None:
     parser.add_argument("--statut", help="Profil fiscal (auto-entrepreneur, SASU, SARL, salarié)")
     parser.add_argument("--all", dest="all_years", action="store_true", help="Exporter toutes les années")
     parser.add_argument("--config", type=Path, default=Path("config.toml"))
+    parser.add_argument("--profile", type=str, default=None, help="Slug du profil (multi-entités)")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
-    db_path = Path(cfg["paths"]["db"])
-    output_dir = Path(cfg["paths"]["output"])
+    if args.profile:
+        from profiles import resolve_paths
+        paths = resolve_paths(args.profile)
+        db_path = paths["db"]
+        output_dir = paths["output"]
+    else:
+        cfg = load_config(args.config)
+        db_path = Path(cfg["paths"]["db"])
+        output_dir = Path(cfg["paths"]["output"])
     year = None if args.all_years else (args.year or datetime.now().year)
 
     if not db_path.exists():

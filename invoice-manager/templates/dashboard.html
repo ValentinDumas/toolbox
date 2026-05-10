@@ -459,11 +459,16 @@
     .btn-secondary:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
     .header-actions { display: flex; align-items: center; gap: 12px; }
+    /* Profile switcher */
+    .profile-switcher { position: relative; }
     .entity-badge {
       display: flex; align-items: center; gap: 10px;
       background: white; border: 1px solid var(--border);
       border-radius: var(--radius); padding: 6px 14px 6px 10px;
+      cursor: pointer; font-family: inherit; text-align: left;
     }
+    .entity-badge:hover { background: var(--surface-variant); }
+    .entity-badge:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     .entity-badge-icon {
       width: 28px; height: 28px; border-radius: 6px;
       background: var(--primary); color: white;
@@ -474,6 +479,68 @@
     .entity-badge-info { display: flex; flex-direction: column; gap: 1px; }
     .entity-badge-name { font-size: 13px; font-weight: 600; color: var(--on-surface); line-height: 1.2; }
     .entity-badge-meta { font-size: 12px; color: var(--on-surface-muted); line-height: 1.2; }
+    .entity-badge-caret { font-size: 10px; color: var(--on-surface-muted); margin-left: 2px; }
+    .profile-menu {
+      display: none; position: absolute; right: 0; top: calc(100% + 4px);
+      background: white; border: 1px solid var(--border); border-radius: var(--radius);
+      min-width: 220px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); z-index: 50;
+    }
+    .profile-menu.open { display: block; }
+    .profile-menu-label {
+      padding: 8px 12px 4px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--on-surface-muted);
+    }
+    .profile-menu-item {
+      width: 100%; text-align: left; padding: 8px 12px;
+      background: none; border: none; font-family: inherit; font-size: 14px;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      color: var(--on-surface); text-decoration: none;
+    }
+    .profile-menu-item:hover { background: var(--surface-variant); }
+    .profile-menu-item:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+    .profile-menu-item.active { font-weight: 600; background: var(--surface-variant); }
+    .profile-menu-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--border);
+    }
+    .profile-menu-dot.active { background: var(--positive); }
+    .profile-menu-active-label { margin-left: auto; font-size: 11px; color: var(--positive); }
+    .profile-menu-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+    .profile-menu-action { color: var(--primary); }
+    .profile-menu-settings { color: var(--on-surface-muted); }
+    /* Upload button */
+    .btn-upload {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; background: var(--primary); color: white;
+      border: none; border-radius: var(--radius); font-family: inherit;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+    }
+    .btn-upload:hover { background: #1D4ED8; }
+    .btn-upload:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    /* Upload modal specifics */
+    .upload-drop-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 28px; text-align: center; margin-bottom: 16px; transition: border-color 0.15s;
+    }
+    .upload-drop-zone.drag-over { border-color: var(--primary); background: #EFF6FF; }
+    .upload-file-list { font-size: 13px; margin-bottom: 12px; }
+    .upload-file-item { padding: 4px 0; color: var(--on-surface); display: flex; gap: 6px; }
+    .upload-progress { margin-bottom: 12px; }
+    .upload-progress-track {
+      background: var(--surface-variant); border-radius: 4px; height: 6px; overflow: hidden;
+    }
+    .upload-progress-bar {
+      height: 100%; background: var(--primary); width: 0%; transition: width 0.3s;
+    }
+    .upload-status { font-size: 13px; color: var(--on-surface-muted); margin-top: 6px; }
+    /* Create profile modal */
+    .form-field { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    .form-input {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-family: inherit; font-size: 14px; color: var(--on-surface);
+    }
+    .form-input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
     .health-sublabel-ok { font-size: 12px; color: var(--on-surface-muted); }
     .health-card-action {
       cursor: pointer;
@@ -619,18 +686,65 @@
         </form>
       </div>
       <div class="header-actions">
-        {% set nom_defini = profile.nom and profile.nom != '' %}
-        <a href="/settings" class="entity-badge" aria-label="Paramètres — Entité : {{ profile.nom if nom_defini else 'Non renseignée' }}" style="text-decoration:none;color:inherit;">
-          <div class="entity-badge-icon" aria-hidden="true">
-            {{ (profile.nom[0] | upper) if nom_defini else '?' }}
+        {% set nom_defini = profile and profile.nom and profile.nom != '' %}
+
+        {# ── Sélecteur de profil ── #}
+        <div class="profile-switcher">
+          <button type="button" id="profile-btn" class="entity-badge"
+                  aria-haspopup="true" aria-expanded="false"
+                  aria-label="Profil actif : {{ profile.nom if nom_defini else 'Non renseigné' }}. Ouvrir le sélecteur."
+                  onclick="toggleProfileMenu()">
+            <div class="entity-badge-icon" aria-hidden="true">
+              {{ (profile.nom[0] | upper) if nom_defini else '?' }}
+            </div>
+            <div class="entity-badge-info">
+              <span class="entity-badge-name">{{ profile.nom if nom_defini else 'Entité non renseignée' }}</span>
+              <span class="entity-badge-meta">
+                {{ profile.fiscal_profile if profile else '' }}{% if profile and profile.siren %} · {{ profile.siren }}{% endif %}
+              </span>
+            </div>
+            <span class="entity-badge-caret" aria-hidden="true">▾</span>
+          </button>
+
+          <div id="profile-menu" class="profile-menu" role="menu" aria-label="Sélecteur de profil">
+            <div class="profile-menu-label" role="presentation">Profils</div>
+            {% for p in all_profiles %}
+            <form method="post" action="/profiles/switch/{{ p.slug }}" style="margin:0">
+              <button type="submit" role="menuitem"
+                      class="profile-menu-item{% if p.slug == active_slug %} active{% endif %}">
+                <span class="profile-menu-dot{% if p.slug == active_slug %} active{% endif %}" aria-hidden="true"></span>
+                {{ p.name }}
+                {% if p.slug == active_slug %}
+                <span class="profile-menu-active-label">actif</span>
+                {% endif %}
+              </button>
+            </form>
+            {% endfor %}
+            <hr class="profile-menu-divider" role="separator">
+            <button type="button" role="menuitem"
+                    class="profile-menu-item profile-menu-action"
+                    onclick="openCreateProfileModal()">
+              <span aria-hidden="true">＋</span> Nouveau profil
+            </button>
+            <a href="/settings" role="menuitem"
+               class="profile-menu-item profile-menu-settings">
+              <span aria-hidden="true">⚙</span> Paramètres
+            </a>
           </div>
-          <div class="entity-badge-info">
-            <span class="entity-badge-name">{{ profile.nom if nom_defini else 'Entité non renseignée' }}</span>
-            <span class="entity-badge-meta">
-              {{ profile.fiscal_profile }}{% if profile.siren %} · {{ profile.siren }}{% endif %}
-            </span>
-          </div>
-        </a>
+        </div>
+
+        {# ── Bouton upload ── #}
+        <button type="button" class="btn-upload"
+                onclick="openUploadModal()"
+                aria-label="Importer des documents dans ce profil">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Importer
+        </button>
       </div>
     </header>
 
@@ -1353,5 +1467,186 @@
   </script>
 
   <div id="save-warning-banner" role="status" aria-live="polite"></div>
+
+  {# ── Modal : Nouveau profil ──────────────────────────────────────────── #}
+  <div id="create-profile-modal" class="modal-backdrop" role="dialog"
+       aria-modal="true" aria-labelledby="create-profile-title">
+    <div class="modal">
+      <h2 id="create-profile-title">Nouveau profil</h2>
+      <p>Créer un profil pour une entité légale distincte. Le setup wizard s'ouvrira ensuite pour configurer SIREN et profil fiscal.</p>
+      <form method="post" action="/profiles/create">
+        <div class="form-field">
+          <label for="new-profile-name" class="form-label">Nom de l'entité</label>
+          <input type="text" id="new-profile-name" name="name" class="form-input"
+                 placeholder="Ex : SASU Dupont, Micro-entreprise…" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeCreateProfileModal()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal : Upload ───────────────────────────────────────────────────── #}
+  <div id="upload-modal" class="modal-backdrop" role="dialog"
+       aria-modal="true" aria-labelledby="upload-modal-title">
+    <div class="modal" style="max-width:520px">
+      <h2 id="upload-modal-title">Importer des documents</h2>
+      <p>PDF, images (JPG, PNG, HEIC). L'extraction démarre automatiquement après l'envoi.</p>
+
+      <div id="upload-drop-zone" class="upload-drop-zone">
+        <input type="file" id="upload-input" multiple
+               accept=".pdf,.png,.jpg,.jpeg,.heic,.heif"
+               aria-label="Sélectionner des fichiers à importer"
+               style="display:none">
+        <label for="upload-input" style="cursor:pointer;color:var(--primary);font-weight:500">
+          Cliquez pour sélectionner des fichiers
+        </label>
+        <p style="font-size:13px;color:var(--on-surface-muted);margin-top:6px">
+          ou glissez-déposez ici
+        </p>
+      </div>
+
+      <div id="upload-file-list" class="upload-file-list" aria-live="polite"></div>
+
+      <div id="upload-progress" class="upload-progress" style="display:none">
+        <div class="upload-progress-track">
+          <div id="upload-progress-bar" class="upload-progress-bar"></div>
+        </div>
+        <p id="upload-status" class="upload-status"></p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeUploadModal()">Annuler</button>
+        <button type="button" id="upload-submit" class="btn btn-primary"
+                onclick="submitUpload()" disabled>
+          Importer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ── Sélecteur de profil ─────────────────────────────────────────────────────
+  function toggleProfileMenu() {
+    var btn  = document.getElementById('profile-btn');
+    var menu = document.getElementById('profile-menu');
+    var open = menu.classList.contains('open');
+    if (open) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    } else {
+      menu.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
+      setTimeout(function() {
+        document.addEventListener('click', closeProfileMenuOnOutside, { once: true });
+      }, 0);
+    }
+  }
+
+  function closeProfileMenuOnOutside(e) {
+    var switcher = document.querySelector('.profile-switcher');
+    if (switcher && !switcher.contains(e.target)) {
+      var menu = document.getElementById('profile-menu');
+      var btn  = document.getElementById('profile-btn');
+      if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+    }
+  }
+
+  // ── Modal : Nouveau profil ──────────────────────────────────────────────────
+  function openCreateProfileModal() {
+    var menu = document.getElementById('profile-menu');
+    var btn  = document.getElementById('profile-btn');
+    if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+    var modal = document.getElementById('create-profile-modal');
+    modal.classList.add('open');
+    document.getElementById('new-profile-name').focus();
+  }
+
+  function closeCreateProfileModal() {
+    document.getElementById('create-profile-modal').classList.remove('open');
+  }
+
+  document.getElementById('create-profile-modal').addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeCreateProfileModal();
+  });
+
+  // ── Modal : Upload ──────────────────────────────────────────────────────────
+  function openUploadModal() {
+    var modal = document.getElementById('upload-modal');
+    modal.classList.add('open');
+    document.getElementById('upload-input').value = '';
+    document.getElementById('upload-file-list').innerHTML = '';
+    document.getElementById('upload-progress').style.display = 'none';
+    document.getElementById('upload-submit').disabled = true;
+  }
+
+  function closeUploadModal() {
+    document.getElementById('upload-modal').classList.remove('open');
+  }
+
+  document.getElementById('upload-modal').addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeUploadModal();
+  });
+
+  document.getElementById('upload-input').addEventListener('change', function() {
+    var files = Array.from(this.files);
+    var list = document.getElementById('upload-file-list');
+    list.innerHTML = files.map(function(f) {
+      return '<div class="upload-file-item"><span>📄</span><span>' + f.name +
+             '</span><span style="color:var(--on-surface-muted)">(' +
+             (f.size / 1024).toFixed(0) + ' Ko)</span></div>';
+    }).join('');
+    document.getElementById('upload-submit').disabled = files.length === 0;
+  });
+
+  // Drag & drop
+  var dz = document.getElementById('upload-drop-zone');
+  dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', function()  { dz.classList.remove('drag-over'); });
+  dz.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    var dt = new DataTransfer();
+    Array.from(e.dataTransfer.files).forEach(function(f) { dt.items.add(f); });
+    var input = document.getElementById('upload-input');
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change'));
+  });
+
+  async function submitUpload() {
+    var input   = document.getElementById('upload-input');
+    var files   = Array.from(input.files);
+    if (!files.length) return;
+
+    var fd = new FormData();
+    files.forEach(function(f) { fd.append('files', f); });
+
+    var progress = document.getElementById('upload-progress');
+    var bar      = document.getElementById('upload-progress-bar');
+    var status   = document.getElementById('upload-status');
+    progress.style.display = 'block';
+    bar.style.width = '30%';
+    status.textContent = 'Envoi de ' + files.length + ' fichier(s)…';
+    document.getElementById('upload-submit').disabled = true;
+
+    try {
+      var resp = await fetch('/upload', { method: 'POST', body: fd });
+      var data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'Erreur serveur');
+      bar.style.width = '70%';
+      status.textContent = 'Extraction en cours pour ' + data.count + ' fichier(s)…';
+      setTimeout(function() {
+        bar.style.width = '100%';
+        status.textContent = 'Terminé. Rechargement du tableau de bord…';
+        setTimeout(function() { closeUploadModal(); window.location.reload(); }, 800);
+      }, 2500);
+    } catch(err) {
+      status.textContent = 'Erreur : ' + err.message;
+      bar.style.background = 'var(--negative)';
+    }
+  }
+  </script>
 </body>
 </html>

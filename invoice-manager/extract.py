@@ -339,14 +339,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Extrait les données des factures vers SQLite")
     parser.add_argument("--input", type=Path, help="Dossier d'entrée (défaut: config)")
     parser.add_argument("--config", type=Path, default=Path("config.toml"))
+    parser.add_argument("--profile", type=str, default=None, help="Slug du profil (multi-entités)")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
-    root = Path(".")
-    input_dir     = args.input or root / cfg["paths"]["input"]
-    processed_dir = root / cfg["paths"]["processed"]
-    errors_dir    = root / cfg["paths"]["errors"]
-    db_path       = root / cfg["paths"]["db"]
+    if args.profile:
+        from profiles import resolve_paths
+        paths = resolve_paths(args.profile)
+        input_dir     = args.input or paths["input"]
+        processed_dir = paths["processed"]
+        errors_dir    = paths["errors"]
+        db_path       = paths["db"]
+    else:
+        cfg = load_config(args.config)
+        root = Path(".")
+        input_dir     = args.input or root / cfg["paths"]["input"]
+        processed_dir = root / cfg["paths"]["processed"]
+        errors_dir    = root / cfg["paths"]["errors"]
+        db_path       = root / cfg["paths"]["db"]
 
     for d in (input_dir, processed_dir, errors_dir):
         d.mkdir(parents=True, exist_ok=True)

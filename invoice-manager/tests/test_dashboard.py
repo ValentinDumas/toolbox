@@ -147,8 +147,8 @@ def test_health_counts(mem_db, tmp_path):
     (tmp_path / "input" / "facture.pdf").touch()
     (tmp_path / "errors" / "broken.pdf").touch()
     _insert_invoice(mem_db, id="rev", statut_révision="à_réviser", exercice_fiscal=2025)
-    cfg = {"paths": {"input": str(tmp_path / "input"), "errors": str(tmp_path / "errors")}}
-    h = query_health(mem_db, cfg)
+    paths = {"input": tmp_path / "input", "errors": tmp_path / "errors"}
+    h = query_health(mem_db, paths)
     assert h["pending_files"] == 1
     assert h["items_a_reviser"] == 1
     assert h["error_files"] == 1
@@ -157,12 +157,16 @@ def test_health_counts(mem_db, tmp_path):
 # ── Flask routes ──────────────────────────────────────────────────────────────
 
 def _make_app(mem_db, tmp_path, monkeypatch):
-    """Helper : copie mem_db dans un fichier temporaire et crée l'app Flask."""
-    db_file = tmp_path / "data" / "invoices.db"
-    db_file.parent.mkdir(exist_ok=True)
-
-    # Copie des données depuis la connexion en mémoire vers un fichier
+    """Helper : copie mem_db dans un profil temporaire et crée l'app Flask."""
     import sqlite3 as _sq
+    import dashboard as _dashboard
+
+    slug = "test-profile"
+    profile_dir = tmp_path / "data" / "profiles" / slug
+    db_file = profile_dir / "invoices.db"
+    for d in ("input", "processed", "errors", "output", "review"):
+        (profile_dir / d).mkdir(parents=True, exist_ok=True)
+
     file_conn = _sq.connect(str(db_file))
     mem_db.backup(file_conn)
     file_conn.execute(
@@ -172,20 +176,33 @@ def _make_app(mem_db, tmp_path, monkeypatch):
     file_conn.commit()
     file_conn.close()
 
-    for d in ("input", "errors", "review"):
-        (tmp_path / d).mkdir(exist_ok=True)
-
-    cfg = {
-        "paths": {
-            "input": str(tmp_path / "input"),
-            "errors": str(tmp_path / "errors"),
-            "review": str(tmp_path / "review"),
-            "db": str(db_file),
-        }
+    test_profiles = [{"slug": slug, "name": "Test", "created_at": "2025-01-01T00:00:00+00:00"}]
+    test_paths = {
+        "db":        db_file,
+        "input":     profile_dir / "input",
+        "processed": profile_dir / "processed",
+        "errors":    profile_dir / "errors",
+        "output":    profile_dir / "output",
+        "review":    profile_dir / "review",
     }
+
+    # Patch the names as imported in dashboard.py (not through the profiles module)
+    monkeypatch.setattr(_dashboard, "load_profiles",        lambda: test_profiles)
+    monkeypatch.setattr(_dashboard, "get_profile_meta",     lambda s: test_profiles[0] if s == slug else None)
+    monkeypatch.setattr(_dashboard, "resolve_paths",        lambda s: test_paths)
+    monkeypatch.setattr(_dashboard, "maybe_migrate_legacy", lambda: None)
+
     from dashboard import create_app
-    app = create_app(cfg, db_file)
+    app = create_app({})
     app.config["TESTING"] = True
+
+    # Inject active_profile before require_setup runs (must be first in the list)
+    def _inject_session():
+        from flask import session
+        session["active_profile"] = slug
+
+    app.before_request_funcs.setdefault(None, []).insert(0, _inject_session)
+
     return app, db_file
 
 
@@ -227,7 +244,7 @@ def test_post_run_calls_subprocess(mem_db, tmp_path, monkeypatch):
     assert resp.status_code in (302, 200)
     mock_run.assert_called_once()
     called_cmd = mock_run.call_args[0][0]
-    assert "run.py" in called_cmd[-1]
+    assert any("run.py" in str(arg) for arg in called_cmd)
 
 
 def test_post_run_error_shows_in_redirect(mem_db, tmp_path, monkeypatch):
@@ -251,8 +268,8 @@ def test_post_open_review_no_items_redirects(mem_db, tmp_path, monkeypatch):
 
 def test_post_open_review_with_items_opens_file(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
-    app, _ = _make_app(mem_db, tmp_path, monkeypatch)  # crée review/ en premier
-    (tmp_path / "review" / "review.csv").touch()
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    (tmp_path / "data" / "profiles" / "test-profile" / "review" / "review.csv").touch()
     with patch("dashboard.subprocess.Popen") as mock_popen:
         with app.test_client() as client:
             resp = client.post("/open-review")

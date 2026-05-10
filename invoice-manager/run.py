@@ -62,12 +62,22 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Met à jour le ledger en une commande")
     parser.add_argument("--year", type=int, help="Année fiscale (défaut: année en cours)")
     parser.add_argument("--config", type=Path, default=Path("config.toml"))
+    parser.add_argument("--profile", type=str, default=None, help="Slug du profil (multi-entités)")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
-    db_path = Path(cfg["paths"]["db"])
-    review_dir = Path(cfg["paths"]["review"])
-    review_csv = review_dir / "review.csv"
+    if args.profile:
+        from profiles import resolve_paths
+        paths = resolve_paths(args.profile)
+        db_path   = paths["db"]
+        input_dir = paths["input"]
+        profile_args = ["--profile", args.profile]
+        cfg_args = profile_args
+    else:
+        cfg = load_config(args.config)
+        db_path   = Path(cfg["paths"]["db"])
+        input_dir = Path(cfg["paths"]["input"])
+        cfg_args = ["--config", str(args.config)]
+        profile_args = []
 
     conn = open_db(db_path)
     profile = get_user_profile(conn)
@@ -77,10 +87,8 @@ def main() -> None:
         sys.exit(1)
 
     py = sys.executable
-    cfg_args = ["--config", str(args.config)]
 
     # 1. Déduplication inbox
-    input_dir = Path(cfg["paths"]["input"])
     print("── Déduplication inbox ─────────────────────────")
     n_dedup = _dedup_input(input_dir)
     if n_dedup == 0:
