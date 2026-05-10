@@ -40,7 +40,7 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
 
-    VALIDATED_STATUSES = ("auto_validé", "validé")
+    VALIDATED_STATUSES = ("validé",)
     ph_v = ",".join("?" * len(VALIDATED_STATUSES))
     total_charges = conn.execute(
         f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision IN ({ph_v}) AND deleted_at IS NULL",
@@ -108,9 +108,6 @@ def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
     items_a_reviser = conn.execute(
         "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser' AND deleted_at IS NULL"
     ).fetchone()[0]
-    auto_validés = conn.execute(
-        "SELECT COUNT(*) FROM invoices WHERE statut_révision='auto_validé' AND deleted_at IS NULL"
-    ).fetchone()[0]
     validés_count = conn.execute(
         "SELECT COUNT(*) FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL"
     ).fetchone()[0]
@@ -118,21 +115,20 @@ def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
     return {
         "pending_files": count_files("input"),
         "items_a_reviser": items_a_reviser,
-        "auto_validés": auto_validés,
         "validés_count": validés_count,
         "error_files": count_files("errors"),
     }
 
 
 def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:
-    """Retourne les items non encore validés pour l'année donnée : à_réviser (prioritaires) puis auto_validé."""
+    """Retourne les items à réviser pour l'année donnée."""
     rows = conn.execute(
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
         "confiance, fichier_source, texte_brut, statut_révision "
-        "FROM invoices WHERE statut_révision IN ('à_réviser', 'auto_validé') AND deleted_at IS NULL "
+        "FROM invoices WHERE statut_révision='à_réviser' AND deleted_at IS NULL "
         "AND exercice_fiscal=? "
-        "ORDER BY CASE statut_révision WHEN 'à_réviser' THEN 0 ELSE 1 END, date_document",
+        "ORDER BY date_document",
         (year,),
     ).fetchall()
     return [dict(r) for r in rows]

@@ -19,7 +19,7 @@ def _insert_invoice(conn, **kwargs):
         "montant_tva": 20.0,
         "montant_ttc": 120.0,
         "exercice_fiscal": 2025,
-        "statut_révision": "auto_validé",
+        "statut_révision": "validé",
         "émetteur_nom": "OVH SAS",
         "destinataire_nom": "Jean Dupont",
         "date_document": "2025-03-01",
@@ -68,12 +68,10 @@ def test_fiscal_summary_charges_excludes_a_reviser(mem_db):
     from dashboard import query_fiscal_summary
     _insert_invoice(mem_db, id="v1", type_document="facture_reçue",
                     montant_ht=300.0, statut_révision="validé", exercice_fiscal=2025)
-    _insert_invoice(mem_db, id="av1", type_document="facture_reçue",
-                    montant_ht=100.0, statut_révision="auto_validé", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
                     montant_ht=50.0, statut_révision="à_réviser", exercice_fiscal=2025)
     s = query_fiscal_summary(mem_db, 2025)
-    assert s["total_charges"] == 400.0
+    assert s["total_charges"] == 300.0
     assert s["total_charges_revision"] == 50.0
     assert s["nb_charges_revision"] == 1
 
@@ -261,18 +259,16 @@ def test_post_open_review_with_items_opens_file(mem_db, tmp_path, monkeypatch):
 
 def test_query_items_a_reviser_empty(mem_db):
     from dashboard import query_items_a_reviser
-    assert query_items_a_reviser(mem_db) == []
+    assert query_items_a_reviser(mem_db, 2025) == []
 
 
 def test_query_items_a_reviser_populated(mem_db):
     from dashboard import query_items_a_reviser
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
-    _insert_invoice(mem_db, id="ok1", statut_révision="auto_validé", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="done1", statut_révision="validé", exercice_fiscal=2025)
-    items = query_items_a_reviser(mem_db)
+    items = query_items_a_reviser(mem_db, 2025)
     ids = [i["id"] for i in items]
     assert "rev1" in ids
-    assert "ok1" in ids
     assert "done1" not in ids
 
 
@@ -383,7 +379,7 @@ def test_soft_deleted_excluded_from_items_a_reviser(mem_db):
     _insert_invoice(mem_db, id="alive", statut_révision="à_réviser", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="dead", statut_révision="à_réviser", exercice_fiscal=2025,
                     deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
-    items = query_items_a_reviser(mem_db)
+    items = query_items_a_reviser(mem_db, 2025)
     ids = [i["id"] for i in items]
     assert "alive" in ids
     assert "dead" not in ids
@@ -394,7 +390,7 @@ def test_query_corbeille_returns_deleted_rows(mem_db):
     _insert_invoice(mem_db, id="alive", statut_révision="validé", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="dead", statut_révision="à_réviser", exercice_fiscal=2025,
                     deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
-    rows = query_corbeille(mem_db)
+    rows = query_corbeille(mem_db, 2025)
     ids = [r["id"] for r in rows]
     assert "dead" in ids
     assert "alive" not in ids
@@ -423,11 +419,12 @@ def test_get_root_shows_review_section(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
         resp = client.get("/")
-    assert b'id="reviser"' in resp.data
+    assert b'id="tab-reviser"' in resp.data
 
 
 def test_get_root_no_review_section(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
         resp = client.get("/")
-    assert b'id="reviser"' not in resp.data
+    assert b'id="tab-reviser"' in resp.data
+    assert b'aria-disabled="true"' in resp.data

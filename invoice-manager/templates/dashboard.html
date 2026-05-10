@@ -553,14 +553,14 @@
 
           <div class="kpi-card">
             <div class="kpi-value color-neutral">{{ summary.tva_deductible | fr_currency }}</div>
-            <div class="kpi-label">TVA déductible</div>
+            <div class="kpi-label" title="TVA payée sur vos achats fournisseurs. Vous pouvez la récupérer auprès de l'État.">TVA déductible</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
               {{ summary.tva_a_reverser | fr_currency }}
             </div>
-            <div class="kpi-label">TVA à reverser</div>
+            <div class="kpi-label" title="TVA collectée sur vos ventes − TVA déductible sur vos achats. Montant net à reverser au fisc (ou crédit si négatif).">TVA à reverser</div>
           </div>
 
           <div class="kpi-card">
@@ -599,8 +599,6 @@
               <div class="health-label">Item{{ 's' if health.items_a_reviser != 1 }} à réviser</div>
               {% if health.items_a_reviser > 0 %}
               <div class="health-sublabel">Action requise</div>
-              {% elif health.auto_validés > 0 %}
-              <div class="health-sublabel">{{ health.auto_validés }} auto-validé{{ 's' if health.auto_validés != 1 }} à confirmer</div>
               {% endif %}
             </div>
           </div>
@@ -680,13 +678,6 @@
                       <button type="button" class="btn-edit-item"
                               aria-expanded="false" aria-controls="edit-row-{{ row.id }}"
                               title="Modifier">✎</button>
-                    {% elif s == 'auto_validé' %}
-                      <span class="badge badge-draft">Auto-validé</span>
-                      <form method="post" action="/review/{{ row.id }}/validate" style="display:inline;margin-left:2px">
-                        <input type="hidden" name="year" value="{{ year }}">
-                        <button type="submit" class="btn-validate-item" title="Valider">✓</button>
-                      </form>
-                      <a href="#review-{{ row.id }}" class="btn-edit-item" title="Modifier">✎</a>
                     {% elif s == 'à_réviser' %}
                       <span class="badge badge-pending">À réviser</span>
                     {% elif s == 'erreur' %}
@@ -816,11 +807,7 @@
         {% if items_a_reviser_list %}
         <section class="review-section" aria-label="Items à réviser">
           <p class="section-label">À réviser ({{ items_a_reviser_list|length }})</p>
-          {% set ns = namespace(last_statut='') %}
           {% for item in items_a_reviser_list %}
-          {% if item.statut_révision != ns.last_statut %}{% set ns.last_statut = item.statut_révision %}
-          <p class="section-sublabel">{% if item.statut_révision == 'à_réviser' %}À corriger{% else %}Validés automatiquement — à confirmer{% endif %}</p>
-          {% endif %}
           <div class="review-item" id="review-{{ item.id }}">
             <div class="review-item-header">
               <span>{{ item.émetteur_nom or '—' }}</span>

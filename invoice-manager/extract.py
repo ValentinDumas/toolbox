@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     fichier_source          TEXT,
     hash_fichier            TEXT UNIQUE,
     confiance               REAL,
-    statut_révision         TEXT DEFAULT 'auto_validé',
+    statut_révision         TEXT DEFAULT 'validé',
     révisé_par              TEXT DEFAULT 'auto',
     date_révision           TEXT,
     notes_correction        TEXT,
@@ -93,8 +93,7 @@ def open_db(path: Path) -> sqlite3.Connection:
         if col not in existing:
             conn.execute(sql)
     # Rename legacy statuses
-    conn.execute("UPDATE invoices SET statut_révision='auto_validé' WHERE statut_révision='prêt_à_valider'")
-    conn.execute("UPDATE invoices SET statut_révision='validé' WHERE statut_révision='révisé'")
+    conn.execute("UPDATE invoices SET statut_révision='validé' WHERE statut_révision IN ('prêt_à_valider', 'auto_validé', 'révisé')")
     conn.commit()
     return conn
 
@@ -564,7 +563,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "fichier_source":           fichier_source,
         "hash_fichier":             None,
         "confiance":                round(confiance, 2),
-        "statut_révision":          "auto_validé" if confiance >= 0.8 else "à_réviser",
+        "statut_révision":          "validé" if confiance >= 0.8 else "à_réviser",
         "révisé_par":               "auto",
         "date_révision":            datetime.now(timezone.utc).isoformat(),
         "notes_correction":         None,
