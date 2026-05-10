@@ -279,6 +279,12 @@
       font-weight: 500;
       color: var(--on-surface-muted);
     }
+    .review-item-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
     .btn-icon-delete {
       background: none;
       border: none;
@@ -286,7 +292,6 @@
       color: var(--error);
       padding: 4px 6px;
       border-radius: var(--radius);
-      margin-left: auto;
       opacity: 0.65;
       line-height: 1;
     }
@@ -405,6 +410,9 @@
     .ocr-preview pre { white-space: pre-wrap; word-break: break-word;
       background: var(--surface-variant); padding: 8px; border-radius: 4px;
       max-height: 200px; overflow-y: auto; margin-top: 4px; font-size: 11px; }
+    .ocr-preview pre::-webkit-scrollbar { width: 6px; }
+    .ocr-preview pre::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .ocr-preview pre::-webkit-scrollbar-track { background: transparent; }
     /* Confirmation modal */
     .modal-backdrop {
       display: none;
@@ -486,11 +494,15 @@
       .health-grid { flex-direction: column; }
       .actions { flex-direction: column; }
     }
-    .btn-icon-preview { background:none; border:none; cursor:pointer; font-size:1rem; padding:0; opacity:.7; }
-    .btn-icon-preview:hover { opacity:1; }
-    .btn-icon-download { text-decoration:none; font-size:1rem; padding:0; opacity:.7; }
-    .btn-icon-download:hover { opacity:1; }
-    .file-actions { display:inline-flex; align-items:center; gap:12px; }
+    .btn-icon-preview, .btn-icon-download {
+      background: none; border: none; cursor: pointer; text-decoration: none;
+      color: var(--on-surface-muted); padding: 4px 6px;
+      border-radius: var(--radius); opacity: 0.65; line-height: 1;
+      font-family: inherit;
+    }
+    .btn-icon-preview:hover, .btn-icon-download:hover { opacity: 1; background: var(--surface-variant); }
+    .btn-icon-preview:focus, .btn-icon-download:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .file-actions { display:inline-flex; align-items:center; gap:8px; }
     .btn-icon-trash {
       background: none; border: none; cursor: pointer;
       color: var(--on-surface-muted); padding: 4px 6px;
@@ -659,8 +671,7 @@
                   <th scope="col" class="text-right">TVA</th>
                   <th scope="col" class="text-center">Statut</th>
                   <th scope="col" class="text-center">Type</th>
-                  <th scope="col" class="text-center" style="width:3rem"></th>
-                  <th scope="col" style="width:2.5rem"></th>
+                  <th scope="col" class="text-center" style="width:6rem"></th>
                 </tr>
               </thead>
               <tbody>
@@ -696,24 +707,25 @@
                   </td>
                   <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
                   <td class="text-center">
-                    {%- if row.fichier_source -%}
-                    <span class="file-actions"><button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
-                    {%- endif -%}
-                  </td>
-                  <td class="text-center">
-                    <button type="button" class="btn-icon-trash"
-                            data-delete-id="{{ row.id }}"
-                            data-delete-label="{{ (row.fichier_source|basename) if row.fichier_source else '—' }} · {{ party or '—' }} · {{ (amt | fr_currency) if amt is not none else '—' }}"
-                            onclick="openDeleteModal(this)"
-                            title="Mettre à la corbeille">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                    </button>
+                    <span class="file-actions">
+                      {%- if row.fichier_source -%}
+                      <button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                      <a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                      {%- endif -%}
+                      <button type="button" class="btn-icon-trash"
+                              data-delete-id="{{ row.id }}"
+                              data-delete-label="{{ (row.fichier_source|basename) if row.fichier_source else '—' }} · {{ party or '—' }} · {{ (amt | fr_currency) if amt is not none else '—' }}"
+                              onclick="openDeleteModal(this)"
+                              title="Mettre à la corbeille">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      </button>
+                    </span>
                   </td>
                 </tr>
                 {% if row.statut_révision == 'validé' %}
                 {% set edit_party = row.émetteur_nom if row.type_document in expense_types else row.destinataire_nom %}
                 <tr class="edit-row" id="edit-row-{{ row.id }}" hidden>
-                  <td colspan="9">
+                  <td colspan="8">
                     <div class="edit-row-inner">
                       <div class="edit-row-header">
                         <span>Correction — {{ edit_party or '—' }} — {{ row.date_document or '—' }}</span>
@@ -789,7 +801,7 @@
                 {% endif %}
                 {% else %}
                 <tr class="empty-row">
-                  <td colspan="9">Aucune facture pour {{ year }}.</td>
+                  <td colspan="8">Aucune facture pour {{ year }}.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -829,9 +841,6 @@
             <div class="review-item-header">
               <span>{{ item.émetteur_nom or '—' }}</span>
               <span>{{ item.date_document or '—' }}</span>
-              {% if item.fichier_source %}
-              <span class="file-actions"><button onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
-              {% endif %}
               {% if item.confiance is not none %}
                 {% if item.confiance < 0.8 %}
                 <span class="badge badge-pending">Confiance {{ (item.confiance * 100)|int }}%</span>
@@ -839,13 +848,19 @@
                 <span class="badge badge-paid">Confiance {{ (item.confiance * 100)|int }}%</span>
                 {% endif %}
               {% endif %}
-              <button type="button" class="btn-icon-delete"
-                      data-delete-id="{{ item.id }}"
-                      data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
-                      onclick="openDeleteModal(this)"
-                      title="Supprimer ce document">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-              </button>
+              <div class="review-item-header-actions">
+                {% if item.fichier_source %}
+                <button onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                <a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                {% endif %}
+                <button type="button" class="btn-icon-delete"
+                        data-delete-id="{{ item.id }}"
+                        data-delete-label="{{ (item.fichier_source|basename) if item.fichier_source else '—' }} · {{ item.émetteur_nom or '—' }} · {{ (item.montant_ttc | fr_currency) if item.montant_ttc is not none else '—' }}"
+                        onclick="openDeleteModal(this)"
+                        title="Supprimer ce document">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                </button>
+              </div>
             </div>
 
             <form method="post" action="/review/{{ item.id }}/save">
@@ -909,7 +924,7 @@
               </div>
 
               <div class="review-actions">
-                <button type="submit" class="btn-primary">Valider</button>
+                <button type="submit" class="btn-primary" style="width:100%">Valider</button>
               </div>
             </form>
 
