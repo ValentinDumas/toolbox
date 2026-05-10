@@ -98,6 +98,36 @@ def test_ledger_totals(mem_db):
     assert result["total_debit"] == 150.0
 
 
+def test_ledger_validé_edit_row_markup(mem_db, tmp_path, monkeypatch):
+    """L'item validé doit rendre un <tr class='edit-row'> inline et un <button aria-controls>."""
+    _insert_invoice(mem_db, id="v1", statut_révision="validé",
+                    type_document="facture_reçue", montant_ht=200.0,
+                    montant_tva=40.0, exercice_fiscal=2025,
+                    date_document="2025-06-01", émetteur_nom="ACME")
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    html = resp.data.decode()
+    assert 'aria-controls="edit-row-v1"' in html
+    assert 'id="edit-row-v1"' in html
+    assert 'class="edit-row"' in html
+    assert 'href="#review-v1"' not in html
+    assert 'review-item-hidden' not in html
+
+
+def test_ledger_no_legacy_validés_block(mem_db, tmp_path, monkeypatch):
+    """Le bloc review-item-hidden hors-tableau ne doit plus exister."""
+    _insert_invoice(mem_db, id="v2", statut_révision="validé",
+                    type_document="facture_reçue", montant_ht=100.0,
+                    exercice_fiscal=2025, date_document="2025-07-01")
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    html = resp.data.decode()
+    assert 'review-item-hidden' not in html
+    assert 'Validé — correction tracée' not in html
+
+
 def test_health_counts(mem_db, tmp_path):
     from dashboard import query_health
     (tmp_path / "input").mkdir()

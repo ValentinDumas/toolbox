@@ -127,18 +127,6 @@ def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:
     return [dict(r) for r in rows]
 
 
-def _query_validés(conn: sqlite3.Connection, year: int) -> list:
-    """Retourne les items validés pour l'année donnée."""
-    rows = conn.execute(
-        "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
-        "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
-        "confiance, fichier_source, texte_brut, statut_révision, corrections_log "
-        "FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL "
-        "AND exercice_fiscal=? ORDER BY date_document ASC",
-        (year,),
-    ).fetchall()
-    return [dict(r) for r in rows]
-
 
 def query_corbeille(conn: sqlite3.Connection, year: int) -> list:
     """Retourne les items soft-deleted pour l'année donnée."""
@@ -198,7 +186,6 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, cfg)
             items_a_reviser_list = query_items_a_reviser(conn, year)
-            items_validés_list = _query_validés(conn, year)
             corbeille_list = query_corbeille(conn, year)
             years = [r[0] for r in conn.execute(
                 "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
@@ -215,7 +202,6 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ledger=ledger,
             health=health,
             items_a_reviser_list=items_a_reviser_list,
-            items_validés_list=items_validés_list,
             corbeille_list=corbeille_list,
             run_error=run_error,
             review_error=review_error,
@@ -225,6 +211,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
 
     @app.route("/run", methods=["POST"])
     def run_pipeline():
+        year = request.form.get("year", datetime.now().year)
         result = subprocess.run(
             [sys.executable, str(HERE / "run.py")],
             capture_output=True,
@@ -234,11 +221,12 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         )
         if result.returncode != 0:
             error_snippet = result.stderr[-500:] if result.stderr else "Erreur inconnue"
-            return redirect(f"/?run_error={quote(error_snippet)}")
-        return redirect("/")
+            return redirect(f"/?year={year}&run_error={quote(error_snippet)}")
+        return redirect(f"/?year={year}")
 
     @app.route("/open-review", methods=["POST"])
     def open_review():
+        year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
             n = conn.execute(
@@ -246,27 +234,28 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ).fetchone()[0]
             conn.close()
         except sqlite3.DatabaseError:
-            return redirect("/")
+            return redirect(f"/?year={year}")
 
         if n == 0:
-            return redirect("/")
+            return redirect(f"/?year={year}")
 
         review_csv = Path(cfg["paths"]["review"]) / "review.csv"
         cmd = "open" if platform.system() == "Darwin" else "xdg-open"
         subprocess.Popen([cmd, str(review_csv)])
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/review/<item_id>/save", methods=["POST"])
     def review_save(item_id):
         import json
         from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
+        year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
             current = conn.execute("SELECT * FROM invoices WHERE id=?", (item_id,)).fetchone()
             if not current:
                 conn.close()
-                return redirect("/")
+                return redirect(f"/?year={year}")
 
             current = dict(current)
             already_validated = current["statut_révision"] == "validé"
@@ -285,7 +274,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
                         fields[field] = float(val.replace(",", "."))
                     except ValueError:
                         conn.close()
-                        return redirect(f"/?review_error={quote('Montant invalide : ' + val)}")
+                        return redirect(f"/?year={year}&review_error={quote('Montant invalide : ' + val)}")
 
             # Validation : date requise pour exercice_fiscal
             has_date = fields.get("date_document") or conn.execute(
@@ -293,14 +282,14 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             ).fetchone()
             if not has_date:
                 conn.close()
-                return redirect(f"/?review_error={quote('Date du document requise pour apparaître dans le ledger')}")
+                return redirect(f"/?year={year}&review_error={quote('Date du document requise pour apparaître dans le ledger')}")
 
             # Validation : au moins un montant requis
             has_amount = fields.get("montant_ht") or fields.get("montant_ttc")
             if not has_amount:
                 if not current.get("montant_ht") and not current.get("montant_ttc"):
                     conn.close()
-                    return redirect(f"/?review_error={quote('Au moins un montant (HT ou TTC) est requis')}")
+                    return redirect(f"/?year={year}&review_error={quote('Au moins un montant (HT ou TTC) est requis')}")
 
             # Recompute exercice_fiscal
             date_doc = fields.get("date_document") or current.get("date_document")
@@ -339,12 +328,13 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             conn.close()
         except sqlite3.DatabaseError:
             pass
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/review/<item_id>/validate", methods=["POST"])
     def review_validate(item_id):
         from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
+        year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
             conn.execute(
@@ -356,12 +346,13 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             conn.close()
         except sqlite3.DatabaseError:
             pass
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/review/<item_id>/delete", methods=["POST"])
     def review_delete(item_id):
         from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
+        year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
             conn.execute(
@@ -372,10 +363,11 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             conn.close()
         except sqlite3.DatabaseError:
             pass
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/review/<item_id>/restore", methods=["POST"])
     def review_restore(item_id):
+        year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
             conn.execute(
@@ -388,10 +380,11 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             conn.close()
         except sqlite3.DatabaseError:
             pass
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/review/<item_id>/reset", methods=["POST"])
     def review_reset(item_id):
+        year = request.form.get("year", datetime.now().year)
         conn = open_db(db_path)
         conn.execute(
             "UPDATE invoices SET statut_révision='à_réviser', révisé_par=NULL, "
@@ -401,10 +394,11 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         )
         conn.commit()
         conn.close()
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/reset-revises", methods=["POST"])
     def reset_revises():
+        year = request.form.get("year", datetime.now().year)
         conn = open_db(db_path)
         conn.execute(
             "UPDATE invoices SET statut_révision='à_réviser', révisé_par=NULL, "
@@ -413,7 +407,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         )
         conn.commit()
         conn.close()
-        return redirect("/")
+        return redirect(f"/?year={year}")
 
     @app.route("/files/<path:filename>")
     def serve_file(filename):
