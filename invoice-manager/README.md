@@ -493,6 +493,7 @@ Navigation par onglets (sous la synthèse) :
 - **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Chaque ligne avec un fichier affiche deux icônes : 🔍 ouvre une prévisualisation PDF inline (modale dans le navigateur), 📥 télécharge le fichier directement
 - **À réviser (N)** : items non encore validés — édition directe dans le navigateur (8 champs). Onglet grisé et non cliquable si aucun item
 - **Corbeille (N)** : documents supprimés avec date de suppression et bouton Restaurer. Onglet grisé si vide
+- **Erreurs (N)** : fichiers que l'extraction n'a pas pu traiter (format non reconnu, parsing échoué). Liste avec nom, taille, date, 🔍 prévisualisation. Actions par fichier : **↩ Réessayer** (remet dans `input/` et relance l'extraction en background), **✕ Supprimer** (suppression définitive avec confirmation). Onglet grisé si vide
 
 L'onglet actif est persisté dans l'URL (`#ledger`, `#reviser`, `#corbeille`) — rechargement ou partage de lien restaure la vue.
 
