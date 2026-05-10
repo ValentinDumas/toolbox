@@ -15,7 +15,10 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
 from config import load_config
-from constants import INCOME_TYPES, EXPENSE_TYPES, STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES
+from constants import (
+    CONFIDENCE_THRESHOLD, INCOME_TYPES, EXPENSE_TYPES,
+    STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES,
+)
 from db import open_db
 
 
@@ -172,7 +175,7 @@ h1{color:#B91C1C}pre{background:#F1F5F9;padding:12px;border-radius:6px;font-size
 def create_app(cfg: dict, db_path: Path) -> "Flask":
     from urllib.parse import quote
 
-    from flask import Flask, redirect, render_template, render_template_string, request
+    from flask import Flask, jsonify, redirect, render_template, render_template_string, request
 
     import os
 
@@ -213,6 +216,8 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             review_error=review_error,
             expense_types=EXPENSE_TYPES,
             doc_types=("facture_émise", "facture_reçue", "reçu", "note_de_frais", "avoir", "devis"),
+            identity=cfg["identity"],
+            fiscal_profile=cfg["fiscal"]["default_profile"],
         )
 
     @app.route("/run", methods=["POST"])
@@ -255,14 +260,15 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
     def review_save(item_id):
         import json
         from datetime import timezone
+        from parsers import _confidence_score
+
         now = datetime.now(timezone.utc).isoformat()
-        year = request.form.get("year", datetime.now().year)
         try:
             conn = open_db(db_path)
             current = conn.execute("SELECT * FROM invoices WHERE id=?", (item_id,)).fetchone()
             if not current:
                 conn.close()
-                return redirect(f"/?year={year}")
+                return jsonify({"ok": False, "errors": {"_base": "Item introuvable."}})
 
             current = dict(current)
             already_validated = current["statut_révision"] == STATUT_VALIDE
@@ -274,29 +280,34 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
                 if val:
                     fields[field] = val
 
+            errors = {}
             for field in ("montant_ht", "montant_tva", "montant_ttc"):
                 val = request.form.get(field, "").strip()
                 if val:
                     try:
                         fields[field] = float(val.replace(",", "."))
                     except ValueError:
-                        conn.close()
-                        return redirect(f"/?year={year}&review_error={quote('Montant invalide : ' + val)}")
+                        errors[field] = f"Montant invalide : {val}"
+
+            if errors:
+                conn.close()
+                return jsonify({"ok": False, "errors": errors})
 
             # Validation : date requise pour exercice_fiscal
             has_date = fields.get("date_document") or conn.execute(
                 "SELECT date_document FROM invoices WHERE id=? AND date_document IS NOT NULL", (item_id,)
             ).fetchone()
             if not has_date:
-                conn.close()
-                return redirect(f"/?year={year}&review_error={quote('Date du document requise pour apparaître dans le ledger')}")
+                errors["date_document"] = "Date du document requise pour apparaître dans le ledger"
 
             # Validation : au moins un montant requis
             has_amount = fields.get("montant_ht") or fields.get("montant_ttc")
-            if not has_amount:
-                if not current.get("montant_ht") and not current.get("montant_ttc"):
-                    conn.close()
-                    return redirect(f"/?year={year}&review_error={quote('Au moins un montant (HT ou TTC) est requis')}")
+            if not has_amount and not current.get("montant_ht") and not current.get("montant_ttc"):
+                errors["montant_ht"] = "Au moins un montant (HT ou TTC) est requis"
+
+            if errors:
+                conn.close()
+                return jsonify({"ok": False, "errors": errors})
 
             # Recompute exercice_fiscal
             date_doc = fields.get("date_document") or current.get("date_document")
@@ -310,6 +321,22 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             eur = fields.get("montant_ttc") or fields.get("montant_ht")
             if eur is not None:
                 fields["montant_eur"] = eur
+
+            # Recalcul de la confiance avec les valeurs résultantes (form + DB fallback)
+            date_val   = fields.get("date_document")  or current.get("date_document")
+            ttc_val    = fields.get("montant_ttc")    or current.get("montant_ttc")
+            ht_val     = fields.get("montant_ht")     or current.get("montant_ht")
+            num_val    = fields.get("numéro_facture") or current.get("numéro_facture")
+            fiscal_val = current.get("émetteur_siren") or current.get("émetteur_tva_intracom")
+            new_confidence = _confidence_score(date_val, ttc_val, ht_val, num_val, fiscal_val)
+            fields["confiance"] = round(new_confidence, 2)
+
+            # Rétrogradation si item validé et confiance trop basse après correction
+            warning = None
+            if already_validated and new_confidence < CONFIDENCE_THRESHOLD:
+                fields["statut_révision"] = STATUT_A_REVISER
+                pct = int(new_confidence * 100)
+                warning = f"Confiance recalculée à {pct}% — item retourné en « À réviser »."
 
             if already_validated:
                 # Post-validation correction — append diff to corrections_log
@@ -333,9 +360,9 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             )
             conn.commit()
             conn.close()
-        except sqlite3.DatabaseError:
-            pass
-        return redirect(f"/?year={year}")
+        except sqlite3.DatabaseError as e:
+            return jsonify({"ok": False, "errors": {"_base": f"Erreur base de données : {e}"}})
+        return jsonify({"ok": True, "warning": warning})
 
     @app.route("/review/<item_id>/validate", methods=["POST"])
     def review_validate(item_id):

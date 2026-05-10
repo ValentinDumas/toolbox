@@ -286,7 +286,9 @@ def test_post_review_save_validates_item(mem_db, tmp_path, monkeypatch):
             "catégorie": "hébergement",
             "notes_correction": "",
         })
-    assert resp.status_code == 302
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
     import sqlite3 as _sq
     check = _sq.connect(str(db_path))
     check.row_factory = _sq.Row
@@ -330,7 +332,8 @@ def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
             "montant_tva": "2", "date_document": "", "émetteur_nom": "",
             "numéro_facture": "", "catégorie": "", "notes_correction": "",
         })
-    assert resp.status_code == 302
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is False
 
 
 def test_post_review_delete(mem_db, tmp_path, monkeypatch):

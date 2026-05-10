@@ -46,9 +46,8 @@
       margin-bottom: 32px;
     }
     h1 { font-size: 22px; font-weight: 600; }
-    .page-period { font-size: 13px; color: var(--on-surface-muted); margin-top: 2px; }
-    /* Year filter */
-    .year-form { display: flex; align-items: center; gap: 8px; }
+/* Year filter */
+    .year-form { display: flex; align-items: center; gap: 6px; }
     .year-label { font-size: 13px; color: var(--on-surface-muted); }
     .year-select {
       font-family: inherit;
@@ -337,6 +336,33 @@
       font-variant-numeric: tabular-nums;
     }
     .review-textarea { resize: vertical; }
+    .field-error {
+      color: #DC2626;
+      font-size: 0.72rem;
+      margin: 3px 0 0;
+      display: none;
+    }
+    .field-error.visible { display: block; }
+    .review-input.input-error, .review-select.input-error { border-color: #DC2626; }
+    #save-warning-banner {
+      display: none;
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #FFFBEB;
+      border: 1px solid #F59E0B;
+      color: #92400E;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      max-width: 480px;
+      text-align: center;
+    }
+    #save-warning-banner.visible { display: block; }
     .review-actions {
       display: flex;
       gap: 10px;
@@ -410,6 +436,21 @@
     .btn-secondary:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
     .header-actions { display: flex; align-items: center; gap: 12px; }
+    .entity-badge {
+      display: flex; align-items: center; gap: 10px;
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 6px 14px 6px 10px;
+    }
+    .entity-badge-icon {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: var(--primary); color: white;
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .entity-badge-info { display: flex; flex-direction: column; gap: 1px; }
+    .entity-badge-name { font-size: 13px; font-weight: 600; color: var(--on-surface); line-height: 1.2; }
+    .entity-badge-meta { font-size: 11px; color: var(--on-surface-muted); line-height: 1.2; }
     .health-sublabel-ok { font-size: 12px; color: var(--on-surface-muted); }
     .health-card-action {
       cursor: pointer;
@@ -542,11 +583,8 @@
     <header>
       <div>
         <h1>ProLedger</h1>
-        <p class="page-period">Exercice fiscal {{ year }}</p>
-      </div>
-      <div class="header-actions">
         <form method="get" action="/" class="year-form" role="search" aria-label="Filtre par année">
-          <label for="year-select" class="year-label">Année</label>
+          <label for="year-select" class="year-label">Exercice fiscal</label>
           <select id="year-select" name="year" class="year-select"
                   onchange="this.form.submit()"
                   aria-label="Sélectionner l'année fiscale">
@@ -555,6 +593,20 @@
             {% endfor %}
           </select>
         </form>
+      </div>
+      <div class="header-actions">
+        {% set nom_defini = identity.nom and identity.nom != 'À renseigner' %}
+        <div class="entity-badge" aria-label="Entité : {{ identity.nom if nom_defini else 'Non renseignée' }}">
+          <div class="entity-badge-icon" aria-hidden="true">
+            {{ (identity.nom[0] | upper) if nom_defini else '?' }}
+          </div>
+          <div class="entity-badge-info">
+            <span class="entity-badge-name">{{ identity.nom if nom_defini else 'Entité non renseignée' }}</span>
+            <span class="entity-badge-meta">
+              {{ fiscal_profile }}{% if identity.siren and identity.siren != '000000000' %} · {{ identity.siren }}{% endif %}
+            </span>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -761,58 +813,68 @@
                               <option value="{{ dt }}" {{ 'selected' if row.type_document == dt }}>{{ dt }}</option>
                               {% endfor %}
                             </select>
+                            <p class="field-error" data-field="type_document"></p>
                           </div>
                           <div>
                             <label class="review-label" for="ht-v-{{ row.id }}">Montant HT</label>
                             <input class="review-input review-input-amount" type="number" step="0.01"
                                    id="ht-v-{{ row.id }}" name="montant_ht"
                                    value="{{ row.montant_ht if row.montant_ht is not none else '' }}">
+                            <p class="field-error" data-field="montant_ht"></p>
                           </div>
                           <div>
                             <label class="review-label" for="tva-v-{{ row.id }}">TVA</label>
                             <input class="review-input review-input-amount" type="number" step="0.01"
                                    id="tva-v-{{ row.id }}" name="montant_tva"
                                    value="{{ row.montant_tva if row.montant_tva is not none else '' }}">
+                            <p class="field-error" data-field="montant_tva"></p>
                           </div>
                           <div>
                             <label class="review-label" for="ttc-v-{{ row.id }}">TTC</label>
                             <input class="review-input review-input-amount" type="number" step="0.01"
                                    id="ttc-v-{{ row.id }}" name="montant_ttc"
                                    value="{{ row.montant_ttc if row.montant_ttc is not none else '' }}">
+                            <p class="field-error" data-field="montant_ttc"></p>
                           </div>
                           <div>
                             <label class="review-label" for="date-v-{{ row.id }}">Date</label>
                             <input class="review-input" type="date" required
                                    id="date-v-{{ row.id }}" name="date_document"
                                    value="{{ row.date_document or '' }}">
+                            <p class="field-error" data-field="date_document"></p>
                           </div>
                           <div>
                             <label class="review-label" for="emetteur-v-{{ row.id }}">Émetteur</label>
                             <input class="review-input" type="text"
                                    id="emetteur-v-{{ row.id }}" name="émetteur_nom"
                                    value="{{ row.émetteur_nom or '' }}">
+                            <p class="field-error" data-field="émetteur_nom"></p>
                           </div>
                           <div>
                             <label class="review-label" for="num-v-{{ row.id }}">N° facture</label>
                             <input class="review-input" type="text"
                                    id="num-v-{{ row.id }}" name="numéro_facture"
                                    value="{{ row.numéro_facture or '' }}">
+                            <p class="field-error" data-field="numéro_facture"></p>
                           </div>
                           <div>
                             <label class="review-label" for="cat-v-{{ row.id }}">Catégorie</label>
                             <input class="review-input" type="text"
                                    id="cat-v-{{ row.id }}" name="catégorie"
                                    value="{{ row.catégorie or '' }}">
+                            <p class="field-error" data-field="catégorie"></p>
                           </div>
                           <div class="review-field-full">
                             <label class="review-label" for="notes-v-{{ row.id }}">Notes</label>
                             <textarea class="review-textarea" id="notes-v-{{ row.id }}" name="notes_correction"
                                       rows="2">{{ row.notes_correction or '' }}</textarea>
+                            <p class="field-error" data-field="notes_correction"></p>
                           </div>
                         </div>
                         <div class="review-actions">
                           <button type="submit" class="btn-primary">Enregistrer la correction</button>
                           <button type="button" class="btn-cancel-edit btn-secondary">Annuler</button>
+                          <p class="field-error" data-field="_base" style="flex:1 1 100%"></p>
                         </div>
                       </form>
                     </div>
@@ -893,58 +955,68 @@
                     <option value="{{ dt }}" {{ 'selected' if item.type_document == dt }}>{{ dt }}</option>
                     {% endfor %}
                   </select>
+                  <p class="field-error" data-field="type_document"></p>
                 </div>
                 <div>
                   <label class="review-label" for="ht-{{ item.id }}">Montant HT</label>
                   <input class="review-input review-input-amount" type="number" step="0.01"
                          id="ht-{{ item.id }}" name="montant_ht"
                          value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
+                  <p class="field-error" data-field="montant_ht"></p>
                 </div>
                 <div>
                   <label class="review-label" for="tva-{{ item.id }}">TVA</label>
                   <input class="review-input review-input-amount" type="number" step="0.01"
                          id="tva-{{ item.id }}" name="montant_tva"
                          value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
+                  <p class="field-error" data-field="montant_tva"></p>
                 </div>
                 <div>
                   <label class="review-label" for="ttc-{{ item.id }}">TTC</label>
                   <input class="review-input review-input-amount" type="number" step="0.01"
                          id="ttc-{{ item.id }}" name="montant_ttc"
                          value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
+                  <p class="field-error" data-field="montant_ttc"></p>
                 </div>
                 <div>
                   <label class="review-label" for="date-{{ item.id }}">Date</label>
                   <input class="review-input" type="date" required
                          id="date-{{ item.id }}" name="date_document"
                          value="{{ item.date_document or '' }}">
+                  <p class="field-error" data-field="date_document"></p>
                 </div>
                 <div>
                   <label class="review-label" for="emetteur-{{ item.id }}">Émetteur</label>
                   <input class="review-input" type="text"
                          id="emetteur-{{ item.id }}" name="émetteur_nom"
                          value="{{ item.émetteur_nom or '' }}">
+                  <p class="field-error" data-field="émetteur_nom"></p>
                 </div>
                 <div>
                   <label class="review-label" for="num-{{ item.id }}">N° facture</label>
                   <input class="review-input" type="text"
                          id="num-{{ item.id }}" name="numéro_facture"
                          value="{{ item.numéro_facture or '' }}">
+                  <p class="field-error" data-field="numéro_facture"></p>
                 </div>
                 <div>
                   <label class="review-label" for="cat-{{ item.id }}">Catégorie</label>
                   <input class="review-input" type="text"
                          id="cat-{{ item.id }}" name="catégorie"
                          value="{{ item.catégorie or '' }}">
+                  <p class="field-error" data-field="catégorie"></p>
                 </div>
                 <div class="review-field-full">
                   <label class="review-label" for="notes-{{ item.id }}">Notes de correction</label>
                   <textarea class="review-textarea" id="notes-{{ item.id }}" name="notes_correction"
                             rows="2">{{ item.notes_correction or '' }}</textarea>
+                  <p class="field-error" data-field="notes_correction"></p>
                 </div>
               </div>
 
               <div class="review-actions">
                 <button type="submit" class="btn-primary" style="width:100%">Valider</button>
+                <p class="field-error" data-field="_base" style="width:100%;text-align:center"></p>
               </div>
             </form>
 
@@ -1171,7 +1243,80 @@
         }
       });
     });
+
+    // ── Soumission AJAX des formulaires de correction ─────────────────────────
+
+    function showWarningBanner(msg) {
+      var banner = document.getElementById('save-warning-banner');
+      if (!banner) return;
+      banner.textContent = msg;
+      banner.classList.add('visible');
+      setTimeout(function () { banner.classList.remove('visible'); }, 7000);
+    }
+
+    function clearFieldErrors(form) {
+      form.querySelectorAll('.field-error').forEach(function (el) {
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+      form.querySelectorAll('.input-error').forEach(function (el) {
+        el.classList.remove('input-error');
+      });
+    }
+
+    function showFieldErrors(form, errors) {
+      Object.keys(errors).forEach(function (field) {
+        var errEl = form.querySelector('[data-field="' + field + '"]');
+        if (errEl) {
+          errEl.textContent = errors[field];
+          errEl.classList.add('visible');
+        }
+        var input = form.querySelector('[name="' + field + '"]');
+        if (input) input.classList.add('input-error');
+      });
+    }
+
+    document.querySelectorAll('form[action*="/review/"][action$="/save"]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearFieldErrors(form);
+        var submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (submitBtn) submitBtn.disabled = false;
+          if (!data.ok) {
+            showFieldErrors(form, data.errors || {});
+          } else {
+            if (data.warning) {
+              sessionStorage.setItem('save_warning', data.warning);
+            }
+            location.reload();
+          }
+        })
+        .catch(function () {
+          if (submitBtn) submitBtn.disabled = false;
+          showFieldErrors(form, { '_base': 'Erreur réseau — veuillez réessayer.' });
+        });
+      });
+    });
+
+    // Afficher le warning après rechargement
+    var pendingWarning = sessionStorage.getItem('save_warning');
+    if (pendingWarning) {
+      sessionStorage.removeItem('save_warning');
+      showWarningBanner(pendingWarning);
+    }
+
   }());
   </script>
+
+  <div id="save-warning-banner" role="alert" aria-live="polite"></div>
 </body>
 </html>

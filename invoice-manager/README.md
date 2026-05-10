@@ -471,6 +471,7 @@ python dashboard.py --config ~/compta/config.toml
 ```
 
 Le dashboard affiche :
+- **En-tête** : badge entité (nom, profil fiscal, SIREN) lu depuis `config.toml → [identity]` et `[fiscal]`. Affiche *"Entité non renseignée"* si les champs sont vides.
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
   - *TVA déductible* : TVA payée sur vos achats fournisseurs — récupérable auprès de l'État
   - *TVA à reverser* : TVA collectée sur vos ventes − TVA déductible = montant net dû au fisc (négatif = crédit de TVA)
