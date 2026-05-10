@@ -65,8 +65,9 @@ Les items avec confiance < 80 % sont marqués `à_réviser` et accessibles via l
 
 ```bash
 # Options
-python3 run.py --year 2025          # forcer une année spécifique
-python3 run.py --config mon.toml    # utiliser une config différente
+python3 run.py --year 2025             # forcer une année spécifique
+python3 run.py --profile mon-ent       # cibler un profil spécifique (slug)
+python3 run.py --config mon.toml       # utiliser une config différente
 ```
 
 **Scripts individuels** (pour usage avancé) :
@@ -114,7 +115,7 @@ Priorité : **CLI args > config.toml > valeurs par défaut intégrées**
 | `paths.input` | `input/` | Dossier de dépôt des fichiers à traiter |
 | `paths.processed` | `processed/` | Fichiers traités avec succès |
 | `paths.errors` | `errors/` | Fichiers non reconnus |
-| `paths.db` | `data/invoices.db` | Chemin de la base SQLite |
+| `paths.db` | `data/profiles/{slug}/invoices.db` | Chemin de la base SQLite (par profil) |
 | `paths.output` | `output/` | Exports CSV et XLSX |
 | `paths.review` | `review/` | Fichier de révision batch |
 
@@ -163,7 +164,11 @@ Voir `config.toml.example` pour la documentation commentée.
 ├── review/
 │   └── review.csv          ← items à valider (prêt_à_valider + à_réviser)
 ├── data/
-│   └── invoices.db         ← SQLite, source de vérité (profil + factures + enseignes)
+│   └── profiles/
+│       ├── entreprise-principale/
+│       │   └── invoices.db ← DB migrée automatiquement depuis data/invoices.db
+│       └── {slug}/
+│           └── invoices.db ← une DB par profil, isolation complète
 ├── output/
 │   ├── ledger-YYYY.csv     ← export brut complet
 │   └── ledger-YYYY.xlsx    ← classeur 4 onglets
@@ -212,9 +217,9 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 
 **`config.py`** — charge `config.toml` et le merge sur `DEFAULT_CONFIG` (chemins uniquement). Priorité : CLI args > config.toml > defaults. Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont lues depuis la DB via `db.py`.
 
-**`db.py`** — source de vérité pour le schéma SQLite. Gère les migrations (ALTER TABLE idempotentes), définit les tables `invoices`, `user_profile` et `known_emitters`. Expose `open_db()`, `get_user_profile()`, `get_known_emitters()` et `get_extraction_cfg()` — utilisés par tous les scripts.
+**`db.py`** — source de vérité pour le schéma SQLite. Gère les migrations (ALTER TABLE idempotentes), définit les tables `invoices`, `user_profile` et `known_emitters`. Expose `open_db(profile_slug)`, `get_user_profile()`, `get_known_emitters()` et `get_extraction_cfg()` — utilisés par tous les scripts. Chaque profil a sa propre DB sous `data/profiles/{slug}/invoices.db`. À la première ouverture, `data/invoices.db` (ancienne DB sans profil) est migrée automatiquement vers le profil `entreprise-principale`.
 
-**`dashboard.py`** — interface web Flask sur `http://localhost:7800`. Wizard de setup au premier lancement (`/setup`) bloquant jusqu'à saisie du SIREN et du profil fiscal. Page `/settings` pour gérer le profil complet, les enseignes connues et les paramètres OCR. Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
+**`dashboard.py`** — interface web Flask sur `http://localhost:7800`. Wizard de setup au premier lancement (`/setup`) bloquant jusqu'à saisie du SIREN et du profil fiscal. Page `/settings` pour gérer le profil complet, les enseignes connues et les paramètres OCR. Sélecteur de profil dans le header (dropdown + switcher de contexte + "＋ Nouveau profil"). Bouton "⬆ Importer" pour l'upload multi-fichiers avec drag & drop (extraction en background). Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
 
 **`demo/run_all.py`** — génère des PDFs synthétiques à la volée avec fpdf, exécute le pipeline complet pour les 4 profils fiscaux, vérifie que la DB contient les bons types de documents et que les XLSX ont les 4 onglets attendus.
 
@@ -380,7 +385,7 @@ Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de d
 | **LibreOffice Calc** | Multiplateforme, gratuit | [libreoffice.org](https://www.libreoffice.org) |
 | **Excel Viewer** | VS Code — aperçu XLSX sans quitter l'éditeur | [marketplace](https://marketplace.visualstudio.com/items?itemName=GrapeCity.gc-excelviewer) |
 
-### SQLite (`data/invoices.db`)
+### SQLite (`data/profiles/{slug}/invoices.db`)
 
 | Outil | Contexte | Lien |
 |---|---|---|
@@ -477,7 +482,8 @@ python dashboard.py --config ~/compta/config.toml
 ```
 
 Le dashboard affiche :
-- **En-tête** : badge entité (nom, profil fiscal, SIREN) lu depuis `config.toml → [identity]` et `[fiscal]`. Affiche *"Entité non renseignée"* si les champs sont vides.
+- **En-tête** : sélecteur de profil — dropdown listant toutes les entités, switcher de contexte instantané, bouton "＋ Nouveau profil". Le badge affiche le nom, profil fiscal et SIREN de l'entité active.
+- **Import multi-fichiers** : bouton "⬆ Importer" ouvre une modale avec drag & drop — plusieurs PDF/images simultanément, extraction lancée en background, résultats visibles sans recharger la page.
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
   - *TVA déductible* : TVA payée sur vos achats fournisseurs — récupérable auprès de l'État
   - *TVA à reverser* : TVA collectée sur vos ventes − TVA déductible = montant net dû au fisc (négatif = crédit de TVA)
@@ -581,37 +587,25 @@ Utiliser `pikepdf` pour extraire uniquement le contenu visuel du PDF (sans méta
 
 ### J'ai 2 entreprises avec des statuts fiscaux différents — comment ça marche ?
 
-Un dossier par entreprise. Chaque dossier est autonome : ses propres fichiers en entrée, sa propre base SQLite, son propre `config.toml`.
+C'est géré nativement depuis le dashboard — pas besoin de dossiers séparés.
+
+Dans le header, le sélecteur de profil liste toutes tes entités. Clique sur **"＋ Nouveau profil"**, renseigne le SIREN et le profil fiscal — une nouvelle base SQLite est créée sous `data/profiles/{slug}/invoices.db`, totalement isolée.
+
+```
+data/profiles/
+  entreprise-principale/   invoices.db   ← entité par défaut (migrée depuis data/invoices.db)
+  ma-sasu/                 invoices.db
+  mon-ae/                  invoices.db
+```
+
+Pour switcher : clique sur le dropdown dans le header — le contexte change instantanément (ledger, synthèse, révision). Les fichiers uploadés et le pipeline s'appliquent à l'entité active.
+
+En CLI, passe le slug du profil :
 
 ```bash
-# Créer les deux dossiers en une commande chacun
-python3 /chemin/vers/init_workspace.py ~/Documents/compta-sasu
-python3 /chemin/vers/init_workspace.py ~/Documents/compta-ae
-# → crée input/ data/ output/ processed/ errors/ review/ + config.toml dans chaque dossier
-# → ouvre config.toml dans l'éditeur pour renseigner le SIREN et le profil fiscal
+python3 run.py --profile ma-sasu
+python3 run.py --profile mon-ae --year 2025
 ```
-
-Résultat :
-
-```
-~/Documents/
-  compta-sasu/
-    input/   data/   output/   processed/   errors/   review/
-    config.toml   ← profile = "SASU", siren = "222222222"
-  compta-ae/
-    input/   data/   output/   processed/   errors/   review/
-    config.toml   ← profile = "auto-entrepreneur", siren = "111111111"
-```
-
-```bash
-# Mise à jour entreprise 1
-cd ~/Documents/compta-sasu && python3 /chemin/vers/run.py
-
-# Mise à jour entreprise 2
-cd ~/Documents/compta-ae && python3 /chemin/vers/run.py
-```
-
-`run.py` et `init_workspace.py` résolvent les chemins depuis leur emplacement — tu peux les appeler depuis n'importe quel dossier.
 
 ---
 
@@ -670,9 +664,9 @@ Oui : `backend = "claude"` dans `config.toml`. Requiert une clé API Anthropic (
 ### Comment réinitialiser complètement la base ?
 
 ```bash
-rm data/invoices.db
+rm data/profiles/mon-profil/invoices.db
 # Remet les fichiers dans input/ si besoin, puis :
-python3 run.py
+python3 run.py --profile mon-profil
 ```
 
-La base est recréée automatiquement au prochain `extract.py`.
+La base est recréée automatiquement au prochain lancement du pipeline. Pour réinitialiser tous les profils : `rm -rf data/profiles/`.
