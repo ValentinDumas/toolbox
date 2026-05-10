@@ -452,11 +452,12 @@
       .health-grid { flex-direction: column; }
       .actions { flex-direction: column; }
     }
-    .btn-icon-preview { background:none; border:none; cursor:pointer; font-size:1rem; padding:0 2px; opacity:.7; }
+    .btn-icon-preview { background:none; border:none; cursor:pointer; font-size:1rem; padding:0; opacity:.7; }
     .btn-icon-preview:hover { opacity:1; }
-    .btn-icon-download { text-decoration:none; font-size:1rem; padding:0 2px; opacity:.7; }
+    .btn-icon-download { text-decoration:none; font-size:1rem; padding:0; opacity:.7; }
     .btn-icon-download:hover { opacity:1; }
-    #pdf-modal { border:none; border-radius:8px; padding:0; width:90vw; max-width:900px; box-shadow:0 24px 48px rgba(0,0,0,.35); }
+    .file-actions { display:inline-flex; align-items:center; gap:6px; }
+    #pdf-modal { border:none; border-radius:8px; padding:0; width:90vw; max-width:900px; box-shadow:0 24px 48px rgba(0,0,0,.35); margin:auto; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); }
     #pdf-modal::backdrop { background:rgba(0,0,0,.45); }
     .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
     .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; }
@@ -657,7 +658,7 @@
                   <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
                   <td class="text-center">
                     {%- if row.fichier_source -%}
-                    <button onclick="openPdfPreview('/files/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a>
+                    <span class="file-actions"><button onclick="openPdfPreview('/files/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
                     {%- endif -%}
                   </td>
                 </tr>
@@ -778,7 +779,7 @@
               <span>{{ item.émetteur_nom or '—' }}</span>
               <span>{{ item.date_document or '—' }}</span>
               {% if item.fichier_source %}
-              <button onclick="openPdfPreview('/files/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a>
+              <span class="file-actions"><button onclick="openPdfPreview('/files/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
               {% endif %}
               {% if item.confiance is not none %}
                 {% if item.confiance < 0.8 %}
