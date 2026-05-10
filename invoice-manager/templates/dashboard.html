@@ -403,8 +403,15 @@
       font-weight: 500;
       cursor: pointer;
     }
-    .btn-secondary:hover { background: var(--surface-variant); }
+    .btn-secondary:hover:not(:disabled) { background: var(--surface-variant); }
     .btn-secondary:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-sync {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; font-size: 14px;
+    }
+    .btn-sync svg { width: 15px; height: 15px; flex-shrink: 0; }
     .ocr-preview { margin-top: 8px; font-size: 12px; color: var(--muted); }
     .ocr-preview summary { cursor: pointer; user-select: none; }
     .ocr-preview pre { white-space: pre-wrap; word-break: break-word;
@@ -433,7 +440,7 @@
       box-shadow: 0 4px 24px rgba(0,0,0,0.12);
     }
     .modal h2 { font-size: 17px; font-weight: 600; margin-bottom: 12px; }
-    .modal p  { font-size: 14px; color: var(--on-surface-muted); margin-bottom: 24px; line-height: 1.5; }
+    .modal p  { font-size: 14px; color: var(--on-surface-muted); margin-bottom: 24px; line-height: 1.5; overflow-wrap: break-word; word-break: break-word; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
     /* Corbeille */
     .corbeille-section {
@@ -528,16 +535,29 @@
         <h1>ProLedger</h1>
         <p class="page-period">Exercice fiscal {{ year }}</p>
       </div>
-      <form method="get" action="/" class="year-form" role="search" aria-label="Filtre par année">
-        <label for="year-select" class="year-label">Année</label>
-        <select id="year-select" name="year" class="year-select"
-                onchange="this.form.submit()"
-                aria-label="Sélectionner l'année fiscale">
-          {% for y in years %}
-            <option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>
-          {% endfor %}
-        </select>
-      </form>
+      <div class="header-actions">
+        <form method="get" action="/" class="year-form" role="search" aria-label="Filtre par année">
+          <label for="year-select" class="year-label">Année</label>
+          <select id="year-select" name="year" class="year-select"
+                  onchange="this.form.submit()"
+                  aria-label="Sélectionner l'année fiscale">
+            {% for y in years %}
+              <option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <form method="post" action="/run" id="run-form">
+          <input type="hidden" name="year" value="{{ year }}">
+          <button type="submit" class="btn-secondary btn-sync" id="run-btn"
+                  aria-label="Lancer le pipeline de traitement des factures"
+                  title="Relance l'extraction et le recalcul complet">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0v2.43l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd"/>
+            </svg>
+            <span id="run-btn-label">Mettre à jour</span>
+          </button>
+        </form>
+      </div>
     </header>
 
     {% if run_error %}
@@ -808,8 +828,8 @@
               <tfoot>
                 <tr>
                   <td colspan="2"><strong>Total {{ year }}</strong></td>
-                  <td class="text-right amount color-negative">{{ ledger.total_debit | fr_currency }}</td>
-                  <td class="text-right amount color-positive">{{ ledger.total_credit | fr_currency }}</td>
+                  <td class="text-right amount color-negative"><strong>{{ ledger.total_debit | fr_currency }}</strong></td>
+                  <td class="text-right amount color-positive"><strong>{{ ledger.total_credit | fr_currency }}</strong></td>
                   <td colspan="5"></td>
                 </tr>
               </tfoot>
@@ -1004,17 +1024,6 @@
       </div>
     </div>
 
-    {# ── Actions ────────────────────────────────────────────────────────────── #}
-    <div class="actions">
-      <form method="post" action="/run" id="run-form">
-        <input type="hidden" name="year" value="{{ year }}">
-        <button type="submit" class="btn-primary" id="run-btn"
-                aria-label="Lancer le pipeline de traitement des factures">
-          Lancer le pipeline
-        </button>
-      </form>
-    </div>
-
   </div>
 
   <script>
@@ -1059,7 +1068,7 @@
     document.getElementById('run-form').addEventListener('submit', function () {
       var btn = document.getElementById('run-btn');
       btn.disabled = true;
-      btn.textContent = 'Pipeline en cours…';
+      document.getElementById('run-btn-label').textContent = 'En cours…';
     });
 
     // Navigation clavier sur les lignes de la table
