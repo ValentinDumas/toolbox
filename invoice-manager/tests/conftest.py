@@ -37,7 +37,6 @@ def make_heic_like(path: Path) -> Path:
 # ── Config fixture ────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "extraction": {"backend": "local", "confidence_threshold": 0.8, "ocr_lang": "fra+eng", "ocr_dpi": 300},
     "paths": {
         "input": "input/", "processed": "processed/", "errors": "errors/",
         "db": "data/invoices.db", "output": "output/", "review": "review/",
@@ -51,12 +50,6 @@ def tmp_project(tmp_path):
     for d in ("input", "processed", "errors", "data", "output", "review"):
         (tmp_path / d).mkdir()
     cfg_text = """
-[extraction]
-backend = "local"
-confidence_threshold = 0.8
-ocr_lang = "fra+eng"
-ocr_dpi = 300
-
 [paths]
 input = "input/"
 processed = "processed/"

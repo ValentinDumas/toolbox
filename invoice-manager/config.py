@@ -9,15 +9,6 @@ import tomllib
 from pathlib import Path
 
 DEFAULT_CONFIG: dict = {
-    "extraction": {
-        "backend": "local",
-        "confidence_threshold": 0.8,
-        "ocr_lang": "fra+eng",
-        "ocr_dpi": 300,
-        "ocr_preprocess": True,
-        "ocr_easyocr_fallback": False,
-        "ocr_easyocr_threshold": 0.4,
-    },
     "paths": {
         "input": "input/",
         "processed": "processed/",

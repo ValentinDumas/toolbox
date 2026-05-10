@@ -1,55 +1,12 @@
 # Invoice Manager — Configuration
 # ─────────────────────────────────────────────────────────────────────────────
-# Utilisation :
-#   cp config.toml.example config.toml
-#   Modifie les valeurs ci-dessous selon ton environnement.
+# Ce fichier ne contient que les chemins des dossiers de travail.
+# Tous les autres paramètres (identité, fiscal, OCR, enseignes) se configurent
+# depuis le dashboard : python dashboard.py → http://localhost:7800 → Paramètres
 #
-# Ce fichier contient uniquement les paramètres techniques de l'application.
-# L'identité (SIREN, TVA, profil fiscal) et les enseignes connues se configurent
-# dans le dashboard web : python dashboard.py → http://localhost:7800
-#
+# Ce fichier est OPTIONNEL. Si absent, les chemins par défaut s'appliquent.
 # Priorité : arguments CLI > config.toml > valeurs par défaut
 # ─────────────────────────────────────────────────────────────────────────────
-
-[extraction]
-
-# Moteur d'extraction.
-#   local  → pdfplumber (texte natif) + pytesseract OCR (fallback) — offline, gratuit
-#   claude → Claude Vision API — meilleure qualité sur docs complexes, nécessite internet
-backend = "local"
-
-# Score de confiance minimum (0.0–1.0).
-# En dessous de ce seuil, l'entrée est flaggée "à réviser" dans review.csv.
-# 0.8 = au moins 4 des 5 champs clés extraits (date, TTC, HT, n° facture, SIREN/TVA).
-confidence_threshold = 0.8
-
-# Langues Tesseract OCR (séparées par "+").
-# Liste complète : https://github.com/tesseract-ocr/tessdata
-ocr_lang = "fra+eng"
-
-# Résolution utilisée pour convertir les PDFs en images avant OCR (DPI).
-# 300 = recommandé. Augmenter si l'OCR rate des caractères fins.
-ocr_dpi = 300
-
-# Pré-traitement image avant OCR : dénoise bilateral, correction de perspective,
-# binarisation adaptative gaussienne, deskew.
-# Améliore la précision sur photos de téléphone (éclairage variable, angle, grain).
-# Nécessite : pip install opencv-python-headless numpy
-# Désactiver si régression sur certains documents.
-ocr_preprocess = true
-
-# Fallback EasyOCR si Tesseract retourne un résultat de faible qualité.
-# Nécessite : pip install easyocr
-# Plus lent (3–8s/image) mais bien meilleur sur photos difficiles.
-# Recommandé : true — améliore significativement la précision sur les photos de tickets.
-# Mettre à false uniquement si easyocr n'est pas installé ou si la vitesse prime sur la qualité.
-ocr_easyocr_fallback = true
-
-# Seuil de déclenchement EasyOCR (0.0–1.0).
-# Proxy = ratio alphanumérique dans le texte Tesseract.
-# 0.4 = moins de 40 % de caractères alphanumériques → texte probablement bruité.
-ocr_easyocr_threshold = 0.4
-
 
 [paths]
 

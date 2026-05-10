@@ -9,13 +9,20 @@ from constants import STATUT_A_REVISER, STATUT_AUTO_VALIDE, STATUT_REVISE, STATU
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_profile (
-    id                INTEGER PRIMARY KEY CHECK (id = 1),
-    nom               TEXT    DEFAULT '',
-    siren             TEXT    DEFAULT '',
-    tva_intracom      TEXT    DEFAULT '',
-    fiscal_profile    TEXT    DEFAULT 'auto-entrepreneur',
-    cadence           TEXT    DEFAULT '',
-    setup_complete    INTEGER DEFAULT 0
+    id                       INTEGER PRIMARY KEY CHECK (id = 1),
+    nom                      TEXT    DEFAULT '',
+    siren                    TEXT    DEFAULT '',
+    tva_intracom             TEXT    DEFAULT '',
+    fiscal_profile           TEXT    DEFAULT 'auto-entrepreneur',
+    cadence                  TEXT    DEFAULT '',
+    setup_complete           INTEGER DEFAULT 0,
+    ocr_backend              TEXT    DEFAULT 'local',
+    ocr_confidence_threshold REAL    DEFAULT 0.8,
+    ocr_lang                 TEXT    DEFAULT 'fra+eng',
+    ocr_dpi                  INTEGER DEFAULT 300,
+    ocr_preprocess           INTEGER DEFAULT 1,
+    ocr_easyocr_fallback     INTEGER DEFAULT 0,
+    ocr_easyocr_threshold    REAL    DEFAULT 0.4
 );
 
 CREATE TABLE IF NOT EXISTS known_emitters (
@@ -88,16 +95,29 @@ def open_db(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(invoices)")}
-    migrations = [
+
+    existing_invoices = {row[1] for row in conn.execute("PRAGMA table_info(invoices)")}
+    for col, sql in [
         ("texte_brut",      "ALTER TABLE invoices ADD COLUMN texte_brut TEXT"),
         ("validé_le",       "ALTER TABLE invoices ADD COLUMN validé_le TEXT"),
         ("corrections_log", "ALTER TABLE invoices ADD COLUMN corrections_log TEXT DEFAULT '[]'"),
         ("deleted_at",      "ALTER TABLE invoices ADD COLUMN deleted_at TEXT"),
         ("deleted_by",      "ALTER TABLE invoices ADD COLUMN deleted_by TEXT"),
-    ]
-    for col, sql in migrations:
-        if col not in existing:
+    ]:
+        if col not in existing_invoices:
+            conn.execute(sql)
+
+    existing_profile = {row[1] for row in conn.execute("PRAGMA table_info(user_profile)")}
+    for col, sql in [
+        ("ocr_backend",              "ALTER TABLE user_profile ADD COLUMN ocr_backend TEXT DEFAULT 'local'"),
+        ("ocr_confidence_threshold", "ALTER TABLE user_profile ADD COLUMN ocr_confidence_threshold REAL DEFAULT 0.8"),
+        ("ocr_lang",                 "ALTER TABLE user_profile ADD COLUMN ocr_lang TEXT DEFAULT 'fra+eng'"),
+        ("ocr_dpi",                  "ALTER TABLE user_profile ADD COLUMN ocr_dpi INTEGER DEFAULT 300"),
+        ("ocr_preprocess",           "ALTER TABLE user_profile ADD COLUMN ocr_preprocess INTEGER DEFAULT 1"),
+        ("ocr_easyocr_fallback",     "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_fallback INTEGER DEFAULT 0"),
+        ("ocr_easyocr_threshold",    "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_threshold REAL DEFAULT 0.4"),
+    ]:
+        if col not in existing_profile:
             conn.execute(sql)
     # Rename legacy statuses
     conn.execute(
@@ -120,3 +140,30 @@ def get_known_emitters(conn: sqlite3.Connection) -> dict[str, str]:
     """Return {keyword: nom} from the known_emitters table."""
     rows = conn.execute("SELECT keyword, nom FROM known_emitters").fetchall()
     return {row["keyword"]: row["nom"] for row in rows}
+
+
+_EXTRACTION_DEFAULTS = {
+    "backend": "local",
+    "confidence_threshold": 0.8,
+    "ocr_lang": "fra+eng",
+    "ocr_dpi": 300,
+    "ocr_preprocess": True,
+    "ocr_easyocr_fallback": False,
+    "ocr_easyocr_threshold": 0.4,
+}
+
+
+def get_extraction_cfg(conn: sqlite3.Connection) -> dict:
+    """Return extraction config from user_profile, falling back to hardcoded defaults."""
+    row = conn.execute("SELECT * FROM user_profile WHERE id=1").fetchone()
+    if row is None:
+        return dict(_EXTRACTION_DEFAULTS)
+    return {
+        "backend":              row["ocr_backend"] or "local",
+        "confidence_threshold": row["ocr_confidence_threshold"] if row["ocr_confidence_threshold"] is not None else 0.8,
+        "ocr_lang":             row["ocr_lang"] or "fra+eng",
+        "ocr_dpi":              row["ocr_dpi"] or 300,
+        "ocr_preprocess":       bool(row["ocr_preprocess"]) if row["ocr_preprocess"] is not None else True,
+        "ocr_easyocr_fallback": bool(row["ocr_easyocr_fallback"]) if row["ocr_easyocr_fallback"] is not None else False,
+        "ocr_easyocr_threshold": row["ocr_easyocr_threshold"] if row["ocr_easyocr_threshold"] is not None else 0.4,
+    }

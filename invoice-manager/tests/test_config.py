@@ -42,17 +42,16 @@ class TestLoadConfig:
 
     def test_valid_config_overrides_defaults(self, tmp_path):
         (tmp_path / "config.toml").write_text(
-            '[extraction]\nocr_dpi = 600\n'
+            '[paths]\ninput = "custom/"\n'
         )
         cfg = load_config(tmp_path / "config.toml")
-        assert cfg["extraction"]["ocr_dpi"] == 600
+        assert cfg["paths"]["input"] == "custom/"
 
     def test_partial_config_keeps_unset_defaults(self, tmp_path):
-        (tmp_path / "config.toml").write_text('[extraction]\nocr_dpi = 150\n')
+        (tmp_path / "config.toml").write_text('[paths]\ninput = "custom/"\n')
         cfg = load_config(tmp_path / "config.toml")
-        assert cfg["extraction"]["ocr_dpi"] == 150
-        assert cfg["extraction"]["ocr_lang"] == DEFAULT_CONFIG["extraction"]["ocr_lang"]
-        assert cfg["paths"] == DEFAULT_CONFIG["paths"]
+        assert cfg["paths"]["input"] == "custom/"
+        assert cfg["paths"]["output"] == DEFAULT_CONFIG["paths"]["output"]
 
     def test_invalid_toml_falls_back_to_defaults(self, tmp_path):
         (tmp_path / "config.toml").write_bytes(b"not valid toml [[[")
@@ -61,7 +60,7 @@ class TestLoadConfig:
 
     def test_unreadable_file_falls_back_to_defaults(self, tmp_path):
         p = tmp_path / "config.toml"
-        p.write_text("[extraction]\nocr_dpi = 999\n")
+        p.write_text('[paths]\ninput = "custom/"\n')
         p.chmod(0o000)
         try:
             cfg = load_config(p)
@@ -71,29 +70,9 @@ class TestLoadConfig:
 
     def test_does_not_mutate_default_config(self, tmp_path):
         before = copy.deepcopy(DEFAULT_CONFIG)
-        (tmp_path / "config.toml").write_text('[extraction]\nocr_dpi = 999\n')
+        (tmp_path / "config.toml").write_text('[paths]\ninput = "custom/"\n')
         load_config(tmp_path / "config.toml")
         assert DEFAULT_CONFIG == before
-
-
-class TestNewOCRConfigKeys:
-    def test_defaults_present(self):
-        from config import DEFAULT_CONFIG
-        ext = DEFAULT_CONFIG["extraction"]
-        assert "ocr_preprocess" in ext
-        assert ext["ocr_preprocess"] is True
-        assert "ocr_easyocr_fallback" in ext
-        assert ext["ocr_easyocr_fallback"] is False
-        assert "ocr_easyocr_threshold" in ext
-        assert ext["ocr_easyocr_threshold"] == 0.4
-
-    def test_easyocr_keys_merged_from_toml(self, tmp_path):
-        from config import load_config
-        cfg_file = tmp_path / "config.toml"
-        cfg_file.write_text('[extraction]\nocr_easyocr_fallback = true\nocr_easyocr_threshold = 0.3\n')
-        cfg = load_config(cfg_file)
-        assert cfg["extraction"]["ocr_easyocr_fallback"] is True
-        assert cfg["extraction"]["ocr_easyocr_threshold"] == 0.3
 
 
 class TestCadenceDefaults:

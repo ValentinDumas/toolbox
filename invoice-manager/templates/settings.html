@@ -219,16 +219,78 @@
         {# ── Application ────────────────────────────────────────────────────── #}
         <div class="settings-section {{ 'active' if section == 'app' else '' }}">
           <h1>Application</h1>
-          <div class="card">
-            <div class="card-title">Paramètres OCR (config.toml)</div>
-            {% for key, val in extraction_cfg.items() %}
-            <div class="config-row">
-              <span class="config-key">extraction.{{ key }}</span>
-              <span class="config-value">{{ val }}</span>
+          <form method="post" action="/settings/app">
+            <div class="card">
+              <div class="card-title">Extraction</div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="backend">Moteur d'extraction</label>
+                  <select id="backend" name="backend">
+                    <option value="local" {{ 'selected' if extraction_cfg.backend == 'local' else '' }}>local — pdfplumber + Tesseract (offline)</option>
+                    <option value="claude" {{ 'selected' if extraction_cfg.backend == 'claude' else '' }}>claude — Vision API (nécessite internet)</option>
+                  </select>
+                  <span class="field-hint">Le backend Claude envoie les fichiers à l'API Anthropic.</span>
+                </div>
+                <div class="field">
+                  <label for="confidence_threshold">Seuil de confiance</label>
+                  <input type="number" id="confidence_threshold" name="confidence_threshold"
+                         value="{{ extraction_cfg.confidence_threshold }}" min="0" max="1" step="0.05">
+                  <span class="field-hint">En dessous de ce seuil → marqué « à réviser ». Défaut : 0.8</span>
+                </div>
+              </div>
             </div>
-            {% endfor %}
-            <p class="config-note">Pour modifier ces paramètres, édite <code>config.toml</code> à la racine du projet.</p>
-          </div>
+
+            <div class="card">
+              <div class="card-title">OCR (Tesseract)</div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="ocr_lang">Langues</label>
+                  <input type="text" id="ocr_lang" name="ocr_lang" value="{{ extraction_cfg.ocr_lang }}" placeholder="fra+eng">
+                  <span class="field-hint">Codes Tesseract séparés par « + ». Ex : fra+eng</span>
+                </div>
+                <div class="field">
+                  <label for="ocr_dpi">Résolution PDF (DPI)</label>
+                  <input type="number" id="ocr_dpi" name="ocr_dpi" value="{{ extraction_cfg.ocr_dpi }}" min="72" max="600">
+                  <span class="field-hint">300 recommandé. Augmenter si l'OCR rate des caractères fins.</span>
+                </div>
+              </div>
+              <div class="field-row full" style="margin-top:.75rem;">
+                <label class="radio-option" style="border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;cursor:pointer;display:flex;gap:.75rem;align-items:center;">
+                  <input type="checkbox" name="ocr_preprocess" value="1" {{ 'checked' if extraction_cfg.ocr_preprocess else '' }}>
+                  <div>
+                    <div style="font-weight:500;font-size:.9rem;">Prétraitement image</div>
+                    <div class="field-hint">Dénoise, correction perspective, binarisation, deskew. Recommandé pour les photos de tickets.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">EasyOCR (fallback)</div>
+              <div class="field-row full">
+                <label class="radio-option" style="border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;cursor:pointer;display:flex;gap:.75rem;align-items:center;margin-bottom:.75rem;">
+                  <input type="checkbox" name="ocr_easyocr_fallback" value="1" {{ 'checked' if extraction_cfg.ocr_easyocr_fallback else '' }}>
+                  <div>
+                    <div style="font-weight:500;font-size:.9rem;">Activer EasyOCR en fallback</div>
+                    <div class="field-hint">Plus lent (3–8s/image) mais plus précis sur photos difficiles. Nécessite <code>pip install easyocr</code>.</div>
+                  </div>
+                </label>
+              </div>
+              <div class="field-row" style="max-width:260px;">
+                <div class="field">
+                  <label for="ocr_easyocr_threshold">Seuil de déclenchement</label>
+                  <input type="number" id="ocr_easyocr_threshold" name="ocr_easyocr_threshold"
+                         value="{{ extraction_cfg.ocr_easyocr_threshold }}" min="0" max="1" step="0.05">
+                  <span class="field-hint">Ratio alphanumérique en dessous duquel EasyOCR est déclenché. Défaut : 0.4</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <a href="/settings?section=app" class="btn btn-ghost">Annuler</a>
+              <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+          </form>
         </div>
 
       </div>

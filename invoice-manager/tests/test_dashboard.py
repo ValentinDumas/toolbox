@@ -165,6 +165,11 @@ def _make_app(mem_db, tmp_path, monkeypatch):
     import sqlite3 as _sq
     file_conn = _sq.connect(str(db_file))
     mem_db.backup(file_conn)
+    file_conn.execute(
+        "INSERT OR REPLACE INTO user_profile "
+        "(id, siren, fiscal_profile, setup_complete) VALUES (1, '123456789', 'auto-entrepreneur', 1)"
+    )
+    file_conn.commit()
     file_conn.close()
 
     for d in ("input", "errors", "review"):

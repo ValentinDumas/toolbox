@@ -14,7 +14,7 @@ from pathlib import Path
 
 from config import load_config
 from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
-from db import get_known_emitters, get_user_profile, open_db
+from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
 from parsers import (
     _confidence_score,
     _guess_category,
@@ -361,6 +361,7 @@ def main() -> None:
     profil         = profile["fiscal_profile"]
     user_siren     = profile["siren"]
     known_emitters = get_known_emitters(conn)
+    cfg["extraction"] = get_extraction_cfg(conn)
 
     files = _collect_files(input_dir)
     if not files:

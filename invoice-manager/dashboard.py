@@ -19,7 +19,7 @@ from constants import (
     CONFIDENCE_THRESHOLD, INCOME_TYPES, EXPENSE_TYPES,
     STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES,
 )
-from db import get_known_emitters, get_user_profile, open_db
+from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
 
 
 def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
@@ -244,6 +244,9 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         emitters = conn.execute("SELECT * FROM known_emitters ORDER BY keyword").fetchall()
         conn.close()
         section = request.args.get("section", "profil")
+        conn2 = open_db(db_path)
+        extraction_cfg = get_extraction_cfg(conn2)
+        conn2.close()
         from config import CADENCE_DEFAULTS
         return render_template(
             "settings.html",
@@ -251,7 +254,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             emitters=emitters,
             section=section,
             cadence_defaults=CADENCE_DEFAULTS,
-            extraction_cfg=cfg["extraction"],
+            extraction_cfg=extraction_cfg,
         )
 
     @app.route("/settings/profil", methods=["POST"])
@@ -298,6 +301,42 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         conn.close()
         return redirect(url_for("settings", section="enseignes"))
 
+    @app.route("/settings/app", methods=["POST"])
+    def settings_app_save():
+        def _bool(key): return 1 if request.form.get(key) else 0
+        def _float(key, default):
+            try: return float(request.form.get(key, default))
+            except ValueError: return default
+        def _int(key, default):
+            try: return int(request.form.get(key, default))
+            except ValueError: return default
+
+        conn = open_db(db_path)
+        conn.execute(
+            "INSERT INTO user_profile (id, ocr_backend, ocr_confidence_threshold, ocr_lang, "
+            "ocr_dpi, ocr_preprocess, ocr_easyocr_fallback, ocr_easyocr_threshold, setup_complete) "
+            "VALUES (1, ?, ?, ?, ?, ?, ?, ?, 1) "
+            "ON CONFLICT(id) DO UPDATE SET "
+            "ocr_backend=excluded.ocr_backend, "
+            "ocr_confidence_threshold=excluded.ocr_confidence_threshold, "
+            "ocr_lang=excluded.ocr_lang, ocr_dpi=excluded.ocr_dpi, "
+            "ocr_preprocess=excluded.ocr_preprocess, "
+            "ocr_easyocr_fallback=excluded.ocr_easyocr_fallback, "
+            "ocr_easyocr_threshold=excluded.ocr_easyocr_threshold",
+            (
+                request.form.get("backend", "local"),
+                _float("confidence_threshold", 0.8),
+                request.form.get("ocr_lang", "fra+eng").strip(),
+                _int("ocr_dpi", 300),
+                _bool("ocr_preprocess"),
+                _bool("ocr_easyocr_fallback"),
+                _float("ocr_easyocr_threshold", 0.4),
+            ),
+        )
+        conn.commit()
+        conn.close()
+        return redirect(url_for("settings", section="app"))
+
     @app.route("/")
     def index():
         year = request.args.get("year", datetime.now().year, type=int)
@@ -314,11 +353,11 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
             years = [r[0] for r in conn.execute(
                 "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
             ).fetchall()] or [datetime.now().year]
+            profile = get_user_profile(conn) or {}
             conn.close()
         except sqlite3.DatabaseError as exc:
             return render_template_string(_ERROR_TMPL, message=str(exc), hint="python run.py"), 500
 
-        profile = get_user_profile(conn) or {}
         profile_incomplete = not (profile.get("nom") and profile.get("tva_intracom"))
 
         return render_template(

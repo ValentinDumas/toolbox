@@ -34,34 +34,15 @@ pip install easyocr
 
 ### 3. Initialiser ton espace de travail
 
-**Cas simple — une seule activité :**
+Lance le dashboard et complète le wizard de setup (2 étapes) :
 
 ```bash
-cp config.toml.example config.toml
+python3 dashboard.py   # http://localhost:7800
 ```
 
-**Cas multi-activités — créer un dossier dédié par entreprise :**
+Le wizard demande ton SIREN et ton profil fiscal — c'est le minimum pour débloquer le dashboard et le pipeline CLI. Ton nom, TVA intracommunautaire, enseignes connues et paramètres OCR se configurent ensuite depuis **Paramètres** (`/settings`).
 
-```bash
-python3 init_workspace.py ~/Documents/compta-sasu
-# → crée le dossier, copie config.toml.example, ouvre la config dans l'éditeur
-# → affiche la commande exacte pour lancer le pipeline
-```
-
-Ouvre `config.toml` et renseigne ton identité et ton statut fiscal :
-
-```toml
-[identity]
-nom          = "Jean Dupont"          # Nom / raison sociale
-siren        = "123456789"            # 9 chiffres — détecte automatiquement tes factures émises
-tva_intracom = "FR12123456789"        # FR + 2 chiffres + SIREN (laisser vide si non assujetti)
-
-[fiscal]
-default_profile     = "auto-entrepreneur"   # auto-entrepreneur | SASU | SARL | salarié
-cadence_déclaration = ""                    # vide = cadence par défaut du profil
-```
-
-> Sans `config.toml`, le pipeline tourne avec les valeurs par défaut (utile pour tester).
+> `config.toml` ne contient plus que les chemins de dossiers (optionnel — les valeurs par défaut s'appliquent si absent).
 
 ### 4. Mettre à jour le ledger
 
@@ -100,44 +81,44 @@ python3 export.py --year 2025 --statut SASU  # export avec profil différent
 
 ---
 
-## Configuration (config.toml)
+## Configuration
 
-La configuration est le point d'entrée du workflow. Elle se fait une fois, au départ.
+### Paramètres utilisateur — Dashboard (`/settings`)
 
-Priorité de résolution : **CLI args > config.toml > valeurs par défaut intégrées**
+Toutes les données utilisateur sont stockées dans la base SQLite et gérées depuis **Paramètres** dans le dashboard :
+
+| Donnée | Section | Description |
+|---|---|---|
+| SIREN | Profil | 9 chiffres — détecte automatiquement tes factures émises |
+| Nom / raison sociale | Profil | Affiché dans l'en-tête du dashboard |
+| TVA intracommunautaire | Profil | FR + 2 chiffres + SIREN |
+| Profil fiscal | Profil | `auto-entrepreneur` · `SASU` · `SARL` · `salarié` |
+| Cadence déclaration | Profil | Vide = cadence par défaut du profil |
+| Enseignes connues | Enseignes | Mot-clé → nom canonique pour les tickets illisibles |
+| Backend OCR | App | `local` (offline) ou `claude` (Vision API) |
+| Seuil confiance | App | Sous lequel l'item passe en révision (défaut `0.8`) |
+| Langue OCR | App | Langues Tesseract (défaut `fra+eng`) |
+| DPI OCR | App | Résolution PDF→image (défaut `300`) |
+| Preprocessing image | App | Denoise, perspective, binarisation, deskew |
+| EasyOCR fallback | App | Fallback si confiance Tesseract insuffisante |
+| Seuil EasyOCR | App | Ratio alphanumérique déclenchant le fallback (défaut `0.4`) |
+
+### Chemins — `config.toml` (optionnel)
+
+`config.toml` ne contient **que** les chemins de dossiers. Si le fichier est absent, les valeurs par défaut s'appliquent silencieusement.
+
+Priorité : **CLI args > config.toml > valeurs par défaut intégrées**
 
 | Clé | Défaut | Description |
 |---|---|---|
-| `identity.siren` | `""` | Ton SIREN — permet de détecter tes factures émises automatiquement |
-| `identity.nom` | `""` | Ton nom / raison sociale |
-| `identity.tva_intracom` | `""` | Ton numéro TVA intracommunautaire |
-| `extraction.backend` | `local` | `local` (offline) ou `claude` (Vision API) |
-| `extraction.confidence_threshold` | `0.8` | Seuil sous lequel l'item va en révision |
-| `extraction.ocr_lang` | `fra+eng` | Langues Tesseract |
-| `extraction.ocr_dpi` | `300` | Résolution PDF→image pour l'OCR |
-| `extraction.ocr_preprocess` | `true` | Preprocessing image (denoise, perspective, binarisation, deskew) |
-| `extraction.ocr_easyocr_fallback` | `true` | Fallback EasyOCR si confiance Tesseract insuffisante — recommandé (`pip install easyocr`) |
-| `extraction.ocr_easyocr_threshold` | `0.4` | Seuil de déclenchement EasyOCR (ratio alphanumérique, 0–1) |
-| `fiscal.default_profile` | `auto-entrepreneur` | Profil fiscal — voir tableau statuts ci-dessous |
-| `fiscal.cadence_déclaration` | `""` | Vide = cadence par défaut du profil (`trimestrielle` pour AE) |
-| `paths.*` | `input/`, `output/`… | Tous les dossiers sont configurables |
+| `paths.input` | `input/` | Dossier de dépôt des fichiers à traiter |
+| `paths.processed` | `processed/` | Fichiers traités avec succès |
+| `paths.errors` | `errors/` | Fichiers non reconnus |
+| `paths.db` | `data/invoices.db` | Chemin de la base SQLite |
+| `paths.output` | `output/` | Exports CSV et XLSX |
+| `paths.review` | `review/` | Fichier de révision batch |
 
-### Enseignes connues (`[known_emitters]`)
-
-Quand l'en-tête d'un ticket est illisible (froissé, coupé, mal éclairé), l'émetteur ne peut pas être détecté automatiquement. La section `[known_emitters]` permet d'associer un mot-clé — cherché n'importe où dans le texte OCR — à un nom d'enseigne :
-
-```toml
-[known_emitters]
-boulanger = "Boulanger"
-fnac      = "Fnac"
-darty     = "Darty"
-leroy     = "Leroy Merlin"
-```
-
-Le mot-clé est insensible à la casse et supporte le **fuzzy matching** : 1 à 2 caractères manquants ou corrompus (ex. `"BOULANGE"` au lieu de `"BOULANGER"`) sont tolérés automatiquement. Le dictionnaire est consulté **en priorité** avant le scanner OCR libre — si une enseigne est reconnue, son nom canonique est utilisé directement. Le scanner OCR (premières lignes du texte brut) ne sert que de dernier recours si aucune enseigne ne matche. Aucune enseigne n'est codée en dur : tout passe par ce dictionnaire.
-
-Toutes les clés sont optionnelles individuellement — seules les valeurs que tu surcharges sont nécessaires.
-Voir `config.toml.example` pour la documentation complète et commentée de chaque option.
+Voir `config.toml.example` pour la documentation commentée.
 
 ---
 
@@ -220,7 +201,7 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 
 **`export.py`** — lit la base SQLite, filtre par année et statut fiscal, applique les règles de déductibilité (TVA déductible ou non selon le régime), et génère `ledger-YYYY.csv` + `ledger-YYYY.xlsx` avec 4 onglets : Journal, Récapitulatif, Déclaration, Statistiques (avec deadlines de déclaration calculées offline).
 
-**`config.py`** — charge `config.toml` et le merge sur `DEFAULT_CONFIG`. Priorité : CLI args > config.toml > defaults. Tous les champs sont optionnels — si le fichier est absent, les valeurs par défaut s'appliquent silencieusement.
+**`config.py`** — charge `config.toml` et le merge sur `DEFAULT_CONFIG` (chemins uniquement). Priorité : CLI args > config.toml > defaults. Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont lues depuis la DB via `db.py`.
 
 **`demo/run_all.py`** — génère des PDFs synthétiques à la volée avec fpdf, exécute le pipeline complet pour les 4 profils fiscaux, vérifie que la DB contient les bons types de documents et que les XLSX ont les 4 onglets attendus.
 
@@ -249,8 +230,8 @@ flowchart TD
     %% ── Configuration ────────────────────────────────
     subgraph CFG["⚙️ Configuration"]
         direction LR
-        F_CFG["config.toml\n(copié depuis .example)"]:::optional
-        M_CFG["config.py\nDEFAULT_CONFIG · identity · cadence · fallback"]:::process
+        F_CFG["config.toml\n(chemins uniquement)"]:::optional
+        M_CFG["config.py\nDEFAULT_CONFIG · paths · fallback"]:::process
         F_CFG -. "si présent" .-> M_CFG
     end
 
@@ -280,9 +261,9 @@ flowchart TD
     end
 
     %% ── Connexions ───────────────────────────────────
-    M_CFG --> EX
-    M_CFG --> RV
-    M_CFG --> EXP
+    M_CFG -. "paths" .-> EX
+    M_CFG -. "paths" .-> RV
+    M_CFG -. "paths" .-> EXP
 
     IN --> EX
     EX --> DB
@@ -336,7 +317,7 @@ Référentiel complet (déductibilité, règles par statut) → [`docs/types-pie
 | `SARL`             | Réel normal           | IS annuel (liasse fiscale)           | mensuelle      | Oui           |
 | `salarié`          | N/A                   | IR annuel (DGFiP)                    | annuelle       | Non           |
 
-La cadence peut être surchargée via `config.toml` → `[fiscal] cadence_déclaration`.  
+La cadence peut être surchargée depuis **Paramètres → Profil** dans le dashboard.  
 Les deadlines sont calculées offline et apparaissent dans l'onglet **Statistiques** du XLSX.
 
 ## Champs extraits
