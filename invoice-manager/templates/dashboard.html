@@ -100,6 +100,12 @@
     }
     .color-positive { color: var(--positive); }
     .color-negative { color: var(--negative); }
+    .kpi-pending {
+      font-size: 11px;
+      color: #92400E;
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
     .color-neutral  { color: var(--on-surface); }
     /* Table */
     .table-wrapper {
@@ -242,6 +248,16 @@
     .health-sublabel       { font-size: 12px; color: var(--warning); }
     .health-sublabel-error { font-size: 12px; color: var(--negative); }
     /* Review inline */
+    .section-sublabel {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--secondary);
+      margin: 20px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
     .review-section {
       margin-top: 32px;
       padding-top: 24px;
@@ -550,6 +566,9 @@
           <div class="kpi-card">
             <div class="kpi-value color-negative">{{ summary.total_charges | fr_currency }}</div>
             <div class="kpi-label">Total charges</div>
+            {% if summary.nb_charges_revision > 0 %}
+            <div class="kpi-pending">+ {{ summary.nb_charges_revision }} à réviser (~{{ summary.total_charges_revision | fr_currency }})</div>
+            {% endif %}
           </div>
 
         </div>
@@ -795,9 +814,13 @@
       {# ── Panel : À réviser ─────────────────────────────────────────────────── #}
       <div role="tabpanel" id="panel-reviser" aria-labelledby="tab-reviser" hidden>
         {% if items_a_reviser_list %}
-        <section class="review-section" aria-label="Items non validés">
-          <p class="section-label">Non validés ({{ items_a_reviser_list|length }})</p>
+        <section class="review-section" aria-label="Items à réviser">
+          <p class="section-label">À réviser ({{ items_a_reviser_list|length }})</p>
+          {% set ns = namespace(last_statut='') %}
           {% for item in items_a_reviser_list %}
+          {% if item.statut_révision != ns.last_statut %}{% set ns.last_statut = item.statut_révision %}
+          <p class="section-sublabel">{% if item.statut_révision == 'à_réviser' %}À corriger{% else %}Validés automatiquement — à confirmer{% endif %}</p>
+          {% endif %}
           <div class="review-item" id="review-{{ item.id }}">
             <div class="review-item-header">
               <span>{{ item.émetteur_nom or '—' }}</span>

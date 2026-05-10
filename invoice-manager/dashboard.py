@@ -39,10 +39,19 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
         f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
+
+    VALIDATED_STATUSES = ("auto_validé", "validé")
+    ph_v = ",".join("?" * len(VALIDATED_STATUSES))
     total_charges = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND deleted_at IS NULL",
-        (year, *EXPENSE_TYPES),
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision IN ({ph_v}) AND deleted_at IS NULL",
+        (year, *EXPENSE_TYPES, *VALIDATED_STATUSES),
     ).fetchone()[0] or 0.0
+    row_revision = conn.execute(
+        f"SELECT COUNT(*), COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision='à_réviser' AND deleted_at IS NULL",
+        (year, *EXPENSE_TYPES),
+    ).fetchone()
+    nb_charges_revision = row_revision[0] or 0
+    total_charges_revision = row_revision[1] or 0.0
 
     return {
         "ca_ht": ca_ht,
@@ -50,6 +59,8 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
         "tva_deductible": tva_deductible,
         "tva_a_reverser": round(tva_collectee - tva_deductible, 2),
         "total_charges": total_charges,
+        "total_charges_revision": total_charges_revision,
+        "nb_charges_revision": nb_charges_revision,
     }
 
 

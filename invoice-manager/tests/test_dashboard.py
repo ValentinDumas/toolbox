@@ -64,6 +64,20 @@ def test_fiscal_summary_populated(mem_db):
     assert s["total_charges"] == 400.0
 
 
+def test_fiscal_summary_charges_excludes_a_reviser(mem_db):
+    from dashboard import query_fiscal_summary
+    _insert_invoice(mem_db, id="v1", type_document="facture_reçue",
+                    montant_ht=300.0, statut_révision="validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="av1", type_document="facture_reçue",
+                    montant_ht=100.0, statut_révision="auto_validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
+                    montant_ht=50.0, statut_révision="à_réviser", exercice_fiscal=2025)
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["total_charges"] == 400.0
+    assert s["total_charges_revision"] == 50.0
+    assert s["nb_charges_revision"] == 1
+
+
 def test_fiscal_summary_year_filter(mem_db):
     from dashboard import query_fiscal_summary
     _insert_invoice(mem_db, id="e2025", type_document="facture_émise",
