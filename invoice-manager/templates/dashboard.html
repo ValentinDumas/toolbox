@@ -1400,7 +1400,7 @@
   <script>
     // Tab navigation
     (function () {
-      var TABS = ['ledger', 'reviser', 'corbeille'];
+      var TABS = ['ledger', 'reviser', 'corbeille', 'erreurs'];
       function activateTab(id) {
         TABS.forEach(function (t) {
           var btn = document.getElementById('tab-' + t);
@@ -1463,6 +1463,31 @@
     document.getElementById('modal-cancel').addEventListener('click', function () {
       document.getElementById('delete-modal').classList.remove('open');
     });
+
+    function retryErrorFile(btn, filename) {
+      btn.disabled = true;
+      btn.textContent = '…';
+      fetch('/errors/' + encodeURIComponent(filename) + '/retry', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) { location.reload(); }
+        else { btn.disabled = false; btn.textContent = '↩ Réessayer'; }
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = '↩ Réessayer'; });
+    }
+
+    function openErrorDeleteModal(btn) {
+      var modal = document.getElementById('delete-modal');
+      var form  = document.getElementById('modal-form');
+      var body  = document.getElementById('modal-body');
+      form.action = '/errors/' + encodeURIComponent(btn.dataset.errorFilename) + '/delete';
+      body.textContent = btn.dataset.deleteLabel;
+      modal.classList.add('open');
+      document.getElementById('modal-cancel').focus();
+    }
     document.getElementById('delete-modal').addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { this.classList.remove('open'); }
     });
