@@ -15,10 +15,8 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
 from config import load_config
-from extract import open_db
-
-INCOME_TYPES = ("facture_émise",)
-EXPENSE_TYPES = ("facture_reçue", "reçu", "note_de_frais")
+from constants import INCOME_TYPES, EXPENSE_TYPES, STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES
+from db import open_db
 
 
 def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
@@ -40,15 +38,14 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
 
-    VALIDATED_STATUSES = ("validé",)
     ph_v = ",".join("?" * len(VALIDATED_STATUSES))
     total_charges = conn.execute(
         f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision IN ({ph_v}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES, *VALIDATED_STATUSES),
     ).fetchone()[0] or 0.0
     row_revision = conn.execute(
-        f"SELECT COUNT(*), COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision='à_réviser' AND deleted_at IS NULL",
-        (year, *EXPENSE_TYPES),
+        f"SELECT COUNT(*), COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision=? AND deleted_at IS NULL",
+        (year, *EXPENSE_TYPES, STATUT_A_REVISER),
     ).fetchone()
     nb_charges_revision = row_revision[0] or 0
     total_charges_revision = row_revision[1] or 0.0
@@ -106,10 +103,12 @@ def query_health(conn: sqlite3.Connection, cfg: dict) -> dict:
         return sum(1 for f in dir_path.iterdir() if f.is_file() and not f.name.startswith("."))
 
     items_a_reviser = conn.execute(
-        "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser' AND deleted_at IS NULL"
+        "SELECT COUNT(*) FROM invoices WHERE statut_révision=? AND deleted_at IS NULL",
+        (STATUT_A_REVISER,),
     ).fetchone()[0]
     validés_count = conn.execute(
-        "SELECT COUNT(*) FROM invoices WHERE statut_révision='validé' AND deleted_at IS NULL"
+        "SELECT COUNT(*) FROM invoices WHERE statut_révision=? AND deleted_at IS NULL",
+        (STATUT_VALIDE,),
     ).fetchone()[0]
 
     return {
@@ -126,10 +125,10 @@ def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
         "confiance, fichier_source, texte_brut, statut_révision "
-        "FROM invoices WHERE statut_révision='à_réviser' AND deleted_at IS NULL "
+        "FROM invoices WHERE statut_révision=? AND deleted_at IS NULL "
         "AND exercice_fiscal=? "
         "ORDER BY date_document",
-        (year,),
+        (STATUT_A_REVISER, year),
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -237,7 +236,8 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         try:
             conn = open_db(db_path)
             count = conn.execute(
-                "SELECT COUNT(*) FROM invoices WHERE statut_révision='à_réviser'"
+                "SELECT COUNT(*) FROM invoices WHERE statut_révision=?",
+                (STATUT_A_REVISER,),
             ).fetchone()[0]
             conn.close()
         except sqlite3.DatabaseError:
@@ -265,7 +265,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
                 return redirect(f"/?year={year}")
 
             current = dict(current)
-            already_validated = current["statut_révision"] == "validé"
+            already_validated = current["statut_révision"] == STATUT_VALIDE
 
             fields = {}
             for field in ("type_document", "émetteur_nom", "numéro_facture",
@@ -321,7 +321,7 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
                 fields["corrections_log"] = json.dumps(log, ensure_ascii=False)
                 fields["date_révision"] = now
             else:
-                fields["statut_révision"] = "validé"
+                fields["statut_révision"] = STATUT_VALIDE
                 fields["révisé_par"] = "user"
                 fields["date_révision"] = now
                 fields["validé_le"] = now
@@ -345,9 +345,9 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         try:
             conn = open_db(db_path)
             conn.execute(
-                "UPDATE invoices SET statut_révision='validé', révisé_par='user', "
-                "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN ('prêt_à_valider', 'à_réviser')",
-                (now, now, item_id),
+                "UPDATE invoices SET statut_révision=?, révisé_par='user', "
+                "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN (?, ?)",
+                (STATUT_VALIDE, now, now, item_id, STATUT_PRET, STATUT_A_REVISER),
             )
             conn.commit()
             conn.close()

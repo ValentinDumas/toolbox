@@ -5,108 +5,37 @@ Usage: python extract.py [--input DIR] [--config FILE]
 
 import argparse
 import hashlib
-import json
 import re
 import shutil
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from config import load_config
+from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
+from db import open_db
+from parsers import (
+    _confidence_score,
+    _guess_category,
+    _guess_doc_type,
+    _guess_payment_mode,
+    _match_known_emitter,
+    _parse_amounts,
+    _parse_date,
+    _parse_email,
+    _parse_emetteur_fallback,
+    _parse_invoice_number,
+    _parse_siren,
+    _parse_siret,
+    _parse_tva_intracom,
+    get_deductibility,
+)
 
 HERE = Path(__file__).parent
 
-DEFAULT_CONFIDENCE_THRESHOLD = 0.8
+# ── Supported file extensions ─────────────────────────────────────────────────
 
-# ── DB ────────────────────────────────────────────────────────────────────────
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS invoices (
-    id                      TEXT PRIMARY KEY,
-    type_document           TEXT,
-    numéro_facture          TEXT,
-    date_document           TEXT,
-    date_échéance           TEXT,
-    date_paiement           TEXT,
-    émetteur_nom            TEXT,
-    émetteur_siren          TEXT,
-    émetteur_siret          TEXT,
-    émetteur_tva_intracom   TEXT,
-    émetteur_adresse        TEXT,
-    émetteur_email          TEXT,
-    destinataire_nom        TEXT,
-    destinataire_siren      TEXT,
-    destinataire_siret      TEXT,
-    destinataire_tva_intracom TEXT,
-    destinataire_adresse    TEXT,
-    montant_ht              REAL,
-    taux_tva                REAL,
-    montant_tva             REAL,
-    montant_ttc             REAL,
-    devise                  TEXT DEFAULT 'EUR',
-    montant_eur             REAL,
-    taux_change             REAL,
-    description_prestation  TEXT,
-    lignes_détail           TEXT,
-    catégorie               TEXT,
-    sous_catégorie          TEXT,
-    déductible              INTEGER,
-    taux_déductibilité      REAL,
-    centre_de_coût          TEXT,
-    mode_paiement           TEXT,
-    référence_paiement      TEXT,
-    statut_paiement         TEXT,
-    exercice_fiscal         INTEGER,
-    trimestre               INTEGER,
-    régime_tva              TEXT,
-    nature_charge           TEXT,
-    statut_fiscal_profil    TEXT,
-    fichier_source          TEXT,
-    hash_fichier            TEXT UNIQUE,
-    confiance               REAL,
-    statut_révision         TEXT DEFAULT 'validé',
-    révisé_par              TEXT DEFAULT 'auto',
-    date_révision           TEXT,
-    notes_correction        TEXT,
-    validé_le               TEXT,
-    corrections_log         TEXT DEFAULT '[]',
-    date_extraction         TEXT,
-    texte_brut              TEXT,
-    deleted_at              TEXT,
-    deleted_by              TEXT
-)
-"""
-
-def open_db(path: Path) -> sqlite3.Connection:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.execute(SCHEMA)
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(invoices)")}
-    migrations = [
-        ("texte_brut",      "ALTER TABLE invoices ADD COLUMN texte_brut TEXT"),
-        ("validé_le",       "ALTER TABLE invoices ADD COLUMN validé_le TEXT"),
-        ("corrections_log", "ALTER TABLE invoices ADD COLUMN corrections_log TEXT DEFAULT '[]'"),
-        ("deleted_at",      "ALTER TABLE invoices ADD COLUMN deleted_at TEXT"),
-        ("deleted_by",      "ALTER TABLE invoices ADD COLUMN deleted_by TEXT"),
-    ]
-    for col, sql in migrations:
-        if col not in existing:
-            conn.execute(sql)
-    # Rename legacy statuses
-    conn.execute("UPDATE invoices SET statut_révision='validé' WHERE statut_révision IN ('prêt_à_valider', 'auto_validé', 'révisé')")
-    conn.commit()
-    return conn
-
-def hash_exists(conn: sqlite3.Connection, h: str) -> bool:
-    return conn.execute("SELECT 1 FROM invoices WHERE hash_fichier = ?", (h,)).fetchone() is not None
-
-def insert(conn: sqlite3.Connection, row: dict) -> None:
-    cols = ", ".join(f'"{k}"' for k in row)
-    placeholders = ", ".join("?" for _ in row)
-    conn.execute(f"INSERT INTO invoices ({cols}) VALUES ({placeholders})", list(row.values()))
-    conn.commit()
+SUPPORTED = {".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".bmp", ".webp", ".heic", ".heif"}
 
 # ── Text extraction ───────────────────────────────────────────────────────────
 
@@ -121,6 +50,7 @@ def extract_text_pdf(path: Path, ocr_lang: str, ocr_dpi: int) -> str:
     import pytesseract
     images = convert_from_bytes(path.read_bytes(), dpi=ocr_dpi)
     return "\n".join(pytesseract.image_to_string(img, lang=ocr_lang) for img in images).strip()
+
 
 def _order_points(pts):
     import numpy as np
@@ -216,6 +146,23 @@ def _preprocess_image(img):
     return img
 
 
+_easyocr_reader = None
+
+def _get_easyocr_reader():
+    global _easyocr_reader
+    if _easyocr_reader is None:
+        import easyocr
+        _easyocr_reader = easyocr.Reader(["fr", "en"], gpu=False)
+    return _easyocr_reader
+
+
+def _tesseract_confidence(text: str) -> float:
+    if not text:
+        return 0.0
+    alphanum = sum(c.isalnum() for c in text)
+    return alphanum / len(text)
+
+
 def extract_text_image(
     path: Path,
     ocr_lang: str,
@@ -263,247 +210,18 @@ def extract_text(path: Path, cfg: dict) -> str:
         )
     raise ValueError(f"Format non supporté : {suffix}")
 
-# ── Parsers ───────────────────────────────────────────────────────────────────
+# ── DB helpers (kept here for backward compat — delegates to db.py) ───────────
 
-_MONTHS_FR = {
-    "janvier": "01", "février": "02", "mars": "03", "avril": "04",
-    "mai": "05", "juin": "06", "juillet": "07", "août": "08",
-    "septembre": "09", "octobre": "10", "novembre": "11", "décembre": "12",
-}
+def hash_exists(conn, h: str) -> bool:
+    return conn.execute("SELECT 1 FROM invoices WHERE hash_fichier = ?", (h,)).fetchone() is not None
 
-def _parse_date(text: str) -> str | None:
-    from datetime import date as _date
-
-    current_year = datetime.now().year
-
-    def _valid(y: int, m: int, d: int) -> str | None:
-        # Corrige les années OCR proches mais invalides (ex. 2086 → 2026)
-        if y > current_year + 1:
-            # OCR confond parfois un chiffre (ex. 2086 → 2026 : "0" lu "8")
-            # Remplace les 2 derniers chiffres par ceux de l'année courante
-            y_corrected = int(str(y)[:2] + str(current_year)[2:])
-            if abs(y_corrected - current_year) <= 5:
-                y = y_corrected
-        try:
-            _date(y, m, d)
-            return f"{y:04d}-{m:02d}-{d:02d}"
-        except ValueError:
-            return None
-
-    for m in re.finditer(r"(\d{4})[\/\-](\d{2})[\/\-](\d{2})", text):
-        result = _valid(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        if result:
-            return result
-
-    for m in re.finditer(r"(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})", text):
-        result = _valid(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-        if result:
-            return result
-
-    for m in re.finditer(r"(\d{1,2})\s+(" + "|".join(_MONTHS_FR) + r")\s+(\d{4})", text, re.I):
-        month_num = int(_MONTHS_FR.get(m.group(2).lower(), "0"))
-        result = _valid(int(m.group(3)), month_num, int(m.group(1)))
-        if result:
-            return result
-
-    return None
-
-def _parse_amount(text: str, keywords: list[str]) -> float | None:
-    pattern = "(?:" + "|".join(re.escape(k) for k in keywords) + r")[^\d]*(\d[\d\s]*[\.,]\d{2})"
-    match = re.search(pattern, text, re.I)
-    if match:
-        return float(match.group(1).replace(" ", "").replace(",", "."))
-    return None
-
-def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None, float | None]:
-    """Returns (ht, tva, ttc, taux_tva)."""
-    ttc = _parse_amount(text, ["TTC", "total ttc", "total à payer", "amount due", "montant total", "total eur", "carte bancaire", "carte ba", "cb"])
-    ht  = _parse_amount(text, ["total ht", "sous-total", "subtotal", "montant ht"])
-
-    # Ticket caisse format: "TVA XX% <tva_amount> <ht_amount> HT"
-    tva_line = re.search(r"TVA\s+[\d,\.\s]+%?\s+(\d+[,\.]\d{2})\s+(\d+[,\.]\d{2})\s+HT", text, re.I)
-    if tva_line:
-        tva = float(tva_line.group(1).replace(",", "."))
-        if not ht:
-            ht = float(tva_line.group(2).replace(",", "."))
-    else:
-        tva = _parse_amount(text, ["TVA", "tax", "vat"])
-
-    if not ht:
-        ht = _parse_amount(text, ["HT"])
-
-    if ttc and ht and not tva:
-        tva = round(ttc - ht, 2)
-    elif ttc and tva and not ht:
-        ht = round(ttc - tva, 2)
-    elif ht and tva and not ttc:
-        ttc = round(ht + tva, 2)
-
-    if not ttc and not ht:
-        bare = re.findall(r"[€$£]\s*(\d[\d\s]*[\.,]\d{2})", text)
-        if bare:
-            ttc = max(float(a.replace(" ", "").replace(",", ".")) for a in bare)
-
-    taux_tva = round((tva / ht) * 100, 1) if ht and tva and ht > 0 else None
-    return ht, tva, ttc, taux_tva
-
-def _parse_siren(text: str) -> str | None:
-    match = re.search(r"\b(\d{3}\s?\d{3}\s?\d{3})\b", text)
-    return match.group(1).replace(" ", "") if match else None
-
-def _parse_siret(text: str) -> str | None:
-    match = re.search(r"\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b", text)
-    return match.group(1).replace(" ", "") if match else None
-
-def _parse_tva_intracom(text: str) -> str | None:
-    match = re.search(r"\b(FR\s*\d{2}\s*\d{9})\b", text, re.I)
-    return match.group(1).replace(" ", "").upper() if match else None
-
-_INVOICE_PATTERNS = [
-    r"(?:facture|invoice|n°|ref|référence)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
-    r"(?:ticket|reçu|recu|transaction)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
-    r"\b(RT\d{8,})\b",
-]
-
-def _parse_invoice_number(text: str) -> str | None:
-    for pattern in _INVOICE_PATTERNS:
-        match = re.search(pattern, text, re.I)
-        if match:
-            return match.group(1)
-    return None
-
-_EMETTEUR_SKIP = frozenset([
-    "tva", "ht", "ttc", "total", "date", "heure", "carte", "siret", "siren",
-    "montant", "prix", "quantite", "qte", "description", "article", "facture",
-    "merci", "ticket", "caisse", "recu", "reçu", "magasin",
-    "pan", "seq", "mode", "type", "nom", "usage", "paiement", "visa",
-])
-
-def _parse_emetteur_fallback(text: str) -> str | None:
-    for line in text.splitlines()[:8]:
-        line = line.strip()
-        if not (3 <= len(line) <= 60):
-            continue
-        if line[-1] in (",", ":", ";"):   # labels "Clé: valeur"
-            continue
-        if "(" in line:                   # adresses "ROUEN (Riboudet)"
-            continue
-        alpha = sum(c.isalpha() for c in line)
-        if alpha / len(line) < 0.6:
-            continue
-        words = re.findall(r"[a-zéèêëàâùûîïôœç]+", line.lower())
-        if any(w in _EMETTEUR_SKIP for w in words):
-            continue
-        return line
-    return None
-
-def _parse_email(text: str) -> str | None:
-    m = re.search(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", text, re.I)
-    return m.group(0) if m else None
-
-def _tesseract_confidence(text: str) -> float:
-    if not text:
-        return 0.0
-    alphanum = sum(c.isalnum() for c in text)
-    return alphanum / len(text)
-
-
-_easyocr_reader = None
-
-def _get_easyocr_reader():
-    global _easyocr_reader
-    if _easyocr_reader is None:
-        import easyocr
-        _easyocr_reader = easyocr.Reader(["fr", "en"], gpu=False)
-    return _easyocr_reader
-
-
-def _confidence_score(date: str | None, ttc, ht, invoice_num: str | None, fiscal_id: str | None) -> float:
-    fields = [date, ttc, ht, invoice_num, fiscal_id]
-    return sum(1 for f in fields if f is not None) / len(fields)
-
-# ── Category & deductibility ──────────────────────────────────────────────────
-
-_CATEGORIES = {
-    "hébergement":  ["hébergement", "hôtel", "hotel", "airbnb", "ovh", "serveur", "server", "hosting"],
-    "transport":    ["sncf", "ratp", "train", "taxi", "uber", "vol", "billet", "transport"],
-    "repas":        ["restaurant", "repas", "déjeuner", "dîner", "café", "brasserie"],
-    "matériel":     ["ordinateur", "clavier", "souris", "écran", "hardware", "matériel"],
-    "téléphonie":   ["orange", "sfr", "bouygues", "free mobile", "téléphone", "mobile", "forfait"],
-    "logiciel":     ["adobe", "microsoft", "slack", "notion", "github", "saas", "logiciel", "licence", "abonnement"],
-    "formation":    ["formation", "cours", "udemy", "coursera", "conférence", "séminaire"],
-    "assurance":    ["assurance", "maif", "axa", "allianz", "mutuelle"],
-    "loyer":        ["loyer", "bail", "location bureau"],
-    "publicité":    ["google ads", "meta ads", "facebook ads", "publicité", "marketing"],
-    "domaine":      ["nom de domaine", "domain", "dns"],
-    "comptabilité": ["expert-comptable", "comptable", "comptabilité"],
-}
-
-_DEDUCTIBILITY = {
-    "hébergement": 1.0, "transport": 1.0, "matériel": 1.0, "téléphonie": 1.0,
-    "logiciel": 1.0, "formation": 1.0, "assurance": 1.0, "loyer": 1.0,
-    "publicité": 1.0, "domaine": 1.0, "comptabilité": 1.0,
-    "repas": 0.5,
-    "autres": 0.0,
-}
-
-def _guess_category(text: str) -> str:
-    text_l = text.lower()
-    for cat, keywords in _CATEGORIES.items():
-        if any(k in text_l for k in keywords):
-            return cat
-    return "autres"
-
-def _guess_payment_mode(text: str) -> str | None:
-    text_l = text.lower()
-    if any(k in text_l for k in ["virement", "transfer"]):
-        return "virement"
-    if any(k in text_l for k in ["carte", "cb", "visa", "mastercard"]):
-        return "CB"
-    if "chèque" in text_l or "cheque" in text_l:
-        return "chèque"
-    if "prélèvement" in text_l or "prelevement" in text_l or "sepa" in text_l:
-        return "prélèvement"
-    if "espèce" in text_l or "cash" in text_l:
-        return "espèces"
-    return None
-
-def _guess_doc_type(text: str, user_siren: str, montant_ttc: float | None) -> str:
-    text_lower = text.lower()
-    is_avoir = any(k in text_lower for k in ["avoir", "credit note", "note de crédit"])
-    user_is_emitter = bool(user_siren and user_siren in text)
-
-    if is_avoir:
-        return "avoir_émis" if user_is_emitter else "avoir_reçu"
-    if any(k in text_lower for k in ["note de frais", "remboursement de frais"]):
-        return "note_de_frais"
-    if any(k in text_lower for k in ["devis", "cotation", "quote"]):
-        return "devis"
-    if any(k in text_lower for k in ["relevé de compte", "extrait de compte"]):
-        return "relevé_bancaire"
-    if user_is_emitter:
-        return "facture_émise"
-    if not _parse_invoice_number(text) and (montant_ttc or 0) < 200:
-        return "reçu"
-    return "facture_reçue"
+def insert(conn, row: dict) -> None:
+    cols = ", ".join(f'"{k}"' for k in row)
+    placeholders = ", ".join("?" for _ in row)
+    conn.execute(f"INSERT INTO invoices ({cols}) VALUES ({placeholders})", list(row.values()))
+    conn.commit()
 
 # ── Invoice assembly ──────────────────────────────────────────────────────────
-
-def _match_known_emitter(text: str, known_emitters: dict, fuzzy_threshold: float = 0.85) -> str | None:
-    from difflib import SequenceMatcher
-    text_l = text.lower()
-    for keyword, name in known_emitters.items():
-        kw = keyword.lower()
-        # Exact match first
-        if kw in text_l:
-            return name
-        # Fuzzy: slide a window of len(kw) over the text
-        kw_length = len(kw)
-        for i in range(len(text_l) - kw_length + 1):
-            if SequenceMatcher(None, kw, text_l[i:i + kw_length]).ratio() >= fuzzy_threshold:
-                return name
-    return None
-
 
 def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str = "", known_emitters: dict | None = None) -> dict:
     date_str  = _parse_date(text)
@@ -514,7 +232,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     siret        = _parse_siret(text)
     tva_intracom = _parse_tva_intracom(text)
     catégorie    = _guess_category(text)
-    taux_ded     = _DEDUCTIBILITY.get(catégorie, 0.0)
+    taux_ded     = get_deductibility(catégorie)
     confiance    = _confidence_score(date_str, ttc, ht, invoice_num, siren or tva_intracom)
     doc_type     = _guess_doc_type(text, user_siren, ttc)
 
@@ -565,7 +283,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "fichier_source":           fichier_source,
         "hash_fichier":             None,
         "confiance":                round(confiance, 2),
-        "statut_révision":          "validé" if confiance >= DEFAULT_CONFIDENCE_THRESHOLD else "à_réviser",
+        "statut_révision":          STATUT_VALIDE if confiance >= CONFIDENCE_THRESHOLD else STATUT_A_REVISER,
         "révisé_par":               "auto",
         "date_révision":            datetime.now(timezone.utc).isoformat(),
         "notes_correction":         None,
@@ -576,8 +294,6 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     }
 
 # ── File handling ─────────────────────────────────────────────────────────────
-
-SUPPORTED = {".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".bmp", ".webp", ".heic", ".heif"}
 
 def detect_extension(path: Path) -> str | None:
     header = path.read_bytes()[:16]
@@ -629,7 +345,6 @@ def main() -> None:
     processed_dir = root / cfg["paths"]["processed"]
     errors_dir    = root / cfg["paths"]["errors"]
     db_path       = root / cfg["paths"]["db"]
-    threshold      = cfg["extraction"]["confidence_threshold"]
     profil         = cfg["fiscal"]["default_profile"]
     user_siren     = cfg["identity"]["siren"]
     known_emitters = cfg.get("known_emitters", {})
@@ -669,7 +384,7 @@ def main() -> None:
             conn.commit()
             traités += 1
             flag = f"  [OK] confiance={row['confiance']:.0%}"
-            if row["statut_révision"] == "à_réviser":
+            if row["statut_révision"] == STATUT_A_REVISER:
                 flag += " ⚠ à réviser"
                 à_réviser += 1
             print(flag)

@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Apply the following practices to **all Python code written or modified in this repo**:
 
 @GOOD_PRACTICES.md
+@ARCHITECTURE_PYTHON.md
 
 ---
 
