@@ -530,3 +530,15 @@ def test_errors_delete_rejects_path_traversal(mem_db, tmp_path, monkeypatch):
     with app.test_client() as client:
         resp = client.post("/errors/../../etc/passwd/delete", data={"year": "2025"})
     assert resp.status_code == 404
+
+
+def test_errors_list_in_template(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    profile_dir = tmp_path / "data" / "profiles" / "test-profile"
+    (profile_dir / "errors" / "broken.pdf").write_bytes(b"x")
+
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+
+    assert b"broken.pdf" in resp.data
+    assert "Erreurs (1)".encode() in resp.data

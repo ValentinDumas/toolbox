@@ -515,6 +515,7 @@ button:hover{background:#1D4ED8cc}
             health = query_health(conn, paths)
             items_a_reviser_list = query_items_a_reviser(conn, year)
             corbeille_list = query_corbeille(conn, year)
+            errors_list = query_error_files(paths)
             years = [r[0] for r in conn.execute(
                 "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
             ).fetchall()] or [datetime.now().year]
@@ -534,6 +535,7 @@ button:hover{background:#1D4ED8cc}
             health=health,
             items_a_reviser_list=items_a_reviser_list,
             corbeille_list=corbeille_list,
+            errors_list=errors_list,
             run_error=run_error,
             review_error=review_error,
             expense_types=EXPENSE_TYPES,

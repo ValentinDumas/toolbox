@@ -117,6 +117,70 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--on-surface-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    /* KPI tooltip */
+    .kpi-tooltip-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .kpi-tooltip-trigger {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: default;
+      color: var(--on-surface-muted);
+      font-size: 13px;
+      line-height: 1;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .kpi-tooltip-trigger:hover,
+    .kpi-tooltip-trigger:focus {
+      opacity: 1;
+      outline: none;
+    }
+    .kpi-tooltip-trigger:focus-visible {
+      outline: 2px solid var(--primary, #2563eb);
+      border-radius: 2px;
+    }
+    .kpi-tooltip-box {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #f1f5f9;
+      font-size: 12px;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      line-height: 1.5;
+      padding: 8px 12px;
+      border-radius: 6px;
+      width: 220px;
+      white-space: normal;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .kpi-tooltip-box::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #1e293b;
+    }
+    .kpi-tooltip-wrap:hover .kpi-tooltip-box,
+    .kpi-tooltip-wrap:focus-within .kpi-tooltip-box {
+      opacity: 1;
     }
     .color-positive { color: var(--positive); }
     .color-negative { color: var(--negative); }
@@ -267,11 +331,11 @@
       margin-bottom: 4px;
     }
     .health-label { font-size: 13px; color: var(--on-surface-muted); }
-    .health-sublabel,
+    .health-sublabel-warning,
     .health-sublabel-error,
-    .health-sublabel-ok { margin-top: 8px; }
-    .health-sublabel       { font-size: 12px; color: var(--warning); }
-    .health-sublabel-error { font-size: 12px; color: var(--negative); }
+    .health-sublabel-ok { margin-top: 8px; font-size: 12px; }
+    .health-sublabel-warning { color: var(--warning); }
+    .health-sublabel-error   { color: var(--negative); }
     /* Review inline */
     .section-sublabel {
       font-size: 12px;
@@ -774,31 +838,61 @@
 
           <div class="kpi-card">
             <div class="kpi-value color-positive">{{ summary.ca_ht | fr_currency }}</div>
-            <div class="kpi-label">CA HT</div>
+            <div class="kpi-label">
+              CA HT
+              <span class="kpi-tooltip-wrap">
+                <button class="kpi-tooltip-trigger" aria-describedby="tip-ca-ht" tabindex="0">ⓘ</button>
+                <span class="kpi-tooltip-box" role="tooltip" id="tip-ca-ht">Chiffre d'affaires hors taxes : total des montants HT de toutes les factures émises sur l'exercice.</span>
+              </span>
+            </div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-value {% if summary.tva_collectee > 0 %}color-positive{% else %}color-neutral{% endif %}">
               {{ summary.tva_collectee | fr_currency }}
             </div>
-            <div class="kpi-label">TVA collectée</div>
+            <div class="kpi-label">
+              TVA collectée
+              <span class="kpi-tooltip-wrap">
+                <button class="kpi-tooltip-trigger" aria-describedby="tip-tva-collectee" tabindex="0">ⓘ</button>
+                <span class="kpi-tooltip-box" role="tooltip" id="tip-tva-collectee">TVA facturée à vos clients sur vos ventes. Vous la collectez pour le compte de l'État et devez la lui reverser.</span>
+              </span>
+            </div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-value color-neutral">{{ summary.tva_deductible | fr_currency }}</div>
-            <div class="kpi-label" title="TVA payée sur vos achats fournisseurs. Vous pouvez la récupérer auprès de l'État.">TVA déductible</div>
+            <div class="kpi-label">
+              TVA déductible
+              <span class="kpi-tooltip-wrap">
+                <button class="kpi-tooltip-trigger" aria-describedby="tip-tva-deductible" tabindex="0">ⓘ</button>
+                <span class="kpi-tooltip-box" role="tooltip" id="tip-tva-deductible">TVA payée sur vos achats fournisseurs. Vous pouvez la déduire de la TVA collectée, ce qui réduit votre dette fiscale.</span>
+              </span>
+            </div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
               {{ summary.tva_a_reverser | fr_currency }}
             </div>
-            <div class="kpi-label" title="TVA collectée sur vos ventes − TVA déductible sur vos achats. Montant net à reverser au fisc (ou crédit si négatif).">TVA à reverser</div>
+            <div class="kpi-label">
+              TVA à reverser
+              <span class="kpi-tooltip-wrap">
+                <button class="kpi-tooltip-trigger" aria-describedby="tip-tva-reverser" tabindex="0">ⓘ</button>
+                <span class="kpi-tooltip-box" role="tooltip" id="tip-tva-reverser">TVA collectée − TVA déductible. Montant net dû à l'État. Si négatif, c'est un crédit de TVA remboursable.</span>
+              </span>
+            </div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-value color-negative">{{ summary.total_charges | fr_currency }}</div>
-            <div class="kpi-label">Total charges</div>
+            <div class="kpi-label">
+              Total charges
+              <span class="kpi-tooltip-wrap">
+                <button class="kpi-tooltip-trigger" aria-describedby="tip-charges" tabindex="0">ⓘ</button>
+                <span class="kpi-tooltip-box" role="tooltip" id="tip-charges">Somme des montants HT de toutes les factures fournisseurs déductibles sur l'exercice (hors factures supprimées).</span>
+              </span>
+            </div>
             {% if summary.nb_charges_revision > 0 %}
             <div class="kpi-pending">+ {{ summary.nb_charges_revision }} à réviser (~{{ summary.total_charges_revision | fr_currency }})</div>
             {% endif %}
@@ -832,9 +926,9 @@
             <div class="health-info">
               <div class="health-count">{{ health.items_a_reviser }}</div>
               <div class="health-label">Item{{ 's' if health.items_a_reviser != 1 }} à réviser</div>
-              {% if health.items_a_reviser > 0 %}
-              <div class="health-sublabel">Action requise</div>
-              {% endif %}
+              <div class="{{ 'health-sublabel-warning' if health.items_a_reviser > 0 else 'health-sublabel-ok' }}">
+                {{ 'Action requise' if health.items_a_reviser > 0 else 'Tout est à jour' }}
+              </div>
             </div>
           </div>
 
@@ -844,9 +938,9 @@
             <div class="health-info">
               <div class="health-count">{{ health.error_files }}</div>
               <div class="health-label">Fichier{{ 's' if health.error_files != 1 }} en erreur</div>
-              {% if health.error_files > 0 %}
-              <div class="health-sublabel-error">Vérifier errors/</div>
-              {% endif %}
+              <div class="{{ 'health-sublabel-error' if health.error_files > 0 else 'health-sublabel-ok' }}">
+                {{ 'Vérifier errors/' if health.error_files > 0 else 'Tout est à jour' }}
+              </div>
             </div>
           </div>
 
@@ -868,6 +962,11 @@
                 aria-selected="false" class="tab-btn" tabindex="-1"
                 {% if not corbeille_list %}disabled aria-disabled="true"{% endif %}>
           Corbeille ({{ corbeille_list|length }})
+        </button>
+        <button role="tab" id="tab-erreurs" aria-controls="panel-erreurs"
+                aria-selected="false" class="tab-btn" tabindex="-1"
+                {% if not errors_list %}disabled aria-disabled="true"{% endif %}>
+          Erreurs ({{ errors_list|length }})
         </button>
       </div>
 
@@ -1225,6 +1324,57 @@
         </section>
         {% else %}
         <p class="tab-empty">Corbeille vide.</p>
+        {% endif %}
+      </div>
+
+      <div role="tabpanel" id="panel-erreurs" aria-labelledby="tab-erreurs" hidden>
+        {% if errors_list %}
+        <section aria-label="Fichiers en erreur">
+          <h2 class="section-label">Erreurs ({{ errors_list|length }})</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Fichier</th>
+                  <th scope="col" class="text-right">Taille</th>
+                  <th scope="col">Date</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in errors_list %}
+                <tr>
+                  <td class="cell-filename">{{ f.name }}</td>
+                  <td class="text-right text-muted" style="font-size:12px">{{ f.size_kb }} Ko</td>
+                  <td class="text-muted" style="font-size:12px">{{ f.mtime }}</td>
+                  <td>
+                    <span class="file-actions">
+                      <button onclick="openPdfPreview('/preview/{{ f.name }}', '{{ f.name }}')"
+                              aria-label="Prévisualiser {{ f.name }}" class="btn-icon-preview">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      </button>
+                      <button type="button" class="btn-restore"
+                              onclick="retryErrorFile(this, '{{ f.name }}')"
+                              aria-label="Réessayer l'extraction de {{ f.name }}">
+                        ↩ Réessayer
+                      </button>
+                      <button type="button" class="btn-icon-trash"
+                              data-error-filename="{{ f.name }}"
+                              data-delete-label="{{ f.name }}"
+                              onclick="openErrorDeleteModal(this)"
+                              aria-label="Supprimer {{ f.name }}">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {% else %}
+        <p class="tab-empty">Aucun fichier en erreur.</p>
         {% endif %}
       </div>
 
