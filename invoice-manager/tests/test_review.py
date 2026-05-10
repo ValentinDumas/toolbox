@@ -60,12 +60,12 @@ class TestExportReview:
         conn = ex.open_db(db_path)
         _insert_row(conn, {"statut_révision": "auto_validé", "hash_fichier": "h1"})
         _insert_row(conn, {"statut_révision": "à_réviser", "hash_fichier": "h2"})
-        _insert_row(conn, {"statut_révision": "révisé", "hash_fichier": "h3"})
+        _insert_row(conn, {"statut_révision": "validé", "hash_fichier": "h3"})
         conn.close()
         conn2 = rv.open_db(db_path)
         rv.export_review(conn2, tmp_project / "review")
         conn2.close()
-        rows = list(csv.DictReader(open(tmp_project / "review" / "review.csv")))
+        rows = list(csv.DictReader(open(tmp_project / "review" / "review.csv", encoding="utf-8-sig")))
         assert len(rows) == 1
 
     def test_missing_db(self, tmp_project, monkeypatch, capsys):
@@ -114,7 +114,7 @@ class TestImportReview:
         conn.close()
         conn2 = sqlite3.connect(db_path)
         row = conn2.execute("SELECT statut_révision, révisé_par FROM invoices WHERE id=?", (rid,)).fetchone()
-        assert row[0] == "révisé"
+        assert row[0] == "validé"
         assert row[1] == "user"
 
     def test_corriger_updates_fields(self, tmp_project, monkeypatch):
@@ -128,7 +128,7 @@ class TestImportReview:
         row = conn2.execute("SELECT montant_ttc, catégorie, statut_révision FROM invoices WHERE id=?", (rid,)).fetchone()
         assert float(row[0]) == pytest.approx(999.99)
         assert row[1] == "matériel"
-        assert row[2] == "révisé"
+        assert row[2] == "validé"
 
     def test_supprimer_deletes_row(self, tmp_project, monkeypatch):
         monkeypatch.chdir(tmp_project)

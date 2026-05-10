@@ -474,10 +474,18 @@
     .file-actions { display:inline-flex; align-items:center; gap:6px; }
     #pdf-modal { border:none; border-radius:8px; padding:0; width:90vw; max-width:900px; box-shadow:0 24px 48px rgba(0,0,0,.35); margin:0; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); }
     #pdf-modal::backdrop { background:rgba(0,0,0,.45); }
-    .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
-    .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; }
+    .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
+    .pdf-modal-header span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; flex-shrink:0; }
     .pdf-modal-close:hover { color:#334155; }
     #pdf-modal-frame { display:block; width:100%; height:80vh; border:none; }
+    #img-modal-container { display:none; width:100%; height:80vh; overflow:auto; background:#1e293b; cursor:grab; }
+    #img-modal-container:active { cursor:grabbing; }
+    #img-modal-preview { display:block; max-width:100%; max-height:80vh; object-fit:contain; transform-origin:center center; transition:transform .12s; margin:auto; }
+    .zoom-controls { display:none; align-items:center; gap:4px; flex-shrink:0; }
+    .zoom-controls button { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; font-size:.85rem; width:24px; height:24px; display:flex; align-items:center; justify-content:center; color:#475569; }
+    .zoom-controls button:hover { background:#e2e8f0; }
+    .zoom-controls span { font-size:.75rem; color:#64748b; min-width:36px; text-align:center; }
     .pdf-modal-hint { margin:0; padding:6px 14px; font-size:.75rem; color:#94a3b8; text-align:right; border-top:1px solid #f1f5f9; }
   </style>
 </head>
@@ -631,8 +639,7 @@
                   <th scope="col" class="text-right">TVA</th>
                   <th scope="col" class="text-center">Statut</th>
                   <th scope="col" class="text-center">Type</th>
-                  <th scope="col" class="text-center" style="width:1.5rem"></th>
-                  <th scope="col" class="text-center" style="width:1.5rem"></th>
+                  <th scope="col" class="text-center" style="width:3rem"></th>
                 </tr>
               </thead>
               <tbody>
@@ -676,19 +683,14 @@
                   <td class="text-center text-muted">{{ row.type_document or '—' }}</td>
                   <td class="text-center">
                     {%- if row.fichier_source -%}
-                    <button onclick="openPdfPreview('/files/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button>
-                    {%- endif -%}
-                  </td>
-                  <td class="text-center">
-                    {%- if row.fichier_source -%}
-                    <a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a>
+                    <span class="file-actions"><button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
                     {%- endif -%}
                   </td>
                 </tr>
                 {% if row.statut_révision == 'validé' %}
                 {% set edit_party = row.émetteur_nom if row.type_document in expense_types else row.destinataire_nom %}
                 <tr class="edit-row" id="edit-row-{{ row.id }}" hidden>
-                  <td colspan="9">
+                  <td colspan="8">
                     <div class="edit-row-inner">
                       <div class="edit-row-header">
                         <span>Correction — {{ edit_party or '—' }} — {{ row.date_document or '—' }}</span>
@@ -755,7 +757,7 @@
                         </div>
                         <div class="review-actions">
                           <button type="submit" class="btn-save">Enregistrer la correction</button>
-                          <button type="button" class="btn-cancel-edit">Annuler</button>
+                          <button type="button" class="btn-cancel-edit btn-secondary">Annuler</button>
                         </div>
                       </form>
                     </div>
@@ -764,7 +766,7 @@
                 {% endif %}
                 {% else %}
                 <tr class="empty-row">
-                  <td colspan="9">Aucune facture pour {{ year }}.</td>
+                  <td colspan="8">Aucune facture pour {{ year }}.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -773,7 +775,7 @@
                   <td colspan="2"><strong>Total {{ year }}</strong></td>
                   <td class="text-right amount color-negative">{{ ledger.total_debit | fr_currency }}</td>
                   <td class="text-right amount color-positive">{{ ledger.total_credit | fr_currency }}</td>
-                  <td colspan="5"></td>
+                  <td colspan="4"></td>
                 </tr>
               </tfoot>
             </table>
@@ -805,7 +807,7 @@
               <span>{{ item.émetteur_nom or '—' }}</span>
               <span>{{ item.date_document or '—' }}</span>
               {% if item.fichier_source %}
-              <span class="file-actions"><button onclick="openPdfPreview('/files/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
+              <span class="file-actions"><button onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" title="Prévisualiser" class="btn-icon-preview">🔍</button><a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" title="Télécharger" class="btn-icon-download">📥</a></span>
               {% endif %}
               {% if item.confiance is not none %}
                 {% if item.confiance < 0.8 %}
@@ -1046,8 +1048,35 @@
       if (e.key === 'Escape') { this.classList.remove('open'); }
     });
 
+    var _imgScale = 1;
+    function _setImgScale(s) {
+      _imgScale = Math.min(5, Math.max(0.2, s));
+      var img = document.getElementById('img-modal-preview');
+      img.style.transform = _imgScale === 1 ? '' : 'scale(' + _imgScale + ')';
+      document.getElementById('zoom-level').textContent = Math.round(_imgScale * 100) + '%';
+    }
+    function adjustZoom(factor) { _setImgScale(_imgScale * factor); }
+    function resetZoom() { _setImgScale(1); }
+
     function openPdfPreview(url, name) {
-      document.getElementById('pdf-modal-frame').src = url;
+      var isPdf = url.toLowerCase().endsWith('.pdf');
+      var frame = document.getElementById('pdf-modal-frame');
+      var imgContainer = document.getElementById('img-modal-container');
+      var imgEl = document.getElementById('img-modal-preview');
+      var zoomControls = document.getElementById('zoom-controls');
+
+      if (isPdf) {
+        frame.src = url;
+        frame.style.display = 'block';
+        imgContainer.style.display = 'none';
+        zoomControls.style.display = 'none';
+      } else {
+        imgEl.src = url;
+        imgContainer.style.display = 'block';
+        frame.style.display = 'none';
+        zoomControls.style.display = 'flex';
+        resetZoom();
+      }
       document.getElementById('pdf-modal-title').textContent = name;
       document.getElementById('pdf-modal').showModal();
     }
@@ -1055,16 +1084,53 @@
       var d = document.getElementById('pdf-modal');
       d.close();
       document.getElementById('pdf-modal-frame').src = '';
+      document.getElementById('img-modal-preview').src = '';
+      resetZoom();
     }
+    document.getElementById('img-modal-container').addEventListener('wheel', function(e) {
+      e.preventDefault();
+      adjustZoom(e.deltaY < 0 ? 1.15 : 0.87);
+    }, { passive: false });
+
+    (function() {
+      var container = document.getElementById('img-modal-container');
+      var dragging = false, startX, startY, scrollLeft, scrollTop;
+      container.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        dragging = true;
+        startX = e.pageX - container.offsetLeft;
+        startY = e.pageY - container.offsetTop;
+        scrollLeft = container.scrollLeft;
+        scrollTop = container.scrollTop;
+        e.preventDefault();
+      });
+      window.addEventListener('mouseup', function() { dragging = false; });
+      container.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        var dx = e.pageX - container.offsetLeft - startX;
+        var dy = e.pageY - container.offsetTop - startY;
+        container.scrollLeft = scrollLeft - dx;
+        container.scrollTop = scrollTop - dy;
+      });
+    }());
   </script>
 
   <dialog id="pdf-modal" aria-labelledby="pdf-modal-title" onclick="if(event.target===this)closePdfModal()">
     <div class="pdf-modal-header">
       <span id="pdf-modal-title"></span>
+      <div class="zoom-controls" id="zoom-controls">
+        <button onclick="adjustZoom(0.8)" title="Dézoomer">−</button>
+        <span id="zoom-level">100%</span>
+        <button onclick="adjustZoom(1.25)" title="Zoomer">+</button>
+        <button onclick="resetZoom()" title="Réinitialiser">↺</button>
+      </div>
       <button class="pdf-modal-close" onclick="closePdfModal()" aria-label="Fermer">✕</button>
     </div>
     <iframe id="pdf-modal-frame" src="" title="Prévisualisation PDF"></iframe>
-    <p class="pdf-modal-hint">Échap ou clic en dehors pour fermer</p>
+    <div id="img-modal-container">
+      <img id="img-modal-preview" src="" alt="Prévisualisation" />
+    </div>
+    <p class="pdf-modal-hint">Échap ou clic en dehors pour fermer • molette pour zoomer</p>
   </dialog>
 
   <script>

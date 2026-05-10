@@ -416,7 +416,34 @@ def create_app(cfg: dict, db_path: Path) -> "Flask":
         for subdir in ("processed", "errors", "input"):
             candidate = HERE / subdir / basename
             if candidate.is_file():
-                return send_file(candidate)
+                suffix = candidate.suffix.lower()
+                mime = "application/pdf" if suffix == ".pdf" else None
+                return send_file(candidate, mimetype=mime, as_attachment=False)
+        abort(404)
+
+    @app.route("/preview/<path:filename>")
+    def preview_file(filename):
+        import io
+        from flask import abort, send_file, Response
+        basename = Path(filename).name
+        for subdir in ("processed", "errors", "input"):
+            candidate = HERE / subdir / basename
+            if candidate.is_file():
+                suffix = candidate.suffix.lower()
+                if suffix == ".pdf":
+                    return send_file(candidate, mimetype="application/pdf", as_attachment=False)
+                if suffix in (".heic", ".heif"):
+                    import pillow_heif
+                    from PIL import Image
+                    pillow_heif.register_heif_opener()
+                    img = Image.open(candidate)
+                    buf = io.BytesIO()
+                    img.save(buf, format="JPEG", quality=85)
+                    buf.seek(0)
+                    return send_file(buf, mimetype="image/jpeg", as_attachment=False)
+                if suffix in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                    return send_file(candidate, as_attachment=False)
+                abort(415)
         abort(404)
 
     return app

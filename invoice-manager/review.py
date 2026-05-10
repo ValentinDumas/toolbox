@@ -72,7 +72,7 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
     now = datetime.now(timezone.utc).isoformat()
     updated = deleted = skipped = 0
 
-    with open(review_file, newline="", encoding="utf-8") as f:
+    with open(review_file, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
             action = row.get("action", "garder").strip().lower()
@@ -85,7 +85,7 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
             elif action == "corriger":
                 updatable = {k: v for k, v in row.items()
                              if k not in ("id", "action") and k in REVIEW_COLS}
-                updatable["statut_révision"] = "révisé"
+                updatable["statut_révision"] = "validé"
                 updatable["révisé_par"] = "user"
                 updatable["date_révision"] = now
                 set_clause = ", ".join(f'"{k}" = ?' for k in updatable)
@@ -97,8 +97,9 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
 
             elif action == "garder":
                 conn.execute(
-                    "UPDATE invoices SET statut_révision = 'révisé', révisé_par = 'user', date_révision = ? WHERE id = ?",
-                    (now, rid)
+                    "UPDATE invoices SET statut_révision = 'validé', révisé_par = 'user', "
+                    "date_révision = ?, validé_le = ? WHERE id = ?",
+                    (now, now, rid)
                 )
                 skipped += 1
 
