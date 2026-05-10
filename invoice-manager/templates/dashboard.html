@@ -407,11 +407,16 @@
     .btn-secondary:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
     .header-actions { display: flex; align-items: center; gap: 12px; }
-    .btn-sync {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 7px 14px; font-size: 14px;
+    .health-sublabel-ok { font-size: 12px; color: var(--on-surface-muted); }
+    .health-card-action {
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      transition: background 0.1s, border-color 0.1s;
     }
-    .btn-sync svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .health-card-action:hover { background: var(--surface-variant); }
+    .health-card-action:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .health-card-action:disabled { opacity: 0.6; cursor: not-allowed; }
     .ocr-preview { margin-top: 8px; font-size: 12px; color: var(--muted); }
     .ocr-preview summary { cursor: pointer; user-select: none; }
     .ocr-preview pre { white-space: pre-wrap; word-break: break-word;
@@ -520,7 +525,8 @@
     #pdf-modal { border:none; border-radius:8px; padding:0; width:90vw; max-width:900px; box-shadow:0 24px 48px rgba(0,0,0,.35); margin:0; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); }
     #pdf-modal::backdrop { background:rgba(0,0,0,.45); }
     .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
-    .pdf-modal-header span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pdf-modal-header span:first-child { flex:1; word-break:break-all; overflow-wrap:break-word; }
+    .cell-filename { max-width:200px; word-break:break-all; overflow-wrap:break-word; }
     .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; flex-shrink:0; }
     .pdf-modal-close:hover { color:#334155; }
     #pdf-modal-frame { display:block; width:100%; height:80vh; border:none; }
@@ -545,17 +551,6 @@
               <option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>
             {% endfor %}
           </select>
-        </form>
-        <form method="post" action="/run" id="run-form">
-          <input type="hidden" name="year" value="{{ year }}">
-          <button type="submit" class="btn-secondary btn-sync" id="run-btn"
-                  aria-label="Lancer le pipeline de traitement des factures"
-                  title="Relance l'extraction et le recalcul complet">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0v2.43l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd"/>
-            </svg>
-            <span id="run-btn-label">Mettre à jour</span>
-          </button>
         </form>
       </div>
     </header>
@@ -618,17 +613,19 @@
         <p class="section-label">Santé</p>
         <div class="health-grid">
 
-          <div class="health-card">
-            <div class="health-dot {{ 'dot-error' if health.pending_files > 0 else 'dot-ok' }}"
-                 aria-hidden="true"></div>
-            <div class="health-info">
-              <div class="health-count">{{ health.pending_files }}</div>
-              <div class="health-label">Fichier{{ 's' if health.pending_files != 1 }} en attente</div>
-              {% if health.pending_files > 0 %}
-              <div class="health-sublabel-error">À traiter — lancer le pipeline</div>
-              {% endif %}
-            </div>
-          </div>
+          <form method="post" action="/run" id="run-form" style="display:contents">
+            <input type="hidden" name="year" value="{{ year }}">
+            <button type="submit" class="health-card health-card-action" id="run-btn"
+                    aria-label="Lancer le pipeline — {{ health.pending_files }} fichier{{ 's' if health.pending_files != 1 }} en attente">
+              <div class="health-dot {{ 'dot-error' if health.pending_files > 0 else 'dot-ok' }}"
+                   aria-hidden="true"></div>
+              <div class="health-info">
+                <div class="health-count">{{ health.pending_files }}</div>
+                <div class="health-label">Fichier{{ 's' if health.pending_files != 1 }} en attente</div>
+                <div class="{{ 'health-sublabel-error' if health.pending_files > 0 else 'health-sublabel-ok' }}">↻ Mettre à jour</div>
+              </div>
+            </button>
+          </form>
 
           <div class="health-card">
             <div class="health-dot {{ 'dot-warning' if health.items_a_reviser > 0 else 'dot-ok' }}"
@@ -984,7 +981,7 @@
               <tbody>
                 {% for item in corbeille_list %}
                 <tr>
-                  <td class="text-muted">{{ item.fichier_source|basename if item.fichier_source else '—' }}</td>
+                  <td class="text-muted cell-filename">{{ item.fichier_source|basename if item.fichier_source else '—' }}</td>
                   <td>{{ item.émetteur_nom or '—' }}</td>
                   <td class="text-right amount">{{ item.montant_ttc | fr_currency if item.montant_ttc is not none else '—' }}</td>
                   <td class="text-muted">{{ item.type_document or '—' }}</td>
@@ -1064,11 +1061,11 @@
       });
     })();
 
-    // Spinner sur le bouton pipeline — pas d'animation sur les données financières
+    // Spinner sur la health card pipeline
     document.getElementById('run-form').addEventListener('submit', function () {
       var btn = document.getElementById('run-btn');
       btn.disabled = true;
-      document.getElementById('run-btn-label').textContent = 'En cours…';
+      btn.querySelector('.health-label').textContent = 'En cours…';
     });
 
     // Navigation clavier sur les lignes de la table
