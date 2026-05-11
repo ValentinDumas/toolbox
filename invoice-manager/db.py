@@ -112,8 +112,9 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
     ]:
         try:
             conn.execute(sql)
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e) and "already exists" not in str(e):
+                raise
 
     # Rewrite legacy status values to the canonical "validé"
     conn.execute(

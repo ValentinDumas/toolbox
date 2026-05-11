@@ -600,17 +600,13 @@ button:hover{background:#1D4ED8cc}
         )
         avatar_file = request.files.get("avatar")
         if avatar_file and avatar_file.filename:
-            try:
-                from PIL import Image
-                img = Image.open(avatar_file.stream).convert("RGB")
-                img.thumbnail((256, 256))
-                buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=80)
-                if buf.tell() <= 512 * 1024:
-                    avatar_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
-                    conn.execute("UPDATE user_profile SET avatar_data=? WHERE id=1", (avatar_b64,))
-            except Exception:
-                pass
+            from PIL import Image
+            img = Image.open(avatar_file.stream).convert("RGB")
+            img.thumbnail((256, 256))
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=80)
+            avatar_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+            conn.execute("UPDATE user_profile SET avatar_data=? WHERE id=1", (avatar_b64,))
         if request.form.get("remove_avatar"):
             conn.execute("UPDATE user_profile SET avatar_data=NULL WHERE id=1")
         conn.commit()
