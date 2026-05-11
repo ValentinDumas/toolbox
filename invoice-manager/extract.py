@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
+from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_AUTO_VALIDE
 from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
 from parsers import (
     _confidence_score,
@@ -237,9 +237,9 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     confiance    = _confidence_score(date_str, ttc, ht, invoice_num, siren or tva_intracom)
     doc_type     = _guess_doc_type(text, user_siren, ttc)
 
-    émetteur_nom = _match_known_emitter(text, known_emitters) if known_emitters else None
-    if not émetteur_nom:
-        émetteur_nom = _parse_emetteur_fallback(text)
+    émetteur_nom = _parse_emetteur_fallback(text)
+    if not émetteur_nom and known_emitters:
+        émetteur_nom = _match_known_emitter(text, known_emitters)
 
     return {
         "id":                       str(uuid.uuid4()),
@@ -284,7 +284,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "fichier_source":           fichier_source,
         "hash_fichier":             None,
         "confiance":                round(confiance, 2),
-        "statut_révision":          STATUT_VALIDE if confiance >= CONFIDENCE_THRESHOLD else STATUT_A_REVISER,
+        "statut_révision":          STATUT_AUTO_VALIDE if confiance >= CONFIDENCE_THRESHOLD else STATUT_A_REVISER,
         "révisé_par":               "auto",
         "date_révision":            datetime.now(timezone.utc).isoformat(),
         "notes_correction":         None,

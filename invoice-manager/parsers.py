@@ -11,7 +11,7 @@ from constants import MONTHS_FR_LONG
 # ── Patterns de numéro de facture ────────────────────────────────────────────
 
 _INVOICE_PATTERNS = [
-    r"(?:facture|invoice|n°|ref|référence)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
+    r"(?:facture|invoice|n°|ref\b|référence)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
     r"(?:ticket|reçu|recu|transaction)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-_/]{3,})",
     r"\b(RT\d{8,})\b",
 ]
