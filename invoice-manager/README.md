@@ -450,7 +450,7 @@ Le dashboard affiche :
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
   - *TVA déductible* : TVA payée sur vos achats fournisseurs — récupérable auprès de l'État
   - *TVA à reverser* : TVA collectée sur vos ventes − TVA déductible = montant net dû au fisc (négatif = crédit de TVA)
-- **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page
+- **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page. Quand des liens de fichiers introuvables sur disque existent, une 4e carte **Liens morts** apparaît avec un compteur et un bouton de purge intégré — elle disparaît une fois la purge effectuée
 
 Navigation par onglets (sous la synthèse) :
 - **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Chaque ligne avec un fichier affiche deux icônes : 🔍 ouvre une prévisualisation PDF inline (modale dans le navigateur), 📥 télécharge le fichier directement

@@ -118,11 +118,24 @@ def query_health(conn: sqlite3.Connection, paths: dict) -> dict:
         (STATUT_VALIDE,),
     ).fetchone()[0]
 
+    rows = conn.execute(
+        "SELECT fichier_source FROM invoices WHERE fichier_source IS NOT NULL"
+    ).fetchall()
+    dead_links = sum(
+        1 for row in rows
+        if not any(
+            (paths[d] / Path(row["fichier_source"]).name).is_file()
+            for d in ("processed", "errors", "input")
+            if paths[d].exists()
+        )
+    )
+
     return {
         "pending_files": count_files("input"),
         "items_a_reviser": items_a_reviser,
         "validés_count": validés_count,
         "error_files": count_files("errors"),
+        "dead_links": dead_links,
     }
 
 
