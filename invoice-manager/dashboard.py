@@ -197,8 +197,6 @@ def create_app() -> "Flask":
 
     from flask import Flask, jsonify, redirect, render_template, render_template_string, request, session, url_for
 
-    import os
-
     app = Flask(__name__, template_folder=str(HERE / "templates"))
     app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
     app.jinja_env.filters["fr_currency"] = _fr_currency
