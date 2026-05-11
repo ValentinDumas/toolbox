@@ -118,56 +118,80 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 
 ## Structure du projet
 
+Le code est organisé en couches : pipeline CLI (lecture/écriture des fichiers), application Flask (entrée + factory + blueprints orientés domaine + services + queries), domaine partagé (DB, profils, parseurs, constantes), et templates Jinja.
+
 ```
-0_INVOICES/
+invoice-manager/
 │
-├── run.py                  ← point d'entrée unique (extract → review → export)
+├── ── Pipeline CLI ─────────────────────────────────────────────────────
+├── run.py                  ← orchestrateur : dédoublonne → extrait → exporte
+├── extract.py              ← lecture fichiers (PDF/OCR/HEIC) → DB
+├── review.py               ← révision batch via review.csv (export/import)
+├── export.py               ← génération ledger CSV + XLSX (4 onglets)
+├── init_workspace.py       ← initialisation d'un nouvel espace de travail
 │
-├── extract.py              ← brique 1 : lecture et structuration des fichiers
-├── review.py               ← brique 2 : révision batch des extractions incertaines
-├── export.py               ← brique 3 : génération du carnet de compte
-├── dashboard.py            ← point d'entrée CLI (http://localhost:7800)
-├── app.py                  ← factory Flask : enregistre blueprints, before_request, route /
-├── context_helpers.py      ← helpers de session/profil partagés (active_slug, active_db…)
-├── queries.py              ← fonctions de lecture SQLite pures (KPI fiscaux, ledger, santé…)
-├── services/
-│   └── revision.py         ← logique métier de la révision (parse, validate, recompute, persist)
-├── blueprints/
-│   ├── factures.py         ← agrégat Facture · REST (PATCH/DELETE /factures/<id>, /valider…)
-│   ├── profils.py          ← /profils, /configuration (wizard onboarding)
-│   ├── parametres.py       ← /parametres/profil, /parametres/enseignes, /parametres/ocr
-│   └── pipeline.py         ← /pipeline/lancer, /pipeline/depot, /fichiers/<path>, /apercu/<path>
+├── ── Application web Flask ────────────────────────────────────────────
+├── dashboard.py            ← point d'entrée CLI (argparse + app.run)
+├── app.py                  ← factory : Flask(), blueprints, before_request, route /, filtres Jinja
+├── context_helpers.py      ← helpers session/profil : active_slug, active_paths, active_db, get_profile
+├── queries.py              ← lectures SQLite pures (KPI fiscaux, ledger, santé, corbeille, à réviser…)
+│
+├── services/               ← logique métier (couche domaine)
+│   ├── __init__.py
+│   └── revision.py         ← workflow révision : _parse, _validate, _recompute_confidence, _build_log, _persist
+│
+├── blueprints/             ← contextes bornés (DDD), un blueprint = un agrégat / un domaine
+│   ├── __init__.py
+│   ├── factures.py         ← Facture : PATCH /factures/<id>, DELETE /factures/<id>,
+│   │                          POST /factures/<id>/{valider, restaurer, reinitialiser},
+│   │                          POST /factures/{reinitialiser-revisions, ouvrir-revision}
+│   ├── profils.py          ← Identité / onboarding : GET /profils, POST /profils,
+│   │                          POST /profils/<slug>/activer, GET|POST /configuration
+│   ├── parametres.py       ← Paramètres : GET /parametres, POST /parametres/profil,
+│   │                          POST /parametres/enseignes, DELETE /parametres/enseignes/<id>,
+│   │                          POST /parametres/ocr
+│   └── pipeline.py         ← Ingestion + fichiers : POST /pipeline/{lancer, depot, purger-liens-morts},
+│                              POST /pipeline/erreurs/<fn>/reessayer, DELETE /pipeline/erreurs/<fn>,
+│                              GET /fichiers/<path>, GET /apercu/<path>
+│
+├── ── Domaine partagé ──────────────────────────────────────────────────
+├── db.py                   ← schéma SQLite, migrations, helpers profil/OCR/enseignes
 ├── profiles.py             ← résolution des chemins par profil + migration legacy
-├── db.py                   ← schéma SQLite, migrations, helpers (profil, OCR, enseignes)
+├── parsers.py              ← regex et heuristiques d'extraction (dates, montants, SIREN, doc_type)
 ├── config.py               ← CADENCE_DEFAULTS par statut fiscal
-├── constants.py            ← constantes partagées (statuts, seuils, types)
+├── constants.py            ← constantes partagées (statuts, seuils, types de documents)
 │
+├── ── Vues Jinja ───────────────────────────────────────────────────────
 ├── templates/
-│   ├── dashboard.html      ← vue principale du ledger
-│   ├── setup.html          ← wizard de premier lancement (SIREN + profil fiscal)
+│   ├── dashboard.html      ← vue principale du ledger (synthèse + onglets)
 │   ├── settings.html       ← paramètres utilisateur (/parametres)
+│   ├── setup.html          ← wizard /configuration (SIREN + profil fiscal)
 │   ├── error.html          ← page d'erreur base de données
 │   └── profils/
-│       └── premiere_page.html ← page de bienvenue (premier lancement)
+│       └── premiere_page.html ← page de bienvenue (avant tout profil créé)
 │
+├── ── Données par profil ───────────────────────────────────────────────
 ├── data/
 │   └── profiles/
 │       ├── entreprise-principale/
-│       │   ├── invoices.db  ← DB migrée automatiquement depuis data/invoices.db
-│       │   ├── input/       ← déposer les fichiers ici
-│       │   ├── processed/   ← fichiers traités avec succès
-│       │   ├── errors/      ← fichiers non reconnus
-│       │   ├── output/      ← exports CSV et XLSX
-│       │   └── review/      ← review.csv pour révision batch
-│       └── {slug}/          ← même structure pour chaque profil
+│       │   ├── invoices.db ← DB migrée automatiquement depuis data/invoices.db (legacy)
+│       │   ├── input/      ← déposer les fichiers ici
+│       │   ├── processed/  ← fichiers traités avec succès
+│       │   ├── errors/     ← fichiers non reconnus
+│       │   ├── output/     ← exports CSV et XLSX
+│       │   └── review/     ← review.csv pour révision batch
+│       └── {slug}/         ← même structure pour chaque profil
 │           └── invoices.db
 │
-├── tests/                  ← suite pytest (173 tests)
-│   ├── test_config.py
-│   ├── test_extract.py
-│   ├── test_review.py
-│   ├── test_export.py
-│   └── test_dashboard.py
+├── ── Tests pytest (173 tests) ─────────────────────────────────────────
+├── tests/
+│   ├── conftest.py         ← fixtures partagées (tmp_db, tmp_project, make_pdf)
+│   ├── test_config.py      ← CADENCE_DEFAULTS par statut fiscal
+│   ├── test_db.py          ← garde-fou migrations, PRAGMA user_version
+│   ├── test_extract.py     ← OCR, parseurs, _guess_doc_type, magic bytes, dédoublonnage
+│   ├── test_review.py      ← workflow CSV : export/import, actions, reclassify
+│   ├── test_export.py      ← filtres année/statut, 4 onglets XLSX, calculs récap
+│   └── test_dashboard.py   ← routes Flask (PATCH/DELETE/POST), queries, services
 │
 ├── demo/                   ← simulation pipeline complète (PDFs générés à la volée)
 │   └── run_all.py          ← génère des PDFs synthétiques et vérifie chaque profil
@@ -178,6 +202,17 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
     ├── sarl/input/                ← facture_émise · facture_reçue · avoir · note_de_frais
     ├── salarie/input/             ← note_de_frais · formation · reçu transport
     └── generate_fixtures.py       ← script pour regénérer les PDFs si besoin
+```
+
+### Règle de dépendance
+
+```
+dashboard.py  →  app.py  →  blueprints/*
+                            ↓
+                            context_helpers.py · queries.py · services/* · db.py · profiles.py
+```
+
+Les couches basses (DB, parseurs, profils) **ne connaissent jamais** les couches hautes (blueprints, app). Les blueprints communiquent entre eux uniquement via les modules partagés (jamais d'import direct entre blueprints).
 ```
 
 ## Guides de développement
@@ -392,10 +427,11 @@ python3 -m pytest tests/ -v
 | Fichier | Ce qui est testé |
 |---|---|
 | `test_config.py` | `CADENCE_DEFAULTS` — valeurs par statut fiscal |
+| `test_db.py` | Garde-fou des migrations, PRAGMA `user_version`, migration legacy DB |
 | `test_extract.py` | `_parse_date`, `_parse_amount`, SIREN/SIRET/TVA, catégories, `_guess_doc_type`, pipeline complet, magic bytes, dédoublonnage, EasyOCR fallback |
 | `test_review.py` | Export batch, import garder/corriger/supprimer, reclassify export/import/auto, cas limite (DB/CSV absents) |
 | `test_export.py` | Filtres année/statut, colonnes CSV, 4 onglets XLSX, calculs récapitulatif, sheet Statistiques, deadlines |
-| `test_dashboard.py` | Routes Flask, édition inline, soft-delete, corbeille, santé, erreurs (retry/delete/purge), upload |
+| `test_dashboard.py` | Routes Flask (PATCH/DELETE /factures, POST /pipeline/*, /parametres/*), queries pures, services révision, édition inline, soft-delete, corbeille |
 
 ---
 
