@@ -378,6 +378,100 @@ def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
     assert resp.get_json()["ok"] is False
 
 
+def test_post_review_save_invalid_amount_returns_errors(mem_db, tmp_path, monkeypatch):
+    """Non-numeric montant → ok=False with per-field errors dict, no DB write."""
+    _insert_invoice(mem_db, id="rev-amt", statut_révision="à_réviser", exercice_fiscal=2025)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/review/rev-amt/save", data={
+            "montant_ht": "abc",
+            "montant_tva": "not-a-number",
+            "date_document": "2025-03-01",
+        })
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "montant_ht" in data["errors"] or "montant_tva" in data["errors"]
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT statut_révision FROM invoices WHERE id='rev-amt'").fetchone()
+    check.close()
+    assert row["statut_révision"] == "à_réviser"
+
+
+def test_post_review_save_missing_date_returns_error(mem_db, tmp_path, monkeypatch):
+    """No date in form and no date in DB → error on date_document field."""
+    _insert_invoice(mem_db, id="rev-date", statut_révision="à_réviser",
+                    exercice_fiscal=2025, date_document=None,
+                    montant_ht=100.0, montant_ttc=120.0)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/review/rev-date/save", data={
+            "montant_ht": "100.0",
+            "date_document": "",
+        })
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "date_document" in data["errors"]
+
+
+def test_post_review_save_validated_low_confidence_demotes(mem_db, tmp_path, monkeypatch):
+    """Validated item corrected to confidence < 0.8 must be demoted back to à_réviser."""
+    # Insert with statut_révision=validé and minimal DB data (no fiscal_id, no invoice_num)
+    # so that posting date+ht only yields 2/5 fields → confidence 0.4 < 0.8
+    _insert_invoice(mem_db, id="rev-dem", statut_révision="validé",
+                    exercice_fiscal=2025, date_document="2025-03-01",
+                    montant_ht=100.0, montant_ttc=None, montant_tva=None)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/review/rev-dem/save", data={
+            "date_document": "2025-03-01",
+            "montant_ht": "100.0",
+            # no numéro_facture, no montant_ttc, no émetteur_siren in DB → 2/5 = 0.4
+        })
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["warning"] is not None
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT statut_révision, confiance FROM invoices WHERE id='rev-dem'").fetchone()
+    check.close()
+    assert row["statut_révision"] == "à_réviser"
+    assert row["confiance"] < 0.8
+
+
+def test_post_review_save_corrections_log_appended_on_post_validation_edit(mem_db, tmp_path, monkeypatch):
+    """Editing an already-validated item appends a diff entry to corrections_log."""
+    import json as _json
+    _insert_invoice(mem_db, id="rev-log", statut_révision="validé",
+                    exercice_fiscal=2025, émetteur_nom="Ancien Nom",
+                    date_document="2025-03-01", montant_ht=100.0,
+                    montant_ttc=120.0, numéro_facture="FR001")
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/review/rev-log/save", data={
+            "date_document": "2025-03-01",
+            "montant_ht": "100.0",
+            "montant_ttc": "120.0",
+            "numéro_facture": "FR001",
+            "émetteur_nom": "Nouveau Nom",
+        })
+    assert resp.get_json()["ok"] is True
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT corrections_log FROM invoices WHERE id='rev-log'").fetchone()
+    check.close()
+    log = _json.loads(row["corrections_log"])
+    assert len(log) >= 1
+    champs = [entry["champ"] for entry in log]
+    assert "émetteur_nom" in champs
+    nom_entry = next(e for e in log if e["champ"] == "émetteur_nom")
+    assert nom_entry["avant"] == "Ancien Nom"
+    assert nom_entry["après"] == "Nouveau Nom"
+
+
 def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     """Delete must soft-delete (set deleted_at), not remove the row."""
     _insert_invoice(mem_db, id="del1", statut_révision="à_réviser", exercice_fiscal=2025)
