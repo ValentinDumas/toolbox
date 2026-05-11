@@ -95,4 +95,31 @@ def maybe_migrate_legacy() -> str | None:
     entry = create_profile("Entreprise principale")
     dest = PROFILES_DIR / entry["slug"] / "invoices.db"
     shutil.move(str(LEGACY_DB), str(dest))
+    migrate_legacy_files(entry["slug"])
     return entry["slug"]
+
+
+def migrate_legacy_files(slug: str) -> dict[str, int]:
+    """
+    Déplace les fichiers des dossiers legacy (processed/, errors/, input/) vers
+    le dossier du profil. Idempotent — ignore les fichiers déjà présents.
+    Retourne le nombre de fichiers déplacés par dossier.
+    """
+    counts: dict[str, int] = {}
+    for subdir in ("processed", "errors", "input"):
+        src_dir = HERE / subdir
+        dst_dir = PROFILES_DIR / slug / subdir
+        if not src_dir.exists():
+            continue
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        moved = 0
+        for f in src_dir.iterdir():
+            if not f.is_file():
+                continue
+            dst = dst_dir / f.name
+            if dst.exists():
+                continue
+            shutil.move(str(f), dst)
+            moved += 1
+        counts[subdir] = moved
+    return counts

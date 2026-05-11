@@ -361,6 +361,33 @@ button:hover{background:#1D4ED8cc}
         target.unlink()
         return redirect(f"/?year={year}")
 
+    @app.route("/purge-dead-links", methods=["POST"])
+    def purge_dead_links():
+        slug = _active_slug()
+        if not slug:
+            return jsonify({"ok": False, "error": "Aucun profil actif"}), 400
+        paths = resolve_paths(slug)
+        conn = open_db(paths["db"])
+        rows = conn.execute(
+            "SELECT id, fichier_source FROM invoices WHERE fichier_source IS NOT NULL"
+        ).fetchall()
+        purged = 0
+        for row in rows:
+            basename = Path(row["fichier_source"]).name
+            found = any(
+                (paths[d] / basename).is_file()
+                for d in ("processed", "errors", "input")
+                if paths[d].exists()
+            )
+            if not found:
+                conn.execute(
+                    "UPDATE invoices SET fichier_source=NULL WHERE id=?", (row["id"],)
+                )
+                purged += 1
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True, "purged": purged})
+
     @app.route("/setup", methods=["GET", "POST"])
     def setup():
         conn = open_db(_active_db())

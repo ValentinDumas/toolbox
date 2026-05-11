@@ -945,6 +945,14 @@
           </div>
 
         </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button type="button" class="btn-secondary" id="purge-btn"
+                  onclick="purgeDeadLinks()"
+                  aria-label="Purger les liens de fichiers introuvables sur disque"
+                  style="font-size:12px;padding:4px 10px">
+            🗑 Purger liens morts
+          </button>
+        </div>
       </section>
 
       {# ── Tab bar ───────────────────────────────────────────────────────────── #}
@@ -1487,6 +1495,27 @@
       body.textContent = btn.dataset.deleteLabel;
       modal.classList.add('open');
       document.getElementById('modal-cancel').focus();
+    }
+
+    function purgeDeadLinks() {
+      var btn = document.getElementById('purge-btn');
+      btn.disabled = true;
+      btn.textContent = '…';
+      fetch('/purge-dead-links', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            btn.textContent = data.purged > 0
+              ? '✓ ' + data.purged + ' lien' + (data.purged > 1 ? 's' : '') + ' purgé' + (data.purged > 1 ? 's' : '')
+              : '✓ Aucun lien mort';
+            if (data.purged > 0) { setTimeout(function () { location.reload(); }, 1200); }
+            else { setTimeout(function () { btn.disabled = false; btn.textContent = '🗑 Purger liens morts'; }, 2000); }
+          } else {
+            btn.disabled = false;
+            btn.textContent = '🗑 Purger liens morts';
+          }
+        })
+        .catch(function () { btn.disabled = false; btn.textContent = '🗑 Purger liens morts'; });
     }
     document.getElementById('delete-modal').addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { this.classList.remove('open'); }
