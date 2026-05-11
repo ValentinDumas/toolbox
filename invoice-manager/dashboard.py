@@ -224,6 +224,16 @@ def create_app() -> "Flask":
         conn.close()
         return profile
 
+    def _trigger_pipeline(slug: str) -> None:
+        threading.Thread(
+            target=lambda: subprocess.run(
+                [sys.executable, str(HERE / "run.py"), "--profile", slug],
+                cwd=str(HERE),
+                capture_output=True,
+            ),
+            daemon=True,
+        ).start()
+
     @app.context_processor
     def inject_profile_context():
         return {
@@ -316,14 +326,7 @@ button:hover{background:#1D4ED8cc}
                 f.save(dest)
                 saved.append(f.filename)
 
-        def _run_extraction():
-            subprocess.run(
-                [sys.executable, str(HERE / "run.py"), "--profile", slug],
-                cwd=str(HERE),
-                capture_output=True,
-            )
-
-        threading.Thread(target=_run_extraction, daemon=True).start()
+        _trigger_pipeline(slug)
         return jsonify({"ok": True, "files": saved, "count": len(saved)})
 
     @app.route("/errors/<filename>/retry", methods=["POST"])
@@ -338,13 +341,7 @@ button:hover{background:#1D4ED8cc}
         dest = paths["input"] / src.name
         shutil.move(str(src), dest)
 
-        def _run():
-            subprocess.run(
-                [sys.executable, str(HERE / "run.py"), "--profile", slug],
-                cwd=str(HERE), capture_output=True,
-            )
-
-        threading.Thread(target=_run, daemon=True).start()
+        _trigger_pipeline(slug)
         return jsonify({"ok": True})
 
     @app.route("/errors/<filename>/delete", methods=["POST"])
