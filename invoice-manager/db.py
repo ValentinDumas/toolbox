@@ -87,9 +87,6 @@ CREATE TABLE IF NOT EXISTS invoices (
 )
 """
 
-_LEGACY_STATUSES = f"'{STATUT_PRET}', '{STATUT_AUTO_VALIDE}', '{STATUT_REVISE}'"
-
-
 def open_db(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
@@ -121,8 +118,8 @@ def open_db(path: Path) -> sqlite3.Connection:
             conn.execute(sql)
     # Rename legacy statuses
     conn.execute(
-        f"UPDATE invoices SET statut_révision='{STATUT_VALIDE}' "
-        f"WHERE statut_révision IN ({_LEGACY_STATUSES})"
+        "UPDATE invoices SET statut_révision=? WHERE statut_révision IN (?,?,?)",
+        (STATUT_VALIDE, STATUT_PRET, STATUT_AUTO_VALIDE, STATUT_REVISE),
     )
     conn.commit()
     return conn
