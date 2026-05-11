@@ -348,9 +348,8 @@
       border-bottom: 1px solid var(--border);
     }
     .review-section {
-      margin-top: 32px;
-      padding-top: 24px;
-      border-top: 2px solid var(--warning);
+      margin-top: 0;
+      padding-top: 0;
     }
     .review-item {
       background: white;
@@ -730,13 +729,15 @@
     .btn-reviser-badge:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     tr:hover .btn-reviser-badge { display: inline-block; }
     .review-item-title-link {
-      color: inherit; text-decoration: none; cursor: pointer;
-      border-bottom: 1px dashed currentColor;
+      background: none; border: none; padding: 0;
+      color: var(--on-surface); font-size: inherit; font-weight: 600;
+      cursor: pointer; text-align: left; display: inline-flex; align-items: center; gap: 8px;
     }
     .review-item-title-link:hover, .review-item-title-link:focus {
-      color: var(--primary); border-bottom-color: var(--primary); outline: none;
+      color: var(--primary); outline: none; text-decoration: underline;
     }
-    .review-item-title-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
+    .review-item-title-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; text-decoration: none; }
+    .review-item-title-date { font-weight: 400; color: var(--on-surface-muted); font-size: 12px; }
     #pdf-modal { border:none; border-radius:8px; padding:0; width:90vw; max-width:900px; box-shadow:0 24px 48px rgba(0,0,0,.35); margin:0; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); }
     #pdf-modal::backdrop { background:rgba(0,0,0,.45); }
     .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
@@ -1004,7 +1005,6 @@
       <div role="tabpanel" id="panel-ledger" aria-labelledby="tab-ledger">
 
         <section aria-label="Ledger {{ year }}">
-          <h2 class="section-label">Ledger — {{ ledger.total_count }} entrée{{ 's' if ledger.total_count != 1 }}</h2>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -1204,7 +1204,6 @@
       <div role="tabpanel" id="panel-reviser" aria-labelledby="tab-reviser" hidden>
         {% if items_a_reviser_list %}
         <section class="review-section" aria-label="Items à réviser">
-          <h2 class="section-label">À réviser ({{ items_a_reviser_list|length }})</h2>
           {% for item in items_a_reviser_list %}
           {% set item_label = item.émetteur_nom or (item.fichier_source|basename) or 'Document inconnu' %}
           <div class="review-item" id="review-{{ item.id }}">
@@ -1212,11 +1211,10 @@
               {%- if item.fichier_source -%}
               <button type="button" class="review-item-title-link"
                       onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')"
-                      aria-label="Prévisualiser {{ item.fichier_source|basename }}">{{ item_label }}</button>
+                      aria-label="Prévisualiser {{ item.fichier_source|basename }}">{{ item_label }}<span class="review-item-title-date">{{ item.date_document or '—' }}</span></button>
               {%- else -%}
-              <span>{{ item_label }}</span>
+              <span>{{ item_label }}<span class="review-item-title-date" style="margin-left:8px">{{ item.date_document or '—' }}</span></span>
               {%- endif -%}
-              <span>{{ item.date_document or '—' }}</span>
               {% if item.confiance is not none %}
                 {% if item.confiance < 0.4 %}
                 <span class="badge badge-overdue" title="Score basé sur les champs extraits : date, TTC, HT, n° facture, SIREN">Confiance {{ (item.confiance * 100)|int }}%</span>
@@ -1346,7 +1344,6 @@
       <div role="tabpanel" id="panel-corbeille" aria-labelledby="tab-corbeille" hidden>
         {% if corbeille_list %}
         <section class="corbeille-section" aria-label="Corbeille">
-          <h2 class="section-label">Corbeille ({{ corbeille_list|length }})</h2>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -1389,7 +1386,6 @@
       <div role="tabpanel" id="panel-erreurs" aria-labelledby="tab-erreurs" hidden>
         {% if errors_list %}
         <section aria-label="Fichiers en erreur">
-          <h2 class="section-label">Erreurs ({{ errors_list|length }})</h2>
           <div class="table-wrapper">
             <table>
               <thead>

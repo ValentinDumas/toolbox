@@ -127,6 +127,29 @@
       transition: background .1s, color .1s, border-color .1s;
     }
     .dpi-seg.active, .dpi-seg:hover { background: #EFF6FF; color: var(--primary); border-color: var(--primary); }
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px);
+      background: #1e293b; color: #fff; padding: .65rem 1.25rem; border-radius: 8px;
+      font-size: .875rem; font-weight: 500; opacity: 0; transition: opacity .2s, transform .2s;
+      pointer-events: none; z-index: 9999; white-space: nowrap;
+    }
+    .toast.toast-success { background: var(--success); }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Confirm modal */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 10px; padding: 1.5rem; max-width: 400px; width: 90%;
+      box-shadow: 0 20px 40px rgba(0,0,0,.25);
+    }
+    .modal-box h2 { font-size: 1rem; font-weight: 600; margin-bottom: .5rem; }
+    .modal-box p { font-size: .875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: .75rem; }
   </style>
   <script>
     function initRangeSlider(inputId, readoutId, unit) {
@@ -271,7 +294,7 @@
                   <td>{{ e.nom }}</td>
                   <td style="text-align:right;">
                     <form method="post" action="/settings/enseignes/{{ e.id }}/delete" style="display:inline;">
-                      <button type="submit" class="btn btn-danger" onclick="return confirm('Supprimer « {{ e.keyword }} » ?')">Supprimer</button>
+                      <button type="button" class="btn btn-danger btn-delete-enseigne" data-keyword="{{ e.keyword }}">Supprimer</button>
                     </form>
                   </td>
                 </tr>
@@ -405,5 +428,66 @@
       </div>
     </div>
   </div>
+  {# Toast #}
+  <div id="toast" class="toast toast-success" role="status" aria-live="polite"></div>
+
+  {# Enseigne delete confirm modal #}
+  <div id="enseigne-delete-modal" class="modal-backdrop" role="alertdialog" aria-modal="true"
+       aria-labelledby="enseigne-modal-title" aria-describedby="enseigne-modal-desc">
+    <div class="modal-box">
+      <h2 id="enseigne-modal-title">Supprimer cette enseigne ?</h2>
+      <p id="enseigne-modal-desc">L'enseigne <strong id="enseigne-modal-keyword"></strong> sera supprimée définitivement.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="enseigne-modal-cancel">Annuler</button>
+        <button type="button" class="btn btn-danger" id="enseigne-modal-confirm">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toast
+    {% if saved %}
+    (function() {
+      var t = document.getElementById('toast');
+      t.textContent = 'Profil mis à jour avec succès';
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 3000);
+    })();
+    {% endif %}
+
+    // Enseigne delete modal
+    var _pendingDeleteForm = null;
+    document.querySelectorAll('.btn-delete-enseigne').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        _pendingDeleteForm = btn.closest('form');
+        document.getElementById('enseigne-modal-keyword').textContent = btn.dataset.keyword;
+        var modal = document.getElementById('enseigne-delete-modal');
+        modal.classList.add('open');
+        document.getElementById('enseigne-modal-cancel').focus();
+      });
+    });
+    document.getElementById('enseigne-modal-cancel').addEventListener('click', function() {
+      document.getElementById('enseigne-delete-modal').classList.remove('open');
+      _pendingDeleteForm = null;
+    });
+    document.getElementById('enseigne-modal-confirm').addEventListener('click', function() {
+      if (_pendingDeleteForm) _pendingDeleteForm.submit();
+    });
+    document.getElementById('enseigne-delete-modal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') document.getElementById('enseigne-delete-modal').classList.remove('open');
+    });
+    // Focus trap in modal
+    document.getElementById('enseigne-delete-modal').addEventListener('keydown', function(e) {
+      if (e.key !== 'Tab') return;
+      var focusable = this.querySelectorAll('button');
+      var first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  </script>
 </body>
 </html>

@@ -551,12 +551,14 @@ button:hover{background:#1D4ED8cc}
         extraction_cfg = get_extraction_cfg(conn)
         conn.close()
         section = request.args.get("section", "profil")
+        saved = request.args.get("saved") == "1"
         from config import CADENCE_DEFAULTS
         return render_template(
             "settings.html",
             profile=profile,
             emitters=emitters,
             section=section,
+            saved=saved,
             cadence_defaults=CADENCE_DEFAULTS,
             extraction_cfg=extraction_cfg,
         )
@@ -581,11 +583,11 @@ button:hover{background:#1D4ED8cc}
         )
         conn.commit()
         conn.close()
-        return redirect(url_for("settings", section="profil"))
+        return redirect(url_for("settings", section="profil", saved="1"))
 
     @app.route("/settings/enseignes/add", methods=["POST"])
     def settings_enseignes_add():
-        keyword = request.form.get("keyword", "").strip().lower()
+        keyword = request.form.get("keyword", "").strip()
         nom = request.form.get("nom", "").strip()
         if keyword and nom:
             conn = open_db(_active_db())
