@@ -87,41 +87,34 @@ CREATE TABLE IF NOT EXISTS invoices (
 )
 """
 
-_LEGACY_STATUSES = f"'{STATUT_PRET}', '{STATUT_AUTO_VALIDE}', '{STATUT_REVISE}'"
-
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
+def _run_migrations(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
 
-    existing_invoices = {row[1] for row in conn.execute("PRAGMA table_info(invoices)")}
-    for col, sql in [
-        ("texte_brut",      "ALTER TABLE invoices ADD COLUMN texte_brut TEXT"),
-        ("validé_le",       "ALTER TABLE invoices ADD COLUMN validé_le TEXT"),
-        ("corrections_log", "ALTER TABLE invoices ADD COLUMN corrections_log TEXT DEFAULT '[]'"),
-        ("deleted_at",      "ALTER TABLE invoices ADD COLUMN deleted_at TEXT"),
-        ("deleted_by",      "ALTER TABLE invoices ADD COLUMN deleted_by TEXT"),
+    for sql in [
+        "ALTER TABLE invoices ADD COLUMN texte_brut TEXT",
+        "ALTER TABLE invoices ADD COLUMN validé_le TEXT",
+        "ALTER TABLE invoices ADD COLUMN corrections_log TEXT DEFAULT '[]'",
+        "ALTER TABLE invoices ADD COLUMN deleted_at TEXT",
+        "ALTER TABLE invoices ADD COLUMN deleted_by TEXT",
+        "ALTER TABLE user_profile ADD COLUMN ocr_backend TEXT DEFAULT 'local'",
+        "ALTER TABLE user_profile ADD COLUMN ocr_confidence_threshold REAL DEFAULT 0.8",
+        "ALTER TABLE user_profile ADD COLUMN ocr_lang TEXT DEFAULT 'fra+eng'",
+        "ALTER TABLE user_profile ADD COLUMN ocr_dpi INTEGER DEFAULT 300",
+        "ALTER TABLE user_profile ADD COLUMN ocr_preprocess INTEGER DEFAULT 1",
+        "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_fallback INTEGER DEFAULT 0",
+        "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_threshold REAL DEFAULT 0.4",
     ]:
-        if col not in existing_invoices:
+        try:
             conn.execute(sql)
-
-    existing_profile = {row[1] for row in conn.execute("PRAGMA table_info(user_profile)")}
-    for col, sql in [
-        ("ocr_backend",              "ALTER TABLE user_profile ADD COLUMN ocr_backend TEXT DEFAULT 'local'"),
-        ("ocr_confidence_threshold", "ALTER TABLE user_profile ADD COLUMN ocr_confidence_threshold REAL DEFAULT 0.8"),
-        ("ocr_lang",                 "ALTER TABLE user_profile ADD COLUMN ocr_lang TEXT DEFAULT 'fra+eng'"),
-        ("ocr_dpi",                  "ALTER TABLE user_profile ADD COLUMN ocr_dpi INTEGER DEFAULT 300"),
-        ("ocr_preprocess",           "ALTER TABLE user_profile ADD COLUMN ocr_preprocess INTEGER DEFAULT 1"),
-        ("ocr_easyocr_fallback",     "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_fallback INTEGER DEFAULT 0"),
-        ("ocr_easyocr_threshold",    "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_threshold REAL DEFAULT 0.4"),
-    ]:
-        if col not in existing_profile:
-            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass
 
     conn.execute(
-        f"UPDATE invoices SET statut_révision='{STATUT_VALIDE}' "
-        f"WHERE statut_révision IN ({_LEGACY_STATUSES})"
+        "UPDATE invoices SET statut_révision=? WHERE statut_révision IN (?,?,?)",
+        (STATUT_VALIDE, STATUT_PRET, STATUT_AUTO_VALIDE, STATUT_REVISE),
     )
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -134,7 +127,7 @@ def open_db(path: Path) -> sqlite3.Connection:
 
     current_version = conn.execute("PRAGMA user_version").fetchone()[0]
     if current_version < SCHEMA_VERSION:
-        _migrate(conn)
+        _run_migrations(conn)
 
     return conn
 
