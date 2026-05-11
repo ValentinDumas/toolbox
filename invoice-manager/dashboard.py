@@ -39,19 +39,19 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
         "SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND deleted_at IS NULL",
         year, "facture_émise",
     )
-    ph = ",".join("?" * len(EXPENSE_TYPES))
+    ph_expense = ",".join("?" * len(EXPENSE_TYPES))
+    ph_validated = ",".join("?" * len(VALIDATED_STATUSES))
     tva_deductible = conn.execute(
-        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND deleted_at IS NULL",
+        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES),
     ).fetchone()[0] or 0.0
 
-    ph_v = ",".join("?" * len(VALIDATED_STATUSES))
     total_charges = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision IN ({ph_v}) AND deleted_at IS NULL",
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision IN ({ph_validated}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES, *VALIDATED_STATUSES),
     ).fetchone()[0] or 0.0
     row_revision = conn.execute(
-        f"SELECT COUNT(*), COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph}) AND statut_révision=? AND deleted_at IS NULL",
+        f"SELECT COUNT(*), COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision=? AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES, STATUT_A_REVISER),
     ).fetchone()
     nb_charges_revision = row_revision[0] or 0
