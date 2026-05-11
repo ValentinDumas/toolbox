@@ -432,11 +432,9 @@ button:hover{background:#1D4ED8cc}
         conn = open_db(_active_db())
         profile = get_user_profile(conn)
         emitters = conn.execute("SELECT * FROM known_emitters ORDER BY keyword").fetchall()
+        extraction_cfg = get_extraction_cfg(conn)
         conn.close()
         section = request.args.get("section", "profil")
-        conn2 = open_db(_active_db())
-        extraction_cfg = get_extraction_cfg(conn2)
-        conn2.close()
         from config import CADENCE_DEFAULTS
         return render_template(
             "settings.html",
