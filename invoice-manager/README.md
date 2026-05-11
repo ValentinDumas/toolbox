@@ -92,7 +92,7 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 | TVA intracommunautaire | Profil | FR + 2 chiffres + SIREN |
 | Profil fiscal | Profil | `auto-entrepreneur` · `SASU` · `SARL` · `salarié` |
 | Cadence déclaration | Profil | Vide = cadence par défaut du profil |
-| Enseignes connues | Enseignes | Mot-clé → nom canonique pour les tickets illisibles |
+| Enseignes connues | Enseignes | Mot-clé → nom canonique pour les tickets illisibles. La casse du mot-clé et du nom est préservée telle que saisie |
 | Backend OCR | App | `local` (offline) ou `claude` (Vision API) |
 | Seuil confiance | App | Sous lequel l'item passe en révision (défaut `0.8`) |
 | Langue OCR | App | Langues Tesseract (défaut `fra+eng`) |
@@ -454,14 +454,15 @@ Le dashboard affiche :
 
 Navigation par onglets (sous la synthèse) :
 - **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Chaque ligne avec un fichier affiche deux icônes : 🔍 ouvre une prévisualisation PDF inline (modale dans le navigateur), 📥 télécharge le fichier directement
-- **À réviser (N)** : items non encore validés — édition directe dans le navigateur (8 champs). Onglet grisé et non cliquable si aucun item
+- **À réviser (N)** : items non encore validés — édition directe dans le navigateur (8 champs). Le titre de chaque carte (émetteur + date) est cliquable et ouvre la prévisualisation PDF inline. Onglet grisé et non cliquable si aucun item
 - **Corbeille (N)** : documents supprimés avec date de suppression et bouton Restaurer. Onglet grisé si vide
 - **Erreurs (N)** : fichiers que l'extraction n'a pas pu traiter (format non reconnu, parsing échoué). Liste avec nom, taille, date, 🔍 prévisualisation. Actions par fichier : **↩ Réessayer** (remet dans `input/` et relance l'extraction en background), **✕ Supprimer** (suppression définitive avec confirmation). Onglet grisé si vide
 
 L'onglet actif est persisté dans l'URL (`#ledger`, `#reviser`, `#corbeille`) — rechargement ou partage de lien restaure la vue.
 
 - **Corrections tracées** : un document `validé` reste modifiable depuis le ledger (lien ✎), chaque correction est enregistrée dans un log horodaté (champ + valeur avant/après). Badge ✎ dans le ledger si des corrections existent
-- **Suppression sécurisée** : le bouton Supprimer ouvre une modale de confirmation avant toute action. La suppression est un soft-delete — aucune suppression définitive possible depuis l'interface (obligation de conservation 10 ans, Code de commerce)
+- **Suppression sécurisée** : le bouton Supprimer ouvre une modale de confirmation (`alertdialog` accessible) avant toute action. La suppression est un soft-delete — aucune suppression définitive possible depuis l'interface (obligation de conservation 10 ans, Code de commerce). Même comportement dans Paramètres → Enseignes connues
+- **Retour visuel** : une notification toast non-bloquante confirme l'enregistrement du profil (Paramètres → Mon profil)
 
 **Cycle de vie des statuts** :
 
