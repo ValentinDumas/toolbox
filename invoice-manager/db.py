@@ -108,6 +108,7 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         "ALTER TABLE user_profile ADD COLUMN ocr_preprocess INTEGER DEFAULT 1",
         "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_fallback INTEGER DEFAULT 0",
         "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_threshold REAL DEFAULT 0.4",
+        "ALTER TABLE user_profile ADD COLUMN avatar_data TEXT",
     ]:
         try:
             conn.execute(sql)

@@ -714,6 +714,13 @@
     .btn-icon-preview:hover, .btn-icon-download:hover { opacity: 1; background: var(--surface-variant); }
     .btn-icon-preview:focus, .btn-icon-download:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     .file-actions { display:inline-flex; align-items:center; gap:8px; }
+    .filename-link {
+      display: block; font-size: 11px; color: var(--on-surface-muted);
+      text-decoration: none; margin-top: 2px; max-width: 180px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .filename-link:hover { color: var(--primary); text-decoration: underline; }
+    .filename-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
     .btn-icon-trash {
       background: none; border: none; cursor: pointer;
       color: var(--on-surface-muted); padding: 4px 6px;
@@ -722,12 +729,13 @@
     .btn-icon-trash:hover { opacity: 1; color: var(--error); background: #FEE2E2; }
     .btn-icon-trash:focus { outline: 2px solid var(--error); outline-offset: 2px; }
     .btn-reviser-badge {
-      display: none; background: none; border: 1px solid var(--primary);
-      color: var(--primary); border-radius: var(--radius); padding: 2px 7px;
+      background: none; border: 1px solid var(--warning-border, #D97706);
+      color: var(--warning-text, #92400E); border-radius: var(--radius); padding: 2px 8px;
       font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
+      font-family: inherit;
     }
-    .btn-reviser-badge:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
-    tr:hover .btn-reviser-badge { display: inline-block; }
+    .btn-reviser-badge:hover { background: var(--warning-bg, #FEF3C7); }
+    .btn-reviser-badge:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
     .review-item-title-link {
       background: none; border: none; padding: 0;
       color: var(--on-surface); font-size: inherit; font-weight: 600;
@@ -776,9 +784,14 @@
                   aria-haspopup="true" aria-expanded="false"
                   aria-label="Profil actif : {{ profile.nom if nom_defini else 'Non renseigné' }}. Ouvrir le sélecteur."
                   onclick="toggleProfileMenu()">
+            {% if profile and profile.avatar_data %}
+            <img src="{{ profile.avatar_data }}" alt="" aria-hidden="true"
+                 style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+            {% else %}
             <div class="entity-badge-icon" aria-hidden="true">
               {{ (profile.nom[0] | upper) if nom_defini else '?' }}
             </div>
+            {% endif %}
             <div class="entity-badge-info">
               <span class="entity-badge-name">{{ profile.nom if nom_defini else 'Entité non renseignée' }}</span>
               <span class="entity-badge-meta">
@@ -1026,7 +1039,14 @@
                 {% set party = row.émetteur_nom if is_expense else row.destinataire_nom %}
                 <tr tabindex="0">
                   <td>{{ row.date_document or '—' }}</td>
-                  <td>{{ party or '—' }}</td>
+                  <td>{{ party or '—' }}
+                    {%- if row.fichier_source -%}
+                    <a class="filename-link"
+                       href="#"
+                       onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}'); return false;"
+                       title="{{ row.fichier_source|basename }}">{{ row.fichier_source|basename|truncate_filename }}</a>
+                    {%- endif -%}
+                  </td>
                   {% set amt = row.montant_ht or row.montant_ttc %}
                   <td class="text-right amount{% if is_expense and amt %} color-negative{% endif %}">
                     {%- if is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
@@ -1045,7 +1065,9 @@
                               aria-expanded="false" aria-controls="edit-row-{{ row.id }}"
                               aria-label="Modifier — {{ party or '—' }} — {{ row.date_document or '—' }}">✎</button>
                     {% elif s == 'à_réviser' %}
-                      <span class="badge badge-pending">À réviser</span>
+                      <button type="button" class="btn-reviser-badge"
+                              onclick="reviserTabFocus('review-{{ row.id }}')"
+                              aria-label="Réviser — {{ party or row.fichier_source|basename or 'cet item' }}">→ Réviser</button>
                     {% elif s == 'erreur' %}
                       <span class="badge badge-overdue">Erreur</span>
                     {% else %}
@@ -1058,11 +1080,6 @@
                       {%- if row.fichier_source -%}
                       <button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" aria-label="Prévisualiser {{ row.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
                       <a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" aria-label="Télécharger {{ row.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
-                      {%- endif -%}
-                      {%- if row.statut_révision == 'à_réviser' -%}
-                      <button type="button" class="btn-reviser-badge"
-                              onclick="reviserTabFocus('review-{{ row.id }}')"
-                              aria-label="Réviser cet item">→ Réviser</button>
                       {%- endif -%}
                       <button type="button" class="btn-icon-trash"
                               data-delete-id="{{ row.id }}"

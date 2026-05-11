@@ -324,6 +324,16 @@ def create_app() -> "Flask":
     app.jinja_env.filters["fr_currency"] = _fr_currency
     app.jinja_env.filters["basename"] = lambda p: os.path.basename(p) if p else ""
 
+    def _truncate_filename(name: str, max_stem: int = 16) -> str:
+        from pathlib import Path
+        p = Path(name)
+        stem, suffix = p.stem, p.suffix
+        if len(stem) > max_stem:
+            stem = stem[:max_stem] + "…"
+        return stem + suffix
+
+    app.jinja_env.filters["truncate_filename"] = _truncate_filename
+
     def _active_slug() -> str | None:
         return session.get("active_profile")
 
@@ -399,6 +409,11 @@ button:hover{background:#1D4ED8cc}
   <button type="submit">Créer et configurer →</button>
 </form>
 </body></html>"""
+
+    @app.route("/favicon.ico")
+    def favicon():
+        from flask import Response
+        return Response(status=204)
 
     @app.route("/profiles")
     def profiles_list():
@@ -565,6 +580,8 @@ button:hover{background:#1D4ED8cc}
 
     @app.route("/settings/profil", methods=["POST"])
     def settings_profil_save():
+        import base64
+        import io
         data = {
             "nom":            request.form.get("nom", "").strip(),
             "siren":          request.form.get("siren", "").strip().replace(" ", ""),
@@ -581,6 +598,21 @@ button:hover{background:#1D4ED8cc}
             "fiscal_profile=excluded.fiscal_profile, cadence=excluded.cadence",
             data,
         )
+        avatar_file = request.files.get("avatar")
+        if avatar_file and avatar_file.filename:
+            try:
+                from PIL import Image
+                img = Image.open(avatar_file.stream).convert("RGB")
+                img.thumbnail((256, 256))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=80)
+                if buf.tell() <= 512 * 1024:
+                    avatar_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+                    conn.execute("UPDATE user_profile SET avatar_data=? WHERE id=1", (avatar_b64,))
+            except Exception:
+                pass
+        if request.form.get("remove_avatar"):
+            conn.execute("UPDATE user_profile SET avatar_data=NULL WHERE id=1")
         conn.commit()
         conn.close()
         return redirect(url_for("settings", section="profil", saved="1"))
