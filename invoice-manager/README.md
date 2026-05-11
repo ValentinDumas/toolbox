@@ -621,7 +621,7 @@ Si les résultats restent insuffisants :
 
 ### Puis-je utiliser Claude Vision au lieu de l'OCR local ?
 
-Oui : dans **Paramètres → App**, sélectionne `claude` comme **Backend OCR**. Requiert une clé API Anthropic (`ANTHROPIC_API_KEY` en variable d'environnement). L'OCR local (`local`) reste le défaut — offline, gratuit, sans envoi de données.
+Pas encore — l'option **Claude - Vision API** est prévue mais non implémentée. Elle apparaît grisée dans **Paramètres → App**. L'OCR local (`local`) est le seul backend disponible pour l'instant : offline, gratuit, sans envoi de données.
 
 ---
 

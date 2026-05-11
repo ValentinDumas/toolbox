@@ -673,7 +673,7 @@ button:hover{background:#1D4ED8cc}
         )
         conn.commit()
         conn.close()
-        return redirect(url_for("settings", section="app"))
+        return redirect(url_for("settings", section="app", saved="1"))
 
     @app.route("/")
     def index():

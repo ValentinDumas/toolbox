@@ -1022,8 +1022,8 @@
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Date</th>
                   <th scope="col">Fournisseur / Client</th>
+                  <th scope="col">Date</th>
                   <th scope="col" class="text-right">Débit HT</th>
                   <th scope="col" class="text-right">Crédit HT</th>
                   <th scope="col" class="text-right">TVA</th>
@@ -1038,7 +1038,6 @@
                 {% set is_expense = row.type_document in expense_types %}
                 {% set party = row.émetteur_nom if is_expense else row.destinataire_nom %}
                 <tr tabindex="0">
-                  <td>{{ row.date_document or '—' }}</td>
                   <td>{{ party or '—' }}
                     {%- if row.fichier_source -%}
                     <a class="filename-link"
@@ -1047,6 +1046,7 @@
                        title="{{ row.fichier_source|basename }}">{{ row.fichier_source|basename|truncate_filename }}</a>
                     {%- endif -%}
                   </td>
+                  <td>{{ row.date_document or '—' }}</td>
                   {% set amt = row.montant_ht or row.montant_ttc %}
                   <td class="text-right amount{% if is_expense and amt %} color-negative{% endif %}">
                     {%- if is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}

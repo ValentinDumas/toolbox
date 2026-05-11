@@ -348,7 +348,7 @@
                   <label for="backend">Moteur d'extraction</label>
                   <select id="backend" name="backend">
                     <option value="local" {{ 'selected' if extraction_cfg.backend == 'local' else '' }}>local — pdfplumber + Tesseract (offline)</option>
-                    <option value="claude" {{ 'selected' if extraction_cfg.backend == 'claude' else '' }}>claude — Vision API (nécessite internet)</option>
+                    <option value="claude" disabled style="color:var(--text-muted);">claude — Vision API (bientôt disponible)</option>
                   </select>
                   <span class="field-hint">Le backend Claude envoie les fichiers à l'API Anthropic.</span>
                 </div>
@@ -482,7 +482,7 @@
     {% if saved %}
     (function() {
       var t = document.getElementById('toast');
-      t.textContent = 'Profil mis à jour avec succès';
+      t.textContent = '{% if section == "app" %}Configuration enregistrée.{% else %}Profil mis à jour avec succès.{% endif %}';
       t.classList.add('show');
       setTimeout(function() { t.classList.remove('show'); }, 3000);
     })();
