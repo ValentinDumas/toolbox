@@ -40,7 +40,7 @@ Lance le dashboard et complète le wizard de setup (2 étapes) :
 python3 dashboard.py   # http://localhost:7800
 ```
 
-Le wizard demande ton SIREN et ton profil fiscal — c'est le minimum pour débloquer le dashboard et le pipeline CLI. Ton nom, TVA intracommunautaire, enseignes connues et paramètres OCR se configurent ensuite depuis **Paramètres** (`/settings`).
+Le wizard demande ton SIREN et ton profil fiscal — c'est le minimum pour débloquer le dashboard et le pipeline CLI. Ton nom, TVA intracommunautaire, enseignes connues et paramètres OCR se configurent ensuite depuis **Paramètres** (`/parametres`).
 
 ### 4. Mettre à jour le ledger
 
@@ -81,7 +81,7 @@ python3 export.py --profile mon-ent --year 2025 --statut SASU  # export avec pro
 
 ## Configuration
 
-### Paramètres utilisateur — Dashboard (`/settings`)
+### Paramètres utilisateur — Dashboard (`/parametres`)
 
 Toutes les données utilisateur sont stockées dans la base SQLite et gérées depuis **Paramètres** dans le dashboard :
 
@@ -126,7 +126,17 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 ├── extract.py              ← brique 1 : lecture et structuration des fichiers
 ├── review.py               ← brique 2 : révision batch des extractions incertaines
 ├── export.py               ← brique 3 : génération du carnet de compte
-├── dashboard.py            ← interface web locale (http://localhost:7800)
+├── dashboard.py            ← point d'entrée CLI (http://localhost:7800)
+├── app.py                  ← factory Flask : enregistre blueprints, before_request, route /
+├── context_helpers.py      ← helpers de session/profil partagés (active_slug, active_db…)
+├── queries.py              ← fonctions de lecture SQLite pures (KPI fiscaux, ledger, santé…)
+├── services/
+│   └── revision.py         ← logique métier de la révision (parse, validate, recompute, persist)
+├── blueprints/
+│   ├── factures.py         ← agrégat Facture · REST (PATCH/DELETE /factures/<id>, /valider…)
+│   ├── profils.py          ← /profils, /configuration (wizard onboarding)
+│   ├── parametres.py       ← /parametres/profil, /parametres/enseignes, /parametres/ocr
+│   └── pipeline.py         ← /pipeline/lancer, /pipeline/depot, /fichiers/<path>, /apercu/<path>
 ├── profiles.py             ← résolution des chemins par profil + migration legacy
 ├── db.py                   ← schéma SQLite, migrations, helpers (profil, OCR, enseignes)
 ├── config.py               ← CADENCE_DEFAULTS par statut fiscal
@@ -135,7 +145,10 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 ├── templates/
 │   ├── dashboard.html      ← vue principale du ledger
 │   ├── setup.html          ← wizard de premier lancement (SIREN + profil fiscal)
-│   └── settings.html       ← paramètres utilisateur (/settings)
+│   ├── settings.html       ← paramètres utilisateur (/parametres)
+│   ├── error.html          ← page d'erreur base de données
+│   └── profils/
+│       └── premiere_page.html ← page de bienvenue (premier lancement)
 │
 ├── data/
 │   └── profiles/
@@ -149,7 +162,7 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 │       └── {slug}/          ← même structure pour chaque profil
 │           └── invoices.db
 │
-├── tests/                  ← suite pytest (152 tests)
+├── tests/                  ← suite pytest (173 tests)
 │   ├── test_config.py
 │   ├── test_extract.py
 │   ├── test_review.py
@@ -195,7 +208,16 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 
 **`db.py`** — source de vérité pour le schéma SQLite. Gère les migrations (ALTER TABLE idempotentes), définit les tables `invoices`, `user_profile` et `known_emitters`. Expose `open_db(profile_slug)`, `get_user_profile()`, `get_known_emitters()` et `get_extraction_cfg()` — utilisés par tous les scripts. Chaque profil a sa propre DB sous `data/profiles/{slug}/invoices.db`. À la première ouverture, `data/invoices.db` (ancienne DB sans profil) est migrée automatiquement vers le profil `entreprise-principale`.
 
-**`dashboard.py`** — interface web Flask sur `http://localhost:7800`. Wizard de setup au premier lancement (`/setup`) bloquant jusqu'à saisie du SIREN et du profil fiscal. Page `/settings` pour gérer le profil complet, les enseignes connues et les paramètres OCR. Sélecteur de profil dans le header (dropdown + switcher de contexte + "＋ Nouveau profil"). Bouton "⬆ Importer" pour l'upload multi-fichiers avec drag & drop (extraction en background). Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
+**`dashboard.py` + `app.py` + blueprints** — interface web Flask sur `http://localhost:7800`. Architecture en blueprints orientés domaine (DDD) avec URLs REST :
+
+| Bounded context | Module | Routes principales |
+|---|---|---|
+| Identité / onboarding | `blueprints/profils.py` | `GET /profils`, `POST /profils`, `POST /profils/<slug>/activer`, `GET/POST /configuration` |
+| Facture (agrégat) | `blueprints/factures.py` | `PATCH /factures/<id>`, `DELETE /factures/<id>`, `POST /factures/<id>/valider\|restaurer\|reinitialiser` |
+| Paramètres | `blueprints/parametres.py` | `GET /parametres`, `POST /parametres/profil\|ocr\|enseignes`, `DELETE /parametres/enseignes/<id>` |
+| Ingestion / fichiers | `blueprints/pipeline.py` | `POST /pipeline/lancer\|depot\|purger-liens-morts`, `GET /fichiers/<path>`, `GET /apercu/<path>` |
+
+Wizard de configuration au premier lancement (`/configuration`) bloquant jusqu'à saisie du SIREN et du profil fiscal. Page `/parametres` pour gérer le profil complet, les enseignes connues et les paramètres OCR. Sélecteur de profil dans le header (dropdown + switcher de contexte + "＋ Nouveau profil"). Bouton "⬆ Importer" pour l'upload multi-fichiers avec drag & drop (extraction en background). Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
 
 **`demo/run_all.py`** — génère des PDFs synthétiques à la volée avec fpdf, exécute le pipeline complet pour les 4 profils fiscaux, vérifie que la DB contient les bons types de documents et que les XLSX ont les 4 onglets attendus.
 
@@ -224,8 +246,8 @@ flowchart TD
     %% ── Setup / Dashboard ────────────────────────────
     subgraph DASH["🖥️ Dashboard"]
         direction LR
-        WIZ["dashboard.py /setup\nwizard SIREN + profil fiscal"]:::input
-        SETT["dashboard.py /settings\nprofil · enseignes · OCR"]:::process
+        WIZ["dashboard.py /configuration\nwizard SIREN + profil fiscal"]:::input
+        SETT["dashboard.py /parametres\nprofil · enseignes · OCR"]:::process
     end
 
     %% ── Étape 1 : Extraction ─────────────────────────
@@ -365,7 +387,7 @@ Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de d
 python3 -m pytest tests/ -v
 ```
 
-152 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export, dashboard.
+173 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export, dashboard.
 
 | Fichier | Ce qui est testé |
 |---|---|

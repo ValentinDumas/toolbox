@@ -67,7 +67,7 @@
 
     {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
 
-    <form method="post" action="/setup">
+    <form method="post" action="/configuration">
       <input type="hidden" name="step" value="siren">
       <div class="field-wrap">
         <label for="siren">SIREN</label>
@@ -84,7 +84,7 @@
 
     {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
 
-    <form method="post" action="/setup">
+    <form method="post" action="/configuration">
       <input type="hidden" name="step" value="fiscal">
       <div class="radio-group">
         {% for profil, hint in [

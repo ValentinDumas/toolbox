@@ -1,0 +1,176 @@
+"""
+blueprints/factures.py — Routes REST de l'agrégat Facture.
+
+Verbes HTTP corrects (PATCH/DELETE pour les opérations CRUD) et URLs
+orientées ressource. Délègue la logique métier à services.revision.
+"""
+import platform
+import sqlite3
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+
+from flask import Blueprint, jsonify, redirect, request
+
+from constants import STATUT_A_REVISER, STATUT_PRET, STATUT_VALIDE
+from context_helpers import active_db, active_paths
+from db import open_db
+from services.revision import (
+    _build_corrections_log,
+    _parse_review_fields,
+    _persist_invoice,
+    _recompute_confidence,
+    _validate_review_fields,
+)
+
+bp_factures = Blueprint("factures", __name__)
+
+
+@bp_factures.route("/factures/<item_id>", methods=["PATCH"])
+def facture_save(item_id):
+    """PATCH /factures/<id> — Met à jour une facture après révision."""
+    now = datetime.now(timezone.utc).isoformat()
+    warning = None
+    try:
+        conn = open_db(active_db())
+        row = conn.execute("SELECT * FROM invoices WHERE id=?", (item_id,)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"ok": False, "errors": {"_base": "Item introuvable."}})
+
+        current = dict(row)
+        fields, errors = _parse_review_fields(request.form)
+        if errors:
+            conn.close()
+            return jsonify({"ok": False, "errors": errors})
+
+        errors = _validate_review_fields(fields, current, conn, item_id)
+        if errors:
+            conn.close()
+            return jsonify({"ok": False, "errors": errors})
+
+        confidence, warning = _recompute_confidence(fields, current)
+        fields["confiance"] = confidence
+        fields = _build_corrections_log(fields, current, now, warning)
+        _persist_invoice(conn, item_id, fields)
+        conn.close()
+    except sqlite3.DatabaseError as e:
+        return jsonify({"ok": False, "errors": {"_base": f"Erreur base de données : {e}"}})
+    return jsonify({"ok": True, "warning": warning})
+
+
+@bp_factures.route("/factures/<item_id>", methods=["DELETE", "POST"])
+def facture_supprimer(item_id):
+    """DELETE /factures/<id> — Soft-delete d'une facture."""
+    now = datetime.now(timezone.utc).isoformat()
+    year = request.form.get("year", datetime.now().year)
+    try:
+        conn = open_db(active_db())
+        conn.execute(
+            "UPDATE invoices SET deleted_at=?, deleted_by='user' WHERE id=?",
+            (now, item_id),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.DatabaseError:
+        pass
+    if request.method == "DELETE":
+        return jsonify({"ok": True})
+    return redirect(f"/?year={year}")
+
+
+@bp_factures.route("/factures/<item_id>/valider", methods=["POST"])
+def facture_valider(item_id):
+    """POST /factures/<id>/valider — Valide une facture."""
+    now = datetime.now(timezone.utc).isoformat()
+    year = request.form.get("year", datetime.now().year)
+    try:
+        conn = open_db(active_db())
+        conn.execute(
+            "UPDATE invoices SET statut_révision=?, révisé_par='user', "
+            "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN (?, ?)",
+            (STATUT_VALIDE, now, now, item_id, STATUT_PRET, STATUT_A_REVISER),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.DatabaseError:
+        pass
+    return redirect(f"/?year={year}")
+
+
+@bp_factures.route("/factures/<item_id>/restaurer", methods=["POST"])
+def facture_restaurer(item_id):
+    """POST /factures/<id>/restaurer — Restaure une facture depuis la corbeille."""
+    year = request.form.get("year", datetime.now().year)
+    try:
+        conn = open_db(active_db())
+        conn.execute(
+            "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL, "
+            "statut_révision=?, révisé_par=NULL, "
+            "date_révision=NULL, validé_le=NULL WHERE id=?",
+            (STATUT_A_REVISER, item_id),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.DatabaseError:
+        pass
+    return redirect(f"/?year={year}")
+
+
+@bp_factures.route("/factures/<item_id>/reinitialiser", methods=["POST"])
+def facture_reinitialiser(item_id):
+    """POST /factures/<id>/reinitialiser — Repasse une facture en « à réviser »."""
+    year = request.form.get("year", datetime.now().year)
+    conn = open_db(active_db())
+    conn.execute(
+        "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
+        "date_révision=NULL, validé_le=NULL "
+        "WHERE id=?",
+        (STATUT_A_REVISER, item_id),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(f"/?year={year}")
+
+
+@bp_factures.route("/factures/reinitialiser-revisions", methods=["POST"])
+def factures_reinitialiser_revisions():
+    """POST /factures/reinitialiser-revisions — Repasse toutes les factures validées en « à réviser »."""
+    year = request.form.get("year", datetime.now().year)
+    conn = open_db(active_db())
+    conn.execute(
+        "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
+        "date_révision=NULL, validé_le=NULL "
+        "WHERE statut_révision=?",
+        (STATUT_A_REVISER, STATUT_VALIDE),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(f"/?year={year}")
+
+
+@bp_factures.route("/factures/ouvrir-revision", methods=["POST"])
+def factures_ouvrir_revision():
+    """POST /factures/ouvrir-revision — Ouvre le fichier CSV de révision dans l'éditeur système."""
+    year = request.form.get("year", datetime.now().year)
+    try:
+        conn = open_db(active_db())
+        count = conn.execute(
+            "SELECT COUNT(*) FROM invoices WHERE statut_révision=?",
+            (STATUT_A_REVISER,),
+        ).fetchone()[0]
+        conn.close()
+    except sqlite3.DatabaseError:
+        return redirect(f"/?year={year}")
+
+    if count == 0:
+        return redirect(f"/?year={year}")
+
+    paths = active_paths()
+    review_dir = paths["review"].resolve()
+    review_csv = (review_dir / "review.csv").resolve()
+    if not review_csv.is_relative_to(review_dir):
+        return redirect(f"/?year={year}")
+    cmd = "open" if platform.system() == "Darwin" else "xdg-open"
+    subprocess.Popen([cmd, str(review_csv)])
+    return redirect(f"/?year={year}")

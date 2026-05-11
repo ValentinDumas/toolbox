@@ -804,7 +804,7 @@
           <div id="profile-menu" class="profile-menu" role="menu" aria-label="Sélecteur de profil">
             <div class="profile-menu-label" role="presentation">Profils</div>
             {% for p in all_profiles %}
-            <form method="post" action="/profiles/switch/{{ p.slug }}" style="margin:0">
+            <form method="post" action="/profils/{{ p.slug }}/activer" style="margin:0">
               <button type="submit" role="menuitem"
                       class="profile-menu-item{% if p.slug == active_slug %} active{% endif %}">
                 <span class="profile-menu-dot{% if p.slug == active_slug %} active{% endif %}" aria-hidden="true"></span>
@@ -821,7 +821,7 @@
                     onclick="openCreateProfileModal()">
               <span aria-hidden="true">＋</span> Nouveau profil
             </button>
-            <a href="/settings" role="menuitem"
+            <a href="/parametres" role="menuitem"
                class="profile-menu-item profile-menu-settings">
               <span aria-hidden="true">⚙</span> Paramètres
             </a>
@@ -845,7 +845,7 @@
 
     {% if profile_incomplete %}
     <div class="error-banner" role="alert" style="background:#FEF3C7;border-color:#D97706;color:#92400E;">
-      Profil incomplet — <a href="/settings?section=profil" style="color:#92400E;font-weight:600;">Compléter dans les paramètres</a> (nom, TVA intracom).
+      Profil incomplet — <a href="/parametres?section=profil" style="color:#92400E;font-weight:600;">Compléter dans les paramètres</a> (nom, TVA intracom).
     </div>
     {% endif %}
 
@@ -937,7 +937,7 @@
         <h2 class="section-label">Santé</h2>
         <div class="health-grid">
 
-          <form method="post" action="/run" id="run-form" style="display:contents">
+          <form method="post" action="/pipeline/lancer" id="run-form" style="display:contents">
             <input type="hidden" name="year" value="{{ year }}">
             <button type="submit" class="health-card health-card-action" id="run-btn"
                     aria-label="Lancer le pipeline — {{ health.pending_files }} fichier{{ 's' if health.pending_files != 1 }} en attente">
@@ -1042,7 +1042,7 @@
                     {%- if row.fichier_source -%}
                     <a class="filename-link"
                        href="#"
-                       onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}'); return false;"
+                       onclick="openPdfPreview('/apercu/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}'); return false;"
                        title="{{ row.fichier_source|basename }}">{{ row.fichier_source|basename|truncate_filename }}</a>
                     {%- endif -%}
                   </td>
@@ -1078,8 +1078,8 @@
                   <td class="text-center">
                     <span class="file-actions">
                       {%- if row.fichier_source -%}
-                      <button onclick="openPdfPreview('/preview/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" aria-label="Prévisualiser {{ row.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                      <a href="/files/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" aria-label="Télécharger {{ row.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                      <button onclick="openPdfPreview('/apercu/{{ row.fichier_source|basename }}', '{{ row.fichier_source|basename }}')" aria-label="Prévisualiser {{ row.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                      <a href="/fichiers/{{ row.fichier_source|basename }}" download="{{ row.fichier_source|basename }}" aria-label="Télécharger {{ row.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
                       {%- endif -%}
                       <button type="button" class="btn-icon-trash"
                               data-delete-id="{{ row.id }}"
@@ -1100,7 +1100,7 @@
                         <span>Correction — {{ edit_party or '—' }} — {{ row.date_document or '—' }}</span>
                         <span class="badge badge-editing">En cours d'édition</span>
                       </div>
-                      <form method="post" action="/review/{{ row.id }}/save">
+                      <form method="post" action="/factures/{{ row.id }}" class="js-facture-save">
                         <input type="hidden" name="year" value="{{ year }}">
                         <div class="review-fields">
                           <div>
@@ -1227,7 +1227,7 @@
             <div class="review-item-header">
               {%- if item.fichier_source -%}
               <button type="button" class="review-item-title-link"
-                      onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')"
+                      onclick="openPdfPreview('/apercu/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')"
                       aria-label="Prévisualiser {{ item.fichier_source|basename }}">{{ item_label }}<span class="review-item-title-date">{{ item.date_document or '—' }}</span></button>
               {%- else -%}
               <span>{{ item_label }}<span class="review-item-title-date" style="margin-left:8px">{{ item.date_document or '—' }}</span></span>
@@ -1243,8 +1243,8 @@
               {% endif %}
               <div class="review-item-header-actions">
                 {% if item.fichier_source %}
-                <button onclick="openPdfPreview('/preview/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" aria-label="Prévisualiser {{ item.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                <a href="/files/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" aria-label="Télécharger {{ item.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                <button onclick="openPdfPreview('/apercu/{{ item.fichier_source|basename }}', '{{ item.fichier_source|basename }}')" aria-label="Prévisualiser {{ item.fichier_source|basename }}" class="btn-icon-preview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                <a href="/fichiers/{{ item.fichier_source|basename }}" download="{{ item.fichier_source|basename }}" aria-label="Télécharger {{ item.fichier_source|basename }}" class="btn-icon-download"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
                 {% endif %}
                 <button type="button" class="btn-icon-delete"
                         data-delete-id="{{ item.id }}"
@@ -1263,7 +1263,7 @@
             </details>
             {% endif %}
 
-            <form method="post" action="/review/{{ item.id }}/save">
+            <form method="post" action="/factures/{{ item.id }}" class="js-facture-save">
               <input type="hidden" name="year" value="{{ year }}">
               <div class="review-fields">
                 <div>
@@ -1384,7 +1384,7 @@
                   <td>{{ item.date_document or '—' }}</td>
                   <td class="text-muted" style="font-size:12px">{{ item.deleted_at[:10] if item.deleted_at else '—' }}</td>
                   <td>
-                    <form method="post" action="/review/{{ item.id }}/restore" style="display:inline">
+                    <form method="post" action="/factures/{{ item.id }}/restaurer" style="display:inline">
                       <input type="hidden" name="year" value="{{ year }}">
                       <button type="submit" class="btn-restore">Restaurer</button>
                     </form>
@@ -1421,7 +1421,7 @@
                   <td class="text-muted" style="font-size:12px">{{ f.mtime }}</td>
                   <td>
                     <span class="file-actions">
-                      <button onclick="openPdfPreview('/preview/{{ f.name }}', '{{ f.name }}')"
+                      <button onclick="openPdfPreview('/apercu/{{ f.name }}', '{{ f.name }}')"
                               aria-label="Prévisualiser {{ f.name }}" class="btn-icon-preview">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                       </button>
@@ -1533,7 +1533,7 @@
       var modal = document.getElementById('delete-modal');
       var form  = document.getElementById('modal-form');
       var body  = document.getElementById('modal-body');
-      form.action = '/review/' + btn.dataset.deleteId + '/delete';
+      form.action = '/factures/' + btn.dataset.deleteId;
       body.textContent = btn.dataset.deleteLabel;
       modal.classList.add('open');
       document.getElementById('modal-cancel').focus();
@@ -1545,7 +1545,7 @@
     function retryErrorFile(btn, filename) {
       btn.disabled = true;
       btn.textContent = '…';
-      fetch('/errors/' + encodeURIComponent(filename) + '/retry', {
+      fetch('/pipeline/erreurs/' + encodeURIComponent(filename) + '/reessayer', {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       })
@@ -1561,7 +1561,7 @@
       var modal = document.getElementById('delete-modal');
       var form  = document.getElementById('modal-form');
       var body  = document.getElementById('modal-body');
-      form.action = '/errors/' + encodeURIComponent(btn.dataset.errorFilename) + '/delete';
+      form.action = '/pipeline/erreurs/' + encodeURIComponent(btn.dataset.errorFilename);
       body.textContent = btn.dataset.deleteLabel;
       modal.classList.add('open');
       document.getElementById('modal-cancel').focus();
@@ -1574,7 +1574,7 @@
       var sublabel = btn.querySelector('.health-sublabel-warning');
       var countEl = btn.querySelector('.health-count');
       if (sublabel) sublabel.textContent = '…';
-      fetch('/purge-dead-links', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      fetch('/pipeline/purger-liens-morts', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.ok && data.purged > 0) {
@@ -1703,7 +1703,7 @@
       });
     }
 
-    document.querySelectorAll('form[action*="/review/"][action$="/save"]').forEach(function (form) {
+    document.querySelectorAll('form.js-facture-save').forEach(function (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         clearFieldErrors(form);
@@ -1711,7 +1711,7 @@
         if (submitBtn) submitBtn.disabled = true;
 
         fetch(form.action, {
-          method: 'POST',
+          method: 'PATCH',
           body: new FormData(form),
           headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
@@ -1752,7 +1752,7 @@
     <div class="modal">
       <h2 id="create-profile-title">Nouveau profil</h2>
       <p>Créer un profil pour une entité légale distincte. Le setup wizard s'ouvrira ensuite pour configurer SIREN et profil fiscal.</p>
-      <form method="post" action="/profiles/create">
+      <form method="post" action="/profils">
         <div class="form-field">
           <label for="new-profile-name" class="form-label">Nom de l'entité</label>
           <input type="text" id="new-profile-name" name="name" class="form-input"
@@ -1910,7 +1910,7 @@
     document.getElementById('upload-submit').disabled = true;
 
     try {
-      var resp = await fetch('/upload', { method: 'POST', body: fd });
+      var resp = await fetch('/pipeline/depot', { method: 'POST', body: fd });
       var data = await resp.json();
       if (!data.ok) throw new Error(data.error || 'Erreur serveur');
       bar.style.width = '70%';

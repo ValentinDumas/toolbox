@@ -9,6 +9,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from extract import open_db
+from services.revision import (
+    _build_corrections_log,
+    _parse_review_fields,
+    _persist_invoice,
+    _recompute_confidence,
+    _validate_review_fields,
+)
 
 
 def _insert_invoice(conn, **kwargs):
@@ -41,7 +48,7 @@ def mem_db():
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 def test_fiscal_summary_empty(mem_db):
-    from dashboard import query_fiscal_summary
+    from queries import query_fiscal_summary
     s = query_fiscal_summary(mem_db, 2025)
     assert s["ca_ht"] == 0.0
     assert s["tva_collectee"] == 0.0
@@ -51,7 +58,7 @@ def test_fiscal_summary_empty(mem_db):
 
 
 def test_fiscal_summary_populated(mem_db):
-    from dashboard import query_fiscal_summary
+    from queries import query_fiscal_summary
     _insert_invoice(mem_db, id="e1", type_document="facture_émise",
                     montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
     _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
@@ -65,7 +72,7 @@ def test_fiscal_summary_populated(mem_db):
 
 
 def test_fiscal_summary_charges_excludes_a_reviser(mem_db):
-    from dashboard import query_fiscal_summary
+    from queries import query_fiscal_summary
     _insert_invoice(mem_db, id="v1", type_document="facture_reçue",
                     montant_ht=300.0, statut_révision="validé", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
@@ -77,7 +84,7 @@ def test_fiscal_summary_charges_excludes_a_reviser(mem_db):
 
 
 def test_fiscal_summary_year_filter(mem_db):
-    from dashboard import query_fiscal_summary
+    from queries import query_fiscal_summary
     _insert_invoice(mem_db, id="e2025", type_document="facture_émise",
                     montant_ht=500.0, montant_tva=100.0, exercice_fiscal=2025)
     _insert_invoice(mem_db, id="e2024", type_document="facture_émise",
@@ -87,7 +94,7 @@ def test_fiscal_summary_year_filter(mem_db):
 
 
 def test_ledger_pagination(mem_db):
-    from dashboard import query_ledger
+    from queries import query_ledger
     for i in range(55):
         _insert_invoice(mem_db, id=f"row-{i}", type_document="facture_reçue",
                         montant_ht=10.0, montant_tva=2.0, exercice_fiscal=2025)
@@ -100,7 +107,7 @@ def test_ledger_pagination(mem_db):
 
 
 def test_ledger_totals(mem_db):
-    from dashboard import query_ledger
+    from queries import query_ledger
     _insert_invoice(mem_db, id="inc", type_document="facture_émise",
                     montant_ht=300.0, montant_tva=60.0, exercice_fiscal=2025)
     _insert_invoice(mem_db, id="exp", type_document="facture_reçue",
@@ -141,7 +148,7 @@ def test_ledger_no_legacy_validés_block(mem_db, tmp_path, monkeypatch):
 
 
 def test_health_counts(mem_db, tmp_path):
-    from dashboard import query_health
+    from queries import query_health
     (tmp_path / "input").mkdir()
     (tmp_path / "errors").mkdir()
     (tmp_path / "input" / "facture.pdf").touch()
@@ -155,13 +162,13 @@ def test_health_counts(mem_db, tmp_path):
 
 
 def test_query_error_files_empty(tmp_path):
-    from dashboard import query_error_files
+    from queries import query_error_files
     paths = {"errors": tmp_path / "nonexistent"}
     assert query_error_files(paths) == []
 
 
 def test_query_error_files_lists_files(tmp_path):
-    from dashboard import query_error_files
+    from queries import query_error_files
     errors_dir = tmp_path / "errors"
     errors_dir.mkdir()
     (errors_dir / "broken.pdf").write_bytes(b"x" * 2048)
@@ -179,7 +186,10 @@ def test_query_error_files_lists_files(tmp_path):
 def _make_app(mem_db, tmp_path, monkeypatch):
     """Helper : copie mem_db dans un profil temporaire et crée l'app Flask."""
     import sqlite3 as _sq
-    import dashboard as _dashboard
+    import app as _app
+    import context_helpers as _ctx
+    import blueprints.pipeline as _bp_pipeline
+    import blueprints.profils as _bp_profils
 
     slug = "test-profile"
     profile_dir = tmp_path / "data" / "profiles" / slug
@@ -206,13 +216,15 @@ def _make_app(mem_db, tmp_path, monkeypatch):
         "review":    profile_dir / "review",
     }
 
-    # Patch the names as imported in dashboard.py (not through the profiles module)
-    monkeypatch.setattr(_dashboard, "load_profiles",        lambda: test_profiles)
-    monkeypatch.setattr(_dashboard, "get_profile_meta",     lambda s: test_profiles[0] if s == slug else None)
-    monkeypatch.setattr(_dashboard, "resolve_paths",        lambda s: test_paths)
-    monkeypatch.setattr(_dashboard, "maybe_migrate_legacy", lambda: None)
+    # Patch the names as imported in app.py and the modules used by blueprints
+    monkeypatch.setattr(_app,        "load_profiles",        lambda: test_profiles)
+    monkeypatch.setattr(_app,        "get_profile_meta",     lambda s: test_profiles[0] if s == slug else None)
+    monkeypatch.setattr(_ctx,        "resolve_paths",        lambda s: test_paths)
+    monkeypatch.setattr(_ctx,        "get_profile_meta",     lambda s: test_profiles[0] if s == slug else None)
+    monkeypatch.setattr(_bp_pipeline, "resolve_paths",       lambda s: test_paths)
+    monkeypatch.setattr(_bp_profils,  "get_profile_meta",    lambda s: test_profiles[0] if s == slug else None)
 
-    from dashboard import create_app
+    from app import create_app
     app = create_app()
     app.config["TESTING"] = True
 
@@ -257,10 +269,10 @@ def test_year_filter(mem_db, tmp_path, monkeypatch):
 
 def test_post_run_calls_subprocess(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
-    with patch("dashboard.subprocess.run") as mock_run:
+    with patch("blueprints.pipeline.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         with app.test_client() as client:
-            resp = client.post("/run")
+            resp = client.post("/pipeline/lancer")
     assert resp.status_code in (302, 200)
     mock_run.assert_called_once()
     called_cmd = mock_run.call_args[0][0]
@@ -269,19 +281,19 @@ def test_post_run_calls_subprocess(mem_db, tmp_path, monkeypatch):
 
 def test_post_run_error_shows_in_redirect(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
-    with patch("dashboard.subprocess.run") as mock_run:
+    with patch("blueprints.pipeline.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=1, stderr="ERREUR GRAVE")
         with app.test_client() as client:
-            resp = client.post("/run")
+            resp = client.post("/pipeline/lancer")
     assert resp.status_code == 302
     assert "run_error" in resp.headers["Location"]
 
 
 def test_post_open_review_no_items_redirects(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
-    with patch("dashboard.subprocess.Popen") as mock_popen:
+    with patch("blueprints.factures.subprocess.Popen") as mock_popen:
         with app.test_client() as client:
-            resp = client.post("/open-review")
+            resp = client.post("/factures/ouvrir-revision")
     assert resp.status_code == 302
     mock_popen.assert_not_called()
 
@@ -290,9 +302,9 @@ def test_post_open_review_with_items_opens_file(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     (tmp_path / "data" / "profiles" / "test-profile" / "review" / "review.csv").touch()
-    with patch("dashboard.subprocess.Popen") as mock_popen:
+    with patch("blueprints.factures.subprocess.Popen") as mock_popen:
         with app.test_client() as client:
-            resp = client.post("/open-review")
+            resp = client.post("/factures/ouvrir-revision")
     assert resp.status_code == 302
     mock_popen.assert_called_once()
 
@@ -300,12 +312,12 @@ def test_post_open_review_with_items_opens_file(mem_db, tmp_path, monkeypatch):
 # ── Review inline ─────────────────────────────────────────────────────────────
 
 def test_query_items_a_reviser_empty(mem_db):
-    from dashboard import query_items_a_reviser
+    from queries import query_items_a_reviser
     assert query_items_a_reviser(mem_db, 2025) == []
 
 
 def test_query_items_a_reviser_populated(mem_db):
-    from dashboard import query_items_a_reviser
+    from queries import query_items_a_reviser
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="done1", statut_révision="validé", exercice_fiscal=2025)
     items = query_items_a_reviser(mem_db, 2025)
@@ -318,7 +330,7 @@ def test_post_review_save_validates_item(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/rev1/save", data={
+        resp = client.patch("/factures/rev1", data={
             "type_document": "facture_reçue",
             "montant_ht": "100.0",
             "montant_tva": "20.0",
@@ -344,7 +356,7 @@ def test_post_review_save_updates_fields(mem_db, tmp_path, monkeypatch):
                     émetteur_nom="Ancien Nom", montant_ht=50.0, exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        client.post("/review/rev2/save", data={
+        client.patch("/factures/rev2", data={
             "type_document": "facture_reçue",
             "montant_ht": "99.0",
             "montant_tva": "19.8",
@@ -369,7 +381,7 @@ def test_post_review_save_updates_fields(mem_db, tmp_path, monkeypatch):
 def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/nonexistent/save", data={
+        resp = client.patch("/factures/nonexistent", data={
             "type_document": "facture_reçue", "montant_ht": "10",
             "montant_tva": "2", "date_document": "", "émetteur_nom": "",
             "numéro_facture": "", "catégorie": "", "notes_correction": "",
@@ -383,7 +395,7 @@ def test_post_review_save_invalid_amount_returns_errors(mem_db, tmp_path, monkey
     _insert_invoice(mem_db, id="rev-amt", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/rev-amt/save", data={
+        resp = client.patch("/factures/rev-amt", data={
             "montant_ht": "abc",
             "montant_tva": "not-a-number",
             "date_document": "2025-03-01",
@@ -406,7 +418,7 @@ def test_post_review_save_missing_date_returns_error(mem_db, tmp_path, monkeypat
                     montant_ht=100.0, montant_ttc=120.0)
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/rev-date/save", data={
+        resp = client.patch("/factures/rev-date", data={
             "montant_ht": "100.0",
             "date_document": "",
         })
@@ -424,7 +436,7 @@ def test_post_review_save_validated_low_confidence_demotes(mem_db, tmp_path, mon
                     montant_ht=100.0, montant_ttc=None, montant_tva=None)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/rev-dem/save", data={
+        resp = client.patch("/factures/rev-dem", data={
             "date_document": "2025-03-01",
             "montant_ht": "100.0",
             # no numéro_facture, no montant_ttc, no émetteur_siren in DB → 2/5 = 0.4
@@ -450,7 +462,7 @@ def test_post_review_save_corrections_log_appended_on_post_validation_edit(mem_d
                     montant_ttc=120.0, numéro_facture="FR001")
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/rev-log/save", data={
+        resp = client.patch("/factures/rev-log", data={
             "date_document": "2025-03-01",
             "montant_ht": "100.0",
             "montant_ttc": "120.0",
@@ -477,7 +489,7 @@ def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="del1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/del1/delete")
+        resp = client.post("/factures/del1")
     assert resp.status_code == 302
     import sqlite3 as _sq
     check = _sq.connect(str(db_path))
@@ -490,7 +502,7 @@ def test_post_review_delete(mem_db, tmp_path, monkeypatch):
 
 
 def test_soft_deleted_excluded_from_fiscal_summary(mem_db):
-    from dashboard import query_fiscal_summary
+    from queries import query_fiscal_summary
     _insert_invoice(mem_db, id="alive", type_document="facture_émise",
                     montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
     _insert_invoice(mem_db, id="dead", type_document="facture_émise",
@@ -501,7 +513,7 @@ def test_soft_deleted_excluded_from_fiscal_summary(mem_db):
 
 
 def test_soft_deleted_excluded_from_ledger(mem_db):
-    from dashboard import query_ledger
+    from queries import query_ledger
     _insert_invoice(mem_db, id="alive", type_document="facture_reçue",
                     montant_ht=100.0, exercice_fiscal=2025)
     _insert_invoice(mem_db, id="dead", type_document="facture_reçue",
@@ -514,7 +526,7 @@ def test_soft_deleted_excluded_from_ledger(mem_db):
 
 
 def test_soft_deleted_excluded_from_items_a_reviser(mem_db):
-    from dashboard import query_items_a_reviser
+    from queries import query_items_a_reviser
     _insert_invoice(mem_db, id="alive", statut_révision="à_réviser", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="dead", statut_révision="à_réviser", exercice_fiscal=2025,
                     deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
@@ -525,7 +537,7 @@ def test_soft_deleted_excluded_from_items_a_reviser(mem_db):
 
 
 def test_query_corbeille_returns_deleted_rows(mem_db):
-    from dashboard import query_corbeille
+    from queries import query_corbeille
     _insert_invoice(mem_db, id="alive", statut_révision="validé", exercice_fiscal=2025)
     _insert_invoice(mem_db, id="dead", statut_révision="à_réviser", exercice_fiscal=2025,
                     deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
@@ -540,7 +552,7 @@ def test_post_review_restore(mem_db, tmp_path, monkeypatch):
                     deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/review/dead1/restore")
+        resp = client.post("/factures/dead1/restaurer")
     assert resp.status_code == 302
     import sqlite3 as _sq
     check = _sq.connect(str(db_path))
@@ -579,11 +591,11 @@ def test_errors_retry_moves_file(mem_db, tmp_path, monkeypatch):
     f = errors_dir / "broken.pdf"
     f.write_bytes(b"fake pdf")
 
-    import dashboard as _dash
-    monkeypatch.setattr(_dash.threading, "Thread", MagicMock)
+    import blueprints.pipeline as _bp_pipeline
+    monkeypatch.setattr(_bp_pipeline.threading, "Thread", MagicMock)
 
     with app.test_client() as client:
-        resp = client.post("/errors/broken.pdf/retry")
+        resp = client.post("/pipeline/erreurs/broken.pdf/reessayer")
 
     assert resp.status_code == 200
     assert resp.get_json()["ok"] is True
@@ -594,7 +606,7 @@ def test_errors_retry_moves_file(mem_db, tmp_path, monkeypatch):
 def test_errors_retry_404_if_missing(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/errors/nonexistent.pdf/retry")
+        resp = client.post("/pipeline/erreurs/nonexistent.pdf/reessayer")
     assert resp.status_code == 404
 
 
@@ -606,7 +618,7 @@ def test_errors_delete_removes_file(mem_db, tmp_path, monkeypatch):
     f.write_bytes(b"fake pdf")
 
     with app.test_client() as client:
-        resp = client.post("/errors/broken.pdf/delete", data={"year": "2025"})
+        resp = client.post("/pipeline/erreurs/broken.pdf", data={"year": "2025"})
 
     assert resp.status_code == 302
     assert not f.exists()
@@ -615,14 +627,14 @@ def test_errors_delete_removes_file(mem_db, tmp_path, monkeypatch):
 def test_errors_delete_404_if_missing(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/errors/nonexistent.pdf/delete", data={"year": "2025"})
+        resp = client.post("/pipeline/erreurs/nonexistent.pdf", data={"year": "2025"})
     assert resp.status_code == 404
 
 
 def test_errors_delete_rejects_path_traversal(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/errors/../../etc/passwd/delete", data={"year": "2025"})
+        resp = client.post("/pipeline/erreurs/../../etc/passwd", data={"year": "2025"})
     assert resp.status_code == 404
 
 
@@ -640,7 +652,7 @@ def test_errors_list_in_template(mem_db, tmp_path, monkeypatch):
 # ── Unit tests for helper functions (#28) ─────────────────────────────────────
 
 def test_parse_review_fields_valid():
-    from dashboard import _parse_review_fields
+    
     form = {"montant_ht": "100.5", "montant_tva": "20.1", "date_document": "2025-03-01",
             "émetteur_nom": "ACME", "numéro_facture": "FR001", "catégorie": "logiciel", "notes_correction": ""}
     fields, errors = _parse_review_fields(form)
@@ -650,14 +662,14 @@ def test_parse_review_fields_valid():
     assert fields["date_document"] == "2025-03-01"
 
 def test_parse_review_fields_comma_decimal():
-    from dashboard import _parse_review_fields
+    
     form = {"montant_ht": "99,90", "montant_ttc": "119,88"}
     fields, errors = _parse_review_fields(form)
     assert errors == {}
     assert abs(fields["montant_ht"] - 99.90) < 0.001
 
 def test_parse_review_fields_invalid_float():
-    from dashboard import _parse_review_fields
+    
     form = {"montant_ht": "not-a-number", "montant_tva": "abc"}
     fields, errors = _parse_review_fields(form)
     assert "montant_ht" in errors
@@ -665,7 +677,7 @@ def test_parse_review_fields_invalid_float():
     assert "montant_ht" not in fields
 
 def test_parse_review_fields_empty_strings_ignored():
-    from dashboard import _parse_review_fields
+    
     form = {"montant_ht": "", "émetteur_nom": "", "date_document": ""}
     fields, errors = _parse_review_fields(form)
     assert errors == {}
@@ -673,7 +685,7 @@ def test_parse_review_fields_empty_strings_ignored():
     assert "émetteur_nom" not in fields
 
 def test_validate_review_fields_missing_date(mem_db):
-    from dashboard import _validate_review_fields
+    
     mem_db.execute(
         'INSERT INTO invoices (id, date_document) VALUES (?, NULL)',
         ("no-date-item",)
@@ -684,7 +696,7 @@ def test_validate_review_fields_missing_date(mem_db):
     assert "date_document" in errors
 
 def test_validate_review_fields_missing_amounts(mem_db):
-    from dashboard import _validate_review_fields
+    
     mem_db.execute(
         'INSERT INTO invoices (id, montant_ht, montant_ttc) VALUES (?, NULL, NULL)',
         ("no-amt-item",)
@@ -696,7 +708,7 @@ def test_validate_review_fields_missing_amounts(mem_db):
     assert "montant_ht" in errors
 
 def test_validate_review_fields_zero_ht_is_valid(mem_db):
-    from dashboard import _validate_review_fields
+    
     mem_db.execute(
         'INSERT INTO invoices (id, date_document, montant_ht) VALUES (?, ?, ?)',
         ("zero-ht-item", "2025-03-01", 0.0)
@@ -708,7 +720,7 @@ def test_validate_review_fields_zero_ht_is_valid(mem_db):
     assert "montant_ht" not in errors
 
 def test_recompute_confidence_high():
-    from dashboard import _recompute_confidence
+    
     fields = {"date_document": "2025-03-01", "montant_ttc": 120.0, "montant_ht": 100.0, "numéro_facture": "FR001"}
     current = {"statut_révision": "à_réviser", "émetteur_siren": "123456789", "émetteur_tva_intracom": None}
     confidence, warning = _recompute_confidence(fields, current)
@@ -716,7 +728,7 @@ def test_recompute_confidence_high():
     assert warning is None
 
 def test_recompute_confidence_low_warns_when_validated():
-    from dashboard import _recompute_confidence
+    
     fields = {"date_document": "2025-03-01", "montant_ht": 100.0}
     current = {
         "statut_révision": "validé",
@@ -729,7 +741,7 @@ def test_recompute_confidence_low_warns_when_validated():
     assert "À réviser" in warning or "réviser" in warning.lower()
 
 def test_recompute_confidence_no_warning_when_a_reviser():
-    from dashboard import _recompute_confidence
+    
     fields = {"montant_ht": 50.0}
     current = {
         "statut_révision": "à_réviser",
@@ -741,7 +753,7 @@ def test_recompute_confidence_no_warning_when_a_reviser():
 
 def test_build_corrections_log_new_item():
     import json as _json
-    from dashboard import _build_corrections_log
+    
     fields = {"montant_ht": 100.0, "date_document": "2025-03-01"}
     current = {"statut_révision": "à_réviser", "corrections_log": "[]",
                "montant_ht": None, "date_document": None, "montant_ttc": None}
@@ -751,7 +763,7 @@ def test_build_corrections_log_new_item():
 
 def test_build_corrections_log_validated_item_logs_diff():
     import json as _json
-    from dashboard import _build_corrections_log
+    
     current = {
         "statut_révision": "validé",
         "corrections_log": "[]",
@@ -769,7 +781,7 @@ def test_build_corrections_log_validated_item_logs_diff():
     assert entry["après"] == "Nouveau Nom"
 
 def test_build_corrections_log_warning_demotes():
-    from dashboard import _build_corrections_log
+    
     current = {"statut_révision": "validé", "corrections_log": "[]",
                "montant_ht": 100.0, "montant_ttc": None}
     fields = {}

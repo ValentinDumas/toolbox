@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bienvenue — Invoice Manager</title>
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:480px;margin:120px auto;padding:0 24px;color:#0F172A}
+    h1{font-size:22px;font-weight:600;margin-bottom:8px}
+    p{color:#64748B;margin-bottom:28px;line-height:1.5}
+    label{display:block;font-size:14px;font-weight:500;margin-bottom:6px}
+    input{width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:15px;
+          font-family:inherit;box-sizing:border-box}
+    input:focus{outline:2px solid #1C4ED8;outline-offset:1px}
+    button{width:100%;margin-top:16px;padding:10px;background:#1C4ED8;color:white;border:none;
+           border-radius:6px;font-size:15px;font-weight:600;cursor:pointer}
+    button:hover{background:#1D4ED8cc}
+  </style>
+</head>
+<body>
+  <h1>Bienvenue dans Invoice Manager</h1>
+  <p>Commencez par nommer votre première entité légale (ex : SASU Dupont, Micro-entreprise...).</p>
+  <form method="post" action="/profils">
+    <label for="name">Nom de l'entité</label>
+    <input type="text" id="name" name="name" required autofocus placeholder="Ex : SASU Dupont">
+    <button type="submit">Créer et configurer →</button>
+  </form>
+</body>
+</html>

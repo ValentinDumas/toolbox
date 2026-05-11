@@ -204,9 +204,9 @@
       <nav class="settings-sidebar" aria-label="Navigation paramètres">
         <div class="sidebar-title">Paramètres</div>
         <ul class="sidebar-nav">
-          <li><a href="/settings?section=profil" class="{{ 'active' if section == 'profil' else '' }}">Mon profil</a></li>
-          <li><a href="/settings?section=enseignes" class="{{ 'active' if section == 'enseignes' else '' }}">Enseignes connues</a></li>
-          <li><a href="/settings?section=app" class="{{ 'active' if section == 'app' else '' }}">Application</a></li>
+          <li><a href="/parametres?section=profil" class="{{ 'active' if section == 'profil' else '' }}">Mon profil</a></li>
+          <li><a href="/parametres?section=enseignes" class="{{ 'active' if section == 'enseignes' else '' }}">Enseignes connues</a></li>
+          <li><a href="/parametres?section=app" class="{{ 'active' if section == 'app' else '' }}">Application</a></li>
         </ul>
       </nav>
 
@@ -215,7 +215,7 @@
         {# ── Profil ─────────────────────────────────────────────────────────── #}
         <div class="settings-section {{ 'active' if section == 'profil' else '' }}">
           <h1>Mon profil</h1>
-          <form method="post" action="/settings/profil" enctype="multipart/form-data">
+          <form method="post" action="/parametres/profil" enctype="multipart/form-data">
             <div class="card">
               <div class="card-title">Identité</div>
               <div style="display:flex;align-items:flex-start;gap:1.5rem;margin-bottom:1rem;">
@@ -306,7 +306,7 @@
                   <td><code>{{ e.keyword }}</code></td>
                   <td>{{ e.nom }}</td>
                   <td style="text-align:right;">
-                    <form method="post" action="/settings/enseignes/{{ e.id }}/delete" style="display:inline;">
+                    <form method="post" action="/parametres/enseignes/{{ e.id }}" style="display:inline;">
                       <button type="button" class="btn btn-danger btn-delete-enseigne" data-keyword="{{ e.keyword }}">Supprimer</button>
                     </form>
                   </td>
@@ -318,7 +318,7 @@
             <div class="empty-state">Aucune enseigne configurée.</div>
             {% endif %}
 
-            <form method="post" action="/settings/enseignes/add" class="add-form">
+            <form method="post" action="/parametres/enseignes" class="add-form">
               <div class="field">
                 <label for="keyword">Mot-clé</label>
                 <input type="text" id="keyword" name="keyword" placeholder="boulanger" autocomplete="off">
@@ -335,7 +335,7 @@
         {# ── Application ────────────────────────────────────────────────────── #}
         <div class="settings-section {{ 'active' if section == 'app' else '' }}">
           <h1>Application</h1>
-          <form method="post" action="/settings/app">
+          <form method="post" action="/parametres/ocr">
             <div class="card">
               <div class="card-title-row">
                 <div class="card-title">Extraction</div>
@@ -432,7 +432,7 @@
             </div>
 
             <div class="form-actions">
-              <a href="/settings?section=app" class="btn btn-ghost">Annuler</a>
+              <a href="/parametres?section=app" class="btn btn-ghost">Annuler</a>
               <button type="submit" class="btn btn-primary">Enregistrer</button>
             </div>
           </form>
