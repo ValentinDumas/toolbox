@@ -1,0 +1,34 @@
+name: Code Quality Issue (agent)
+description: Issue to be resolved autonomously by the code agent
+labels: ["agent:code"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Exact description of the issue (dead code, duplication, anti-pattern, missing test, etc.)
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How to verify the fix is correct (tests to pass, behaviour to observe)
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk level
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+  - type: input
+    id: files
+    attributes:
+      label: Files concerned (optional)
+      description: Comma-separated list of files or modules affected
+      placeholder: "extract.py, parsers.py"

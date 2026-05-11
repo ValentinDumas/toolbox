@@ -1,0 +1,10 @@
+# Local config (contains paths and repo names — not committed)
+config.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Git worktrees created by dispatcher
+.worktrees/

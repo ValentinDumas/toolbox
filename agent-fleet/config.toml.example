@@ -1,0 +1,16 @@
+# agent-fleet configuration
+# Copy to config.toml and edit before running.
+
+# GitHub repo in "owner/repo" format (used by gh CLI)
+target_repo = "ValentinDumas/toolbox"
+
+# Absolute path to the target project on disk
+target_path = "/Users/valentinshodo/Projects/toolbox/invoice-manager"
+
+# How often the dispatcher polls for new issues (seconds)
+# 300 = 5 minutes. Stays within prompt cache TTL.
+poll_interval_seconds = 300
+
+# Claude model used by the Code Inspector
+# claude-sonnet-4-6 = best quality/cost ratio
+claude_model = "claude-sonnet-4-6"
