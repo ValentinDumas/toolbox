@@ -94,7 +94,7 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 | Profil fiscal | Profil | `auto-entrepreneur` · `SASU` · `SARL` · `salarié` |
 | Cadence déclaration | Profil | Vide = cadence par défaut du profil |
 | Enseignes connues | Enseignes | Mot-clé → nom canonique pour les tickets illisibles. La casse du mot-clé et du nom est préservée telle que saisie |
-| Backend OCR | App | `local` (offline) ou `claude` (Vision API) |
+| Backend OCR | App | `local` (offline) uniquement — `claude` (Vision API) à venir |
 | Seuil confiance | App | Sous lequel l'item passe en révision (défaut `0.8`) |
 | Langue OCR | App | Langues Tesseract (défaut `fra+eng`) |
 | DPI OCR | App | Résolution PDF→image (défaut `300`) |
