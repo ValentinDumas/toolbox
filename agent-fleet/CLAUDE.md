@@ -48,26 +48,49 @@ ruff check .
 mypy fleet/
 ```
 
-## Commands
+## End-to-end workflow
+
+### Step 1 — First-time setup (run once)
 
 ```bash
-# Create GitHub labels on the target repo (run once)
-python run.py setup-labels
+python run.py setup-labels   # create agent:* labels on the target repo
+```
 
-# Run Code Inspector: analyze repo, create issues with label agent:code
-python run.py inspect code
+### Step 2 — Inspect: find issues
 
-# Dry run: see what issues would be created without creating them
-python run.py inspect code --dry
+```bash
+python run.py inspect code          # analyze repo, create GitHub issues (label: agent:code)
+python run.py inspect code --dry    # preview without creating
+```
 
-# Start dispatcher loop (polls every poll_interval_seconds)
-python run.py dispatch
+### Step 3 — Dispatch: fix issues
 
-# Process all claimable issues once and exit
-python run.py dispatch --once
+```bash
+python run.py dispatch --once   # process all agent:code issues, open PRs, exit
+python run.py dispatch          # continuous loop (polls every poll_interval_seconds)
+python run.py status            # check what's in-progress / queued
+```
 
-# Show fleet status: active agents + ready issues
-python run.py status
+### Step 4 — Review: merge PRs
+
+```bash
+python run.py review            # address review comments + auto-merge low-risk PRs
+python run.py review --loop     # continuous loop
+```
+
+Repeat steps 2–4 periodically to keep the codebase clean.
+
+## Commands reference
+
+```bash
+python run.py setup-labels          # create labels (once per repo)
+python run.py inspect code          # find issues → GitHub Issues
+python run.py inspect code --dry    # preview issues without creating
+python run.py dispatch              # fix issues → PRs (continuous)
+python run.py dispatch --once       # fix issues → PRs (one shot)
+python run.py review                # address comments + auto-merge (one shot)
+python run.py review --loop         # address comments + auto-merge (continuous)
+python run.py status                # show active agents + queued issues
 ```
 
 ## Label flow
@@ -76,6 +99,8 @@ python run.py status
 agent:code → (dispatcher claims) → agent:in-progress
 agent:in-progress → (success) → agent:done + needs-review + PR created
 agent:in-progress → (failure) → agent:code (released back to queue)
+needs-review + CI green + risk=low → (reviewer) → auto-merged
+needs-review + risk=medium/high → (reviewer) → push fixes, leave for human
 ```
 
 ## Reviewing PRs
