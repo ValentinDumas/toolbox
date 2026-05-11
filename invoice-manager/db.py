@@ -5,7 +5,9 @@ db.py — Accès SQLite partagé : ouverture, schéma, migrations, insertion.
 import sqlite3
 from pathlib import Path
 
-from constants import STATUT_A_REVISER, STATUT_AUTO_VALIDE, STATUT_REVISE, STATUT_PRET, STATUT_VALIDE
+from constants import STATUT_PRET, STATUT_VALIDE
+
+HERE = Path(__file__).parent
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_profile (
@@ -87,10 +89,10 @@ CREATE TABLE IF NOT EXISTS invoices (
 )
 """
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
-def _run_migrations(conn: sqlite3.Connection) -> None:
+def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -> None:
     conn.executescript(SCHEMA)
 
     for sql in [
@@ -112,10 +114,33 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass
 
+    # Rewrite legacy status values to the canonical "validé"
     conn.execute(
         "UPDATE invoices SET statut_révision=? WHERE statut_révision IN (?,?,?)",
-        (STATUT_VALIDE, STATUT_PRET, STATUT_AUTO_VALIDE, STATUT_REVISE),
+        (STATUT_VALIDE, STATUT_PRET, "auto_validé", "révisé"),
     )
+
+    # Migrate [known_emitters] from config.toml if present and not yet in DB
+    toml_path = config_path or HERE / "config.toml"
+    if toml_path.is_file():
+        try:
+            import tomllib  # Python 3.11+
+        except ImportError:
+            try:
+                import tomli as tomllib  # type: ignore[no-redef]
+            except ImportError:
+                tomllib = None  # type: ignore[assignment]
+        if tomllib is not None:
+            try:
+                data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+                for keyword, nom in data.get("known_emitters", {}).items():
+                    conn.execute(
+                        "INSERT OR IGNORE INTO known_emitters (keyword, nom) VALUES (?, ?)",
+                        (str(keyword).lower(), str(nom)),
+                    )
+            except Exception:
+                pass
+
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
@@ -158,16 +183,17 @@ _EXTRACTION_DEFAULTS = {
 
 
 def get_extraction_cfg(conn: sqlite3.Connection) -> dict:
-    """Return extraction config from user_profile, falling back to hardcoded defaults."""
+    """Return extraction config from user_profile, falling back to _EXTRACTION_DEFAULTS."""
     row = conn.execute("SELECT * FROM user_profile WHERE id=1").fetchone()
     if row is None:
         return dict(_EXTRACTION_DEFAULTS)
+    d = _EXTRACTION_DEFAULTS
     return {
-        "backend":              row["ocr_backend"] or "local",
-        "confidence_threshold": row["ocr_confidence_threshold"] if row["ocr_confidence_threshold"] is not None else 0.8,
-        "ocr_lang":             row["ocr_lang"] or "fra+eng",
-        "ocr_dpi":              row["ocr_dpi"] or 300,
-        "ocr_preprocess":       bool(row["ocr_preprocess"]) if row["ocr_preprocess"] is not None else True,
-        "ocr_easyocr_fallback": bool(row["ocr_easyocr_fallback"]) if row["ocr_easyocr_fallback"] is not None else False,
-        "ocr_easyocr_threshold": row["ocr_easyocr_threshold"] if row["ocr_easyocr_threshold"] is not None else 0.4,
+        "backend":               row["ocr_backend"] or d["backend"],
+        "confidence_threshold":  row["ocr_confidence_threshold"] if row["ocr_confidence_threshold"] is not None else d["confidence_threshold"],
+        "ocr_lang":              row["ocr_lang"] or d["ocr_lang"],
+        "ocr_dpi":               row["ocr_dpi"] or d["ocr_dpi"],
+        "ocr_preprocess":        bool(row["ocr_preprocess"]) if row["ocr_preprocess"] is not None else d["ocr_preprocess"],
+        "ocr_easyocr_fallback":  bool(row["ocr_easyocr_fallback"]) if row["ocr_easyocr_fallback"] is not None else d["ocr_easyocr_fallback"],
+        "ocr_easyocr_threshold": row["ocr_easyocr_threshold"] if row["ocr_easyocr_threshold"] is not None else d["ocr_easyocr_threshold"],
     }

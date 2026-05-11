@@ -636,3 +636,142 @@ def test_errors_list_in_template(mem_db, tmp_path, monkeypatch):
 
     assert b"broken.pdf" in resp.data
     assert "Erreurs (1)".encode() in resp.data
+
+# ── Unit tests for helper functions (#28) ─────────────────────────────────────
+
+def test_parse_review_fields_valid():
+    from dashboard import _parse_review_fields
+    form = {"montant_ht": "100.5", "montant_tva": "20.1", "date_document": "2025-03-01",
+            "émetteur_nom": "ACME", "numéro_facture": "FR001", "catégorie": "logiciel", "notes_correction": ""}
+    fields, errors = _parse_review_fields(form)
+    assert errors == {}
+    assert abs(fields["montant_ht"] - 100.5) < 0.001
+    assert abs(fields["montant_tva"] - 20.1) < 0.001
+    assert fields["date_document"] == "2025-03-01"
+
+def test_parse_review_fields_comma_decimal():
+    from dashboard import _parse_review_fields
+    form = {"montant_ht": "99,90", "montant_ttc": "119,88"}
+    fields, errors = _parse_review_fields(form)
+    assert errors == {}
+    assert abs(fields["montant_ht"] - 99.90) < 0.001
+
+def test_parse_review_fields_invalid_float():
+    from dashboard import _parse_review_fields
+    form = {"montant_ht": "not-a-number", "montant_tva": "abc"}
+    fields, errors = _parse_review_fields(form)
+    assert "montant_ht" in errors
+    assert "montant_tva" in errors
+    assert "montant_ht" not in fields
+
+def test_parse_review_fields_empty_strings_ignored():
+    from dashboard import _parse_review_fields
+    form = {"montant_ht": "", "émetteur_nom": "", "date_document": ""}
+    fields, errors = _parse_review_fields(form)
+    assert errors == {}
+    assert "montant_ht" not in fields
+    assert "émetteur_nom" not in fields
+
+def test_validate_review_fields_missing_date(mem_db):
+    from dashboard import _validate_review_fields
+    mem_db.execute(
+        'INSERT INTO invoices (id, date_document) VALUES (?, NULL)',
+        ("no-date-item",)
+    )
+    mem_db.commit()
+    fields = {"montant_ht": 100.0}
+    errors = _validate_review_fields(fields, {}, mem_db, "no-date-item")
+    assert "date_document" in errors
+
+def test_validate_review_fields_missing_amounts(mem_db):
+    from dashboard import _validate_review_fields
+    mem_db.execute(
+        'INSERT INTO invoices (id, montant_ht, montant_ttc) VALUES (?, NULL, NULL)',
+        ("no-amt-item",)
+    )
+    mem_db.commit()
+    fields = {}
+    current = {"montant_ht": None, "montant_ttc": None}
+    errors = _validate_review_fields(fields, current, mem_db, "no-amt-item")
+    assert "montant_ht" in errors
+
+def test_validate_review_fields_zero_ht_is_valid(mem_db):
+    from dashboard import _validate_review_fields
+    mem_db.execute(
+        'INSERT INTO invoices (id, date_document, montant_ht) VALUES (?, ?, ?)',
+        ("zero-ht-item", "2025-03-01", 0.0)
+    )
+    mem_db.commit()
+    fields = {"montant_ht": 0.0, "date_document": "2025-03-01"}
+    current = {"montant_ht": 0.0, "montant_ttc": None}
+    errors = _validate_review_fields(fields, current, mem_db, "zero-ht-item")
+    assert "montant_ht" not in errors
+
+def test_recompute_confidence_high():
+    from dashboard import _recompute_confidence
+    fields = {"date_document": "2025-03-01", "montant_ttc": 120.0, "montant_ht": 100.0, "numéro_facture": "FR001"}
+    current = {"statut_révision": "à_réviser", "émetteur_siren": "123456789", "émetteur_tva_intracom": None}
+    confidence, warning = _recompute_confidence(fields, current)
+    assert confidence == 1.0
+    assert warning is None
+
+def test_recompute_confidence_low_warns_when_validated():
+    from dashboard import _recompute_confidence
+    fields = {"date_document": "2025-03-01", "montant_ht": 100.0}
+    current = {
+        "statut_révision": "validé",
+        "montant_ttc": None, "numéro_facture": None,
+        "émetteur_siren": None, "émetteur_tva_intracom": None,
+    }
+    confidence, warning = _recompute_confidence(fields, current)
+    assert confidence < 0.8
+    assert warning is not None
+    assert "À réviser" in warning or "réviser" in warning.lower()
+
+def test_recompute_confidence_no_warning_when_a_reviser():
+    from dashboard import _recompute_confidence
+    fields = {"montant_ht": 50.0}
+    current = {
+        "statut_révision": "à_réviser",
+        "date_document": None, "montant_ttc": None,
+        "numéro_facture": None, "émetteur_siren": None, "émetteur_tva_intracom": None,
+    }
+    _, warning = _recompute_confidence(fields, current)
+    assert warning is None
+
+def test_build_corrections_log_new_item():
+    import json as _json
+    from dashboard import _build_corrections_log
+    fields = {"montant_ht": 100.0, "date_document": "2025-03-01"}
+    current = {"statut_révision": "à_réviser", "corrections_log": "[]",
+               "montant_ht": None, "date_document": None, "montant_ttc": None}
+    result = _build_corrections_log(fields, current, "2025-03-01T10:00:00+00:00", None)
+    assert result["statut_révision"] == "validé"
+    assert result["révisé_par"] == "user"
+
+def test_build_corrections_log_validated_item_logs_diff():
+    import json as _json
+    from dashboard import _build_corrections_log
+    current = {
+        "statut_révision": "validé",
+        "corrections_log": "[]",
+        "émetteur_nom": "Ancien Nom",
+        "montant_ht": 100.0,
+        "montant_ttc": None,
+    }
+    fields = {"émetteur_nom": "Nouveau Nom"}
+    result = _build_corrections_log(fields, current, "2025-03-01T10:00:00+00:00", None)
+    log = _json.loads(result["corrections_log"])
+    assert len(log) >= 1
+    entry = next((e for e in log if e["champ"] == "émetteur_nom"), None)
+    assert entry is not None
+    assert entry["avant"] == "Ancien Nom"
+    assert entry["après"] == "Nouveau Nom"
+
+def test_build_corrections_log_warning_demotes():
+    from dashboard import _build_corrections_log
+    current = {"statut_révision": "validé", "corrections_log": "[]",
+               "montant_ht": 100.0, "montant_ttc": None}
+    fields = {}
+    result = _build_corrections_log(fields, current, "2025-03-01T10:00:00+00:00", "Confiance basse")
+    assert result["statut_révision"] == "à_réviser"

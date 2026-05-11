@@ -246,6 +246,10 @@ def _confidence_score(date: str | None, ttc, ht, invoice_num: str | None, fiscal
     fields = [date, ttc, ht, invoice_num, fiscal_id]
     return sum(1 for f in fields if f is not None) / len(fields)
 
+
+def confidence_score(date: str | None, ttc, ht, invoice_num: str | None, fiscal_id: str | None) -> float:
+    return _confidence_score(date, ttc, ht, invoice_num, fiscal_id)
+
 # ── Déductibilité ─────────────────────────────────────────────────────────────
 
 def get_deductibility(category: str) -> float:

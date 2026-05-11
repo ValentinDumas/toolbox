@@ -132,7 +132,7 @@ class TestParseInvoice:
         assert row["déductible"] == 1
         assert row["mode_paiement"] == "prélèvement"
         assert row["confiance"] == 1.0
-        assert row["statut_révision"] == "auto_validé"
+        assert row["statut_révision"] == "validé"
 
     def test_receipt_amounts(self):
         row = ex.parse_invoice(RECEIPT_TEXT, "ticket.heic", "auto-entrepreneur")

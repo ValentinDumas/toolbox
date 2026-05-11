@@ -3,6 +3,7 @@ dashboard.py — Dashboard web local pour invoice-manager.
 Usage: python dashboard.py [--config FILE] [--port PORT]
 """
 import argparse
+import json
 import os
 import platform
 import shutil
@@ -10,14 +11,14 @@ import sqlite3
 import subprocess
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
 from constants import (
-    CONFIDENCE_THRESHOLD, INCOME_TYPES, EXPENSE_TYPES,
+    CONFIDENCE_THRESHOLD, FISCAL_RULES, INCOME_TYPES, EXPENSE_TYPES,
     STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES,
 )
 from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
@@ -236,8 +237,13 @@ def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:
     if not has_date:
         errors["date_document"] = "Date du document requise pour apparaître dans le ledger"
 
-    has_amount = fields.get("montant_ht") or fields.get("montant_ttc")
-    if not has_amount and not current.get("montant_ht") and not current.get("montant_ttc"):
+    has_amount = (
+        fields.get("montant_ht") is not None
+        or fields.get("montant_ttc") is not None
+        or current.get("montant_ht") is not None
+        or current.get("montant_ttc") is not None
+    )
+    if not has_amount:
         errors["montant_ht"] = "Au moins un montant (HT ou TTC) est requis"
 
     return errors
@@ -245,14 +251,14 @@ def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:
 
 def _recompute_confidence(fields: dict, current: dict) -> tuple[float, str | None]:
     """Recalculate confidence score; return (new_confidence, warning_message_or_None)."""
-    from parsers import _confidence_score
+    from parsers import confidence_score
 
     date_val   = fields.get("date_document")  or current.get("date_document")
     ttc_val    = fields.get("montant_ttc")    or current.get("montant_ttc")
     ht_val     = fields.get("montant_ht")     or current.get("montant_ht")
     num_val    = fields.get("numéro_facture") or current.get("numéro_facture")
     fiscal_val = current.get("émetteur_siren") or current.get("émetteur_tva_intracom")
-    confidence = round(_confidence_score(date_val, ttc_val, ht_val, num_val, fiscal_val), 2)
+    confidence = round(confidence_score(date_val, ttc_val, ht_val, num_val, fiscal_val), 2)
 
     warning = None
     if current["statut_révision"] == STATUT_VALIDE and confidence < CONFIDENCE_THRESHOLD:
@@ -264,7 +270,6 @@ def _recompute_confidence(fields: dict, current: dict) -> tuple[float, str | Non
 
 def _build_corrections_log(fields: dict, current: dict, now: str, warning: str | None) -> dict:
     """Enrich fields with audit metadata; return updated fields dict."""
-    import json
 
     already_validated = current["statut_révision"] == STATUT_VALIDE
 
@@ -522,8 +527,7 @@ button:hover{background:#1D4ED8cc}
                     return redirect(url_for("setup", step="fiscal"))
             elif step == "fiscal":
                 fiscal = request.form.get("fiscal_profile", "").strip()
-                valid = ("auto-entrepreneur", "SASU", "SARL", "salarié")
-                if fiscal not in valid:
+                if fiscal not in FISCAL_RULES:
                     error = "Profil fiscal invalide."
                 else:
                     conn.execute(
@@ -675,7 +679,7 @@ button:hover{background:#1D4ED8cc}
             run_error=run_error,
             review_error=review_error,
             expense_types=EXPENSE_TYPES,
-            doc_types=("facture_émise", "facture_reçue", "reçu", "note_de_frais", "avoir", "devis"),
+            doc_types=INCOME_TYPES + EXPENSE_TYPES + ("avoir", "devis"),
             profile=profile,
             profile_incomplete=profile_incomplete,
         )
@@ -712,14 +716,17 @@ button:hover{background:#1D4ED8cc}
         if count == 0:
             return redirect(f"/?year={year}")
 
-        review_csv = _active_paths()["review"] / "review.csv"
+        paths = _active_paths()
+        review_dir = paths["review"].resolve()
+        review_csv = (review_dir / "review.csv").resolve()
+        if not review_csv.is_relative_to(review_dir):
+            return redirect(f"/?year={year}")
         cmd = "open" if platform.system() == "Darwin" else "xdg-open"
         subprocess.Popen([cmd, str(review_csv)])
         return redirect(f"/?year={year}")
 
     @app.route("/review/<item_id>/save", methods=["POST"])
     def review_save(item_id):
-        from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
         warning = None
         try:
@@ -752,7 +759,6 @@ button:hover{background:#1D4ED8cc}
 
     @app.route("/review/<item_id>/validate", methods=["POST"])
     def review_validate(item_id):
-        from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
         year = request.form.get("year", datetime.now().year)
         try:
@@ -770,7 +776,6 @@ button:hover{background:#1D4ED8cc}
 
     @app.route("/review/<item_id>/delete", methods=["POST"])
     def review_delete(item_id):
-        from datetime import timezone
         now = datetime.now(timezone.utc).isoformat()
         year = request.form.get("year", datetime.now().year)
         try:

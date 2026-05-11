@@ -88,7 +88,87 @@
     .config-key { color: var(--text-muted); font-family: monospace; font-size: .8rem; }
     .config-value { font-weight: 500; }
     .config-note { font-size: .78rem; color: var(--text-muted); margin-top: 1rem; }
+
+    /* Card title with tooltip */
+    .card-title-row { display: flex; align-items: center; gap: .4rem; margin-bottom: 1.25rem; }
+    .card-title-row .card-title { margin-bottom: 0; }
+    .info-btn {
+      background: none; border: none; cursor: pointer; color: var(--text-muted);
+      font-size: .9rem; line-height: 1; padding: 0; position: relative;
+    }
+    .info-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 3px; }
+    .info-tooltip {
+      display: none; position: absolute; left: 50%; top: calc(100% + 6px);
+      transform: translateX(-50%); background: var(--text); color: #fff;
+      font-size: .75rem; font-weight: 400; line-height: 1.5;
+      padding: .5rem .75rem; border-radius: 6px; width: 280px; z-index: 50;
+      pointer-events: none;
+    }
+    .info-tooltip::before {
+      content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-bottom-color: var(--text);
+    }
+    .info-btn:hover .info-tooltip,
+    .info-btn:focus .info-tooltip { display: block; }
+
+    /* Range slider */
+    .range-wrapper { display: flex; align-items: center; gap: .75rem; }
+    .range-wrapper input[type="range"] {
+      flex: 1; accent-color: var(--primary); cursor: pointer; height: 4px;
+    }
+    .range-readout {
+      min-width: 3.5rem; text-align: right; font-size: .875rem; font-weight: 500;
+      color: var(--text); font-variant-numeric: tabular-nums;
+    }
+    .dpi-segments { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .25rem; }
+    .dpi-seg {
+      padding: .3rem .75rem; border: 1px solid var(--border); border-radius: 6px;
+      font-size: .8rem; cursor: pointer; background: var(--bg); color: var(--text-muted);
+      transition: background .1s, color .1s, border-color .1s;
+    }
+    .dpi-seg.active, .dpi-seg:hover { background: #EFF6FF; color: var(--primary); border-color: var(--primary); }
   </style>
+  <script>
+    function initRangeSlider(inputId, readoutId, unit) {
+      var inp = document.getElementById(inputId);
+      var out = document.getElementById(readoutId);
+      if (!inp || !out) return;
+      function update() {
+        var val = parseFloat(inp.value);
+        out.textContent = unit === '%' ? Math.round(val * 100) + ' %' : val + ' ' + unit;
+        inp.setAttribute('aria-valuetext', out.textContent);
+      }
+      inp.addEventListener('input', update);
+      update();
+    }
+    function initDpiSegments(inputId, segments) {
+      var inp = document.getElementById(inputId);
+      var out = document.getElementById(inputId + '-readout');
+      if (!inp) return;
+      function updateSegs() {
+        var v = parseInt(inp.value);
+        segments.forEach(function(s) {
+          s.classList.toggle('active', parseInt(s.dataset.val) === v);
+        });
+        if (out) out.textContent = v + ' DPI';
+        inp.setAttribute('aria-valuetext', v + ' DPI');
+      }
+      inp.addEventListener('input', updateSegs);
+      segments.forEach(function(s) {
+        s.addEventListener('click', function() {
+          inp.value = s.dataset.val;
+          updateSegs();
+        });
+      });
+      updateSegs();
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      initRangeSlider('confidence_threshold', 'confidence_threshold-readout', '%');
+      initRangeSlider('ocr_easyocr_threshold', 'ocr_easyocr_threshold-readout', '%');
+      var dpiSegs = Array.from(document.querySelectorAll('.dpi-seg'));
+      initDpiSegments('ocr_dpi', dpiSegs);
+    });
+  </script>
 </head>
 <body>
   <div class="page">
@@ -221,7 +301,12 @@
           <h1>Application</h1>
           <form method="post" action="/settings/app">
             <div class="card">
-              <div class="card-title">Extraction</div>
+              <div class="card-title-row">
+                <div class="card-title">Extraction</div>
+                <button type="button" class="info-btn" aria-label="En savoir plus" aria-describedby="tip-extraction">ⓘ
+                  <span role="tooltip" id="tip-extraction" class="info-tooltip">Contrôle comment les fichiers sont lus et à partir de quel seuil un résultat est jugé fiable.</span>
+                </button>
+              </div>
               <div class="field-row">
                 <div class="field">
                   <label for="backend">Moteur d'extraction</label>
@@ -232,16 +317,24 @@
                   <span class="field-hint">Le backend Claude envoie les fichiers à l'API Anthropic.</span>
                 </div>
                 <div class="field">
-                  <label for="confidence_threshold">Seuil de confiance</label>
-                  <input type="number" id="confidence_threshold" name="confidence_threshold"
-                         value="{{ extraction_cfg.confidence_threshold }}" min="0" max="1" step="0.05">
-                  <span class="field-hint">En dessous de ce seuil → marqué « à réviser ». Défaut : 0.8</span>
+                  <label for="confidence_threshold">Seuil de confiance — <span id="confidence_threshold-readout"></span></label>
+                  <div class="range-wrapper">
+                    <input type="range" id="confidence_threshold" name="confidence_threshold"
+                           value="{{ extraction_cfg.confidence_threshold }}" min="0" max="1" step="0.05"
+                           aria-valuemin="0" aria-valuemax="1" aria-describedby="hint-confidence">
+                  </div>
+                  <span class="field-hint" id="hint-confidence">En dessous de ce seuil → marqué « à réviser ». Défaut : 80 %</span>
                 </div>
               </div>
             </div>
 
             <div class="card">
-              <div class="card-title">OCR (Tesseract)</div>
+              <div class="card-title-row">
+                <div class="card-title">OCR (Tesseract)</div>
+                <button type="button" class="info-btn" aria-label="En savoir plus" aria-describedby="tip-ocr">ⓘ
+                  <span role="tooltip" id="tip-ocr" class="info-tooltip">Tesseract convertit les images et PDF scannés en texte lisible. Ces réglages affectent la qualité de la reconnaissance.</span>
+                </button>
+              </div>
               <div class="field-row">
                 <div class="field">
                   <label for="ocr_lang">Langues</label>
@@ -249,9 +342,17 @@
                   <span class="field-hint">Codes Tesseract séparés par « + ». Ex : fra+eng</span>
                 </div>
                 <div class="field">
-                  <label for="ocr_dpi">Résolution PDF (DPI)</label>
-                  <input type="number" id="ocr_dpi" name="ocr_dpi" value="{{ extraction_cfg.ocr_dpi }}" min="72" max="600">
-                  <span class="field-hint">300 recommandé. Augmenter si l'OCR rate des caractères fins.</span>
+                  <label for="ocr_dpi">Résolution PDF — <span id="ocr_dpi-readout"></span></label>
+                  <input type="range" id="ocr_dpi" name="ocr_dpi"
+                         value="{{ extraction_cfg.ocr_dpi }}" min="72" max="600" step="1"
+                         aria-valuemin="72" aria-valuemax="600" aria-describedby="hint-dpi">
+                  <div class="dpi-segments">
+                    <span class="dpi-seg" data-val="150" role="button" tabindex="0">150 DPI</span>
+                    <span class="dpi-seg" data-val="300" role="button" tabindex="0">300 DPI</span>
+                    <span class="dpi-seg" data-val="400" role="button" tabindex="0">400 DPI</span>
+                    <span class="dpi-seg" data-val="600" role="button" tabindex="0">600 DPI</span>
+                  </div>
+                  <span class="field-hint" id="hint-dpi">300 recommandé. Augmenter si l'OCR rate des caractères fins.</span>
                 </div>
               </div>
               <div class="field-row full" style="margin-top:.75rem;">
@@ -266,7 +367,12 @@
             </div>
 
             <div class="card">
-              <div class="card-title">EasyOCR (fallback)</div>
+              <div class="card-title-row">
+                <div class="card-title">EasyOCR (fallback)</div>
+                <button type="button" class="info-btn" aria-label="En savoir plus" aria-describedby="tip-easyocr">ⓘ
+                  <span role="tooltip" id="tip-easyocr" class="info-tooltip">Second moteur OCR activé automatiquement quand Tesseract produit trop peu de texte alphanumérique (photos floues, tickets froissés).</span>
+                </button>
+              </div>
               <div class="field-row full">
                 <label class="radio-option" style="border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;cursor:pointer;display:flex;gap:.75rem;align-items:center;margin-bottom:.75rem;">
                   <input type="checkbox" name="ocr_easyocr_fallback" value="1" {{ 'checked' if extraction_cfg.ocr_easyocr_fallback else '' }}>
@@ -276,12 +382,15 @@
                   </div>
                 </label>
               </div>
-              <div class="field-row" style="max-width:260px;">
+              <div class="field-row" style="max-width:340px;">
                 <div class="field">
-                  <label for="ocr_easyocr_threshold">Seuil de déclenchement</label>
-                  <input type="number" id="ocr_easyocr_threshold" name="ocr_easyocr_threshold"
-                         value="{{ extraction_cfg.ocr_easyocr_threshold }}" min="0" max="1" step="0.05">
-                  <span class="field-hint">Ratio alphanumérique en dessous duquel EasyOCR est déclenché. Défaut : 0.4</span>
+                  <label for="ocr_easyocr_threshold">Seuil de déclenchement — <span id="ocr_easyocr_threshold-readout"></span></label>
+                  <div class="range-wrapper">
+                    <input type="range" id="ocr_easyocr_threshold" name="ocr_easyocr_threshold"
+                           value="{{ extraction_cfg.ocr_easyocr_threshold }}" min="0" max="1" step="0.05"
+                           aria-valuemin="0" aria-valuemax="1" aria-describedby="hint-easyocr-threshold">
+                  </div>
+                  <span class="field-hint" id="hint-easyocr-threshold">Ratio alphanumérique en dessous duquel EasyOCR est déclenché. Défaut : 40 %</span>
                 </div>
               </div>
             </div>
