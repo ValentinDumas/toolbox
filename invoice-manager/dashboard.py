@@ -478,7 +478,7 @@ button:hover{background:#1D4ED8cc}
             try:
                 conn.execute("INSERT INTO known_emitters (keyword, nom) VALUES (?, ?)", (keyword, nom))
                 conn.commit()
-            except Exception:
+            except sqlite3.IntegrityError:
                 pass
             conn.close()
         return redirect(url_for("settings", section="enseignes"))
