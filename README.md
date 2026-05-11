@@ -28,6 +28,16 @@ Scripts pour automatiser les tâches répétitives.
 
 Flux complet : `inspect code` → `dispatch` → `review` → répéter.
 
+### tmux Setup — Configuration cross-platform
+
+[`tmux-agnostic-setup/`](tmux-agnostic-setup/tmux-agnostic-setup.md) — config tmux complète : plugins, status bar, grid de panes, auto-save/restore.
+
+| Composant | Rôle |
+|---|---|
+| `~/.config/tmux/tmux.conf` | Config principale : plugins, keybindings, bordures, fond de pane actif |
+| `statusbar.sh` | Status bar droite : dossier · branche git · batterie · heure |
+| `layouts/grid.sh` | Gestionnaire de grille (`g N`, `g+`, `g-`) |
+
 ### SNCF — Justificatifs de frais de train
 
 [`sncf-trip-proofs/`](sncf-trip-proofs/README.md) — trois scripts pour déclarer les frais de train au réel à partir des PDFs SNCF Connect.
