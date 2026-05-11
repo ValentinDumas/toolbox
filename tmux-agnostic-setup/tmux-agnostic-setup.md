@@ -418,6 +418,13 @@ Save to `~/.config/tmux/proj.sh` and make executable (`chmod +x`):
 #!/usr/bin/env sh
 set -e
 
+tmux start-server 2>/dev/null || true
+# wait for socket to be ready
+_i=0
+while ! tmux list-sessions >/dev/null 2>&1 && [ $_i -lt 10 ]; do
+    sleep 0.1; _i=$((_i + 1))
+done
+
 SESSION="$1"
 
 if [ -z "$SESSION" ]; then
@@ -425,7 +432,7 @@ if [ -z "$SESSION" ]; then
         SESSION=$(tmux list-sessions -F '#S' 2>/dev/null \
             | sed 's/^grid$/grid (default)/' \
             | fzf --prompt="session> " --height=10 --border \
-            | sed 's/ (default)$//')
+            | sed 's/ (default)$//' || true)
         [ -z "$SESSION" ] && exit 0
     else
         # Built-in tmux session picker (requires active tmux client)
@@ -489,6 +496,20 @@ tmux switch-client -t "$SESSION"
 ```
 
 **Naming:** file name must match the session name you pass to `proj`. `proj invoice` → `projects/invoice.sh`.
+
+**Always pass the session name to `grid.sh`:** `grid.sh` infers the session from `tmux display-message` when `$2` is omitted. From inside an existing tmux session, that returns the *current* session — not the one you're launching. Always pass it explicitly:
+
+```sh
+~/.config/tmux/layouts/grid.sh "$1" myproject   # correct
+~/.config/tmux/layouts/grid.sh                  # wrong — picks up caller's session
+```
+
+Minimal project script (pane management only, no custom windows):
+
+```sh
+#!/usr/bin/env sh
+~/.config/tmux/layouts/grid.sh "$1" grid
+```
 
 ---
 

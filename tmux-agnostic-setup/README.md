@@ -18,6 +18,7 @@ Opinionated tmux setup for persistent, multi-project terminal workflows — name
 | Multiple projects mixed in one flat pane grid | Named sessions per project — `proj` switches between them instantly |
 | Setting up pane layouts per project is slow | `g`, `g+`, `g-` — one keystroke to add, kill, or restore panes in any session |
 | Config is fragile and hard to reproduce | Every file and setting is documented here, copy-pasteable |
+| `proj` fails if no tmux server is running | `proj` starts the server and waits for the socket — safe from a cold shell |
 
 ---
 
@@ -61,6 +62,8 @@ g 3                     # set up 3 panes however you need
 ### Optional: scripted project layouts
 
 If you want a session to auto-configure on first run (specific windows, startup commands), create `~/.config/tmux/projects/myproject.sh`. The next time you run `proj myproject`, it runs the script instead of creating a bare session. See the [full guide](tmux-agnostic-setup.md#project-scripts-optional) for an example.
+
+> Always pass the session name explicitly to `grid.sh` inside a project script — omitting it picks up the *caller's* session, not the one being launched. See the [full guide](tmux-agnostic-setup.md#project-scripts-optional) for the pattern.
 
 ### The `grid` session
 
