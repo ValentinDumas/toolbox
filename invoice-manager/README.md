@@ -87,6 +87,7 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 
 | Donnée | Section | Description |
 |---|---|---|
+| Photo de profil | Profil | JPG/PNG/WEBP — redimensionnée 256×256, stockée en base64 dans SQLite |
 | SIREN | Profil | 9 chiffres — détecte automatiquement tes factures émises |
 | Nom / raison sociale | Profil | Affiché dans l'en-tête du dashboard |
 | TVA intracommunautaire | Profil | FR + 2 chiffres + SIREN |
@@ -445,7 +446,7 @@ python dashboard.py --port 8080   # changer le port
 ```
 
 Le dashboard affiche :
-- **En-tête** : sélecteur de profil — dropdown listant toutes les entités, switcher de contexte instantané, bouton "＋ Nouveau profil". Le badge affiche le nom, profil fiscal et SIREN de l'entité active.
+- **En-tête** : sélecteur de profil — dropdown listant toutes les entités, switcher de contexte instantané, bouton "＋ Nouveau profil". Le badge affiche la photo de profil (si uploadée) ou les initiales, le nom, profil fiscal et SIREN de l'entité active.
 - **Import multi-fichiers** : bouton "⬆ Importer" ouvre une modale avec drag & drop — plusieurs PDF/images simultanément, extraction lancée en background, résultats visibles sans recharger la page.
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
   - *TVA déductible* : TVA payée sur vos achats fournisseurs — récupérable auprès de l'État
@@ -453,7 +454,7 @@ Le dashboard affiche :
 - **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page. Quand des liens de fichiers introuvables sur disque existent, une 4e carte **Liens morts** apparaît avec un compteur et un bouton de purge intégré — elle disparaît une fois la purge effectuée
 
 Navigation par onglets (sous la synthèse) :
-- **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Chaque ligne avec un fichier affiche deux icônes : 🔍 ouvre une prévisualisation PDF inline (modale dans le navigateur), 📥 télécharge le fichier directement
+- **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Le nom de fichier source est affiché en sous-texte de la colonne Fournisseur/Client (tronqué à 16 caractères + `…` + extension) — cliquable pour ouvrir la prévisualisation PDF. Les items `à_réviser` affichent un bouton **→ Réviser** dans la colonne Statut (toujours visible, sans survol). Chaque ligne affiche également 🔍 prévisualisation, 📥 téléchargement, et 🗑 suppression
 - **À réviser (N)** : items non encore validés — édition directe dans le navigateur (8 champs). Le titre de chaque carte (émetteur + date) est cliquable et ouvre la prévisualisation PDF inline. Onglet grisé et non cliquable si aucun item
 - **Corbeille (N)** : documents supprimés avec date de suppression et bouton Restaurer. Onglet grisé si vide
 - **Erreurs (N)** : fichiers que l'extraction n'a pas pu traiter (format non reconnu, parsing échoué). Liste avec nom, taille, date, 🔍 prévisualisation. Actions par fichier : **↩ Réessayer** (remet dans `input/` et relance l'extraction en background), **✕ Supprimer** (suppression définitive avec confirmation). Onglet grisé si vide
