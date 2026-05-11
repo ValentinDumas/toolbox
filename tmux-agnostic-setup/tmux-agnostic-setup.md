@@ -39,7 +39,6 @@ All config lives under `~/.config/tmux/`. No external dependencies.
   tmux.conf                         # full config: plugins, keybindings, statusbar, resurrect
   statusbar.sh                      # right-side status: dir · git · battery
   proj.sh                           # session switcher/creator
-  project-dirs                      # name=path registry (managed by proj set)
   layouts/
     grid.sh                         # pane manager — targets focused session
   projects/                         # optional per-project session scripts
@@ -419,29 +418,12 @@ Save to `~/.config/tmux/proj.sh` and make executable (`chmod +x`):
 #!/usr/bin/env sh
 set -e
 
-DIRS_FILE="$HOME/.config/tmux/project-dirs"
-
-# proj set <name> — register $PWD as start dir for a project
-if [ "$1" = "set" ]; then
-    [ -z "$2" ] && { echo "usage: proj set <name>"; exit 1; }
-    mkdir -p "$(dirname "$DIRS_FILE")"
-    tmpfile=$(mktemp)
-    grep -v "^${2}=" "$DIRS_FILE" 2>/dev/null > "$tmpfile" || true
-    echo "${2}=${PWD}" >> "$tmpfile"
-    mv "$tmpfile" "$DIRS_FILE"
-    echo "proj: '${2}' → ${PWD}"
-    exit 0
-fi
-
 tmux start-server 2>/dev/null || true
+# wait for socket to be ready
 _i=0
-while [ $_i -lt 20 ]; do
-    tmux list-sessions >/dev/null 2>&1 && break
+while ! tmux list-sessions >/dev/null 2>&1 && [ $_i -lt 10 ]; do
     sleep 0.1; _i=$((_i + 1))
 done
-if ! tmux list-sessions >/dev/null 2>&1; then
-    tmux new-session -d -s main 2>/dev/null || true
-fi
 
 SESSION="$1"
 
@@ -453,12 +435,11 @@ if [ -z "$SESSION" ]; then
             | sed 's/ (default)$//' || true)
         [ -z "$SESSION" ] && exit 0
     else
-        tmux choose-tree -Zs 2>/dev/null
+        # Built-in tmux session picker (requires active tmux client)
+        tmux choose-tree -Zs
         exit 0
     fi
 fi
-
-START_DIR=$(grep "^${SESSION}=" "$DIRS_FILE" 2>/dev/null | cut -d= -f2-)
 
 PROJECT_SCRIPT="$HOME/.config/tmux/projects/${SESSION}.sh"
 if [ -f "$PROJECT_SCRIPT" ]; then
@@ -466,24 +447,8 @@ if [ -f "$PROJECT_SCRIPT" ]; then
     exit 0
 fi
 
-if tmux has-session -t "$SESSION" 2>/dev/null; then
-    if [ -n "$START_DIR" ]; then
-        PANE_CMD=$(tmux display-message -p '#{pane_current_command}' -t "$SESSION" 2>/dev/null)
-        case "$PANE_CMD" in
-            zsh|bash|sh|fish)
-                tmux send-keys -t "$SESSION" "cd \"${START_DIR}\"" Enter
-                ;;
-            *)
-                echo "warn: pane running '${PANE_CMD}' — skipping cd to ${START_DIR}. Run manually."
-                ;;
-        esac
-    fi
-else
-    if [ -n "$START_DIR" ]; then
-        tmux new-session -d -s "$SESSION" -c "$START_DIR" 2>/dev/null
-    else
-        tmux new-session -d -s "$SESSION" 2>/dev/null
-    fi
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+    tmux new-session -d -s "$SESSION"
 fi
 
 if [ -n "$TMUX" ]; then
@@ -497,10 +462,9 @@ fi
 
 | Command | Action |
 |---|---|
-| `proj set <name>` | Save `$PWD` as start dir for `<name>`. Panes in that session always start here. |
 | `proj` | Session picker — fzf list if installed, else native `tmux choose-tree` |
-| `proj <name>` | Switch to session (create bare session if missing). New sessions start in the registered dir. Existing sessions: `cd` to registered dir if pane is at a shell prompt, warn otherwise. |
-| `proj <name>` | If `~/.config/tmux/projects/<name>.sh` exists, run it instead (dir mapping ignored) |
+| `proj <name>` | Switch to session (create bare session if missing) |
+| `proj <name>` | If `~/.config/tmux/projects/<name>.sh` exists, run it instead |
 
 `grid` is labeled `(default)` in the fzf picker.
 
@@ -697,9 +661,8 @@ If empty: run `prefix + I` inside tmux to reinstall plugins.
 ## Daily Reference
 
 ```sh
-proj set <name>                   # register $PWD as start dir for a project
 proj                              # session picker
-proj <name>                       # switch to / create named session (starts in registered dir)
+proj <name>                       # switch to / create named session
 tmux ls                           # list sessions
 tmux attach -t <name>             # attach (any OS)
 tmux -CC attach -t <name>         # attach with iTerm2 integration (macOS only)
