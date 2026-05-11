@@ -29,7 +29,8 @@ Opinionated tmux setup for persistent, multi-pane terminal workflows — with a 
 | TPM | Plugin manager for tmux |
 | tmux-resurrect | Manual session save/restore (`prefix + Ctrl-s` / `Ctrl-r`) |
 | tmux-continuum | Auto-saves every 5 min, auto-restores on tmux start |
-| `grid.sh` | Script that manages pane count for a session — the `g` command |
+| `grid.sh` | Pane count manager for the focused session — the `g` command |
+| `proj.sh` | Session switcher/creator — the `proj` command |
 | `statusbar.sh` | Right-side status bar: current dir · git branch + diff · battery · time |
 
 ---
@@ -51,10 +52,11 @@ Add aliases to your shell or symlink `grid.sh` into `~/.local/bin/g` — see the
 
 | Command | Action |
 |---|---|
-| `g` | Attach to grid session (restores last pane count) |
-| `g N` | Set grid to exactly N panes and attach |
-| `g +` | Add one pane, rebalance layout |
-| `g -` | Kill focused pane, rebalance layout |
+| `proj` | Session picker — switch between projects |
+| `proj <name>` | Switch to named session (create if missing) |
+| `g` | Restore pane count in focused session |
+| `g N` | Set focused session to exactly N panes |
+| `g+` / `g-` | Add / remove one pane in focused session |
 | `prefix Ctrl-s` | Save session snapshot |
 | `prefix Ctrl-r` | Restore session snapshot |
 | `Shift+Arrow` | Navigate between panes (no prefix needed) |

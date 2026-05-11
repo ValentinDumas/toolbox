@@ -20,7 +20,8 @@ tmux turns your terminal into a persistent, scriptable, multi-session workspace:
 | TPM | tmux Plugin Manager |
 | tmux-resurrect | Manual save/restore of sessions (prefix + Ctrl-s / Ctrl-r) |
 | tmux-continuum | Auto-saves every 5 min, restores on tmux start |
-| tmux-worktrees | Custom script — one tab per git worktree |
+| `grid.sh` | Custom script — pane count manager for the focused session (`g` command) |
+| `proj.sh` | Custom script — session switcher/creator (`proj` command) |
 
 | Platform | Status |
 |---|---|
@@ -37,9 +38,14 @@ All config lives under `~/.config/tmux/`. No external dependencies.
 ~/.config/tmux/
   tmux.conf                         # full config: plugins, keybindings, statusbar, resurrect
   statusbar.sh                      # right-side status: dir · git · battery
+  proj.sh                           # session switcher/creator
   layouts/
-    grid.sh                         # grid session manager
-    <session>.count                 # saved pane count per session (auto-managed)
+    grid.sh                         # pane manager — targets focused session
+  projects/                         # optional per-project session scripts
+    <name>.sh                       # proj <name> runs this if present
+
+~/.local/state/
+  tmux-grid-<session>-last          # pane count per session (auto-managed)
 ```
 
 ---
@@ -381,16 +387,18 @@ Script: `~/.config/tmux/statusbar.sh`
 
 ## Grid Sessions
 
+`g` manages pane count in the **focused session** — whichever tmux session your cursor is in.
+
 | Command | Action |
 |---------|--------|
-| `g` | Restore/set grid to last saved pane count |
-| `g N` | Set grid to exactly N panes (e.g. `g 2`, `g 4`) |
-| `g+` | Add 1 pane to current session, rebalance ¹ |
-| `g-` | Kill focused pane in current session, rebalance ¹ |
+| `g` | Restore pane count in focused session |
+| `g N` | Set focused session to exactly N panes (e.g. `g 2`, `g 4`) |
+| `g+` | Add 1 pane to focused session, rebalance ¹ |
+| `g-` | Kill focused pane, rebalance ¹ |
 
 ¹ `g+`/`g-` (no space) requires zsh aliases. In bash/fish or via symlink, use `g +` / `g -` with a space instead — both forms call the script with `+` or `-` as the first argument and behave identically.
 
-Pane count persists in `~/.local/state/tmux-grid-last`. Updated automatically on every `g`, `g N`, `g+`, or `g-` call.
+Pane count persists per session in `~/.local/state/tmux-grid-<session>-last`. Each session tracks its own count independently.
 
 ### Cold-start
 
@@ -402,6 +410,88 @@ Pane count persists in `~/.local/state/tmux-grid-last`. Updated automatically on
 
 ---
 
+## Script: proj.sh
+
+Save to `~/.config/tmux/proj.sh` and make executable (`chmod +x`):
+
+```sh
+#!/usr/bin/env sh
+set -e
+
+SESSION="$1"
+
+if [ -z "$SESSION" ]; then
+    if command -v fzf >/dev/null 2>&1; then
+        SESSION=$(tmux list-sessions -F '#S' 2>/dev/null \
+            | sed 's/^grid$/grid (default)/' \
+            | fzf --prompt="session> " --height=10 --border \
+            | sed 's/ (default)$//')
+        [ -z "$SESSION" ] && exit 0
+    else
+        # Built-in tmux session picker (requires active tmux client)
+        tmux choose-tree -Zs
+        exit 0
+    fi
+fi
+
+PROJECT_SCRIPT="$HOME/.config/tmux/projects/${SESSION}.sh"
+if [ -f "$PROJECT_SCRIPT" ]; then
+    sh "$PROJECT_SCRIPT"
+    exit 0
+fi
+
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+    tmux new-session -d -s "$SESSION"
+fi
+
+if [ -n "$TMUX" ]; then
+    tmux switch-client -t "$SESSION"
+else
+    tmux attach-session -t "$SESSION"
+fi
+```
+
+**How it works:**
+
+| Command | Action |
+|---|---|
+| `proj` | Session picker — fzf list if installed, else native `tmux choose-tree` |
+| `proj <name>` | Switch to session (create bare session if missing) |
+| `proj <name>` | If `~/.config/tmux/projects/<name>.sh` exists, run it instead |
+
+`grid` is labeled `(default)` in the fzf picker.
+
+Install fzf for the enhanced picker (with `(default)` label): `brew install fzf`
+
+Without fzf, `proj` opens tmux's native `choose-tree` (same as `prefix + s`).
+
+---
+
+## Project Scripts (optional)
+
+Per-project session scripts live in `~/.config/tmux/projects/`. They're opt-in — `proj <name>` works without one (creates a bare session). Add a script when you want a specific window layout and startup commands.
+
+Example `~/.config/tmux/projects/invoice.sh`:
+
+```sh
+#!/usr/bin/env sh
+SESSION=invoice
+
+tmux has-session -t "$SESSION" 2>/dev/null && \
+    tmux switch-client -t "$SESSION" && exit 0
+
+tmux new-session -d -s "$SESSION" -n server
+tmux send-keys -t "$SESSION:server" "cd ~/Projects/invoice-manager && flask run" Enter
+tmux new-window -t "$SESSION" -n agents
+~/.config/tmux/layouts/grid.sh 4 "$SESSION"
+tmux select-window -t "$SESSION:server"
+tmux switch-client -t "$SESSION"
+```
+
+**Naming:** file name must match the session name you pass to `proj`. `proj invoice` → `projects/invoice.sh`.
+
+---
+
 ## Aliases
 
 ### zsh
@@ -410,11 +500,12 @@ Paste into `~/.zshrc`:
 
 ```sh
 alias g='~/.config/tmux/layouts/grid.sh'
-alias g+='~/.config/tmux/layouts/grid.sh +'
-alias g-='~/.config/tmux/layouts/grid.sh -'
+alias g+='~/.config/tmux/layouts/grid.sh + $([ -n "$TMUX" ] && tmux display-message -p "#S" || echo grid)'
+alias g-='~/.config/tmux/layouts/grid.sh - $([ -n "$TMUX" ] && tmux display-message -p "#S" || echo grid)'
+alias proj='~/.config/tmux/proj.sh'
 ```
 
-`g+` and `g-` are valid zsh alias names. Reload with `source ~/.zshrc`.
+`g+` and `g-` are valid zsh alias names. They pass the current session name so pane management targets the right session. Reload with `source ~/.zshrc`.
 
 ### bash
 
@@ -447,11 +538,12 @@ Use `g`, `g +`, `g -` with a space.
 
 ## PATH Setup (`~/.local/bin`)
 
-For shell-agnostic access — makes `g` available without sourcing any shell config (e.g. from scripts, SSH sessions, VS Code terminal):
+For shell-agnostic access — makes `g` and `proj` available without sourcing any shell config (e.g. from scripts, SSH sessions, VS Code terminal):
 
 ```sh
 mkdir -p ~/.local/bin
 ln -sf ~/.config/tmux/layouts/grid.sh ~/.local/bin/g
+ln -sf ~/.config/tmux/proj.sh ~/.local/bin/proj
 ```
 
 Ensure `~/.local/bin` is in your PATH:
@@ -548,6 +640,8 @@ If empty: run `prefix + I` inside tmux to reinstall plugins.
 ## Daily Reference
 
 ```sh
+proj                              # session picker
+proj <name>                       # switch to / create named session
 tmux ls                           # list sessions
 tmux attach -t <name>             # attach (any OS)
 tmux -CC attach -t <name>         # attach with iTerm2 integration (macOS only)
