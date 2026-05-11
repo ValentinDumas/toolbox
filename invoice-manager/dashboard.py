@@ -791,44 +791,46 @@ button:hover{background:#1D4ED8cc}
         conn.close()
         return redirect(f"/?year={year}")
 
-    @app.route("/files/<path:filename>")
-    def serve_file(filename):
-        from flask import abort, send_file
-        paths = _active_paths() or {}
+    def _find_file(paths: dict, filename: str):
         basename = Path(filename).name
         for subdir in ("processed", "errors", "input"):
             candidate = paths.get(subdir, HERE / subdir) / basename
             if candidate.is_file():
-                suffix = candidate.suffix.lower()
-                mime = "application/pdf" if suffix == ".pdf" else None
-                return send_file(candidate, mimetype=mime, as_attachment=False)
-        abort(404)
+                return candidate
+        return None
+
+    @app.route("/files/<path:filename>")
+    def serve_file(filename):
+        from flask import abort, send_file
+        candidate = _find_file(_active_paths() or {}, filename)
+        if candidate is None:
+            abort(404)
+        suffix = candidate.suffix.lower()
+        mime = "application/pdf" if suffix == ".pdf" else None
+        return send_file(candidate, mimetype=mime, as_attachment=False)
 
     @app.route("/preview/<path:filename>")
     def preview_file(filename):
         import io
         from flask import abort, send_file, Response
-        paths = _active_paths() or {}
-        basename = Path(filename).name
-        for subdir in ("processed", "errors", "input"):
-            candidate = paths.get(subdir, HERE / subdir) / basename
-            if candidate.is_file():
-                suffix = candidate.suffix.lower()
-                if suffix == ".pdf":
-                    return send_file(candidate, mimetype="application/pdf", as_attachment=False)
-                if suffix in (".heic", ".heif"):
-                    import pillow_heif
-                    from PIL import Image
-                    pillow_heif.register_heif_opener()
-                    img = Image.open(candidate)
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG", quality=85)
-                    buf.seek(0)
-                    return send_file(buf, mimetype="image/jpeg", as_attachment=False)
-                if suffix in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
-                    return send_file(candidate, as_attachment=False)
-                abort(415)
-        abort(404)
+        candidate = _find_file(_active_paths() or {}, filename)
+        if candidate is None:
+            abort(404)
+        suffix = candidate.suffix.lower()
+        if suffix == ".pdf":
+            return send_file(candidate, mimetype="application/pdf", as_attachment=False)
+        if suffix in (".heic", ".heif"):
+            import pillow_heif
+            from PIL import Image
+            pillow_heif.register_heif_opener()
+            img = Image.open(candidate)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=85)
+            buf.seek(0)
+            return send_file(buf, mimetype="image/jpeg", as_attachment=False)
+        if suffix in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+            return send_file(candidate, as_attachment=False)
+        abort(415)
 
     return app
 
