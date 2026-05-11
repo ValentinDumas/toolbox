@@ -5,6 +5,8 @@ agent-fleet CLI
 Usage:
   python run.py dispatch              Start dispatcher loop (polls GitHub Issues)
   python run.py dispatch --once       Process all claimable issues once and exit
+  python run.py review                Process all needs-review PRs once and exit
+  python run.py review --loop         Poll and review PRs continuously
   python run.py inspect code          Run Code Quality Inspector (creates issues)
   python run.py inspect code --dry    Dry run: print issues without creating them
   python run.py setup-labels          Create required GitHub labels on the target repo
@@ -55,6 +57,19 @@ def cmd_inspect(args, config):
         sys.exit(1)
 
 
+def cmd_review(args, config):
+    from pathlib import Path
+    from fleet import reviewer
+    repo = config["target_repo"]
+    repo_path = Path(config["target_path"]).expanduser()
+    if args.loop:
+        interval = config.get("poll_interval_seconds", 300)
+        reviewer.run_loop(repo, repo_path, interval)
+    else:
+        count = reviewer.run_once(repo, repo_path)
+        print(f"Processed {count} PR(s).")
+
+
 def cmd_setup_labels(args, config):
     from fleet.gh import ensure_labels
     repo = config["target_repo"]
@@ -86,6 +101,9 @@ def main():
     p_dispatch = sub.add_parser("dispatch", help="Start dispatcher")
     p_dispatch.add_argument("--once", action="store_true", help="Process once and exit")
 
+    p_review = sub.add_parser("review", help="Process needs-review PRs")
+    p_review.add_argument("--loop", action="store_true", help="Poll continuously instead of once")
+
     p_inspect = sub.add_parser("inspect", help="Run an inspector")
     p_inspect.add_argument("inspector", choices=["code"], help="Inspector type")
     p_inspect.add_argument("--dry", action="store_true", help="Dry run — don't create issues")
@@ -98,6 +116,8 @@ def main():
 
     if args.command == "dispatch":
         cmd_dispatch(args, config)
+    elif args.command == "review":
+        cmd_review(args, config)
     elif args.command == "inspect":
         cmd_inspect(args, config)
     elif args.command == "setup-labels":

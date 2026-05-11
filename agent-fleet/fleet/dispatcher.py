@@ -69,7 +69,7 @@ def _commit_and_push(worktree: Path, branch: str, message: str) -> bool:
     if result.returncode == 0:
         return False  # nothing to commit
     _git(["commit", "-m", message], cwd=worktree)
-    _git(["push", "origin", branch], cwd=worktree)
+    _git(["push", "--force-with-lease", "origin", branch], cwd=worktree)
     return True
 
 
@@ -103,10 +103,13 @@ def process_issue(issue: gh.Issue, repo: str, repo_path: Path) -> None:
                 f"## Test plan\n- [x] `python -m pytest tests/ -v` passes\n"
             )
             pr_url = gh.create_pr(repo, branch, f"fix: {issue.title}", pr_body)
+            pr_number = int(pr_url.rstrip("/").split("/")[-1])
             gh.add_label(repo, number, "needs-review")
             gh.add_label(repo, number, "agent:done")
             gh.remove_label(repo, number, "agent:in-progress")
             gh.remove_label(repo, number, "agent:code")
+            # Label the PR itself (separate GitHub item from the issue)
+            gh.add_pr_label(repo, pr_number, "needs-review")
             gh.post_comment(repo, number, f"✅ PR created: {pr_url}")
             print(f"  ✅ PR created: {pr_url}", flush=True)
         else:

@@ -78,6 +78,43 @@ agent:in-progress → (success) → agent:done + needs-review + PR created
 agent:in-progress → (failure) → agent:code (released back to queue)
 ```
 
+## Reviewing PRs
+
+After a dispatch run, each completed issue has a PR labeled `needs-review`.
+
+```bash
+# Let the agent process all needs-review PRs:
+# - addresses review comments via claude
+# - auto-merges PRs that are risk=low + CI green + no blocking comments
+python run.py review
+
+# Poll continuously (same logic, runs every poll_interval_seconds)
+python run.py review --loop
+
+# Inspect a specific PR manually
+gh pr list --repo ValentinDumas/toolbox --label needs-review
+gh pr view <number> --repo ValentinDumas/toolbox
+gh pr diff <number> --repo ValentinDumas/toolbox
+
+# Merge manually when satisfied (CI must be green)
+gh pr merge <number> --repo ValentinDumas/toolbox --squash --delete-branch
+
+# Close without merging and re-queue for a new agent attempt
+gh pr close <number> --repo ValentinDumas/toolbox
+gh issue edit <number> --repo ValentinDumas/toolbox --remove-label agent:done --add-label agent:code
+```
+
+### Auto-merge rules
+
+`python run.py review` auto-merges a PR when **all three** are true:
+1. CI is green (`pytest` passes)
+2. Risk level is `low` (set by the Code Inspector in the original issue)
+3. No human review comment contains a blocking keyword: `fix, wrong, incorrect, broken, revert, don't, shouldn't, rewrite, remove, bad`
+
+Medium/high risk PRs are never auto-merged — the agent addresses comments and pushes, but leaves the merge to you.
+
+CI (`ci.yml`) runs `pytest` automatically on every push — wait for the green check before merging manually.
+
 ## Rules for agents working in this repo
 
 - All GitHub I/O goes through `fleet/gh.py`. Never call `gh` directly from other modules.
