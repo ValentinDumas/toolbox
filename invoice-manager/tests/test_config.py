@@ -1,78 +1,9 @@
-"""Tests for config.py — optional config loading with fallback."""
+"""Tests for config.py — shared constants."""
 
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import DEFAULT_CONFIG, load_config, _deep_merge
-import copy
-
-
-class TestDeepMerge:
-    def test_top_level_override(self):
-        base = {"a": 1, "b": 2}
-        _deep_merge(base, {"b": 99})
-        assert base == {"a": 1, "b": 99}
-
-    def test_nested_merge(self):
-        base = {"extraction": {"ocr_dpi": 300, "ocr_lang": "fra"}}
-        _deep_merge(base, {"extraction": {"ocr_dpi": 600}})
-        assert base["extraction"]["ocr_dpi"] == 600
-        assert base["extraction"]["ocr_lang"] == "fra"
-
-    def test_new_key_added(self):
-        base = {"a": 1}
-        _deep_merge(base, {"b": 2})
-        assert base["b"] == 2
-
-    def test_does_not_mutate_override(self):
-        base = {"x": {"y": 1}}
-        override = {"x": {"z": 2}}
-        original_override = copy.deepcopy(override)
-        _deep_merge(base, override)
-        assert override == original_override
-
-
-class TestLoadConfig:
-    def test_missing_file_returns_defaults(self, tmp_path):
-        cfg = load_config(tmp_path / "nonexistent.toml")
-        assert cfg == DEFAULT_CONFIG
-
-    def test_valid_config_overrides_defaults(self, tmp_path):
-        (tmp_path / "config.toml").write_text(
-            '[paths]\ninput = "custom/"\n'
-        )
-        cfg = load_config(tmp_path / "config.toml")
-        assert cfg["paths"]["input"] == "custom/"
-
-    def test_partial_config_keeps_unset_defaults(self, tmp_path):
-        (tmp_path / "config.toml").write_text('[paths]\ninput = "custom/"\n')
-        cfg = load_config(tmp_path / "config.toml")
-        assert cfg["paths"]["input"] == "custom/"
-        assert cfg["paths"]["output"] == DEFAULT_CONFIG["paths"]["output"]
-
-    def test_invalid_toml_falls_back_to_defaults(self, tmp_path):
-        (tmp_path / "config.toml").write_bytes(b"not valid toml [[[")
-        cfg = load_config(tmp_path / "config.toml")
-        assert cfg == DEFAULT_CONFIG
-
-    def test_unreadable_file_falls_back_to_defaults(self, tmp_path):
-        p = tmp_path / "config.toml"
-        p.write_text('[paths]\ninput = "custom/"\n')
-        p.chmod(0o000)
-        try:
-            cfg = load_config(p)
-            assert cfg == DEFAULT_CONFIG
-        finally:
-            p.chmod(0o644)
-
-    def test_does_not_mutate_default_config(self, tmp_path):
-        before = copy.deepcopy(DEFAULT_CONFIG)
-        (tmp_path / "config.toml").write_text('[paths]\ninput = "custom/"\n')
-        load_config(tmp_path / "config.toml")
-        assert DEFAULT_CONFIG == before
 
 
 class TestCadenceDefaults:
@@ -84,8 +15,10 @@ class TestCadenceDefaults:
         from config import CADENCE_DEFAULTS
         assert CADENCE_DEFAULTS["SASU"] == "mensuelle"
 
-    def test_identity_not_in_default_config(self):
-        assert "identity" not in DEFAULT_CONFIG
+    def test_sarl_default_mensuelle(self):
+        from config import CADENCE_DEFAULTS
+        assert CADENCE_DEFAULTS["SARL"] == "mensuelle"
 
-    def test_fiscal_not_in_default_config(self):
-        assert "fiscal" not in DEFAULT_CONFIG
+    def test_salarie_default_annuelle(self):
+        from config import CADENCE_DEFAULTS
+        assert CADENCE_DEFAULTS["salarié"] == "annuelle"

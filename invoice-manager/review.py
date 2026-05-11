@@ -1,11 +1,9 @@
 """
 review.py — Révision batch des extractions incertaines
 Usage:
-  python review.py                      → exporte review/review.csv
-  python review.py --import             → re-importe les corrections
-  python review.py --reclassify         → exporte review/reclassify.csv (type par défaut)
-  python review.py --reclassify --auto  → reclassifie automatiquement via texte_brut
-  python review.py --reclassify --import → applique corrections de reclassify.csv
+  python review.py --profile SLUG
+  python review.py --profile SLUG --import
+  python review.py --profile SLUG --reclassify [--auto|--import]
 """
 
 import argparse
@@ -14,7 +12,6 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import load_config
 from constants import REVIEW_ENCODING, STATUT_A_REVISER, STATUT_VALIDE
 from db import get_user_profile, open_db
 from parsers import _guess_doc_type
@@ -181,12 +178,13 @@ def main() -> None:
                         help="Mode reclassification du type de document")
     parser.add_argument("--auto", action="store_true",
                         help="Avec --reclassify : détection automatique via texte_brut")
-    parser.add_argument("--config", type=Path, default=Path("config.toml"))
+    parser.add_argument("--profile", type=str, required=True, help="Slug du profil")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
-    db_path = Path(cfg["paths"]["db"])
-    review_dir = Path(cfg["paths"]["review"])
+    from profiles import resolve_paths
+    paths = resolve_paths(args.profile)
+    db_path = paths["db"]
+    review_dir = paths["review"]
 
     if not db_path.exists():
         print(f"Base introuvable : {db_path} — lance d'abord extract.py")

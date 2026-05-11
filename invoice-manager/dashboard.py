@@ -16,7 +16,6 @@ from pathlib import Path
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
-from config import load_config
 from constants import (
     CONFIDENCE_THRESHOLD, INCOME_TYPES, EXPENSE_TYPES,
     STATUT_A_REVISER, STATUT_VALIDE, STATUT_PRET, VALIDATED_STATUSES,
@@ -193,7 +192,7 @@ h1{color:#B91C1C}pre{background:#F1F5F9;padding:12px;border-radius:6px;font-size
 </body></html>"""
 
 
-def create_app(cfg: dict) -> "Flask":
+def create_app() -> "Flask":
     from urllib.parse import quote
 
     from flask import Flask, jsonify, redirect, render_template, render_template_string, request, session, url_for
@@ -840,19 +839,14 @@ button:hover{background:#1D4ED8cc}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Dashboard local invoice-manager")
-    parser.add_argument("--config", type=Path, default=Path("config.toml"))
     parser.add_argument("--port", type=int, default=7800)
     args = parser.parse_args()
-
-    if not args.config.exists():
-        print(f"  [info] {args.config} introuvable — valeurs par défaut utilisées.")
 
     migrated = maybe_migrate_legacy()
     if migrated:
         print(f"  [migration] data/invoices.db → profil '{migrated}'")
 
-    cfg = load_config(args.config)
-    app = create_app(cfg)
+    app = create_app()
     print(f"  Dashboard : http://localhost:{args.port}")
     print("  Ctrl+C pour arrêter.")
     app.run(port=args.port, debug=os.getenv("FLASK_DEBUG", "0") == "1")

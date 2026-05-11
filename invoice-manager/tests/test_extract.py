@@ -173,15 +173,24 @@ class TestParseInvoice:
 
 # ── Pipeline end-to-end ───────────────────────────────────────────────────────
 
+def _patch_extract_profile(monkeypatch, tmp_project):
+    import profiles as _profiles
+    monkeypatch.setattr(_profiles, "resolve_paths", lambda slug: {
+        "db":        tmp_project / "data" / "invoices.db",
+        "input":     tmp_project / "input",
+        "processed": tmp_project / "processed",
+        "errors":    tmp_project / "errors",
+    })
+
+
 class TestPipeline:
     def _run(self, tmp_project, monkeypatch, text: str, filename: str):
         """Helper: put a PDF in input/, run extraction, return DB rows."""
-        monkeypatch.chdir(tmp_project)
-        pdf = make_pdf(text, tmp_project / "input" / filename)
+        _patch_extract_profile(monkeypatch, tmp_project)
+        make_pdf(text, tmp_project / "input" / filename)
         with patch("extract.extract_text", return_value=text):
-            ex.main.__wrapped__ = None  # reset any state
             import sys as _sys
-            _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+            _sys.argv = ["extract.py", "--profile", "test"]
             ex.main()
         conn = sqlite3.connect(tmp_project / "data" / "invoices.db")
         conn.row_factory = sqlite3.Row
@@ -195,25 +204,26 @@ class TestPipeline:
         assert rows[0]["montant_ttc"] == 129.46
 
     def test_file_moved_to_processed(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
+        _patch_extract_profile(monkeypatch, tmp_project)
         make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
         with patch("extract.extract_text", return_value=OVH_TEXT):
             import sys as _sys
-            _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+            _sys.argv = ["extract.py", "--profile", "test"]
             ex.main()
         assert not (tmp_project / "input" / "ovh.pdf").exists()
         assert (tmp_project / "processed" / "ovh.pdf").exists()
 
     def test_deduplication(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
-        # First pass
+        _patch_extract_profile(monkeypatch, tmp_project)
         make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
         with patch("extract.extract_text", return_value=OVH_TEXT):
             import sys as _sys
-            _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+            _sys.argv = ["extract.py", "--profile", "test"]
             ex.main()
-        # Second pass: copy same content back to input
-        shutil.copy(tmp_project / "processed" / "ovh.pdf", tmp_project / "input" / "ovh.pdf")
+        shutil.copy(
+            next((tmp_project / "processed").glob("ovh*")),
+            tmp_project / "input" / "ovh.pdf"
+        )
         with patch("extract.extract_text", return_value=OVH_TEXT):
             ex.main()
         conn = sqlite3.connect(tmp_project / "data" / "invoices.db")
@@ -222,42 +232,40 @@ class TestPipeline:
         assert count == 1
 
     def test_corrupt_file_goes_to_errors(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
+        _patch_extract_profile(monkeypatch, tmp_project)
         bad = tmp_project / "input" / "bad.pdf"
         bad.write_bytes(b"not a pdf at all")
         import sys as _sys
-        _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["extract.py", "--profile", "test"]
         ex.main()
         assert (tmp_project / "errors" / "bad.pdf").exists()
 
     def test_unsupported_format_ignored(self, tmp_project, monkeypatch, capsys):
-        monkeypatch.chdir(tmp_project)
+        _patch_extract_profile(monkeypatch, tmp_project)
         docx = tmp_project / "input" / "doc.docx"
         docx.write_bytes(b"PK fake docx")
         import sys as _sys
-        _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["extract.py", "--profile", "test"]
         ex.main()
         assert docx.exists()
         assert "Aucun fichier" in capsys.readouterr().out
 
     def test_no_files_in_input(self, tmp_project, monkeypatch, capsys):
-        monkeypatch.chdir(tmp_project)
+        _patch_extract_profile(monkeypatch, tmp_project)
         import sys as _sys
-        _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["extract.py", "--profile", "test"]
         ex.main()
         out = capsys.readouterr().out
         assert "Aucun fichier" in out
 
     def test_magic_byte_detection_pdf(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
-        # File without extension that is a valid PDF
+        _patch_extract_profile(monkeypatch, tmp_project)
         src = make_pdf(OVH_TEXT, tmp_project / "input" / "facture_sans_ext")
-        # Rename to remove extension
         no_ext = tmp_project / "input" / "facture_sans_ext"
         src.rename(no_ext)
         with patch("extract.extract_text", return_value=OVH_TEXT):
             import sys as _sys
-            _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+            _sys.argv = ["extract.py", "--profile", "test"]
             ex.main()
         conn = sqlite3.connect(tmp_project / "data" / "invoices.db")
         count = conn.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]
@@ -267,14 +275,12 @@ class TestPipeline:
     def test_magic_byte_detection_heic(self, tmp_project, monkeypatch):
         monkeypatch.chdir(tmp_project)
         heic = make_heic_like(tmp_project / "input" / "photo_no_ext")
-        # Rename to no extension
         no_ext = tmp_project / "input" / "photo_no_ext"
-        # detect_extension should return .heic
         detected = ex.detect_extension(no_ext)
         assert detected == ".heic"
 
     def test_multiple_files_all_processed(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
+        _patch_extract_profile(monkeypatch, tmp_project)
         for i in range(3):
             make_pdf(OVH_TEXT.replace("FR76061464", f"FR{i:08d}"), tmp_project / "input" / f"inv{i}.pdf")
         with patch("extract.extract_text", side_effect=[
@@ -283,7 +289,7 @@ class TestPipeline:
             OVH_TEXT.replace("FR76061464", "FR00000002"),
         ]):
             import sys as _sys
-            _sys.argv = ["extract.py", "--config", str(tmp_project / "config.toml")]
+            _sys.argv = ["extract.py", "--profile", "test"]
             ex.main()
         conn = sqlite3.connect(tmp_project / "data" / "invoices.db")
         count = conn.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]

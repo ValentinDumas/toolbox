@@ -1,9 +1,8 @@
 """
 export.py — Export CSV + XLSX du carnet de compte
 Usage:
-  python export.py --year 2025
-  python export.py --year 2025 --statut auto-entrepreneur
-  python export.py --all
+  python export.py --profile SLUG --year 2025
+  python export.py --profile SLUG --all
 """
 
 import argparse
@@ -15,7 +14,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from config import load_config, CADENCE_DEFAULTS
+from config import CADENCE_DEFAULTS
 from constants import FISCAL_RULES, MONTHS_FR_SHORT, STATUT_A_REVISER
 from db import get_user_profile, open_db
 
@@ -396,19 +395,13 @@ def main() -> None:
     parser.add_argument("--year", type=int, help="Exercice fiscal (ex: 2025)")
     parser.add_argument("--statut", help="Profil fiscal (auto-entrepreneur, SASU, SARL, salarié)")
     parser.add_argument("--all", dest="all_years", action="store_true", help="Exporter toutes les années")
-    parser.add_argument("--config", type=Path, default=Path("config.toml"))
-    parser.add_argument("--profile", type=str, default=None, help="Slug du profil (multi-entités)")
+    parser.add_argument("--profile", type=str, required=True, help="Slug du profil")
     args = parser.parse_args()
 
-    if args.profile:
-        from profiles import resolve_paths
-        paths = resolve_paths(args.profile)
-        db_path = paths["db"]
-        output_dir = paths["output"]
-    else:
-        cfg = load_config(args.config)
-        db_path = Path(cfg["paths"]["db"])
-        output_dir = Path(cfg["paths"]["output"])
+    from profiles import resolve_paths
+    paths = resolve_paths(args.profile)
+    db_path = paths["db"]
+    output_dir = paths["output"]
     year = None if args.all_years else (args.year or datetime.now().year)
 
     if not db_path.exists():

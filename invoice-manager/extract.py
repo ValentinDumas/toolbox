@@ -1,6 +1,6 @@
 """
 extract.py — Extraction de factures/reçus vers SQLite
-Usage: python extract.py [--input DIR] [--config FILE]
+Usage: python extract.py --profile SLUG [--input DIR]
 """
 
 import argparse
@@ -12,7 +12,6 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import load_config
 from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
 from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
 from parsers import (
@@ -337,25 +336,16 @@ def _move_safely(src: Path, dest_dir: Path, suffix: str = "") -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extrait les données des factures vers SQLite")
-    parser.add_argument("--input", type=Path, help="Dossier d'entrée (défaut: config)")
-    parser.add_argument("--config", type=Path, default=Path("config.toml"))
-    parser.add_argument("--profile", type=str, default=None, help="Slug du profil (multi-entités)")
+    parser.add_argument("--input", type=Path, help="Dossier d'entrée (override)")
+    parser.add_argument("--profile", type=str, required=True, help="Slug du profil")
     args = parser.parse_args()
 
-    if args.profile:
-        from profiles import resolve_paths
-        paths = resolve_paths(args.profile)
-        input_dir     = args.input or paths["input"]
-        processed_dir = paths["processed"]
-        errors_dir    = paths["errors"]
-        db_path       = paths["db"]
-    else:
-        cfg = load_config(args.config)
-        root = Path(".")
-        input_dir     = args.input or root / cfg["paths"]["input"]
-        processed_dir = root / cfg["paths"]["processed"]
-        errors_dir    = root / cfg["paths"]["errors"]
-        db_path       = root / cfg["paths"]["db"]
+    from profiles import resolve_paths
+    paths = resolve_paths(args.profile)
+    input_dir     = args.input or paths["input"]
+    processed_dir = paths["processed"]
+    errors_dir    = paths["errors"]
+    db_path       = paths["db"]
 
     for d in (input_dir, processed_dir, errors_dir):
         d.mkdir(parents=True, exist_ok=True)
@@ -370,7 +360,7 @@ def main() -> None:
     profil         = profile["fiscal_profile"]
     user_siren     = profile["siren"]
     known_emitters = get_known_emitters(conn)
-    cfg["extraction"] = get_extraction_cfg(conn)
+    cfg = {"extraction": get_extraction_cfg(conn)}
 
     files = _collect_files(input_dir)
     if not files:
@@ -397,7 +387,7 @@ def main() -> None:
             dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")
             conn.execute(
                 "UPDATE invoices SET fichier_source=? WHERE id=?",
-                (str(dest.resolve().relative_to(HERE.resolve())), row["id"]),
+                (str(dest.resolve()), row["id"]),
             )
             conn.commit()
             traités += 1

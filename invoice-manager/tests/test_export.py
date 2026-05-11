@@ -168,46 +168,53 @@ class TestXLSXExport:
 
 # ── CLI main ──────────────────────────────────────────────────────────────────
 
+def _patch_profile(monkeypatch, tmp_project):
+    """Monkeypatch resolve_paths to point at tmp_project dirs."""
+    import profiles as _profiles
+    monkeypatch.setattr(_profiles, "resolve_paths", lambda slug: {
+        "db":     tmp_project / "data" / "invoices.db",
+        "output": tmp_project / "output",
+    })
+
+
 class TestExportCLI:
     def test_missing_db_prints_message(self, tmp_project, monkeypatch, capsys):
-        monkeypatch.chdir(tmp_project)
-        (tmp_project / "data" / "invoices.db").unlink()  # remove DB created by fixture
+        _patch_profile(monkeypatch, tmp_project)
+        (tmp_project / "data" / "invoices.db").unlink()
         import sys as _sys
-        _sys.argv = ["export.py", "--year", "2025", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["export.py", "--profile", "test", "--year", "2025"]
         exp.main()
         out = capsys.readouterr().out
         assert "introuvable" in out
 
     def test_no_data_prints_message(self, tmp_project, monkeypatch, capsys):
-        monkeypatch.chdir(tmp_project)
-        db_path = tmp_project / "data" / "invoices.db"
-        ex.open_db(db_path).close()
+        _patch_profile(monkeypatch, tmp_project)
         import sys as _sys
-        _sys.argv = ["export.py", "--year", "2099", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["export.py", "--profile", "test", "--year", "2099"]
         exp.main()
         out = capsys.readouterr().out
         assert "Aucune" in out
 
     def test_generates_both_files(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
+        _patch_profile(monkeypatch, tmp_project)
         db_path = tmp_project / "data" / "invoices.db"
         conn = ex.open_db(db_path)
         _insert(conn, {"exercice_fiscal": 2026})
         conn.close()
         import sys as _sys
-        _sys.argv = ["export.py", "--year", "2026", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["export.py", "--profile", "test", "--year", "2026"]
         exp.main()
         assert (tmp_project / "output" / "ledger-2026.csv").exists()
         assert (tmp_project / "output" / "ledger-2026.xlsx").exists()
 
     def test_idempotent_double_run(self, tmp_project, monkeypatch):
-        monkeypatch.chdir(tmp_project)
+        _patch_profile(monkeypatch, tmp_project)
         db_path = tmp_project / "data" / "invoices.db"
         conn = ex.open_db(db_path)
         _insert(conn, {"exercice_fiscal": 2026})
         conn.close()
         import sys as _sys
-        _sys.argv = ["export.py", "--year", "2026", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["export.py", "--profile", "test", "--year", "2026"]
         exp.main()
         csv1 = (tmp_project / "output" / "ledger-2026.csv").read_bytes()
         exp.main()

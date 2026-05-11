@@ -69,10 +69,14 @@ class TestExportReview:
         assert len(rows) == 1
 
     def test_missing_db(self, tmp_project, monkeypatch, capsys):
-        monkeypatch.chdir(tmp_project)
-        (tmp_project / "data" / "invoices.db").unlink()  # remove DB created by fixture
+        import profiles as _profiles
+        monkeypatch.setattr(_profiles, "resolve_paths", lambda slug: {
+            "db": tmp_project / "data" / "invoices.db",
+            "review": tmp_project / "review",
+        })
+        (tmp_project / "data" / "invoices.db").unlink()
         import sys as _sys
-        _sys.argv = ["review.py", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["review.py", "--profile", "test"]
         rv.main()
         out = capsys.readouterr().out
         assert "introuvable" in out
@@ -153,9 +157,14 @@ class TestImportReview:
         assert "introuvable" in out
 
     def test_import_missing_db(self, tmp_project, monkeypatch, capsys):
-        monkeypatch.chdir(tmp_project)
+        import profiles as _profiles
+        monkeypatch.setattr(_profiles, "resolve_paths", lambda slug: {
+            "db": tmp_project / "data" / "invoices.db",
+            "review": tmp_project / "review",
+        })
+        (tmp_project / "data" / "invoices.db").unlink()
         import sys as _sys
-        _sys.argv = ["review.py", "--import", "--config", str(tmp_project / "config.toml")]
+        _sys.argv = ["review.py", "--profile", "test", "--import"]
         rv.main()
         out = capsys.readouterr().out
         assert "introuvable" in out

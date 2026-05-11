@@ -1,6 +1,6 @@
 """
 run.py — Met à jour le ledger en une commande.
-Usage: python run.py [--year YEAR] [--config FILE]
+Usage: python run.py --profile SLUG [--year YEAR]
 """
 
 import argparse
@@ -14,7 +14,6 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 
-from config import load_config
 from db import get_user_profile, open_db
 
 
@@ -61,23 +60,14 @@ def _open_file(path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Met à jour le ledger en une commande")
     parser.add_argument("--year", type=int, help="Année fiscale (défaut: année en cours)")
-    parser.add_argument("--config", type=Path, default=Path("config.toml"))
-    parser.add_argument("--profile", type=str, default=None, help="Slug du profil (multi-entités)")
+    parser.add_argument("--profile", type=str, required=True, help="Slug du profil")
     args = parser.parse_args()
 
-    if args.profile:
-        from profiles import resolve_paths
-        paths = resolve_paths(args.profile)
-        db_path   = paths["db"]
-        input_dir = paths["input"]
-        profile_args = ["--profile", args.profile]
-        cfg_args = profile_args
-    else:
-        cfg = load_config(args.config)
-        db_path   = Path(cfg["paths"]["db"])
-        input_dir = Path(cfg["paths"]["input"])
-        cfg_args = ["--config", str(args.config)]
-        profile_args = []
+    from profiles import resolve_paths
+    paths = resolve_paths(args.profile)
+    db_path   = paths["db"]
+    input_dir = paths["input"]
+    profile_args = ["--profile", args.profile]
 
     conn = open_db(db_path)
     profile = get_user_profile(conn)
@@ -96,11 +86,11 @@ def main() -> None:
 
     # 2. Extraction
     print("\n── Extraction ──────────────────────────────────")
-    subprocess.run([py, str(HERE / "extract.py")] + cfg_args, check=True)
+    subprocess.run([py, str(HERE / "extract.py")] + profile_args, check=True)
 
     # 3. Export
     print("\n── Export ───────────────────────────────────────")
-    export_args = [py, str(HERE / "export.py")] + cfg_args
+    export_args = [py, str(HERE / "export.py")] + profile_args
     if args.year:
         export_args += ["--year", str(args.year)]
     subprocess.run(export_args, check=True)

@@ -213,7 +213,7 @@ def _make_app(mem_db, tmp_path, monkeypatch):
     monkeypatch.setattr(_dashboard, "maybe_migrate_legacy", lambda: None)
 
     from dashboard import create_app
-    app = create_app({})
+    app = create_app()
     app.config["TESTING"] = True
 
     # Inject active_profile before require_setup runs (must be first in the list)
