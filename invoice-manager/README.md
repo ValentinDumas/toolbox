@@ -42,8 +42,6 @@ python3 dashboard.py   # http://localhost:7800
 
 Le wizard demande ton SIREN et ton profil fiscal — c'est le minimum pour débloquer le dashboard et le pipeline CLI. Ton nom, TVA intracommunautaire, enseignes connues et paramètres OCR se configurent ensuite depuis **Paramètres** (`/settings`).
 
-> `config.toml` ne contient plus que les chemins de dossiers (optionnel — les valeurs par défaut s'appliquent si absent).
-
 ### 4. Mettre à jour le ledger
 
 ```bash
@@ -65,19 +63,18 @@ Les items avec confiance < 80 % sont marqués `à_réviser` et accessibles via l
 
 ```bash
 # Options
-python3 run.py --year 2025             # forcer une année spécifique
-python3 run.py --profile mon-ent       # cibler un profil spécifique (slug)
-python3 run.py --config mon.toml       # utiliser une config différente
+python3 run.py --profile mon-ent             # cibler un profil spécifique (slug)
+python3 run.py --profile mon-ent --year 2025 # forcer une année spécifique
 ```
 
 **Scripts individuels** (pour usage avancé) :
 
 ```bash
-python3 extract.py                           # extraction seule
-python3 review.py                            # génère review/review.csv
-python3 review.py --import                   # importe les corrections
-python3 review.py --reclassify --auto        # reclassifie les types via texte OCR
-python3 export.py --year 2025 --statut SASU  # export avec profil différent
+python3 extract.py --profile mon-ent
+python3 review.py --profile mon-ent                            # génère review.csv
+python3 review.py --profile mon-ent --import                   # importe les corrections
+python3 review.py --profile mon-ent --reclassify --auto        # reclassifie les types via texte OCR
+python3 export.py --profile mon-ent --year 2025 --statut SASU  # export avec profil différent
 ```
 
 ---
@@ -104,23 +101,6 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 | EasyOCR fallback | App | Fallback si confiance Tesseract insuffisante |
 | Seuil EasyOCR | App | Ratio alphanumérique déclenchant le fallback (défaut `0.4`) |
 
-### Chemins — `config.toml` (optionnel)
-
-`config.toml` ne contient **que** les chemins de dossiers. Si le fichier est absent, les valeurs par défaut s'appliquent silencieusement.
-
-Priorité : **CLI args > config.toml > valeurs par défaut intégrées**
-
-| Clé | Défaut | Description |
-|---|---|---|
-| `paths.input` | `input/` | Dossier de dépôt des fichiers à traiter |
-| `paths.processed` | `processed/` | Fichiers traités avec succès |
-| `paths.errors` | `errors/` | Fichiers non reconnus |
-| `paths.db` | `data/profiles/{slug}/invoices.db` | Chemin de la base SQLite (par profil) |
-| `paths.output` | `output/` | Exports CSV et XLSX |
-| `paths.review` | `review/` | Fichier de révision batch |
-
-Voir `config.toml.example` pour la documentation commentée.
-
 ---
 
 ## Formats supportés
@@ -146,34 +126,29 @@ Voir `config.toml.example` pour la documentation commentée.
 ├── review.py               ← brique 2 : révision batch des extractions incertaines
 ├── export.py               ← brique 3 : génération du carnet de compte
 ├── dashboard.py            ← interface web locale (http://localhost:7800)
+├── profiles.py             ← résolution des chemins par profil + migration legacy
 ├── db.py                   ← schéma SQLite, migrations, helpers (profil, OCR, enseignes)
-├── config.py               ← chargement config.toml (chemins uniquement) + fallback
+├── config.py               ← CADENCE_DEFAULTS par statut fiscal
 ├── constants.py            ← constantes partagées (statuts, seuils, types)
-│
-├── config.toml.example     ← template versionné (chemins uniquement)
-├── config.toml             ← ta configuration locale (non versionné, optionnel)
 │
 ├── templates/
 │   ├── dashboard.html      ← vue principale du ledger
 │   ├── setup.html          ← wizard de premier lancement (SIREN + profil fiscal)
 │   └── settings.html       ← paramètres utilisateur (/settings)
 │
-├── input/                  ← déposer les fichiers ici
-├── processed/              ← fichiers traités avec succès (auto-déplacés)
-├── errors/                 ← fichiers non reconnus (révision manuelle)
-├── review/
-│   └── review.csv          ← items à valider (prêt_à_valider + à_réviser)
 ├── data/
 │   └── profiles/
 │       ├── entreprise-principale/
-│       │   └── invoices.db ← DB migrée automatiquement depuis data/invoices.db
-│       └── {slug}/
-│           └── invoices.db ← une DB par profil, isolation complète
-├── output/
-│   ├── ledger-YYYY.csv     ← export brut complet
-│   └── ledger-YYYY.xlsx    ← classeur 4 onglets
+│       │   ├── invoices.db  ← DB migrée automatiquement depuis data/invoices.db
+│       │   ├── input/       ← déposer les fichiers ici
+│       │   ├── processed/   ← fichiers traités avec succès
+│       │   ├── errors/      ← fichiers non reconnus
+│       │   ├── output/      ← exports CSV et XLSX
+│       │   └── review/      ← review.csv pour révision batch
+│       └── {slug}/          ← même structure pour chaque profil
+│           └── invoices.db
 │
-├── tests/                  ← suite pytest (154 tests)
+├── tests/                  ← suite pytest (152 tests)
 │   ├── test_config.py
 │   ├── test_extract.py
 │   ├── test_review.py
@@ -215,7 +190,7 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 
 **`export.py`** — lit la base SQLite, filtre par année et statut fiscal, applique les règles de déductibilité (TVA déductible ou non selon le régime), et génère `ledger-YYYY.csv` + `ledger-YYYY.xlsx` avec 4 onglets : Journal, Récapitulatif, Déclaration, Statistiques (avec deadlines de déclaration calculées offline).
 
-**`config.py`** — charge `config.toml` et le merge sur `DEFAULT_CONFIG` (chemins uniquement). Priorité : CLI args > config.toml > defaults. Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont lues depuis la DB via `db.py`.
+**`config.py`** — contient uniquement `CADENCE_DEFAULTS` : la cadence de déclaration par défaut par statut fiscal (`auto-entrepreneur` → trimestrielle, `SASU`/`SARL` → mensuelle, `salarié` → annuelle). Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont stockées en DB via `db.py`.
 
 **`db.py`** — source de vérité pour le schéma SQLite. Gère les migrations (ALTER TABLE idempotentes), définit les tables `invoices`, `user_profile` et `known_emitters`. Expose `open_db(profile_slug)`, `get_user_profile()`, `get_known_emitters()` et `get_extraction_cfg()` — utilisés par tous les scripts. Chaque profil a sa propre DB sous `data/profiles/{slug}/invoices.db`. À la première ouverture, `data/invoices.db` (ancienne DB sans profil) est migrée automatiquement vers le profil `entreprise-principale`.
 
@@ -252,14 +227,6 @@ flowchart TD
         SETT["dashboard.py /settings\nprofil · enseignes · OCR"]:::process
     end
 
-    %% ── Configuration ────────────────────────────────
-    subgraph CFG["⚙️ Configuration"]
-        direction LR
-        F_CFG["config.toml\n(chemins uniquement)"]:::optional
-        M_CFG["config.py\nDEFAULT_CONFIG · paths · fallback"]:::process
-        F_CFG -. "si présent" .-> M_CFG
-    end
-
     %% ── Étape 1 : Extraction ─────────────────────────
     subgraph S1["① Extraction"]
         IN["input/\nPDF · JPG · PNG · HEIC\navec ou sans extension"]:::input
@@ -290,10 +257,6 @@ flowchart TD
     SETT -- "profil · OCR · enseignes" --> DB
     DB -. "profil · OCR · enseignes" .-> EX
     DB -. "profil fiscal" .-> EXP
-
-    M_CFG -. "paths" .-> EX
-    M_CFG -. "paths" .-> RV
-    M_CFG -. "paths" .-> EXP
 
     IN --> EX
     EX --> DB
@@ -401,14 +364,15 @@ Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de d
 python3 -m pytest tests/ -v
 ```
 
-101 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export.
+152 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export, dashboard.
 
 | Fichier | Ce qui est testé |
 |---|---|
-| `test_config.py` | Fallback sans fichier, config partielle, TOML invalide, fichier illisible, immutabilité des defaults, `CADENCE_DEFAULTS` |
-| `test_extract.py` | `_parse_date`, `_parse_amount`, SIREN/SIRET/TVA, catégories, `_guess_doc_type`, pipeline complet, magic bytes, dédoublonnage |
+| `test_config.py` | `CADENCE_DEFAULTS` — valeurs par statut fiscal |
+| `test_extract.py` | `_parse_date`, `_parse_amount`, SIREN/SIRET/TVA, catégories, `_guess_doc_type`, pipeline complet, magic bytes, dédoublonnage, EasyOCR fallback |
 | `test_review.py` | Export batch, import garder/corriger/supprimer, reclassify export/import/auto, cas limite (DB/CSV absents) |
 | `test_export.py` | Filtres année/statut, colonnes CSV, 4 onglets XLSX, calculs récapitulatif, sheet Statistiques, deadlines |
+| `test_dashboard.py` | Routes Flask, édition inline, soft-delete, corbeille, santé, erreurs (retry/delete/purge), upload |
 
 ---
 
@@ -451,7 +415,7 @@ flowchart TD
 | FileVault | Réglages système → Confidentialité et sécurité → FileVault | Critique |
 | Time Machine | Préférences Time Machine → Sélectionner un disque | Haute |
 | Vérifier Git | `git status` — `input/` `data/` `processed/` ne doivent pas apparaître | Haute |
-| Backend Claude | Laisser `backend = "local"` dans `config.toml` (défaut) | Optionnel |
+| Backend Claude | Laisser `local` dans Paramètres → App (défaut) | Optionnel |
 | Droits dossier | `ls -la ~/Documents/compta/` → doit appartenir à ton user uniquement | Recommandé |
 
 ### .gitignore — rappel
@@ -459,7 +423,7 @@ flowchart TD
 Le `.gitignore` fourni exclut déjà tous les dossiers de données. Seuls ces fichiers sont sûrs à versionner :
 
 ```
-config.toml.example   scripts (.py)   tests/   demo/   sample-data/   README.md   docs/
+scripts (.py)   tests/   demo/   sample-data/   README.md   docs/
 ```
 
 ---
@@ -477,8 +441,7 @@ python /chemin/vers/dashboard.py
 Options :
 
 ```bash
-python dashboard.py --port 8080                       # changer le port
-python dashboard.py --config ~/compta/config.toml
+python dashboard.py --port 8080   # changer le port
 ```
 
 Le dashboard affiche :
@@ -639,18 +602,14 @@ Ensuite relance `python3 export.py` — l'export est idempotent (écrase les fic
 Le pipeline applique automatiquement un pré-traitement en 4 étapes : dénoise bilateral (retire le grain sans flouter les contours), correction de perspective (redresse les tickets pris en angle), binarisation adaptative gaussienne (gère l'éclairage inégal et les ombres), et deskew. Deux passes Tesseract (PSM 3 + PSM 6) sont essayées si aucune date n'est détectée.
 
 Si les résultats restent insuffisants :
-- Vérifie que `ocr_preprocess = true` est dans `config.toml`
-- Augmente la résolution : `ocr_dpi = 400`
+- Vérifie que **Preprocessing image** est activé dans **Paramètres → App** du dashboard
+- Augmente la résolution : **DPI OCR** → `400`
 - Assure-toi que `tesseract-lang` est installé (`brew install tesseract-lang`)
 - Active le fallback EasyOCR pour les photos vraiment difficiles (éclairage extrême, fort angle, ticket froissé) :
   ```bash
   pip install easyocr
   ```
-  Puis dans `config.toml` :
-  ```toml
-  ocr_easyocr_fallback = true
-  ocr_easyocr_threshold = 0.4  # déclencher si < 40 % alphanumérique
-  ```
+  Puis dans **Paramètres → App** : active **EasyOCR fallback** et règle le **Seuil EasyOCR** à `0.4`.
   EasyOCR est plus lent (3–8s/image) mais bien meilleur sur fond complexe et texte incliné.
 - Les items avec confiance < 0.8 atterrissent automatiquement en section "À réviser" dans le dashboard pour correction manuelle — le texte OCR brut y est visible pour diagnostiquer
 
@@ -658,7 +617,7 @@ Si les résultats restent insuffisants :
 
 ### Puis-je utiliser Claude Vision au lieu de l'OCR local ?
 
-Oui : `backend = "claude"` dans `config.toml`. Requiert une clé API Anthropic (`ANTHROPIC_API_KEY` en variable d'environnement). L'OCR local (`backend = "local"`) reste le défaut — offline, gratuit, sans envoi de données.
+Oui : dans **Paramètres → App**, sélectionne `claude` comme **Backend OCR**. Requiert une clé API Anthropic (`ANTHROPIC_API_KEY` en variable d'environnement). L'OCR local (`local`) reste le défaut — offline, gratuit, sans envoi de données.
 
 ---
 
