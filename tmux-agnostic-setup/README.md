@@ -17,6 +17,7 @@ Opinionated tmux setup for persistent, multi-project terminal workflows — name
 | Terminal sessions die on restart | tmux-resurrect + tmux-continuum keep sessions alive across reboots |
 | Multiple projects mixed in one flat pane grid | Named sessions per project — `proj` switches between them instantly |
 | Setting up pane layouts per project is slow | `g`, `g+`, `g-` — one keystroke to add, kill, or restore panes in any session |
+| Navigating to the right folder after switching projects | `proj set <name>` registers a start dir — every new pane lands there automatically |
 | Config is fragile and hard to reproduce | Every file and setting is documented here, copy-pasteable |
 | `proj` fails if no tmux server is running | `proj` starts the server and waits for the socket — safe from a cold shell |
 
@@ -51,6 +52,17 @@ g-              → remove focused pane
 ```
 
 Sessions are isolated — `g 4` in `work` does not affect `invoice`. Each session tracks its own pane count independently.
+
+### Register a start directory for a project
+
+```sh
+cd ~/Projects/my-app
+proj set my-app         # saves ~/Projects/my-app as the start dir for "my-app"
+```
+
+From then on, `proj my-app` always opens panes in that directory — whether creating a new session or switching to an existing one. To update the path, `cd` to the new location and run `proj set my-app` again.
+
+If a process is running in the focused pane when you switch, `proj` skips the `cd` and prints a warning instead of interrupting it.
 
 ### Starting fresh on a new project
 
@@ -94,8 +106,9 @@ brew install fzf   # macOS
 
 | Command | Action |
 |---|---|
+| `proj set <name>` | Register `$PWD` as start dir for a project |
 | `proj` | Session picker (fzf or native `choose-tree`) |
-| `proj <name>` | Switch to named session (create if missing) |
+| `proj <name>` | Switch to named session (create if missing), cd to registered dir |
 | `g` | Restore pane count in focused session |
 | `g N` | Set focused session to exactly N panes |
 | `g+` / `g-` | Add / remove one pane in focused session |
