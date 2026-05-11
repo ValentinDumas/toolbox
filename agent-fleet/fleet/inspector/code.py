@@ -12,6 +12,8 @@ from pathlib import Path
 
 from .. import gh
 
+MAX_SOURCE_CHARS = 60_000
+
 PROMPT_TEMPLATE = """\
 You are a senior Python engineer performing a code quality audit.
 Analyze the provided codebase and identify concrete, actionable issues.
@@ -44,7 +46,7 @@ Codebase to analyze:
 """
 
 
-def _collect_source(repo_path: Path, max_chars: int = 60_000) -> str:
+def _collect_source(repo_path: Path, max_chars: int = MAX_SOURCE_CHARS) -> str:
     """Read Python source files, truncated to fit context."""
     parts = []
     total = 0
@@ -90,9 +92,13 @@ def run(repo: str, repo_path: Path, dry_run: bool = False) -> list[dict]:
         sys.exit(1)
 
     raw = result.stdout.strip()
-    # Strip markdown code fences if present
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+    # claude sometimes wraps JSON in code fences or leading prose
+    if "```" in raw:
+        raw = raw.split("```", 1)[1]
+        raw = raw.split("\n", 1)[1]
+        raw = raw.rsplit("```", 1)[0]
+    elif "[" in raw:
+        raw = raw[raw.index("["):]
 
     try:
         issues = json.loads(raw)

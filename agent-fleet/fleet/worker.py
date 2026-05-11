@@ -40,9 +40,9 @@ def _extract_acceptance(body: str) -> str:
     return "(See issue body)"
 
 
-def run(worktree_path: Path, issue: Issue, repo_path: Path) -> tuple[bool, str]:
+def run(worktree_path: Path, project_cwd: Path, issue: Issue) -> tuple[bool, str]:
     """
-    Invoke `claude --print` in the worktree to resolve the issue.
+    Invoke `claude --print` in project_cwd (the target project subdir inside the worktree).
     Returns (success, log).
     """
     acceptance = _extract_acceptance(issue.body)
@@ -53,11 +53,11 @@ def run(worktree_path: Path, issue: Issue, repo_path: Path) -> tuple[bool, str]:
         acceptance=acceptance,
     )
 
-    print(f"  → Running claude in {worktree_path}", flush=True)
+    print(f"  → Running claude in {project_cwd}", flush=True)
     try:
         result = subprocess.run(
-            ["claude", "--print", prompt],
-            cwd=str(worktree_path),
+            ["claude", "--dangerously-skip-permissions", "--print", prompt],
+            cwd=str(project_cwd),
             capture_output=True,
             text=True,
             timeout=600,  # 10 min max per issue
@@ -76,7 +76,7 @@ def run(worktree_path: Path, issue: Issue, repo_path: Path) -> tuple[bool, str]:
     print("  → Running pytest to verify...", flush=True)
     test_result = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short", "-q"],
-        cwd=str(worktree_path),
+        cwd=str(project_cwd),
         capture_output=True,
         text=True,
         timeout=120,

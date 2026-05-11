@@ -21,7 +21,7 @@ config.toml               Local config (gitignored — copy from config.toml.exa
 cd ~/Projects/toolbox/agent-fleet
 python3 -m venv .venv
 source .venv/bin/activate
-pip install anthropic
+pip install -e ".[dev]"
 
 # Prerequisites (must be installed and authenticated)
 brew install gh
@@ -29,6 +29,23 @@ gh auth login
 
 cp config.toml.example config.toml
 # edit config.toml: set target_repo and target_path
+```
+
+## Tests
+
+```bash
+python3 -m pytest tests/ -v
+```
+
+12 tests across 2 files:
+- `tests/test_worker.py` — `_extract_acceptance` (acceptance criteria parsing)
+- `tests/test_inspector_code.py` — `_collect_source` (file collection + truncation) + JSON fence-stripping logic
+
+## Linting
+
+```bash
+ruff check .
+mypy fleet/
 ```
 
 ## Commands
@@ -68,3 +85,4 @@ agent:in-progress → (failure) → agent:code (released back to queue)
 - `worker.py` must not commit or push. That is the dispatcher's responsibility.
 - No new dependencies without updating `pyproject.toml`.
 - Config lives in `config.toml` (gitignored). The example is committed as `config.toml.example`.
+- Module-level constants in uppercase (e.g. `MAX_SOURCE_CHARS`). No magic numbers in function signatures.

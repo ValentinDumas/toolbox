@@ -8,6 +8,7 @@ Label flow:
   agent:in-progress  →  (worker failed)  →  agent:code (released back)
 """
 
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -29,16 +30,37 @@ def _worktree_path(repo_path: Path, issue_number: int) -> Path:
     return repo_path / ".worktrees" / f"issue-{issue_number}"
 
 
-def _create_worktree(repo_path: Path, issue_number: int, branch: str) -> Path:
+def _git_root(repo_path: Path) -> Path:
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=str(repo_path), capture_output=True, text=True, check=True,
+    )
+    return Path(result.stdout.strip())
+
+
+def _create_worktree(repo_path: Path, issue_number: int, branch: str) -> tuple[Path, Path]:
+    """Returns (worktree_root, project_cwd) where project_cwd is the target subdir inside the worktree."""
     wt = _worktree_path(repo_path, issue_number)
     wt.parent.mkdir(exist_ok=True)
-    _git(["worktree", "add", str(wt), "-b", branch], cwd=repo_path)
-    return wt
+    git_root = _git_root(repo_path)
+    subdir = repo_path.relative_to(git_root)  # e.g. "invoice-manager"
+    # Clean up stale state from previous failed runs.
+    # Order matters: rm dir first so git prune clears the registration,
+    # then delete the branch (fails if checked out in a live worktree).
+    if wt.exists():
+        shutil.rmtree(wt, ignore_errors=True)
+    _git(["worktree", "prune"], cwd=git_root, check=False)
+    _git(["branch", "-D", branch], cwd=git_root, check=False)
+    _git(["worktree", "add", str(wt), "-b", branch], cwd=git_root)
+    project_cwd = wt / subdir
+    return wt, project_cwd
 
 
 def _remove_worktree(repo_path: Path, issue_number: int) -> None:
     wt = _worktree_path(repo_path, issue_number)
-    _git(["worktree", "remove", str(wt), "--force"], cwd=repo_path, check=False)
+    git_root = _git_root(repo_path)
+    shutil.rmtree(wt, ignore_errors=True)
+    _git(["worktree", "prune"], cwd=git_root, check=False)
 
 
 def _commit_and_push(worktree: Path, branch: str, message: str) -> bool:
@@ -62,8 +84,8 @@ def process_issue(issue: gh.Issue, repo: str, repo_path: Path) -> None:
 
     worktree = None
     try:
-        worktree = _create_worktree(repo_path, number, branch)
-        success, log = worker.run(worktree, issue, repo_path)
+        worktree, project_cwd = _create_worktree(repo_path, number, branch)
+        success, log = worker.run(worktree, project_cwd, issue)
 
         if success:
             committed = _commit_and_push(
@@ -84,6 +106,7 @@ def process_issue(issue: gh.Issue, repo: str, repo_path: Path) -> None:
             gh.add_label(repo, number, "needs-review")
             gh.add_label(repo, number, "agent:done")
             gh.remove_label(repo, number, "agent:in-progress")
+            gh.remove_label(repo, number, "agent:code")
             gh.post_comment(repo, number, f"✅ PR created: {pr_url}")
             print(f"  ✅ PR created: {pr_url}", flush=True)
         else:
@@ -94,7 +117,7 @@ def process_issue(issue: gh.Issue, repo: str, repo_path: Path) -> None:
     except Exception as e:
         gh.post_comment(repo, number, f"❌ Dispatcher error: {e}")
         gh.remove_label(repo, number, "agent:in-progress")
-        raise
+        print(f"  ❌ Dispatcher error for issue #{number}: {e}", flush=True)
     finally:
         if worktree:
             _remove_worktree(repo_path, number)
