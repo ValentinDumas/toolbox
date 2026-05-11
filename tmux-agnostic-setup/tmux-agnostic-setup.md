@@ -191,6 +191,8 @@ bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy
 set -g pane-border-lines heavy
 set -g pane-active-border-style 'fg=#FF87AF'
 set -g pane-border-style 'fg=colour238'
+set -g window-style        'bg=colour234'
+set -g window-active-style 'bg=colour236'
 
 # Status bar
 set -g status on
