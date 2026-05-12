@@ -1481,6 +1481,59 @@ def test_fragment_synthese_fiscale_renvoie_les_kpis(mem_db, tmp_path, monkeypatc
     assert "Synthèse fiscale" in body
 
 
+def test_synthese_fiscale_pour_auto_entrepreneur_masque_la_carte_tva(mem_db, tmp_path, monkeypatch):
+    # Given un profil auto-entrepreneur (profil par défaut de la fixture)
+    _insert_invoice(mem_db, id="ae1", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When on rend le fragment synthèse fiscale
+    with app.test_client() as client:
+        resp = client.get("/fragments/synthese-fiscale?year=2025")
+
+    # Then la carte « TVA à reverser » est absente, « Résultat brut » est présente
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "Résultat brut" in body
+    assert "TVA à reverser" not in body
+
+
+def test_synthese_fiscale_pour_sasu_affiche_la_carte_tva(mem_db, tmp_path, monkeypatch):
+    # Given un profil SASU
+    import sqlite3 as _sq
+    _insert_invoice(mem_db, id="sasu1", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    conn = _sq.connect(str(db_path))
+    conn.execute("UPDATE user_profile SET fiscal_profile='SASU' WHERE id=1")
+    conn.commit()
+    conn.close()
+
+    # When on rend le fragment synthèse fiscale
+    with app.test_client() as client:
+        resp = client.get("/fragments/synthese-fiscale?year=2025")
+
+    # Then la carte « TVA à reverser » est présente
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "TVA à reverser" in body
+
+
+def test_synthese_fiscale_pour_ae_mentionne_la_franchise(mem_db, tmp_path, monkeypatch):
+    # Given un profil auto-entrepreneur (profil par défaut de la fixture)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When on rend le fragment synthèse fiscale
+    with app.test_client() as client:
+        resp = client.get("/fragments/synthese-fiscale?year=2025")
+
+    # Then un libellé mentionne « franchise en base » et l'article 293 B
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "franchise en base" in body
+    assert "293 B" in body
+
+
 def test_pipeline_jobs_renvoie_404_pour_job_inconnu(mem_db, tmp_path, monkeypatch):
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
@@ -1898,3 +1951,97 @@ class TestComplétionMontantsÀLaSauvegarde:
         data = resp.get_json()
         assert data["ok"] is False
         assert "taux_tva" in data["errors"]
+
+
+# ── Journal : colonnes selon visibilité TVA du profil ────────────────────────
+
+def test_journal_pour_auto_entrepreneur_n_affiche_pas_les_colonnes_tva(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given un AE en franchise et une facture validée,
+    When on rend le dashboard,
+    Then les colonnes TVA / TTC séparées disparaissent du <thead>
+    And les colonnes Débit / Crédit (sans suffixe HT) sont présentes."""
+    # Given : profil AE par défaut + 1 facture validée
+    _insert_invoice(mem_db, id="ae-row", statut_révision="validé",
+                    exercice_fiscal=2025, type_document="facture_reçue",
+                    montant_ht=33.33, montant_tva=6.66, montant_ttc=39.99)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    html = resp.data.decode("utf-8")
+
+    # Then : les <th> spécifiques TVA sont absents du thead du journal
+    panel = html.split('id="panel-ledger"', 1)[1].split("</section>", 1)[0]
+    assert ">Débit HT<" not in panel
+    assert ">Crédit HT<" not in panel
+    # En-têtes TVA et TTC séparés ne doivent pas apparaître dans le thead.
+    thead = panel.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert ">TVA<" not in thead
+    assert ">TTC<" not in thead
+    # Et les <th> Débit / Crédit (mode AE) sont bien là
+    assert ">Débit<" in thead
+    assert ">Crédit<" in thead
+
+
+def test_journal_pour_sasu_affiche_les_colonnes_tva(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given un profil SASU,
+    When on rend le dashboard,
+    Then les colonnes Débit HT / Crédit HT / TVA / TTC sont présentes
+    (régression sentinel : pas de masquage pour les profils TVA-visible)."""
+    # Given : bascule le profil créé par _make_app en SASU
+    _insert_invoice(mem_db, id="sasu-row", statut_révision="validé",
+                    exercice_fiscal=2025, type_document="facture_reçue",
+                    montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db_path))
+    conn.execute("UPDATE user_profile SET fiscal_profile='SASU' WHERE id=1")
+    conn.commit()
+    conn.close()
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    html = resp.data.decode("utf-8")
+
+    # Then : 4 en-têtes montants présents dans le thead du journal
+    panel = html.split('id="panel-ledger"', 1)[1].split("</section>", 1)[0]
+    thead = panel.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert ">Débit HT<" in thead
+    assert ">Crédit HT<" in thead
+    assert ">TVA<" in thead
+    assert ">TTC<" in thead
+
+
+def test_journal_ae_montre_le_ttc_dans_la_colonne_debit_pour_une_charge(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given un AE et un reçu (facture_reçue) à 39,99 € TTC validé,
+    When on rend le dashboard,
+    Then la valeur 39,99 € apparaît dans une cellule color-negative
+    (= colonne Débit, signe « charge » en mode AE simplifié)."""
+    # Given
+    _insert_invoice(mem_db, id="ae-charge", statut_révision="validé",
+                    exercice_fiscal=2025, type_document="facture_reçue",
+                    montant_ht=33.33, montant_tva=6.66, montant_ttc=39.99)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+    html = resp.data.decode("utf-8")
+
+    # Then : on isole la ligne de la pièce et on vérifie qu'une cellule
+    # color-negative porte bien le TTC formaté.
+    panel = html.split('id="panel-ledger"', 1)[1].split("</section>", 1)[0]
+    tbody = panel.split("<tbody>", 1)[1].split("</tbody>", 1)[0]
+    # 39,99 € (séparateur FR + espace insécable géré par fr_currency)
+    assert "color-negative" in tbody
+    # Le montant TTC doit apparaître ; on tolère les variantes d'espacement
+    # potentielles du filtre fr_currency.
+    assert "39,99" in tbody

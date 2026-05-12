@@ -961,10 +961,15 @@
                 <tr>
                   <th scope="col">Fournisseur / Client</th>
                   <th scope="col">Date</th>
+                  {% if tva_visible_pour(profile) %}
                   <th scope="col" class="text-right">Débit HT</th>
                   <th scope="col" class="text-right">Crédit HT</th>
                   <th scope="col" class="text-right">TVA</th>
                   <th scope="col" class="text-right">TTC</th>
+                  {% else %}
+                  <th scope="col" class="text-right">Débit</th>
+                  <th scope="col" class="text-right">Crédit</th>
+                  {% endif %}
                   <th scope="col" class="text-center">Statut</th>
                   <th scope="col" class="text-center">Type</th>
                   <th scope="col" class="text-center" style="width:6rem"></th>
@@ -984,6 +989,7 @@
                   </td>
                   <td>{{ row.date_document or '—' }}</td>
                   {% set ht_e, tva_e, ttc_e, derived = derive_amounts(row.montant_ht, row.montant_tva, row.montant_ttc) %}
+                  {% if tva_visible_pour(profile) %}
                   <td class="text-right amount{% if is_expense and ht_e is not none %} color-negative{% endif %}">
                     {% if is_expense and ht_e is not none %}
                       {{ ht_e | fr_currency }}
@@ -1008,6 +1014,20 @@
                       {% if 'ttc' in derived %}<span class="amount-calc" title="TTC calculé : HT + TVA">calculé</span>{% endif %}
                     {% else %}—{% endif %}
                   </td>
+                  {% else %}
+                  <td class="text-right amount{% if is_expense and ttc_e is not none %} color-negative{% endif %}">
+                    {% if is_expense and ttc_e is not none %}
+                      {{ ttc_e | fr_currency }}
+                      {% if 'ttc' in derived %}<span class="amount-calc" title="TTC calculé : HT + TVA">calculé</span>{% endif %}
+                    {% else %}—{% endif %}
+                  </td>
+                  <td class="text-right amount{% if not is_expense and ttc_e is not none %} color-positive{% endif %}">
+                    {% if not is_expense and ttc_e is not none %}
+                      {{ ttc_e | fr_currency }}
+                      {% if 'ttc' in derived %}<span class="amount-calc" title="TTC calculé : HT + TVA">calculé</span>{% endif %}
+                    {% else %}—{% endif %}
+                  </td>
+                  {% endif %}
                   <td class="text-center" style="white-space:nowrap">
                     {% set s = row.statut_révision %}
                     {% if s == 'validé' %}
@@ -1168,7 +1188,7 @@
                 {% endif %}
                 {% else %}
                 <tr class="empty-row">
-                  <td colspan="8">Aucune facture pour {{ year }}.</td>
+                  <td colspan="{% if tva_visible_pour(profile) %}8{% else %}6{% endif %}">Aucune facture pour {{ year }}.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -1182,7 +1202,7 @@
                   <td class="text-right amount color-negative"><strong>{{ ledger.total_debit | fr_currency }}</strong></td>
                   <td class="text-right amount color-positive"><strong>{{ ledger.total_credit | fr_currency }}</strong></td>
                   {% endif %}
-                  <td colspan="5"></td>
+                  <td colspan="{% if tva_visible_pour(profile) %}5{% else %}3{% endif %}"></td>
                 </tr>
               </tfoot>
             </table>
