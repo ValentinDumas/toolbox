@@ -434,8 +434,71 @@ def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
             "montant_tva": "2", "date_document": "", "émetteur_nom": "",
             "numéro_facture": "", "catégorie": "", "notes_correction": "",
         })
-    assert resp.status_code == 200
+    assert resp.status_code == 404
     assert resp.get_json()["ok"] is False
+
+
+def test_delete_unknown_id_returns_404(mem_db, tmp_path, monkeypatch):
+    """DELETE /factures/<id> on unknown id must return 404, not silent 200."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.delete("/factures/nonexistent")
+    assert resp.status_code == 404
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "introuvable" in data["error"].lower()
+
+
+def test_supprimer_form_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/supprimer on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/supprimer", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
+
+
+def test_valider_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/valider on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/valider", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
+
+
+def test_restaurer_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/restaurer on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/restaurer", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
+
+
+def test_restaurer_on_active_facture_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/restaurer on a non-deleted row must flash and redirect."""
+    _insert_invoice(mem_db, id="alive-rest", statut_révision="validé", exercice_fiscal=2025)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/alive-rest/restaurer", data={"year": "2025"})
+    assert resp.status_code == 302
+    # Row must remain validé (untouched)
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT statut_révision FROM invoices WHERE id='alive-rest'").fetchone()
+    check.close()
+    assert row["statut_révision"] == "validé"
+
+
+def test_reinitialiser_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/reinitialiser on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/reinitialiser", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
 
 
 def test_post_review_save_invalid_amount_returns_errors(mem_db, tmp_path, monkeypatch):
