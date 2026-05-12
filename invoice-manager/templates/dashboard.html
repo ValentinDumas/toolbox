@@ -809,24 +809,27 @@
         </form>
       </div>
       <div class="header-actions">
-        {% set nom_defini = profile and profile.nom and profile.nom != '' %}
+        {% set _active = all_profiles | selectattr('slug', 'equalto', active_slug) | first if all_profiles and active_slug else None %}
+        {% set _display_name = (profile.nom if profile and profile.nom else (_active.name if _active else '')) %}
+        {% set nom_defini = _display_name and _display_name != '' %}
+        {% set profile_nom = _display_name %}
 
         {# ── Sélecteur de profil ── #}
         <div class="profile-switcher">
           <button type="button" id="profile-btn" class="entity-badge"
                   aria-haspopup="true" aria-expanded="false"
-                  aria-label="Profil actif : {{ profile.nom if nom_defini else 'Non renseigné' }}. Ouvrir le sélecteur."
+                  aria-label="Profil actif : {{ profile_nom if nom_defini else 'Non renseigné' }}. Ouvrir le sélecteur."
                   onclick="toggleProfileMenu()">
             {% if profile and profile.avatar_data %}
             <img src="{{ profile.avatar_data }}" alt="" aria-hidden="true"
                  style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;">
             {% else %}
             <div class="entity-badge-icon" aria-hidden="true">
-              {{ (profile.nom[0] | upper) if nom_defini else '?' }}
+              {{ (profile_nom[0] | upper) if nom_defini else '?' }}
             </div>
             {% endif %}
             <div class="entity-badge-info">
-              <span class="entity-badge-name">{{ profile.nom if nom_defini else 'Entité non renseignée' }}</span>
+              <span class="entity-badge-name">{{ profile_nom if nom_defini else 'Entité non renseignée' }}</span>
               <span class="entity-badge-meta">
                 {{ profile.fiscal_profile if profile else '' }}{% if profile and profile.siren %} · {{ profile.siren }}{% endif %}
               </span>
