@@ -27,8 +27,8 @@ func main() {
 		log.Printf("bearer token loaded from %s", path)
 	}
 
-	handler := hub.NewHandler(token)
 	binds := []string{net.JoinHostPort("127.0.0.1", strconv.Itoa(*port))}
+	originHosts := []string{"127.0.0.1:*", "localhost:*"}
 	if !*localOnly {
 		ip, err := netbind.TailnetIPv4()
 		if err != nil {
@@ -37,8 +37,10 @@ func main() {
 			os.Exit(1)
 		}
 		binds = append(binds, net.JoinHostPort(ip, strconv.Itoa(*port)))
+		originHosts = append(originHosts, ip+":*")
 	}
 
+	handler := hub.NewHandler(token, originHosts)
 	errs := make(chan error, len(binds))
 	for _, addr := range binds {
 		addr := addr

@@ -112,6 +112,14 @@ owns. Keep it long (≥32 chars), random, rotatable via config.
 Loopback requests (`127.0.0.1`) bypass the token check — debugging with curl
 should be friction-free.
 
+**Implementation divergence (commit `<this-slice>`):** the running agent does
+**not** exempt loopback. VISION §Design explicitly refuses
+"Convenience exemptions (CLI, local dashboard, dev mode)" and requires the
+token on every protected route. Token must be in the `Authorization` header
+on loopback too (smoke: `curl -H "Authorization: Bearer $(cat
+~/.config/consoles-hub/token)" 127.0.0.1:7820/consoles`). This spec
+paragraph stays for historical context; the stricter rule wins.
+
 ## 8. REST API
 
 Base URL: `http://<tailnet-ip>:7820`

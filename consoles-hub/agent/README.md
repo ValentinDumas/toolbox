@@ -45,6 +45,39 @@ On first run the agent generates a 256-bit token at
 | `GET`  | `/consoles/{id}` | bearer | one pane (`{id}` is URL-encoded `%pane_id`, e.g. `%2523`) |
 | `GET`  | `/consoles/{id}/buffer?scrollback=N` | bearer | `N` clamped to 5000 |
 | `POST` | `/consoles/{id}/send` | bearer | body: `{"text":"…","enter":true}` |
+| `GET`  | `/consoles/{id}/stream` | bearer | WebSocket upgrade — live pane stream |
+
+## Live stream
+
+Connect to `ws://127.0.0.1:7820/consoles/<id>/stream` with
+`Authorization: Bearer <token>`. The server pushes JSON text frames:
+
+```json
+{"type":"snapshot","text":"…","captured_at":"2026-05-12T12:50:00Z"}
+{"type":"delta",   "text":"…","captured_at":"2026-05-12T12:50:00Z"}
+```
+
+A `snapshot` is sent on connect, then `delta` (suffix-only) or a fresh
+`snapshot` (on clear/redraw) whenever `tmux capture-pane` changes. Cadence
+is coalesced at 100 ms; idle panes emit nothing.
+
+Clients can also type into the pane over the same socket:
+
+```json
+{"type":"send","text":"y","enter":true}
+```
+
+Inbound frame size is capped at 64 KiB. Origin allowlist is loopback plus
+the resolved tailnet host (a browser at an unknown origin gets `403`).
+Closing the socket has no side effect on the pane.
+
+Smoke from CLI (`brew install websocat`):
+
+```sh
+TOKEN=$(cat ~/.config/consoles-hub/token)
+websocat -t "ws://127.0.0.1:7820/consoles/%2523/stream" \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ## Curl smoke
 
