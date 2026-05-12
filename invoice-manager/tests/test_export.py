@@ -94,7 +94,7 @@ class TestYearFilter:
         monkeypatch.chdir(tmp_project)
         db_path = tmp_project / "data" / "invoices.db"
         conn = ex.open_db(db_path)
-        _insert(conn, {"statut_révision": "auto_validé", "hash_fichier": "h1"})
+        _insert(conn, {"statut_révision": "validé", "hash_fichier": "h1"})
         _insert(conn, {"statut_révision": "à_réviser", "hash_fichier": "h2"})
         conn.close()
         conn2 = exp.open_db(db_path)

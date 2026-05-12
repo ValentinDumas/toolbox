@@ -5,7 +5,6 @@ db.py — Accès SQLite partagé : ouverture, schéma, migrations, insertion.
 import sqlite3
 from pathlib import Path
 
-from constants import STATUT_PRET, STATUT_VALIDE
 
 HERE = Path(__file__).parent
 
@@ -129,12 +128,6 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         except sqlite3.OperationalError as e:
             if "duplicate column name" not in str(e) and "already exists" not in str(e):
                 raise
-
-    # Rewrite legacy status values to the canonical "validé"
-    conn.execute(
-        "UPDATE invoices SET statut_révision=? WHERE statut_révision IN (?,?,?)",
-        (STATUT_VALIDE, STATUT_PRET, "auto_validé", "révisé"),
-    )
 
     # Migrate [known_emitters] from config.toml if present and not yet in DB
     toml_path = config_path or HERE / "config.toml"

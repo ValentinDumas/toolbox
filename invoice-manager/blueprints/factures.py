@@ -12,7 +12,7 @@ from pathlib import Path
 
 from flask import Blueprint, flash, jsonify, redirect, request
 
-from constants import STATUT_A_REVISER, STATUT_PRET, STATUT_VALIDE
+from constants import STATUT_A_REVISER, STATUT_VALIDE
 from context_helpers import active_db, active_paths
 from db import open_db
 from services.revision import (
@@ -135,8 +135,8 @@ def facture_valider(item_id):
             return redirect(f"/?year={year}")
         conn.execute(
             "UPDATE invoices SET statut_révision=?, révisé_par='user', "
-            "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN (?, ?)",
-            (STATUT_VALIDE, now, now, item_id, STATUT_PRET, STATUT_A_REVISER),
+            "date_révision=?, validé_le=? WHERE id=? AND statut_révision=?",
+            (STATUT_VALIDE, now, now, item_id, STATUT_A_REVISER),
         )
         conn.commit()
         conn.close()

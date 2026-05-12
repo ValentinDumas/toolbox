@@ -45,7 +45,7 @@ class TestExportReview:
         monkeypatch.chdir(tmp_project)
         db_path = tmp_project / "data" / "invoices.db"
         conn = ex.open_db(db_path)
-        _insert_row(conn, {"statut_révision": "auto_validé", "hash_fichier": "h1"})
+        _insert_row(conn, {"statut_révision": "validé", "hash_fichier": "h1"})
         conn.close()
         conn2 = rv.open_db(db_path)
         result = rv.export_review(conn2, tmp_project / "review")
@@ -58,7 +58,7 @@ class TestExportReview:
         monkeypatch.chdir(tmp_project)
         db_path = tmp_project / "data" / "invoices.db"
         conn = ex.open_db(db_path)
-        _insert_row(conn, {"statut_révision": "auto_validé", "hash_fichier": "h1"})
+        _insert_row(conn, {"statut_révision": "validé", "hash_fichier": "h1"})
         _insert_row(conn, {"statut_révision": "à_réviser", "hash_fichier": "h2"})
         _insert_row(conn, {"statut_révision": "validé", "hash_fichier": "h3"})
         conn.close()
@@ -178,7 +178,7 @@ class TestReclassify:
         from tests.conftest import OVH_TEXT
         row = ex.parse_invoice(OVH_TEXT, "test.pdf", "auto-entrepreneur")
         row["hash_fichier"] = "rh_" + str(hash(str(overrides)))
-        row["statut_révision"] = "auto_validé"
+        row["statut_révision"] = "validé"
         row["type_document"] = "facture_reçue"
         if overrides:
             row.update(overrides)

@@ -6,7 +6,6 @@ constants.py — Constantes partagées entre les modules du projet.
 
 STATUT_A_REVISER = "à_réviser"
 STATUT_VALIDE    = "validé"
-STATUT_PRET      = "prêt_à_valider"
 
 VALIDATED_STATUSES = (STATUT_VALIDE,)
 
