@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project vision — TOP PRIORITY, read before any change
+
+@VISION.md
+
 ## Code of conduct — read first, every session
 
 @BEHAVIOR.md
