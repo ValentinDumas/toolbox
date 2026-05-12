@@ -33,6 +33,22 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 bp_pipeline = Blueprint("pipeline", __name__)
 
+# Extensions autorisées à l'import. Première ligne de défense avant le sniff
+# des magic bytes : un binaire renommé en .pdf reste détecté par les magic
+# bytes, mais on rejette d'abord toute extension inattendue pour réduire la
+# surface d'attaque (cf. VISION.md §3 — magic bytes + whitelist d'extensions).
+ALLOWED_UPLOAD_EXTENSIONS = frozenset({
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".heic",
+    ".heif",
+    ".tif",
+    ".tiff",
+    ".webp",
+})
+
 
 def _sniff_supported_type(header: bytes) -> bool:
     """Détecte un format pris en charge à partir des 32 premiers octets.
@@ -191,7 +207,16 @@ def pipeline_depot():
         if not f.filename:
             continue
         basename = Path(f.filename).name
-        # Anti-corruption : sniff magic bytes avant toute écriture disque.
+        # Garde 1/2 : whitelist d'extensions. Rejette .exe, .sh, .js, .zip,
+        # etc. avant même de lire le flux.
+        suffix = Path(basename).suffix.lower()
+        if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+            failed.append({
+                "filename": f.filename,
+                "reason": f"Extension de fichier non autorisée : {suffix or '(aucune)'}",
+            })
+            continue
+        # Garde 2/2 : sniff magic bytes avant toute écriture disque.
         header = f.stream.read(32)
         f.stream.seek(0)
         if not _sniff_supported_type(header):
