@@ -1,8 +1,9 @@
 # consoles-hub iOS app (mobile/)
 
-SwiftUI client for the consoles-hub agent. Slice A of v1 — Setup + sectioned
-Pane list backed by the REST endpoints. WebSocket detail view (slice B),
-named-key row + biometric gate + settings polish (slice C) come later.
+SwiftUI client for the consoles-hub agent. Slices A and B of v1 — Setup,
+sectioned Pane list, and a live WebSocket-backed detail view with text
+input. Named-key row + biometric gate + settings polish (slice C) and
+icon / TestFlight prep (slice D) come later.
 
 See [`docs/specs/2026-05-12-mobile-ui-design.md`](../docs/specs/2026-05-12-mobile-ui-design.md)
 for the full design.
@@ -41,11 +42,44 @@ mobile/
 │   └── Sources/
 │       ├── ConsolesHubApp.swift
 │       ├── State/AppState.swift
-│       ├── Models/{Pane,APIError}.swift
-│       ├── Services/{Keychain,AgentClient}.swift
-│       └── Views/{Root,Setup,PaneList,PaneRow,ErrorBanner}.swift
+│       ├── Models/{Pane,APIError,StreamMessage}.swift
+│       ├── Services/{Keychain,AgentClient,PaneStream}.swift
+│       └── Views/{Root,Setup,PaneList,PaneRow,PaneDetail,ErrorBanner}.swift
 └── README.md (this file)
 ```
+
+## Live stream (slice B)
+
+Tap a pane in the list to open the detail view. A single
+`URLSessionWebSocketTask` opens against `GET /consoles/{id}/stream` with
+the bearer token on the upgrade request, decodes `snapshot` frames into
+the buffer and appends `delta` frames as they arrive.
+
+- **Input:** type a command, press Return on the on-screen keyboard, the
+  frame goes out as `{"type":"send","text":"<line>","enter":true}` and
+  the field clears.
+- **Raw send:** long-press the paperplane button to fire one frame with
+  `"enter": false` — useful for a `y` confirmation that mustn't carry a
+  newline.
+- **Scroll:** the buffer pins to the bottom on new content. Scrolling up
+  freezes auto-scroll and reveals a "jump to bottom" pill; tap to resume.
+- **Reconnect:** on a dropped socket the view tries again after `1 s`,
+  `3 s`, then `7 s`. After three failures it stops and shows
+  `Disconnected — Retry` inline. Backgrounding the app closes the socket;
+  foregrounding reopens it with a fresh attempt counter.
+- **Terminal errors:** `401`, `404`, agent `1011`, `1008 policy_violation`
+  do not retry — the view surfaces the spec §9 copy and waits for Retry.
+
+What slice B intentionally does **not** ship: the named-key row (Enter /
+Tab / Esc / Ctrl-C / arrows) lands in slice C, alongside the biometric
+gate and the token-rotation flow.
+
+## Testing
+
+There is no XCTest target yet — the verification path is the simulator.
+Build for the booted iPhone simulator and exercise the spec §5.3 / §6 / §7
+flows by hand (tap a pane, run a command on the Mac, send input from the
+phone, watch the reconnect behavior when the agent is stopped).
 
 ## Notes
 

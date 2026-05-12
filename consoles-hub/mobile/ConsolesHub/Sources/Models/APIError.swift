@@ -11,6 +11,8 @@ enum APIError: Error, Equatable {
     case tmuxUnavailable            // agent JSON: tmux_unavailable
     case agentError(Int)            // other non-2xx
     case decoding                   // body didn't match Pane
+    case disconnected               // WS close 1006 / lost stream
+    case badFrame                   // WS close 1008 — agent rejected our frame
 
     var title: String {
         switch self {
@@ -22,6 +24,8 @@ enum APIError: Error, Equatable {
         case .tmuxUnavailable:  return "tmux is down"
         case .agentError(let s): return "Agent error (\(s))"
         case .decoding:         return "Bad response"
+        case .disconnected:     return "Disconnected"
+        case .badFrame:         return "Bad frame"
         }
     }
 
@@ -43,6 +47,10 @@ enum APIError: Error, Equatable {
             return "The agent returned an unexpected status."
         case .decoding:
             return "The agent returned a body that doesn't match the expected schema."
+        case .disconnected:
+            return "Lost the live connection."
+        case .badFrame:
+            return "The app sent the agent a frame it rejected. This is a bug — please file."
         }
     }
 }
@@ -65,6 +73,16 @@ extension APIError {
         case 403: return .originBlocked
         case 404: return .paneGone
         default:  return .agentError(httpStatus)
+        }
+    }
+
+    /// Map a WebSocket close code to a screen state. Unknown codes collapse
+    /// to `.disconnected` per spec §9 (treated like a 1006 abnormal close).
+    static func from(closeCode: URLSessionWebSocketTask.CloseCode) -> APIError {
+        switch closeCode {
+        case .policyViolation:      return .badFrame
+        case .internalServerError:  return .agentError(1011)
+        default:                    return .disconnected
         }
     }
 }

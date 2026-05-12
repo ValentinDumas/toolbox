@@ -412,17 +412,19 @@ can see they were considered.
 
 ## 14. Open questions
 
-1. **Repo layout.** Two options:
-   - `mobile/` subdir of `consoles-hub` — one repo, easier cross-PR,
-     a single CI surface for any future smoke tests.
-   - Sibling repo `consoles-hub-ios` — Xcode is happier when the
-     project root is the git root; avoids future cross-language tool
-     friction (`go vet` not skipping a Swift dir, etc.).
-   Decision blocks the first commit of the Xcode project.
+1. **Repo layout.** ~~Two options: `mobile/` subdir vs sibling
+   `consoles-hub-ios` repo.~~ **Resolved (slice A, 2026-05-12):**
+   `mobile/` subdir of `consoles-hub`. xcodegen reconstructs
+   `*.xcodeproj` from `project.yml`, and the project file is gitignored
+   so the Swift dir does not conflict with `go vet` or other Go-side
+   tools. Single repo, single CI surface.
 
-2. **WS library.** `URLSessionWebSocketTask` (stdlib) versus
-   `Starscream` (third party). Stdlib first per VISION. Revisit only if
-   reconnect/backoff/timeout pain bites in v1.
+2. **WS library.** ~~`URLSessionWebSocketTask` (stdlib) versus
+   `Starscream` (third party).~~ **Resolved (slice B, 2026-05-12):**
+   stdlib `URLSessionWebSocketTask`. Reconnect + send + close-code
+   mapping live in `Sources/Services/PaneStream.swift`. No third-party
+   dep added. Revisit only if a real-world tailnet flap reveals a gap
+   the stdlib doesn't cover.
 
 3. **ntfy → deep-link.** Does the ntfy iOS app reliably fire
    "click actions" from a backgrounded notification, on iOS 17+, when

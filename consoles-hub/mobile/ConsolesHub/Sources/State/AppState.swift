@@ -54,6 +54,13 @@ final class AppState {
         return AgentClient(host: host, token: token)
     }
 
+    /// Best-effort live-stream builder for one pane. Returns nil if not configured.
+    @MainActor
+    func stream(for pane: Pane) -> PaneStream? {
+        guard let token, !host.isEmpty else { return nil }
+        return PaneStream(host: host, token: token, paneID: pane.id)
+    }
+
     @MainActor
     func refresh() async {
         guard let client = client() else { return }

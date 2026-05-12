@@ -16,7 +16,9 @@ struct PaneListView: View {
                     if !panes.isEmpty {
                         Section(bucket.rawValue) {
                             ForEach(panes) { pane in
-                                PaneRowView(pane: pane)
+                                NavigationLink(value: pane) {
+                                    PaneRowView(pane: pane)
+                                }
                             }
                         }
                     }
@@ -30,6 +32,9 @@ struct PaneListView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .navigationDestination(for: Pane.self) { pane in
+                PaneDetailView(pane: pane)
+            }
             .navigationTitle("Consoles")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
