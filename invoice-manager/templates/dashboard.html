@@ -1506,8 +1506,19 @@
       });
     });
 
+    // Focus management partagé entre toutes les modales (issue #124) :
+    // chaque open* enregistre le déclencheur ; chaque close restore le focus.
+    var _modalLastTrigger = null;
+    function _restoreModalFocus() {
+      if (_modalLastTrigger && typeof _modalLastTrigger.focus === 'function') {
+        _modalLastTrigger.focus();
+      }
+      _modalLastTrigger = null;
+    }
+
     // Delete confirmation modal
     function openDeleteModal(btn) {
+      _modalLastTrigger = btn;
       var modal = document.getElementById('delete-modal');
       var form  = document.getElementById('modal-form');
       var body  = document.getElementById('modal-body');
@@ -1518,14 +1529,18 @@
     }
     document.getElementById('modal-cancel').addEventListener('click', function () {
       document.getElementById('delete-modal').classList.remove('open');
+      _restoreModalFocus();
     });
 
-    // Escape closes any open modal (fix #77)
+    // Escape closes any open modal (fix #77) + restore focus (issue #124)
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
+      var anyClosed = false;
       document.querySelectorAll('.modal-backdrop.open').forEach(function (m) {
         m.classList.remove('open');
+        anyClosed = true;
       });
+      if (anyClosed) _restoreModalFocus();
     });
 
     function retryErrorFile(btn, filename) {
@@ -1544,6 +1559,7 @@
     }
 
     function openErrorDeleteModal(btn) {
+      _modalLastTrigger = btn;
       var modal = document.getElementById('delete-modal');
       var form  = document.getElementById('modal-form');
       var body  = document.getElementById('modal-body');
@@ -1578,7 +1594,10 @@
         });
     }
     document.getElementById('delete-modal').addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { this.classList.remove('open'); }
+      if (e.key === 'Escape') {
+        this.classList.remove('open');
+        _restoreModalFocus();
+      }
     });
 
     var _viewer = null;
@@ -1845,6 +1864,7 @@
 
   // ── Modal : Nouveau profil ──────────────────────────────────────────────────
   function openCreateProfileModal() {
+    _modalLastTrigger = document.activeElement;  // ＋ Nouveau profil → on garde la cible avant de fermer le menu
     closeProfileMenu(false);
     var modal = document.getElementById('create-profile-modal');
     modal.classList.add('open');
@@ -1853,6 +1873,7 @@
 
   function closeCreateProfileModal() {
     document.getElementById('create-profile-modal').classList.remove('open');
+    _restoreModalFocus();
   }
 
   document.getElementById('create-profile-modal').addEventListener('keydown', function(e) {
@@ -1874,6 +1895,7 @@
 
   // ── Modal : Upload ──────────────────────────────────────────────────────────
   function openUploadModal() {
+    _modalLastTrigger = document.activeElement;
     var modal = document.getElementById('upload-modal');
     modal.classList.add('open');
     document.getElementById('upload-input').value = '';
@@ -1888,6 +1910,7 @@
   function closeUploadModal() {
     if (jobPollController) { jobPollController.abort(); jobPollController = null; }
     document.getElementById('upload-modal').classList.remove('open');
+    _restoreModalFocus();
   }
 
   document.getElementById('upload-modal').addEventListener('keydown', function(e) {
