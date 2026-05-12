@@ -43,13 +43,28 @@ def _parse_review_fields(form) -> tuple[dict, dict]:
     # on n'accepte rien d'autre pour préserver l'invariant "exercice_fiscal
     # déductible de date_document[:4]" et éviter qu'une saisie corrompue
     # remonte dans le ledger / export.
-    date_val = form.get("date_document", "").strip()
-    if date_val:
+    #
+    # `date_paiement` partage la même ACL. Sémantiquement c'est la date du
+    # mouvement de trésorerie : pour une facture émise = date d'encaissement
+    # (sert au calcul URSSAF, cf. AUTO_ENTREPRENEUR_RULES.md §4.2 + §9), pour
+    # une facture reçue = date à laquelle on a réglé le fournisseur. La chaîne
+    # vide effacement explicite est autorisée (NULL en DB).
+    for date_field in ("date_document", "date_paiement"):
+        if date_field not in form:
+            continue
+        date_val = form.get(date_field, "").strip()
+        if not date_val:
+            # `date_document` est requis (validé plus loin) ; `date_paiement`
+            # est effaçable. On distingue donc absence du form (pas dans la
+            # boucle) et chaîne vide pour date_paiement (= NULL explicite).
+            if date_field == "date_paiement":
+                fields[date_field] = None
+            continue
         try:
             date.fromisoformat(date_val)
-            fields["date_document"] = date_val
+            fields[date_field] = date_val
         except ValueError:
-            errors["date_document"] = (
+            errors[date_field] = (
                 f"Date invalide — format YYYY-MM-DD attendu (reçu : {date_val})"
             )
 

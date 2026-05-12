@@ -16,6 +16,7 @@ from __future__ import annotations
 from constants import (
     CONTRA_EXPENSE_TYPES,
     CONTRA_INCOME_TYPES,
+    EMITTED_DOC_TYPES,
     EXPENSE_TYPES,
     INCOME_TYPES,
     OFF_LEDGER_TYPES,
@@ -91,3 +92,19 @@ def to_journal_row(row: dict) -> dict:
 def is_off_ledger(type_document: str | None) -> bool:
     """Vrai si la pièce n'a pas sa place dans le livre-journal."""
     return type_document in OFF_LEDGER_TYPES or sens_comptable(type_document) == SENS_NONE
+
+
+def date_encaissement(row: dict) -> str | None:
+    """Date à laquelle l'argent est entré sur le compte du profil.
+
+    Seules les pièces émises (facture_émise, avoir_émis) ont une date
+    d'encaissement au sens AE : c'est la date à laquelle le client a payé,
+    socle du calcul URSSAF (cf. AUTO_ENTREPRENEUR_RULES.md §4.2 + §8 + §9).
+
+    Pour une pièce reçue, la date_paiement existe aussi mais désigne le
+    règlement du fournisseur (sortie de trésorerie) — ce n'est pas un
+    encaissement.
+    """
+    if row.get("type_document") not in EMITTED_DOC_TYPES:
+        return None
+    return row.get("date_paiement")

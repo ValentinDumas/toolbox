@@ -18,13 +18,22 @@ from constants import (
 )
 
 
-def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
-    """Retourne les KPI fiscaux pour une année."""
+def query_fiscal_summary(conn: sqlite3.Connection, year: int, tva_visible: bool = True) -> dict:
+    """Retourne les KPI fiscaux pour une année.
+
+    `tva_visible` reflète `services.profil.tva_visible_pour(profile)` :
+    pour un profil qui déduit la TVA (SASU, SARL) on raisonne en HT ;
+    pour un profil en franchise (auto-entrepreneur, salarié) on raisonne
+    en TTC car la TVA payée aux fournisseurs n'est pas récupérable et
+    fait donc partie de la charge réelle (cf. VISION.md > Priorité
+    auto-entrepreneur, AUTO_ENTREPRENEUR_RULES.md art. 293 B CGI).
+    """
     def scalar(sql, *args):
         return conn.execute(sql, args).fetchone()[0] or 0.0
 
     ph_expense = ",".join("?" * len(EXPENSE_TYPES))
     ph_validated = ",".join("?" * len(VALIDATED_STATUSES))
+    charges_col = "montant_ht" if tva_visible else "montant_ttc"
 
     ca_ht = scalar(
         "SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND deleted_at IS NULL",
@@ -40,11 +49,11 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
     ).fetchone()[0] or 0.0
 
     total_charges = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision IN ({ph_validated}) AND deleted_at IS NULL",
+        f"SELECT COALESCE(SUM({charges_col}),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision IN ({ph_validated}) AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES, *VALIDATED_STATUSES),
     ).fetchone()[0] or 0.0
     row_revision = conn.execute(
-        f"SELECT COUNT(*), COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision=? AND deleted_at IS NULL",
+        f"SELECT COUNT(*), COALESCE(SUM({charges_col}),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision=? AND deleted_at IS NULL",
         (year, *EXPENSE_TYPES, STATUT_A_REVISER),
     ).fetchone()
     nb_charges_revision = row_revision[0] or 0
@@ -76,8 +85,15 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
     }
 
 
-def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: int = 50) -> dict:
-    """Retourne une page du ledger pour une année."""
+def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: int = 50,
+                 tva_visible: bool = True) -> dict:
+    """Retourne une page du ledger pour une année.
+
+    Les totaux du pied de tableau sont alignés sur la même base que les
+    lignes affichées (cf. `templates/dashboard.html` qui montre TTC pour
+    les profils non-déductibles et HT pour les autres) :
+    `tva_visible` vrai → SUM(montant_ht) ; faux → SUM(montant_ttc).
+    """
     offset = (page - 1) * per_page
     rows = conn.execute(
         "SELECT * FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL "
@@ -96,13 +112,14 @@ def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: i
     debit_types  = EXPENSE_TYPES + CONTRA_INCOME_TYPES
     ph_cr = ",".join("?" * len(credit_types))
     ph_db = ",".join("?" * len(debit_types))
+    amount_col = "montant_ht" if tva_visible else "montant_ttc"
     total_credit = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? "
+        f"SELECT COALESCE(SUM({amount_col}),0) FROM invoices WHERE exercice_fiscal=? "
         f"AND type_document IN ({ph_cr}) AND deleted_at IS NULL AND statut_révision != ?",
         (year, *credit_types, STATUT_A_REVISER),
     ).fetchone()[0] or 0.0
     total_debit = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? "
+        f"SELECT COALESCE(SUM({amount_col}),0) FROM invoices WHERE exercice_fiscal=? "
         f"AND type_document IN ({ph_db}) AND deleted_at IS NULL AND statut_révision != ?",
         (year, *debit_types, STATUT_A_REVISER),
     ).fetchone()[0] or 0.0
@@ -187,8 +204,8 @@ def query_items_a_reviser(conn: sqlite3.Connection, year: int | None = None) -> 
     """
     rows = conn.execute(
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
-        "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
-        "confiance, fichier_source, texte_brut, statut_révision "
+        "date_document, date_paiement, émetteur_nom, numéro_facture, catégorie, "
+        "notes_correction, confiance, fichier_source, texte_brut, statut_révision "
         "FROM invoices WHERE statut_révision=? AND deleted_at IS NULL "
         "ORDER BY (confiance IS NULL), confiance DESC, date_document DESC, id DESC",
         (STATUT_A_REVISER,),

@@ -139,8 +139,9 @@ invoice-manager/
 │
 ├── services/               ← logique métier (couche domaine)
 │   ├── __init__.py
-│   └── revision.py         ← workflow révision : _parse (ACL stricte : `date_document` ISO YYYY-MM-DD obligatoire),
-│                              _validate, _recompute_confidence, _build_log, _persist
+│   ├── revision.py         ← workflow révision : _parse (ACL stricte : `date_document` + `date_paiement` ISO YYYY-MM-DD),
+│   │                          _validate, _recompute_confidence, _build_log, _persist
+│   └── comptabilite.py     ← sens débit/crédit + helper `date_encaissement(row)` (mouvement de trésorerie côté AE)
 │
 ├── blueprints/             ← contextes bornés (DDD), un blueprint = un agrégat / un domaine
 │   ├── __init__.py

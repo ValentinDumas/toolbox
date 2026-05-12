@@ -88,6 +88,21 @@
              value="{{ item.date_document or '' }}">
       <p class="field-error" role="alert" id="err-date{{ sfx }}-{{ item.id }}" data-field="date_document"></p>
     </div>
+    {# `date_paiement` = date du mouvement de trésorerie. Libellé orienté
+       sens : encaissement (pièces émises) vs paiement (pièces reçues).
+       Cf. AUTO_ENTREPRENEUR_RULES.md §4.2 — sert au calcul du CA encaissé. #}
+    {% set is_emitted = item.type_document in ('facture_émise', 'avoir_émis') %}
+    <div>
+      <label class="review-label" for="paiement{{ sfx }}-{{ item.id }}">{{ "Date d'encaissement" if is_emitted else "Date de paiement" }}</label>
+      <input class="review-input" type="date"
+             id="paiement{{ sfx }}-{{ item.id }}" name="date_paiement"
+             aria-describedby="err-paiement{{ sfx }}-{{ item.id }} hint-paiement{{ sfx }}-{{ item.id }}"
+             value="{{ item.date_paiement or '' }}">
+      <p class="review-hint" id="hint-paiement{{ sfx }}-{{ item.id }}">
+        <small>{{ "Date à laquelle le client a payé — utilisée pour le calcul URSSAF." if is_emitted else "Date à laquelle vous avez réglé le fournisseur." }}</small>
+      </p>
+      <p class="field-error" role="alert" id="err-paiement{{ sfx }}-{{ item.id }}" data-field="date_paiement"></p>
+    </div>
     <div>
       <label class="review-label" for="emetteur{{ sfx }}-{{ item.id }}">Émetteur</label>
       <input class="review-input{% if is_revision and not item.émetteur_nom %} review-input-missing{% endif %}" type="text"
