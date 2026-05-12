@@ -24,6 +24,14 @@ IMPORT_STATUTS_TERMINAUX = (IMPORT_TERMINE, IMPORT_ERREUR, IMPORT_DOUBLON)
 INCOME_TYPES  = ("facture_émise",)
 EXPENSE_TYPES = ("facture_reçue", "reçu", "note_de_frais")
 
+# Contre-passations : un avoir reçu annule une charge (donc se lit au crédit),
+# un avoir émis annule un produit (donc se lit au débit). Convention PCG.
+CONTRA_INCOME_TYPES  = ("avoir_émis",)
+CONTRA_EXPENSE_TYPES = ("avoir_reçu",)
+
+# Types présents dans la DB mais qui n'apparaissent pas au livre-journal.
+OFF_LEDGER_TYPES = ("relevé_bancaire", "devis")
+
 # ── Mois français ─────────────────────────────────────────────────────────────
 
 # Utilisé pour le parsing de dates en texte long ("15 janvier 2025")
@@ -40,6 +48,19 @@ MONTHS_FR_SHORT = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
 # ── Seuil de confiance ────────────────────────────────────────────────────────
 
 CONFIDENCE_THRESHOLD = 0.8
+
+# ── Taux de TVA légaux (France) ───────────────────────────────────────────────
+#
+# Stockés en fractions (0..1) avec 4 décimales pour conserver sans perte les
+# taux réduit et super-réduit (2,1 % et 5,5 %). Tout calcul interne utilise
+# cette représentation ; seul l'export humain (XLSX, CSV de déclaration)
+# multiplie par 100 pour l'affichage.
+LEGAL_RATES = (0.0, 0.021, 0.055, 0.10, 0.20)
+
+# Tolérance pour snapper un taux observé sur le taux légal le plus proche.
+# 0.002 = 0.2 point de pourcentage — couvre les arrondis OCR et multi-lignes
+# sans confondre 5,5 % et 7 %.
+RATE_SNAP_TOLERANCE = 0.002
 
 # ── Encodage fichiers de révision ─────────────────────────────────────────────
 

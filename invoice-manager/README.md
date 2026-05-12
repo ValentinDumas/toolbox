@@ -194,6 +194,7 @@ invoice-manager/
 │   ├── test_review.py      ← workflow CSV : export/import, actions, reclassify
 │   ├── test_export.py      ← filtres année/statut, 4 onglets XLSX, calculs récap
 │   ├── test_montants.py    ← derive_amounts : HT/TVA/TTC dérivés à l'affichage
+│   ├── test_complete_amounts.py ← complete_amounts : règles HT/TVA/TTC + taux (fraction 0..1)
 │   └── test_dashboard.py   ← routes Flask (PATCH/DELETE/POST), queries, services
 │
 ├── demo/                   ← simulation pipeline complète (PDFs générés à la volée)
@@ -392,10 +393,14 @@ Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de d
 
 | Onglet | Contenu |
 |---|---|
-| Journal | Toutes les opérations chronologiques, colonnes figées, filtres auto |
+| Journal | **Livre-journal au format PCG** — Date, N° pièce, Émetteur, Libellé + 6 colonnes Débit/Crédit (HT, TVA, TTC). Ligne de totaux en bas. Filtres auto. |
 | Récapitulatif | Total charges, CA, TVA, résultat net |
 | Déclaration | Charges déductibles par catégorie pour déclaration fiscale |
 | Statistiques | Décompte de pièces par mois/type, montants par mois, périodes de déclaration avec deadlines |
+
+> **Format Journal** : conforme à la convention française (FEC art. A47 A-1 LPF, alignée Sage / EBP / Pennylane). Charges au débit, produits au crédit ; les avoirs apparaissent en contre-passation. Les pièces `relevé_bancaire` et `devis` sont exclues du livre-journal (elles restent dans le CSV).
+>
+> **CSV `ledger-YYYY.csv`** : registre plat des pièces (toutes lignes y compris off-ledger), enrichi d'une colonne `sens_comptable` (`débit` / `crédit` / vide). Format pensé pour scripts/tableurs ; pour la remise au comptable, utiliser le XLSX.
 
 ## Outils recommandés pour lire les fichiers générés
 

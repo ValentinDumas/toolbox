@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 
 from constants import (
+    CONTRA_EXPENSE_TYPES,
+    CONTRA_INCOME_TYPES,
     EXPENSE_TYPES,
     INCOME_TYPES,
     STATUT_A_REVISER,
@@ -88,17 +90,21 @@ def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: i
         (year, STATUT_A_REVISER),
     ).fetchone()[0]
 
-    ph_in = ",".join("?" * len(INCOME_TYPES))
-    ph_ex = ",".join("?" * len(EXPENSE_TYPES))
+    # Convention PCG : produits + avoirs reçus au crédit, charges + avoirs émis au débit.
+    # Cohérent avec `services/comptabilite.sens_comptable`.
+    credit_types = INCOME_TYPES + CONTRA_EXPENSE_TYPES
+    debit_types  = EXPENSE_TYPES + CONTRA_INCOME_TYPES
+    ph_cr = ",".join("?" * len(credit_types))
+    ph_db = ",".join("?" * len(debit_types))
     total_credit = conn.execute(
         f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? "
-        f"AND type_document IN ({ph_in}) AND deleted_at IS NULL AND statut_révision != ?",
-        (year, *INCOME_TYPES, STATUT_A_REVISER),
+        f"AND type_document IN ({ph_cr}) AND deleted_at IS NULL AND statut_révision != ?",
+        (year, *credit_types, STATUT_A_REVISER),
     ).fetchone()[0] or 0.0
     total_debit = conn.execute(
         f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? "
-        f"AND type_document IN ({ph_ex}) AND deleted_at IS NULL AND statut_révision != ?",
-        (year, *EXPENSE_TYPES, STATUT_A_REVISER),
+        f"AND type_document IN ({ph_db}) AND deleted_at IS NULL AND statut_révision != ?",
+        (year, *debit_types, STATUT_A_REVISER),
     ).fetchone()[0] or 0.0
 
     return {
