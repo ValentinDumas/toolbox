@@ -92,7 +92,12 @@ def _parse_date(text: str) -> str | None:
 # ── Montants ──────────────────────────────────────────────────────────────────
 
 def _parse_amount(text: str, keywords: list[str]) -> float | None:
-    pattern = "(?:" + "|".join(re.escape(k) for k in keywords) + r")[^\d]*(\d[\d\s]*[\.,]\d{2})"
+    # Tolère un taux entre parenthèses après le label (ex. "TVA (20%) 21,58 EUR")
+    pattern = (
+        "(?:" + "|".join(re.escape(k) for k in keywords) + r")"
+        r"(?:\s*\([^)]*\))?"
+        r"[^\d]*(\d[\d\s]*[\.,]\d{2})"
+    )
     match = re.search(pattern, text, re.I)
     if match:
         return float(match.group(1).replace(" ", "").replace(",", "."))
