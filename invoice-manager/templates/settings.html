@@ -253,12 +253,15 @@
             </div>
 
             <div class="card">
-              <div class="card-title">Fiscal</div>
+              <div class="card-title">Fiscalité</div>
               <div class="field-row">
                 <div class="field">
                   <label for="fiscal_profile">Statut fiscal</label>
-                  <select id="fiscal_profile" name="fiscal_profile">
-                    {% for p in ["auto-entrepreneur", "SASU", "SARL", "salarié"] %}
+                  <select id="fiscal_profile" name="fiscal_profile"
+                          data-cadence-options='{{ cadence_options | tojson }}'
+                          data-cadence-defaults='{{ cadence_defaults | tojson }}'
+                          data-current-cadence="{{ profile.cadence or '' }}">
+                    {% for p in cadence_options.keys() %}
                     <option value="{{ p }}" {{ 'selected' if profile.fiscal_profile == p else '' }}>{{ p }}</option>
                     {% endfor %}
                   </select>
@@ -267,14 +270,38 @@
                 <div class="field">
                   <label for="cadence">Cadence de déclaration</label>
                   <select id="cadence" name="cadence">
-                    <option value="" {{ 'selected' if not profile.cadence else '' }}>Défaut du profil ({% for k,v in cadence_defaults.items() %}{% if k == profile.fiscal_profile %}{{ v }}{% endif %}{% endfor %})</option>
-                    {% for c in ["mensuelle", "trimestrielle", "annuelle"] %}
+                    {% set allowed = cadence_options.get(profile.fiscal_profile, []) %}
+                    {% set default = cadence_defaults.get(profile.fiscal_profile, '') %}
+                    <option value="" {{ 'selected' if not profile.cadence else '' }}>Défaut du profil ({{ default }})</option>
+                    {% for c in allowed %}
                     <option value="{{ c }}" {{ 'selected' if profile.cadence == c else '' }}>{{ c }}</option>
                     {% endfor %}
                   </select>
+                  <span class="field-hint">Options filtrées selon le statut fiscal.</span>
                 </div>
               </div>
             </div>
+            <script>
+              (function () {
+                const fiscal = document.getElementById('fiscal_profile');
+                const cadence = document.getElementById('cadence');
+                if (!fiscal || !cadence) return;
+                const options  = JSON.parse(fiscal.dataset.cadenceOptions  || '{}');
+                const defaults = JSON.parse(fiscal.dataset.cadenceDefaults || '{}');
+                const current  = fiscal.dataset.currentCadence || '';
+                function refresh() {
+                  const profile = fiscal.value;
+                  const allowed = options[profile] || [];
+                  const def = defaults[profile] || '';
+                  cadence.innerHTML = '';
+                  const optDef = new Option('Défaut du profil (' + def + ')', '');
+                  cadence.appendChild(optDef);
+                  for (const c of allowed) cadence.appendChild(new Option(c, c));
+                  cadence.value = allowed.includes(current) ? current : '';
+                }
+                fiscal.addEventListener('change', refresh);
+              })();
+            </script>
 
             <div class="form-actions">
               <a href="/" class="btn btn-ghost">Annuler</a>

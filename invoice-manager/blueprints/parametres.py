@@ -27,7 +27,7 @@ def parametres_index():
     conn.close()
     section = request.args.get("section", "profil")
     saved = request.args.get("saved") == "1"
-    from config import CADENCE_DEFAULTS
+    from config import CADENCE_DEFAULTS, CADENCE_OPTIONS
     return render_template(
         "settings.html",
         profile=profile,
@@ -35,6 +35,7 @@ def parametres_index():
         section=section,
         saved=saved,
         cadence_defaults=CADENCE_DEFAULTS,
+        cadence_options=CADENCE_OPTIONS,
         extraction_cfg=extraction_cfg,
     )
 
