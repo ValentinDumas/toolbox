@@ -241,13 +241,18 @@
               <div class="field-row">
                 <div class="field">
                   <label for="siren">SIREN</label>
-                  <input type="text" id="siren" name="siren" value="{{ profile.siren or '' }}" placeholder="123456789" maxlength="9" inputmode="numeric">
-                  <span class="field-hint">9 chiffres — détecte tes factures émises.</span>
+                  <input type="text" id="siren" name="siren" value="{{ profile.siren or '' }}"
+                         placeholder="123456789" maxlength="9" inputmode="numeric"
+                         pattern="[0-9]{9}" aria-describedby="siren-hint">
+                  <span class="field-hint" id="siren-hint">9 chiffres — détecte tes factures émises.</span>
                 </div>
                 <div class="field">
                   <label for="tva_intracom">TVA intracommunautaire</label>
-                  <input type="text" id="tva_intracom" name="tva_intracom" value="{{ profile.tva_intracom or '' }}" placeholder="FR12123456789">
-                  <span class="field-hint">FR + 2 chiffres + SIREN. Laisser vide si non assujetti.</span>
+                  <input type="text" id="tva_intracom" name="tva_intracom" value="{{ profile.tva_intracom or '' }}"
+                         placeholder="FR12123456789" maxlength="14"
+                         pattern="[A-Za-z]{2}[0-9A-Za-z]{2,12}" aria-describedby="tva-hint"
+                         style="text-transform:uppercase">
+                  <span class="field-hint" id="tva-hint">FR + 2 chiffres + SIREN. Laisser vide si non assujetti.</span>
                 </div>
               </div>
             </div>
