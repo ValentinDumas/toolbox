@@ -61,6 +61,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Met à jour le ledger en une commande")
     parser.add_argument("--year", type=int, help="Année fiscale (défaut: année en cours)")
     parser.add_argument("--profile", type=str, required=True, help="Slug du profil")
+    parser.add_argument("--job-id", type=str, default=None,
+                        help="ID d'un job d'import (transmis à extract.py)")
     args = parser.parse_args()
 
     from profiles import resolve_paths
@@ -86,7 +88,10 @@ def main() -> None:
 
     # 2. Extraction
     print("\n── Extraction ──────────────────────────────────")
-    subprocess.run([py, str(HERE / "extract.py")] + profile_args, check=True)
+    extract_args = [py, str(HERE / "extract.py")] + profile_args
+    if args.job_id:
+        extract_args += ["--job-id", args.job_id]
+    subprocess.run(extract_args, check=True)
 
     # 3. Export
     print("\n── Export ───────────────────────────────────────")

@@ -12,7 +12,16 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
+from constants import (
+    CONFIDENCE_THRESHOLD,
+    IMPORT_DOUBLON,
+    IMPORT_EN_ATTENTE,
+    IMPORT_EN_EXTRACTION,
+    IMPORT_ERREUR,
+    IMPORT_TERMINE,
+    STATUT_A_REVISER,
+    STATUT_VALIDE,
+)
 from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
 from parsers import (
     _confidence_score,
@@ -332,13 +341,47 @@ def _move_safely(src: Path, dest_dir: Path, suffix: str = "") -> Path:
     shutil.move(str(src), dest)
     return dest
 
+# ── Suivi des jobs d'import ───────────────────────────────────────────────────
+
+def _maj_statut_import(conn, job_id: str | None, filename: str, statut: str,
+                       invoice_id: str | None = None,
+                       message_erreur: str | None = None) -> None:
+    """Met à jour le statut d'un fichier dans l'agrégat import_jobs.
+    No-op si job_id est None (utilisation CLI hors dashboard)."""
+    if not job_id:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "UPDATE import_jobs SET statut=?, invoice_id=?, message_erreur=?, "
+        "mis_à_jour_le=? WHERE job_id=? AND filename=?",
+        (statut, invoice_id, message_erreur, now, job_id, filename),
+    )
+    conn.commit()
+
+
+def _cloturer_job(conn, job_id: str | None) -> None:
+    """Tout fichier resté `en_attente` (supprimé par la dedup amont) → `doublon`."""
+    if not job_id:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "UPDATE import_jobs SET statut=?, mis_à_jour_le=? "
+        "WHERE job_id=? AND statut=?",
+        (IMPORT_DOUBLON, now, job_id, IMPORT_EN_ATTENTE),
+    )
+    conn.commit()
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extrait les données des factures vers SQLite")
     parser.add_argument("--input", type=Path, help="Dossier d'entrée (override)")
     parser.add_argument("--profile", type=str, required=True, help="Slug du profil")
+    parser.add_argument("--job-id", type=str, default=None,
+                        help="Job d'import à mettre à jour ligne par ligne")
     args = parser.parse_args()
+    job_id = args.job_id
 
     from profiles import resolve_paths
     paths = resolve_paths(args.profile)
@@ -365,15 +408,19 @@ def main() -> None:
     files = _collect_files(input_dir)
     if not files:
         print("Aucun fichier à traiter dans", input_dir)
+        _cloturer_job(conn, job_id)
+        conn.close()
         return
     traités = erreurs = à_réviser = doublons = 0
 
     for f in files:
         print(f"→ {f.name}")
+        _maj_statut_import(conn, job_id, f.name, IMPORT_EN_EXTRACTION)
         file_hash = hashlib.sha256(f.read_bytes()).hexdigest()
 
         if hash_exists(conn, file_hash):
             print("  [SKIP] déjà en base")
+            _maj_statut_import(conn, job_id, f.name, IMPORT_DOUBLON)
             doublons += 1
             continue
 
@@ -390,6 +437,8 @@ def main() -> None:
                 (str(dest.resolve()), row["id"]),
             )
             conn.commit()
+            _maj_statut_import(conn, job_id, f.name, IMPORT_TERMINE,
+                               invoice_id=row["id"])
             traités += 1
             flag = f"  [OK] confiance={row['confiance']:.0%}"
             if row["statut_révision"] == STATUT_A_REVISER:
@@ -399,8 +448,11 @@ def main() -> None:
         except Exception as e:
             print(f"  [ERREUR] {e}")
             shutil.move(str(f), errors_dir / f.name)
+            _maj_statut_import(conn, job_id, f.name, IMPORT_ERREUR,
+                               message_erreur=str(e))
             erreurs += 1
 
+    _cloturer_job(conn, job_id)
     conn.close()
     print(f"\nRésultat : {traités} traités, {erreurs} erreurs, {à_réviser} à réviser, {doublons} doublons ignorés")
 

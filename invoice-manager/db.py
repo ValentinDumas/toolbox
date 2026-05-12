@@ -86,10 +86,24 @@ CREATE TABLE IF NOT EXISTS invoices (
     texte_brut              TEXT,
     deleted_at              TEXT,
     deleted_by              TEXT
-)
+);
+
+CREATE TABLE IF NOT EXISTS import_jobs (
+    job_id        TEXT NOT NULL,
+    filename      TEXT NOT NULL,
+    statut        TEXT NOT NULL CHECK (statut IN
+                    ('en_attente','en_extraction','terminé','erreur','doublon')),
+    invoice_id    TEXT,
+    message_erreur TEXT,
+    créé_le       TEXT NOT NULL,
+    mis_à_jour_le TEXT NOT NULL,
+    PRIMARY KEY (job_id, filename)
+);
+
+CREATE INDEX IF NOT EXISTS idx_import_jobs_job ON import_jobs(job_id);
 """
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -> None:

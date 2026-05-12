@@ -1,0 +1,35 @@
+{% set resultat_brut = summary.ca_ht - summary.total_charges %}
+<section aria-label="Synthèse fiscale {{ year }}">
+  <h2 class="section-label">Synthèse fiscale</h2>
+  <div class="kpi-grid">
+
+    <div class="kpi-card">
+      <div class="kpi-value {% if resultat_brut > 0 %}color-positive{% elif resultat_brut < 0 %}color-negative{% else %}color-neutral{% endif %}">
+        {{ resultat_brut | fr_currency }}
+      </div>
+      <div class="kpi-label">Résultat brut</div>
+      <div class="kpi-formula">
+        <span class="op">+</span><span>CA HT</span><span class="amt">{{ summary.ca_ht | fr_currency }}</span>
+        <span class="op">−</span><span>Charges</span><span class="amt">{{ summary.total_charges | fr_currency }}</span>
+        {% if summary.nb_charges_revision > 0 %}
+        <span class="op"></span><span class="kpi-pending" style="grid-column: 2 / 4;">+ {{ summary.nb_charges_revision }} à réviser (~{{ summary.total_charges_revision | fr_currency }})</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
+        {{ summary.tva_a_reverser | fr_currency }}
+      </div>
+      <div class="kpi-label">TVA à reverser</div>
+      <div class="kpi-formula">
+        <span class="op">+</span><span>Collectée</span><span class="amt">{{ summary.tva_collectee | fr_currency }}</span>
+        <span class="op">−</span><span>Déductible</span><span class="amt">{{ summary.tva_deductible | fr_currency }}</span>
+        {% if summary.nb_tva_revision > 0 %}
+        <span class="op"></span><span class="kpi-pending" style="grid-column: 2 / 4;">+ {{ summary.nb_tva_revision }} à réviser (~{{ summary.tva_revision_a_reverser | fr_currency }})</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</section>
