@@ -522,7 +522,7 @@ def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="del1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
-        resp = client.post("/factures/del1")
+        resp = client.post("/factures/del1/supprimer")
     assert resp.status_code == 302
     import sqlite3 as _sq
     check = _sq.connect(str(db_path))

@@ -1566,7 +1566,7 @@
       var modal = document.getElementById('delete-modal');
       var form  = document.getElementById('modal-form');
       var body  = document.getElementById('modal-body');
-      form.action = '/factures/' + btn.dataset.deleteId;
+      form.action = '/factures/' + btn.dataset.deleteId + '/supprimer';
       body.textContent = btn.dataset.deleteLabel;
       modal.classList.add('open');
       document.getElementById('modal-cancel').focus();
