@@ -1767,18 +1767,27 @@
 
   <script>
   // ── Sélecteur de profil ─────────────────────────────────────────────────────
+  function closeProfileMenu(restoreFocus) {
+    var menu = document.getElementById('profile-menu');
+    var btn  = document.getElementById('profile-btn');
+    if (menu) { menu.classList.remove('open'); }
+    if (btn)  { btn.setAttribute('aria-expanded', 'false'); }
+    document.removeEventListener('keydown', closeProfileMenuOnEscape);
+    if (restoreFocus && btn) { btn.focus(); }
+  }
+
   function toggleProfileMenu() {
     var btn  = document.getElementById('profile-btn');
     var menu = document.getElementById('profile-menu');
     var open = menu.classList.contains('open');
     if (open) {
-      menu.classList.remove('open');
-      btn.setAttribute('aria-expanded', 'false');
+      closeProfileMenu(false);
     } else {
       menu.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
       setTimeout(function() {
         document.addEventListener('click', closeProfileMenuOnOutside, { once: true });
+        document.addEventListener('keydown', closeProfileMenuOnEscape);
       }, 0);
     }
   }
@@ -1786,17 +1795,21 @@
   function closeProfileMenuOnOutside(e) {
     var switcher = document.querySelector('.profile-switcher');
     if (switcher && !switcher.contains(e.target)) {
-      var menu = document.getElementById('profile-menu');
-      var btn  = document.getElementById('profile-btn');
-      if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+      closeProfileMenu(false);
     }
+  }
+
+  function closeProfileMenuOnEscape(e) {
+    if (e.key !== 'Escape') return;
+    var menu = document.getElementById('profile-menu');
+    if (!menu || !menu.classList.contains('open')) return;
+    e.stopPropagation();
+    closeProfileMenu(true);
   }
 
   // ── Modal : Nouveau profil ──────────────────────────────────────────────────
   function openCreateProfileModal() {
-    var menu = document.getElementById('profile-menu');
-    var btn  = document.getElementById('profile-btn');
-    if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+    closeProfileMenu(false);
     var modal = document.getElementById('create-profile-modal');
     modal.classList.add('open');
     document.getElementById('new-profile-name').focus();
