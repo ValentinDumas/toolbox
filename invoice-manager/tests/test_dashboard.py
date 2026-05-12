@@ -139,6 +139,21 @@ def test_ledger_pagination(mem_db):
     assert len(page2["rows"]) == 5
 
 
+def test_ledger_excludes_a_reviser(mem_db):
+    """Le ledger ne doit pas inclure les items à_réviser (#78)."""
+    from queries import query_ledger
+    _insert_invoice(mem_db, id="v", statut_révision="validé",
+                    type_document="facture_reçue", montant_ht=100.0,
+                    exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="r", statut_révision="à_réviser",
+                    type_document="facture_reçue", montant_ht=50.0,
+                    exercice_fiscal=2025)
+    result = query_ledger(mem_db, 2025)
+    assert result["total_count"] == 1
+    assert all(row["statut_révision"] != "à_réviser" for row in result["rows"])
+    assert result["total_debit"] == 100.0
+
+
 def test_ledger_totals(mem_db):
     from queries import query_ledger
     _insert_invoice(mem_db, id="inc", type_document="facture_émise",
