@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project vision — read first, every session
+
+@VISION.md
+
 ## Code of conduct — read first, every session
 
 @BEHAVIOR.md
@@ -27,6 +31,21 @@ Apply the following practices to **all dashboard or frontend code written or mod
 @UI_DESIGN.md
 @UX_DESIGN.md
 @ACCESSIBILITY.md
+
+## Security skill — load on demand
+
+Load the `owasp-security` skill (installed under `~/.claude/skills/owasp-security/`) **before designing or implementing** a change that touches any of:
+
+- a new HTTP route, form field, or file upload path
+- file I/O serving paths from user input (path traversal surface)
+- a `subprocess` / shell call
+- raw SQL or any query built from user input
+- authentication, session, or permission logic
+- a new external dependency, or a bumped one with known CVEs
+- the optional Claude Vision backend (outbound data egress)
+- any item from `VISION.md > Security` (phases 1–5)
+
+The skill is NOT auto-imported here — load it only when relevant, to keep the prompt cache stable for non-security work. Run `/security-check` or `/security-review` before merging any branch that touched the above.
 
 ---
 
