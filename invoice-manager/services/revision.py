@@ -48,6 +48,10 @@ def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:
     if not has_amount:
         errors["montant_ht"] = "Au moins un montant (HT ou TTC) est requis"
 
+    has_emitter = fields.get("émetteur_nom") or current.get("émetteur_nom")
+    if not has_emitter:
+        errors["émetteur_nom"] = "Émetteur requis pour identifier la contrepartie"
+
     return errors
 
 

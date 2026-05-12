@@ -740,6 +740,19 @@ def test_validate_review_fields_missing_amounts(mem_db):
     errors = _validate_review_fields(fields, current, mem_db, "no-amt-item")
     assert "montant_ht" in errors
 
+def test_validate_review_fields_missing_emitter(mem_db):
+    """Émetteur vide en formulaire ET en base → erreur dédiée (fix #70)."""
+    mem_db.execute(
+        'INSERT INTO invoices (id, date_document, montant_ht, émetteur_nom) VALUES (?, ?, ?, NULL)',
+        ("no-emitter", "2025-03-01", 100.0)
+    )
+    mem_db.commit()
+    fields = {"date_document": "2025-03-01", "montant_ht": 100.0}
+    current = {"émetteur_nom": None, "montant_ht": 100.0, "montant_ttc": None}
+    errors = _validate_review_fields(fields, current, mem_db, "no-emitter")
+    assert "émetteur_nom" in errors
+
+
 def test_validate_review_fields_zero_ht_is_valid(mem_db):
     
     mem_db.execute(
