@@ -424,6 +424,49 @@ def test_query_items_a_reviser_includes_null_exercice(mem_db):
     assert "rev_2025" in ids
 
 
+def test_onglet_a_reviser_trie_par_confiance_decroissante(mem_db):
+    """L'onglet « À réviser » classe les factures de la plus confiante à la
+    moins confiante, pour que l'humain commence par les cas évidents et
+    finisse par les plus douteux (issue #115)."""
+    from queries import query_items_a_reviser
+
+    # Given trois factures à réviser avec des niveaux de confiance distincts
+    _insert_invoice(mem_db, id="fact_douteuse", statut_révision="à_réviser",
+                    confiance=0.30, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="fact_confiante", statut_révision="à_réviser",
+                    confiance=0.78, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="fact_intermédiaire", statut_révision="à_réviser",
+                    confiance=0.55, exercice_fiscal=2025)
+
+    # When on demande la liste des items à réviser
+    items = query_items_a_reviser(mem_db, 2025)
+
+    # Then l'ordre va du plus confiant au moins confiant
+    assert [i["id"] for i in items] == [
+        "fact_confiante",
+        "fact_intermédiaire",
+        "fact_douteuse",
+    ]
+
+
+def test_onglet_a_reviser_place_les_confiances_inconnues_en_dernier(mem_db):
+    """Une facture sans confiance calculée (NULL) ne doit pas masquer les
+    cas notés : on la place après les factures dont la confiance est connue."""
+    from queries import query_items_a_reviser
+
+    # Given une facture sans confiance et une facture peu confiante
+    _insert_invoice(mem_db, id="fact_sans_score", statut_révision="à_réviser",
+                    confiance=None, exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="fact_peu_confiante", statut_révision="à_réviser",
+                    confiance=0.10, exercice_fiscal=2025)
+
+    # When on liste les items à réviser
+    items = query_items_a_reviser(mem_db, 2025)
+
+    # Then la facture sans score est reléguée en fin de liste
+    assert [i["id"] for i in items] == ["fact_peu_confiante", "fact_sans_score"]
+
+
 def test_index_year_choices_exclude_null_exercice(mem_db, tmp_path, monkeypatch):
     """La liste déroulante des années ne doit jamais contenir 'None'."""
     _insert_invoice(mem_db, id="dated", statut_révision="validé", exercice_fiscal=2025)
@@ -1320,3 +1363,78 @@ def test_depot_accepte_extensions_autorisees(mem_db, tmp_path, monkeypatch):
     assert body["ok"] is True
     assert set(body["files"]) == {"ok.pdf", "ok.png"}
     assert body["failed"] == []
+
+
+# ── #120 — alignement URL ?year=YYYY ≡ contenu rendu ──────────────────────────
+
+def test_annee_demandee_avec_donnees_rend_directement_le_tableau(mem_db, tmp_path, monkeypatch):
+    # Given une base avec des factures sur l'exercice 2025
+    _insert_invoice(mem_db, id="e2025", type_document="facture_émise",
+                    montant_ht=500.0, exercice_fiscal=2025)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When l'utilisateur visite /?year=2025
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+
+    # Then le tableau est rendu sans redirection
+    assert resp.status_code == 200
+
+
+def test_annee_valide_sans_donnees_redirige_vers_annee_par_defaut(mem_db, tmp_path, monkeypatch):
+    # Given une base qui ne contient que des factures 2026
+    _insert_invoice(mem_db, id="e2026", type_document="facture_émise",
+                    montant_ht=500.0, exercice_fiscal=2026)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When l'utilisateur visite /?year=2024 (entier valide, aucune donnée)
+    with app.test_client() as client:
+        resp = client.get("/?year=2024")
+
+    # Then il est redirigé en 302 vers l'année par défaut (2026)
+    assert resp.status_code == 302
+    assert "year=2026" in resp.headers["Location"]
+
+
+def test_annee_non_entiere_redirige_vers_annee_par_defaut(mem_db, tmp_path, monkeypatch):
+    # Given une base avec des factures 2026
+    _insert_invoice(mem_db, id="e2026", type_document="facture_émise",
+                    montant_ht=500.0, exercice_fiscal=2026)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When l'utilisateur visite /?year=abc (valeur non entière)
+    with app.test_client() as client:
+        resp = client.get("/?year=abc")
+
+    # Then il est redirigé en 302 vers l'année par défaut, sans toucher au SQL
+    assert resp.status_code == 302
+    assert "year=2026" in resp.headers["Location"]
+
+
+def test_annee_hors_plage_redirige_vers_annee_par_defaut(mem_db, tmp_path, monkeypatch):
+    # Given une base avec des factures 2026
+    _insert_invoice(mem_db, id="e2026", type_document="facture_émise",
+                    montant_ht=500.0, exercice_fiscal=2026)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When l'utilisateur visite /?year=1500 (hors plage acceptée 2000..2100)
+    with app.test_client() as client:
+        resp = client.get("/?year=1500")
+
+    # Then il est redirigé vers l'année par défaut
+    assert resp.status_code == 302
+    assert "year=2026" in resp.headers["Location"]
+
+
+def test_parametre_year_absent_rend_directement_sans_redirection(mem_db, tmp_path, monkeypatch):
+    # Given une base avec des factures 2026
+    _insert_invoice(mem_db, id="e2026", type_document="facture_émise",
+                    montant_ht=500.0, exercice_fiscal=2026)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When l'utilisateur visite / sans paramètre year
+    with app.test_client() as client:
+        resp = client.get("/")
+
+    # Then le tableau est rendu directement (pas de redirection)
+    assert resp.status_code == 200
