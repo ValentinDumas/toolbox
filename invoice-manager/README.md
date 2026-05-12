@@ -387,6 +387,12 @@ Référentiel complet (déductibilité, règles par statut) → [`docs/types-pie
 La cadence peut être surchargée depuis **Paramètres → Fiscalité** dans le dashboard ; seules les cadences cohérentes avec le statut fiscal sélectionné sont proposées.  
 Les deadlines sont calculées offline et apparaissent dans l'onglet **Statistiques** du XLSX.
 
+### Affichage UI selon le profil
+
+Pour le profil **auto-entrepreneur** (et tout profil non assujetti à la TVA), l'UI du dashboard est simplifiée : aucune colonne TVA dans le Journal, un seul champ Montant dans les formulaires, la carte « TVA à reverser » de la synthèse fiscale est masquée. Les colonnes HT/TVA/TTC restent intactes en base de données pour audit, preuve et compatibilité avec un futur changement de régime.
+
+La règle est portée par `services.profil.tva_visible_pour(profile)`, injectée dans Jinja (`app.jinja_env.globals`) et lue par les templates `dashboard.html`, `fragments/synthese_fiscale.html` et `settings.html`. Aujourd'hui elle équivaut à `FISCAL_RULES[profile.fiscal_profile]["tva_déductible"]` et retourne `False` pour `auto-entrepreneur` et `salarié`.
+
 ## Champs extraits
 
 Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de document, émetteur (SIREN, SIRET, TVA intracom, email, adresse), destinataire, montants (HT / TVA / TTC), devise, catégorie, taux de déductibilité, mode de paiement, exercice fiscal, trimestre, texte brut stocké, et métadonnées d'extraction (confiance, statut révision, hash).

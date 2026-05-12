@@ -60,6 +60,8 @@
     }
     input[type="text"]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,78,216,.12); }
     .field-hint { font-size: .75rem; color: var(--text-muted); line-height: 1.4; }
+    .review-hint { font-size: .75rem; color: var(--text-muted); line-height: 1.4; margin: 0 0 1rem; }
+    .review-hint small { font-size: inherit; }
 
     /* Buttons */
     .btn { padding: .5rem 1.25rem; border-radius: var(--radius); font-size: .875rem; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid transparent; transition: background .15s; }
@@ -375,6 +377,15 @@
               Utilisé en fallback à l'extraction quand le taux ne peut pas être dérivé du document.
               Les catégories sont normalisées en minuscules.
             </p>
+            {% if not tva_visible_pour(profile) %}
+            <p class="review-hint" role="status">
+              <small>
+                Les taux TVA par catégorie ne sont pas appliqués en franchise en base
+                (art. 293 B CGI). Champ conservé pour pilotage de gestion et pour un
+                futur changement de régime.
+              </small>
+            </p>
+            {% endif %}
             {% if categories_tva %}
             <table>
               <thead>
