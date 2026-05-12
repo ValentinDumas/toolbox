@@ -374,6 +374,35 @@ def test_query_items_a_reviser_populated(mem_db):
     assert "done1" not in ids
 
 
+def test_query_items_a_reviser_includes_null_exercice(mem_db):
+    """Les items à réviser sans exercice_fiscal (date non extraite) doivent
+    rester visibles — c'est précisément ce que l'utilisateur doit revoir."""
+    from queries import query_items_a_reviser
+    _insert_invoice(mem_db, id="rev_null", statut_révision="à_réviser",
+                    exercice_fiscal=None, date_document=None)
+    _insert_invoice(mem_db, id="rev_2025", statut_révision="à_réviser",
+                    exercice_fiscal=2025)
+    items = query_items_a_reviser(mem_db, 2026)
+    ids = [i["id"] for i in items]
+    assert "rev_null" in ids
+    assert "rev_2025" in ids
+
+
+def test_index_year_choices_exclude_null_exercice(mem_db, tmp_path, monkeypatch):
+    """La liste déroulante des années ne doit jamais contenir 'None'."""
+    _insert_invoice(mem_db, id="dated", statut_révision="validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="undated", statut_révision="à_réviser",
+                    exercice_fiscal=None, date_document=None)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    # Le <select name="year"> ne doit pas exposer d'option "None".
+    assert '<option value="None"' not in body
+    assert ">None<" not in body or "Aucune facture" in body  # sanité minimale
+
+
 def test_post_review_save_validates_item(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
