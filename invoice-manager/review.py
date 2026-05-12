@@ -88,6 +88,9 @@ def import_review(conn: sqlite3.Connection, review_dir: Path) -> None:
             elif action == ACTION_CORRECT:
                 updatable = {k: v for k, v in row.items()
                              if k not in ("id", "action") and k in REVIEW_COLS}
+                # Invariant DB : `catégorie` toujours en minuscules.
+                if updatable.get("catégorie"):
+                    updatable["catégorie"] = updatable["catégorie"].strip().lower()
                 updatable["statut_révision"] = STATUT_VALIDE
                 updatable["révisé_par"] = "user"
                 updatable["date_révision"] = now

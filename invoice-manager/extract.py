@@ -22,7 +22,7 @@ from constants import (
     STATUT_A_REVISER,
     STATUT_VALIDE,
 )
-from db import get_extraction_cfg, get_known_emitters, get_user_profile, open_db
+from db import get_category_tva_rates, get_extraction_cfg, get_known_emitters, get_user_profile, open_db
 from parsers import (
     _confidence_score,
     _guess_category,
@@ -245,7 +245,7 @@ def insert(conn, row: dict) -> None:
 
 # ── Invoice assembly ──────────────────────────────────────────────────────────
 
-def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str = "", known_emitters: dict | None = None) -> dict:
+def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str = "", known_emitters: dict | None = None, category_tva_rates: dict | None = None) -> dict:
     date_str  = _parse_date(text)
     date_obj  = datetime.fromisoformat(date_str) if date_str else None
     ht, tva, ttc, taux_tva = _parse_amounts(text)
@@ -253,8 +253,15 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     siren        = _parse_siren(text)
     siret        = _parse_siret(text)
     tva_intracom = _parse_tva_intracom(text)
-    catégorie    = _guess_category(text)
+    catégorie    = _guess_category(text).lower()
     taux_ded     = get_deductibility(catégorie)
+
+    # Fallback : si l'OCR n'a pas pu dériver le taux de TVA depuis le texte
+    # (cf. _parse_amounts → None quand HT ou TVA manque), on utilise la table
+    # `category_tva_rates` paramétrée par l'utilisateur. N'écrase JAMAIS un
+    # taux extrait — seul un `None` est remplacé.
+    if taux_tva is None and category_tva_rates:
+        taux_tva = category_tva_rates.get(catégorie)
     confiance    = _confidence_score(date_str, ttc, ht, invoice_num, siren or tva_intracom)
     doc_type     = _guess_doc_type(text, user_siren, ttc)
 
@@ -440,7 +447,8 @@ def main() -> None:
 
     profil         = profile["fiscal_profile"]
     user_siren     = profile["siren"]
-    known_emitters = get_known_emitters(conn)
+    known_emitters     = get_known_emitters(conn)
+    category_tva_rates = get_category_tva_rates(conn)
     cfg = {"extraction": get_extraction_cfg(conn)}
 
     files = _collect_files(input_dir)
@@ -475,7 +483,7 @@ def main() -> None:
                 text = extract_text(f, cfg)
                 if not text.strip():
                     raise ValueError("Texte vide après extraction")
-                row = parse_invoice(text, str(f), profil, user_siren, known_emitters)
+                row = parse_invoice(text, str(f), profil, user_siren, known_emitters, category_tva_rates)
                 row["hash_fichier"] = file_hash
                 insert(conn, row)
                 dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")

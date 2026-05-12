@@ -35,6 +35,10 @@ _TVA_INTRACOM_REGEX = re.compile(r"^[A-Z]{2}[0-9A-Z]{2,12}$")
 ENSEIGNE_KEYWORD_MAX = 64
 ENSEIGNE_NOM_MAX = 120
 
+# Catégorie : slug en minuscules (lettres + accents français), 1 à 64 caractères.
+CATEGORIE_MAX = 64
+_CATEGORIE_REGEX = re.compile(r"^[a-zàâäçéèêëîïôöùûüÿñæœ \-]{1,%d}$" % CATEGORIE_MAX)
+
 # Messages d'erreur en français — affichés via la query-string `error=<code>`.
 _ERROR_MESSAGES: dict[str, str] = {
     "siren_invalide": "SIREN invalide : 9 chiffres attendus.",
@@ -46,6 +50,13 @@ _ERROR_MESSAGES: dict[str, str] = {
     ),
     "enseigne_nom_trop_long": (
         f"Le nom d'enseigne dépasse {ENSEIGNE_NOM_MAX} caractères."
+    ),
+    "categorie_invalide": (
+        "Catégorie invalide : minuscules, lettres et tirets uniquement "
+        f"(max {CATEGORIE_MAX} caractères)."
+    ),
+    "taux_tva_invalide": (
+        "Taux de TVA invalide : fraction entre 0 et 1 attendue (ex. 0.20 pour 20 %)."
     ),
 }
 
@@ -92,12 +103,34 @@ def _valider_enseigne(form) -> tuple[dict, str | None]:
     return {"keyword": keyword, "nom": nom}, None
 
 
+def _valider_taux_categorie(form) -> tuple[dict, str | None]:
+    """Valide un couple (catégorie, taux_tva).
+
+    - Catégorie normalisée en minuscules (invariant DB).
+    - Taux exprimé en fraction 0..1 (cf. migration v6).
+    """
+    categorie = form.get("catégorie", "").strip().lower()
+    taux_raw = form.get("taux_tva", "").strip().replace(",", ".")
+    if not categorie or not _CATEGORIE_REGEX.match(categorie):
+        return {}, "categorie_invalide"
+    try:
+        taux = float(taux_raw)
+    except ValueError:
+        return {}, "taux_tva_invalide"
+    if not (0.0 <= taux <= 1.0):
+        return {}, "taux_tva_invalide"
+    return {"catégorie": categorie, "taux_tva": round(taux, 4)}, None
+
+
 @bp_parametres.route("/parametres")
 def parametres_index():
     """GET /parametres — Affiche la page de paramètres."""
     conn = open_db(active_db())
     profile = get_user_profile(conn)
     emitters = conn.execute("SELECT * FROM known_emitters ORDER BY keyword").fetchall()
+    categories_tva = conn.execute(
+        "SELECT id, catégorie, taux_tva FROM category_tva_rates ORDER BY catégorie"
+    ).fetchall()
     extraction_cfg = get_extraction_cfg(conn)
     conn.close()
     section = request.args.get("section", "profil")
@@ -108,6 +141,7 @@ def parametres_index():
         "settings.html",
         profile=profile,
         emitters=emitters,
+        categories_tva=categories_tva,
         section=section,
         saved=saved,
         error=error,
@@ -181,6 +215,40 @@ def parametres_enseignes_supprimer(emitter_id):
     if request.method == "DELETE":
         return jsonify({"ok": True})
     return redirect(url_for("parametres.parametres_index", section="enseignes"))
+
+
+@bp_parametres.route("/parametres/categories-tva", methods=["POST"])
+def parametres_categories_tva_ajouter():
+    """POST /parametres/categories-tva — Crée ou met à jour un taux par catégorie."""
+    fields, error = _valider_taux_categorie(request.form)
+    if error:
+        return redirect(url_for(
+            "parametres.parametres_index", section="categories", error=error,
+        ))
+    conn = open_db(active_db())
+    # UPSERT : si la catégorie existe déjà, on met à jour son taux. La table
+    # impose UNIQUE(catégorie) ; l'UPSERT remplace donc un éventuel doublon
+    # silencieusement plutôt que de lever IntegrityError.
+    conn.execute(
+        "INSERT INTO category_tva_rates (catégorie, taux_tva) VALUES (?, ?) "
+        "ON CONFLICT(catégorie) DO UPDATE SET taux_tva = excluded.taux_tva",
+        (fields["catégorie"], fields["taux_tva"]),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("parametres.parametres_index", section="categories"))
+
+
+@bp_parametres.route("/parametres/categories-tva/<int:rate_id>", methods=["DELETE", "POST"])
+def parametres_categories_tva_supprimer(rate_id):
+    """DELETE /parametres/categories-tva/<id> — Supprime un taux par catégorie."""
+    conn = open_db(active_db())
+    conn.execute("DELETE FROM category_tva_rates WHERE id=?", (rate_id,))
+    conn.commit()
+    conn.close()
+    if request.method == "DELETE":
+        return jsonify({"ok": True})
+    return redirect(url_for("parametres.parametres_index", section="categories"))
 
 
 @bp_parametres.route("/parametres/ocr", methods=["POST"])

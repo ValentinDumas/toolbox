@@ -15,6 +15,7 @@ from blueprints.parametres import (
     ENSEIGNE_NOM_MAX,
     _valider_enseigne,
     _valider_profil,
+    _valider_taux_categorie,
 )
 
 
@@ -169,3 +170,47 @@ def test_enseigne_5000_chars_rejete():
     """Régression issue #99 : 5000 caractères ne doivent plus être insérés."""
     _, err = _valider_enseigne({"keyword": "x" * 5000, "nom": "ok"})
     assert err == "enseigne_keyword_trop_long"
+
+
+# ── Catégories TVA ────────────────────────────────────────────────────────────
+
+class TestValiderTauxCategorie:
+    def test_categorie_valide_taux_fraction(self):
+        fields, err = _valider_taux_categorie({"catégorie": "transport", "taux_tva": "0.20"})
+        assert err is None
+        assert fields == {"catégorie": "transport", "taux_tva": 0.20}
+
+    def test_categorie_uppercase_est_minusculisée(self):
+        fields, err = _valider_taux_categorie({"catégorie": "TRANSPORT", "taux_tva": "0.10"})
+        assert err is None
+        assert fields["catégorie"] == "transport"
+
+    def test_categorie_avec_accent_acceptée(self):
+        fields, err = _valider_taux_categorie({"catégorie": "hébergement", "taux_tva": "0.20"})
+        assert err is None
+        assert fields["catégorie"] == "hébergement"
+
+    def test_virgule_decimale_acceptée(self):
+        fields, err = _valider_taux_categorie({"catégorie": "repas", "taux_tva": "0,10"})
+        assert err is None
+        assert fields["taux_tva"] == 0.10
+
+    def test_categorie_vide_rejetée(self):
+        _, err = _valider_taux_categorie({"catégorie": "", "taux_tva": "0.20"})
+        assert err == "categorie_invalide"
+
+    def test_categorie_avec_chiffres_rejetée(self):
+        _, err = _valider_taux_categorie({"catégorie": "cat123", "taux_tva": "0.20"})
+        assert err == "categorie_invalide"
+
+    def test_taux_hors_intervalle_rejeté(self):
+        _, err = _valider_taux_categorie({"catégorie": "transport", "taux_tva": "1.5"})
+        assert err == "taux_tva_invalide"
+
+    def test_taux_negatif_rejeté(self):
+        _, err = _valider_taux_categorie({"catégorie": "transport", "taux_tva": "-0.1"})
+        assert err == "taux_tva_invalide"
+
+    def test_taux_non_numerique_rejeté(self):
+        _, err = _valider_taux_categorie({"catégorie": "transport", "taux_tva": "vingt"})
+        assert err == "taux_tva_invalide"
