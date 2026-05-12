@@ -91,8 +91,8 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 | SIREN | Profil | 9 chiffres — détecte automatiquement tes factures émises |
 | Nom / raison sociale | Profil | Affiché dans l'en-tête du dashboard |
 | TVA intracommunautaire | Profil | FR + 2 chiffres + SIREN |
-| Profil fiscal | Profil | `auto-entrepreneur` · `SASU` · `SARL` · `salarié` |
-| Cadence déclaration | Profil | Vide = cadence par défaut du profil |
+| Profil fiscal | Fiscalité | `auto-entrepreneur` · `SASU` · `SARL` · `salarié` |
+| Cadence déclaration | Fiscalité | Vide = cadence par défaut du profil. Les options proposées dépendent du statut fiscal sélectionné (voir `CADENCE_OPTIONS` dans `config.py`) |
 | Enseignes connues | Enseignes | Mot-clé → nom canonique pour les tickets illisibles. La casse du mot-clé et du nom est préservée telle que saisie |
 | Backend OCR | App | `local` (offline) uniquement — `claude` (Vision API) à venir |
 | Seuil confiance | App | Sous lequel l'item passe en révision (défaut `0.8`) |
@@ -158,7 +158,7 @@ invoice-manager/
 ├── db.py                   ← schéma SQLite, migrations, helpers profil/OCR/enseignes
 ├── profiles.py             ← résolution des chemins par profil + migration legacy
 ├── parsers.py              ← regex et heuristiques d'extraction (dates, montants, SIREN, doc_type)
-├── config.py               ← CADENCE_DEFAULTS par statut fiscal
+├── config.py               ← CADENCE_DEFAULTS + CADENCE_OPTIONS par statut fiscal
 ├── constants.py            ← constantes partagées (statuts, seuils, types de documents)
 │
 ├── ── Vues Jinja ───────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 
 **`export.py`** — lit la base SQLite, filtre par année et statut fiscal, applique les règles de déductibilité (TVA déductible ou non selon le régime), et génère `ledger-YYYY.csv` + `ledger-YYYY.xlsx` avec 4 onglets : Journal, Récapitulatif, Déclaration, Statistiques (avec deadlines de déclaration calculées offline).
 
-**`config.py`** — contient uniquement `CADENCE_DEFAULTS` : la cadence de déclaration par défaut par statut fiscal (`auto-entrepreneur` → trimestrielle, `SASU`/`SARL` → mensuelle, `salarié` → annuelle). Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont stockées en DB via `db.py`.
+**`config.py`** — contient `CADENCE_DEFAULTS` (cadence par défaut par statut fiscal : `auto-entrepreneur` → trimestrielle, `SASU`/`SARL` → mensuelle, `salarié` → annuelle) et `CADENCE_OPTIONS` (cadences valides proposées dans Paramètres > Fiscalité, filtrées dynamiquement selon le statut fiscal sélectionné). Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes) sont stockées en DB via `db.py`.
 
 **`db.py`** — source de vérité pour le schéma SQLite. Gère les migrations (ALTER TABLE idempotentes), définit les tables `invoices`, `user_profile` et `known_emitters`. Expose `open_db(profile_slug)`, `get_user_profile()`, `get_known_emitters()` et `get_extraction_cfg()` — utilisés par tous les scripts. Chaque profil a sa propre DB sous `data/profiles/{slug}/invoices.db`. À la première ouverture, `data/invoices.db` (ancienne DB sans profil) est migrée automatiquement vers le profil `entreprise-principale`.
 
@@ -361,14 +361,14 @@ Référentiel complet (déductibilité, règles par statut) → [`docs/types-pie
 
 ## Statuts fiscaux et cadences
 
-| Statut             | Régime TVA            | Déclaration revenus                  | Cadence défaut | Assujetti TVA |
-|--------------------|-----------------------|--------------------------------------|----------------|---------------|
-| `auto-entrepreneur`| Franchise en base     | CA mensuel ou trimestriel (URSSAF)   | trimestrielle  | Non           |
-| `SASU`             | Réel normal           | IS annuel (liasse fiscale)           | mensuelle      | Oui           |
-| `SARL`             | Réel normal           | IS annuel (liasse fiscale)           | mensuelle      | Oui           |
-| `salarié`          | N/A                   | IR annuel (DGFiP)                    | annuelle       | Non           |
+| Statut             | Régime TVA            | Déclaration revenus                  | Cadence défaut | Cadences proposées             | Assujetti TVA |
+|--------------------|-----------------------|--------------------------------------|----------------|--------------------------------|---------------|
+| `auto-entrepreneur`| Franchise en base     | CA mensuel ou trimestriel (URSSAF)   | trimestrielle  | `mensuelle` · `trimestrielle`  | Non           |
+| `SASU`             | Réel normal           | IS annuel (liasse fiscale)           | mensuelle      | `mensuelle` · `trimestrielle`  | Oui           |
+| `SARL`             | Réel normal           | IS annuel (liasse fiscale)           | mensuelle      | `mensuelle` · `trimestrielle`  | Oui           |
+| `salarié`          | N/A                   | IR annuel (DGFiP)                    | annuelle       | `annuelle`                     | Non           |
 
-La cadence peut être surchargée depuis **Paramètres → Profil** dans le dashboard.  
+La cadence peut être surchargée depuis **Paramètres → Fiscalité** dans le dashboard ; seules les cadences cohérentes avec le statut fiscal sélectionné sont proposées.  
 Les deadlines sont calculées offline et apparaissent dans l'onglet **Statistiques** du XLSX.
 
 ## Champs extraits
