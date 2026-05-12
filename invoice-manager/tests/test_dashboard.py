@@ -937,7 +937,7 @@ def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkey
     with app.test_client() as client:
         resp = client.post(
             "/pipeline/depot",
-            data={"files": (__import__("io").BytesIO(b"fake-pdf"), "test.pdf")},
+            data={"files": (__import__("io").BytesIO(b"%PDF-1.4\n%fake pdf body"), "test.pdf")},
             content_type="multipart/form-data",
         )
     body = resp.get_json()
@@ -953,3 +953,48 @@ def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkey
     ).fetchone()
     conn.close()
     assert row == ("test.pdf", "en_attente")
+
+
+def test_depot_rejette_exe_via_magic_bytes(mem_db, tmp_path, monkeypatch):
+    """Un .exe (header MZ) doit être rejeté avant écriture disque."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(b"MZ\x90\x00" + b"\x00" * 60), "evil.exe")},
+            content_type="multipart/form-data",
+        )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["failed"], "le tableau failed doit contenir le fichier rejeté"
+    assert body["failed"][0]["filename"] == "evil.exe"
+    assert body["failed"][0]["reason"] == "type non supporté"
+
+    # Le fichier ne doit PAS atterrir dans input/.
+    input_dir = _bp.resolve_paths("test-profile")["input"]
+    assert not (input_dir / "evil.exe").exists()
+
+
+def test_depot_accepte_pdf_valide(mem_db, tmp_path, monkeypatch):
+    """Un PDF avec magic bytes %PDF- est accepté et atterrit dans input/."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(b"%PDF-1.7\n%body"), "real.pdf")},
+            content_type="multipart/form-data",
+        )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert body["files"] == ["real.pdf"]
+    assert body["failed"] == []
+
+    input_dir = _bp.resolve_paths("test-profile")["input"]
+    assert (input_dir / "real.pdf").exists()
