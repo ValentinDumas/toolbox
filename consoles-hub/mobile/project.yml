@@ -18,12 +18,15 @@ targets:
     sources:
       - path: ConsolesHub/Sources
       - path: ConsolesHub/Assets.xcassets
+      - path: ConsolesHub/PrivacyInfo.xcprivacy
     info:
       path: ConsolesHub/Info.plist
       properties:
         CFBundleDisplayName: ConsolesHub
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSFaceIDUsageDescription: "Unlock consoles-hub with Face ID"
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: AccentColor
         UISupportedInterfaceOrientations:

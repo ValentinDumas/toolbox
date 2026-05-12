@@ -90,7 +90,7 @@ Xcode Organizer path (easiest):
 # 1. Export the .ipa from the archive
 xcodebuild -exportArchive \
   -archivePath build/ConsolesHub.xcarchive \
-  -exportOptionsPlist ExportOptions.plist \
+  -exportOptionsPlist mobile/ExportOptions.plist \
   -exportPath build/
 
 # 2. Store an app-specific password from appleid.apple.com in Keychain once:
@@ -104,10 +104,11 @@ xcrun altool --upload-app \
   -p @keychain:AC_PASSWORD
 ```
 
-`ExportOptions.plist` is a small file describing the destination
-(`<key>method</key><string>app-store</string>`); generate it once
-by running an Organizer-driven export and copying the file Xcode
-produces.
+`mobile/ExportOptions.plist` is committed (slice E). Open it once
+and replace `REPLACE_WITH_TEAM_ID` with the 10-character team ID
+from developer.apple.com → Membership. The rest of the keys
+(`method = app-store-connect`, `signingStyle = automatic`,
+`uploadBitcode = false`, `uploadSymbols = true`) are correct as-is.
 
 ## 5. Internal testers
 
@@ -138,12 +139,12 @@ produces.
 - **`ITMS-90165` Provisioning profile doesn't include …** —
   re-export the profile in Xcode (Preferences → Accounts →
   Download Manual Profiles), then re-archive.
-- **`ITMS-90683` Missing Purpose String** — not applicable to
-  this app. We don't request camera, mic, location, contacts, or
-  any privacy-protected resource. `LocalAuthentication`
-  (`NSFaceIDUsageDescription`) is auto-supplied by Xcode when
-  the framework is linked; add it to `Info.plist` manually only
-  if the upload validator complains.
+- **`ITMS-90683` Missing Purpose String** — slice E added
+  `NSFaceIDUsageDescription` to `Info.plist` via `project.yml`
+  because LocalAuthentication actually *does* need it (the
+  "auto-supplied by Xcode" claim was wrong). If you ever remove
+  LocalAuthentication, drop the key too — the validator complains
+  about unused privacy strings.
 - **"Build expired"** — bump `CURRENT_PROJECT_VERSION`, archive,
   upload.
 - **"Account not in Apple Developer Program"** — you're signed in
@@ -168,3 +169,27 @@ produces.
 - Dynamic Type capped at A11y3 in the monospace buffer per spec
   §11 "within a sensible monospace range".
 - This document.
+
+## What slice E shipped (TestFlight pre-flight)
+
+- `NSFaceIDUsageDescription` added to `Info.plist` via
+  `project.yml`. Required for LocalAuthentication-linked apps;
+  ITMS-90683 otherwise.
+- `ITSAppUsesNonExemptEncryption = false` added. We use Apple's
+  TLS + LocalAuthentication + Keychain only, no custom crypto.
+  This skips the export-compliance question on every upload.
+- `mobile/ConsolesHub/PrivacyInfo.xcprivacy` declares the
+  required-reason API we touch (`UserDefaults` with reason
+  `CA92.1` — "Access info from same app, per documentation").
+  No tracking, no collected data. Apple emits a warning per
+  upload without this; rejection is not, in practice, automatic
+  but the warning is loud.
+- `mobile/ExportOptions.plist` committed with placeholder
+  `REPLACE_WITH_TEAM_ID`. Fill once.
+- Release build for `generic/platform=iOS` verified to compile
+  end-to-end (`xcodebuild -configuration Release
+  CODE_SIGNING_ALLOWED=NO build`). Archive itself is post-
+  enrollment.
+
+After enrollment, walk this document from section 1 — every
+code-side gap is closed.
