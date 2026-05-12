@@ -94,6 +94,7 @@ Toutes les données utilisateur sont stockées dans la base SQLite et gérées d
 | Profil fiscal | Fiscalité | `auto-entrepreneur` · `SASU` · `SARL` · `salarié` |
 | Cadence déclaration | Fiscalité | Vide = cadence par défaut du profil. Les options proposées dépendent du statut fiscal sélectionné (voir `CADENCE_OPTIONS` dans `config.py`) |
 | Enseignes connues | Enseignes | Mot-clé → nom canonique pour les tickets illisibles. La casse du mot-clé et du nom est préservée telle que saisie |
+| Catégories TVA | Catégories TVA | Catégorie (ex. `transport`) → taux de TVA par défaut. Utilisé en fallback à l'extraction quand le taux ne peut pas être dérivé du document. Catégories toujours stockées en minuscules. Voir `docs/specs/2026-05-12-categories-tva.md` |
 | Backend OCR | App | `local` (offline) uniquement — `claude` (Vision API) à venir |
 | Seuil confiance | App | Sous lequel l'item passe en révision (défaut `0.8`) |
 | Langue OCR | App | Langues Tesseract (défaut `fra+eng`) |
@@ -150,7 +151,8 @@ invoice-manager/
 │   │                          POST /profils/<slug>/activer, GET|POST /configuration
 │   ├── parametres.py       ← Paramètres : GET /parametres, POST /parametres/profil,
 │   │                          POST /parametres/enseignes, DELETE /parametres/enseignes/<id>,
-│   │                          POST /parametres/ocr
+│   │                          POST /parametres/categories-tva,
+│   │                          DELETE /parametres/categories-tva/<id>, POST /parametres/ocr
 │   └── pipeline.py         ← Ingestion + fichiers : POST /pipeline/{lancer, depot, purger-liens-morts},
 │                              POST /pipeline/erreurs/<fn>/reessayer, DELETE /pipeline/erreurs/<fn>,
 │                              GET /fichiers/<path>, GET /apercu/<path>
@@ -388,6 +390,12 @@ Les deadlines sont calculées offline et apparaissent dans l'onglet **Statistiqu
 ## Champs extraits
 
 Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de document, émetteur (SIREN, SIRET, TVA intracom, email, adresse), destinataire, montants (HT / TVA / TTC), devise, catégorie, taux de déductibilité, mode de paiement, exercice fiscal, trimestre, texte brut stocké, et métadonnées d'extraction (confiance, statut révision, hash).
+
+### Convention `taux_tva` — fraction (0..1) sur 4 décimales
+
+`taux_tva` est stocké comme **fraction** (ex. `0.20`, `0.055`, `0.021`) et non comme pourcentage. Les 4 décimales sont nécessaires pour préserver sans perte les taux réduit (5,5 %) et super-réduit (2,1 %) — impossible en 2 décimales (0.055 deviendrait 0.06). Les exports humains (XLSX, CSV `ledger-YYYY.csv`) multiplient par 100 pour l'affichage `TVA %` ; la base SQLite et le CSV `review.csv` conservent la fraction.
+
+À la sauvegarde dans le dashboard, `services.montants.complete_amounts` complète automatiquement le 3ᵉ montant quand 2 de (HT, TVA, TTC) sont connus, ou les deux autres montants quand un seul + le taux sont fournis. Une incohérence `HT + TVA ≠ TTC` (> 1 c) rétrograde la pièce en *à réviser*. L'extraction OCR reste strictement passive (aucune dérivation arithmétique) : seul ce qui est lu sur le document entre en DB.
 
 ## Output XLSX — 4 onglets
 

@@ -1075,6 +1075,19 @@
                             <p class="field-error" role="alert" id="err-tva-v-{{ row.id }}" data-field="montant_tva"></p>
                           </div>
                           <div>
+                            <label class="review-label" for="taux-v-{{ row.id }}">Taux</label>
+                            <select class="review-input" id="taux-v-{{ row.id }}" name="taux_tva"
+                                    aria-describedby="err-taux-v-{{ row.id }}">
+                              <option value="" {% if row.taux_tva is none %}selected{% endif %}>—</option>
+                              <option value="0"     {% if row.taux_tva == 0    %}selected{% endif %}>0 %</option>
+                              <option value="0.021" {% if row.taux_tva == 0.021 %}selected{% endif %}>2,1 %</option>
+                              <option value="0.055" {% if row.taux_tva == 0.055 %}selected{% endif %}>5,5 %</option>
+                              <option value="0.10"  {% if row.taux_tva == 0.10 %}selected{% endif %}>10 %</option>
+                              <option value="0.20"  {% if row.taux_tva == 0.20 %}selected{% endif %}>20 %</option>
+                            </select>
+                            <p class="field-error" role="alert" id="err-taux-v-{{ row.id }}" data-field="taux_tva"></p>
+                          </div>
+                          <div>
                             <label class="review-label" for="ttc-v-{{ row.id }}">TTC</label>
                             <input class="review-input review-input-amount" type="number" step="0.01"
                                    id="ttc-v-{{ row.id }}" name="montant_ttc"
@@ -1242,6 +1255,19 @@
                          aria-describedby="err-tva-{{ item.id }}"
                          value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
                   <p class="field-error" role="alert" id="err-tva-{{ item.id }}" data-field="montant_tva"></p>
+                </div>
+                <div>
+                  <label class="review-label" for="taux-{{ item.id }}">Taux</label>
+                  <select class="review-input" id="taux-{{ item.id }}" name="taux_tva"
+                          aria-describedby="err-taux-{{ item.id }}">
+                    <option value="" {% if item.taux_tva is none %}selected{% endif %}>—</option>
+                    <option value="0"     {% if item.taux_tva == 0    %}selected{% endif %}>0 %</option>
+                    <option value="0.021" {% if item.taux_tva == 0.021 %}selected{% endif %}>2,1 %</option>
+                    <option value="0.055" {% if item.taux_tva == 0.055 %}selected{% endif %}>5,5 %</option>
+                    <option value="0.10"  {% if item.taux_tva == 0.10 %}selected{% endif %}>10 %</option>
+                    <option value="0.20"  {% if item.taux_tva == 0.20 %}selected{% endif %}>20 %</option>
+                  </select>
+                  <p class="field-error" role="alert" id="err-taux-{{ item.id }}" data-field="taux_tva"></p>
                 </div>
                 <div>
                   <label class="review-label" for="ttc-{{ item.id }}">TTC</label>

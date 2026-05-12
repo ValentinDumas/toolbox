@@ -17,6 +17,7 @@ from context_helpers import active_db, active_paths
 from db import open_db
 from services.revision import (
     _build_corrections_log,
+    _complete_montants,
     _parse_review_fields,
     _persist_invoice,
     _recompute_confidence,
@@ -65,8 +66,13 @@ def facture_save(item_id):
             conn.close()
             return jsonify({"ok": False, "errors": errors})
 
-        confidence, warning = _recompute_confidence(fields, current)
+        mismatch_warning = _complete_montants(fields, current)
+
+        confidence, confidence_warning = _recompute_confidence(fields, current)
         fields["confiance"] = confidence
+        # Une incohérence HT/TVA/TTC déclasse la facture en « à réviser »,
+        # exactement comme une baisse de confiance après édition.
+        warning = mismatch_warning or confidence_warning
         fields = _build_corrections_log(fields, current, now, warning)
         _persist_invoice(conn, item_id, fields)
         conn.close()

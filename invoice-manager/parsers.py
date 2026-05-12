@@ -134,8 +134,17 @@ def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None,
         if bare:
             ttc = max(float(a.replace(" ", "").replace(",", ".")) for a in bare)
 
-    taux_tva = round((tva / ht) * 100, 1) if ht and tva and ht > 0 else None
-    return ht, tva, ttc, taux_tva
+    # Toute la complétion arithmétique (HT/TVA/TTC, taux en fraction) est
+    # déléguée à services.montants.complete_amounts pour qu'extraction et
+    # édition partagent la même règle. En extraction, on n'infère JAMAIS
+    # un montant depuis le taux : la traçabilité document→DB doit rester
+    # vérifiable.
+    from services.montants import complete_amounts
+    result = complete_amounts(
+        ht, tva, ttc, taux=None,
+        infer_amounts=False, infer_from_rate=False,
+    )
+    return result.ht, result.tva, result.ttc, result.taux
 
 # ── Identifiants fiscaux ──────────────────────────────────────────────────────
 

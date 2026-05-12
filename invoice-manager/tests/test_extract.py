@@ -92,7 +92,7 @@ class TestParseAmounts:
         assert ht == 100.0
         assert tva == 20.0
         assert ttc == 120.0
-        assert taux == 20.0
+        assert taux == 0.20  # fraction lossless (4 décimales)
 
     def test_pas_de_derivation_a_l_extraction(self):
         # Avant : HT + TTC suffisaient à dériver TVA. Maintenant : extraction
@@ -186,7 +186,7 @@ class TestParseInvoice:
         assert row["montant_ht"] == 107.88
         assert row["montant_tva"] == 21.58
         assert row["montant_ttc"] == 129.46
-        assert row["taux_tva"] == 20.0
+        assert row["taux_tva"] == 0.20  # fraction lossless (4 décimales)
         assert row["émetteur_siren"] == "424761419"
         assert row["émetteur_tva_intracom"] == "FR22424761419"
         assert row["catégorie"] == "hébergement"
@@ -200,7 +200,7 @@ class TestParseInvoice:
         assert row["montant_ttc"] == 61.54
         assert row["montant_ht"] == 51.28
         assert row["montant_tva"] == 10.26
-        assert row["taux_tva"] == 20.0
+        assert row["taux_tva"] == 0.20  # fraction lossless (4 décimales)
         assert row["mode_paiement"] == "CB"
         assert row["statut_révision"] == "à_réviser"  # confiance < 0.8
 

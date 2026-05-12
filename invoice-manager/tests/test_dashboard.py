@@ -1438,3 +1438,137 @@ def test_parametre_year_absent_rend_directement_sans_redirection(mem_db, tmp_pat
 
     # Then le tableau est rendu directement (pas de redirection)
     assert resp.status_code == 200
+
+
+# ── BDD : complétion des montants à la sauvegarde (issue HT/TVA/TTC + taux) ───
+#
+# Style BDD : chaque test décrit une règle métier comptable observable depuis
+# l'extérieur — état DB, statut, valeurs persistées. Aucune assertion sur le
+# détail d'implémentation (pas de mocks sur les helpers privés).
+
+class TestComplétionMontantsÀLaSauvegarde:
+    def test_édition_avec_ht_et_taux_complète_tva_et_ttc(self, mem_db, tmp_path, monkeypatch):
+        # Given une facture à réviser sans montants
+        _insert_invoice(
+            mem_db, id="comp1", statut_révision="à_réviser",
+            montant_ht=None, montant_tva=None, montant_ttc=None,
+            taux_tva=None, exercice_fiscal=2025,
+        )
+        app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When un humain saisit HT=100 et choisit le taux à 20 %
+        with app.test_client() as client:
+            resp = client.patch("/factures/comp1", data={
+                "type_document": "facture_reçue",
+                "montant_ht":  "100.00",
+                "montant_tva": "",
+                "montant_ttc": "",
+                "taux_tva":    "0.20",
+                "date_document": "2025-04-01",
+                "émetteur_nom": "Fournisseur SAS",
+            })
+
+        # Then TVA et TTC sont calculés et la facture est validée
+        assert resp.status_code == 200
+        assert resp.get_json()["ok"] is True
+
+        check = sqlite3.connect(str(db_path)); check.row_factory = sqlite3.Row
+        row = check.execute(
+            "SELECT montant_ht, montant_tva, montant_ttc, taux_tva, statut_révision "
+            "FROM invoices WHERE id='comp1'"
+        ).fetchone()
+        check.close()
+
+        assert row["montant_ht"]  == 100.00
+        assert row["montant_tva"] == 20.00
+        assert row["montant_ttc"] == 120.00
+        assert row["taux_tva"]    == 0.20
+        assert row["statut_révision"] == "validé"
+
+    def test_édition_avec_deux_montants_complète_le_troisième(self, mem_db, tmp_path, monkeypatch):
+        # Given une facture à réviser avec HT et TTC seulement
+        _insert_invoice(
+            mem_db, id="comp2", statut_révision="à_réviser",
+            montant_ht=None, montant_tva=None, montant_ttc=None,
+            exercice_fiscal=2025,
+        )
+        app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When l'humain saisit HT + TTC (sans TVA)
+        with app.test_client() as client:
+            client.patch("/factures/comp2", data={
+                "type_document": "facture_reçue",
+                "montant_ht":  "100.00",
+                "montant_ttc": "120.00",
+                "date_document": "2025-04-01",
+                "émetteur_nom": "Fournisseur SAS",
+            })
+
+        # Then TVA est dérivée
+        check = sqlite3.connect(str(db_path)); check.row_factory = sqlite3.Row
+        row = check.execute(
+            "SELECT montant_tva, taux_tva FROM invoices WHERE id='comp2'"
+        ).fetchone()
+        check.close()
+        assert row["montant_tva"] == 20.00
+        assert row["taux_tva"] == 0.20
+
+    def test_édition_avec_montants_incohérents_rétrograde_en_à_réviser(
+        self, mem_db, tmp_path, monkeypatch
+    ):
+        # Given une facture validée
+        _insert_invoice(
+            mem_db, id="mismatch", statut_révision="validé",
+            montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0,
+            exercice_fiscal=2025,
+        )
+        app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When l'humain saisit trois valeurs incohérentes (HT+TVA ≠ TTC à 5 €)
+        with app.test_client() as client:
+            resp = client.patch("/factures/mismatch", data={
+                "type_document": "facture_reçue",
+                "montant_ht":  "100.00",
+                "montant_tva": "15.00",
+                "montant_ttc": "120.00",
+                "date_document": "2025-04-01",
+                "émetteur_nom": "Fournisseur SAS",
+            })
+
+        # Then la facture repasse en « à réviser » avec un avertissement
+        data = resp.get_json()
+        assert data["ok"] is True
+        assert "TVA incohérente" in (data.get("warning") or "")
+
+        check = sqlite3.connect(str(db_path)); check.row_factory = sqlite3.Row
+        row = check.execute(
+            "SELECT statut_révision, montant_ht, montant_tva, montant_ttc "
+            "FROM invoices WHERE id='mismatch'"
+        ).fetchone()
+        check.close()
+        assert row["statut_révision"] == "à_réviser"
+        # Les valeurs saisies sont conservées telles quelles — pas d'écrasement
+        assert row["montant_ht"]  == 100.00
+        assert row["montant_tva"] == 15.00
+        assert row["montant_ttc"] == 120.00
+
+    def test_taux_hors_intervalle_est_rejeté(self, mem_db, tmp_path, monkeypatch):
+        # Given une facture à réviser
+        _insert_invoice(mem_db, id="bad-rate", statut_révision="à_réviser",
+                        exercice_fiscal=2025)
+        app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When l'humain envoie un taux > 1 (oubli de la convention fraction)
+        with app.test_client() as client:
+            resp = client.patch("/factures/bad-rate", data={
+                "type_document": "facture_reçue",
+                "montant_ht":  "100.00",
+                "taux_tva":    "20",   # 20 et non 0.20
+                "date_document": "2025-04-01",
+                "émetteur_nom": "X",
+            })
+
+        # Then la saisie est rejetée à la frontière (ACL)
+        data = resp.get_json()
+        assert data["ok"] is False
+        assert "taux_tva" in data["errors"]

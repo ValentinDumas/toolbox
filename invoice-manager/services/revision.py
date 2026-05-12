@@ -7,6 +7,7 @@ import json
 from datetime import date
 
 from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
+from services.montants import WARN_TVA_MISMATCH, complete_amounts
 
 
 def _parse_review_fields(form) -> tuple[dict, dict]:
@@ -18,6 +19,11 @@ def _parse_review_fields(form) -> tuple[dict, dict]:
                   "catégorie", "notes_correction"):
         val = form.get(field, "").strip()
         if val:
+            # Invariant DB : `catégorie` est toujours stocké en minuscules
+            # (cf. table category_tva_rates + migration v7). Normalisation au
+            # bord, avant validation ou persistance.
+            if field == "catégorie":
+                val = val.lower()
             fields[field] = val
 
     # Date : ACL stricte. L'input HTML5 type="date" produit YYYY-MM-DD ;
@@ -42,7 +48,59 @@ def _parse_review_fields(form) -> tuple[dict, dict]:
             except ValueError:
                 errors[field] = f"Montant invalide : {val}"
 
+    # `taux_tva` est une fraction (0..1). Le <select> du dashboard envoie
+    # déjà une valeur dans cette convention ; on rejette toute saisie hors
+    # de l'intervalle pour préserver l'invariant DB.
+    taux_val = form.get("taux_tva", "").strip()
+    if taux_val:
+        try:
+            taux_f = float(taux_val.replace(",", "."))
+            if not (0.0 <= taux_f <= 1.0):
+                errors["taux_tva"] = (
+                    f"Taux de TVA invalide — fraction entre 0 et 1 attendue (reçu : {taux_val})"
+                )
+            else:
+                fields["taux_tva"] = taux_f
+        except ValueError:
+            errors["taux_tva"] = f"Taux de TVA invalide : {taux_val}"
+
     return fields, errors
+
+
+def _complete_montants(fields: dict, current: dict) -> str | None:
+    """Complète HT/TVA/TTC/taux à partir des valeurs connues (fields ∪ current).
+
+    Mutation in-place de `fields` :
+    - les valeurs calculées sont écrites uniquement si elles étaient absentes
+      des deux sources (jamais d'écrasement d'une valeur saisie ou extraite),
+    - en cas d'incohérence (HT + TVA ≠ TTC à ±1c), un message d'avertissement
+      est retourné — l'appelant l'utilise pour rétrograder en *à réviser*.
+    """
+    ht_in   = fields.get("montant_ht",  current.get("montant_ht"))
+    tva_in  = fields.get("montant_tva", current.get("montant_tva"))
+    ttc_in  = fields.get("montant_ttc", current.get("montant_ttc"))
+    taux_in = fields.get("taux_tva",    current.get("taux_tva"))
+
+    result = complete_amounts(
+        ht_in, tva_in, ttc_in, taux=taux_in,
+        infer_amounts=True, infer_from_rate=True,
+    )
+
+    # On n'écrase rien : on ne renseigne que les valeurs dérivées (donc
+    # absentes des sources). Cela préserve l'invariant « le document est
+    # source de vérité » de VISION.md.
+    for short, nom, val in (
+        ("ht",   "montant_ht",  result.ht),
+        ("tva",  "montant_tva", result.tva),
+        ("ttc",  "montant_ttc", result.ttc),
+        ("taux", "taux_tva",    result.taux),
+    ):
+        if short in result.derived and nom not in fields and current.get(nom) is None:
+            fields[nom] = val
+
+    if WARN_TVA_MISMATCH in result.warnings:
+        return "TVA incohérente avec HT/TTC — item retourné en « À réviser »."
+    return None
 
 
 def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:

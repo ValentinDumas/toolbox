@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS known_emitters (
     nom      TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS category_tva_rates (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    catégorie TEXT UNIQUE NOT NULL,
+    taux_tva  REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS invoices (
     id                      TEXT PRIMARY KEY,
     type_document           TEXT,
@@ -102,7 +108,26 @@ CREATE TABLE IF NOT EXISTS import_jobs (
 CREATE INDEX IF NOT EXISTS idx_import_jobs_job ON import_jobs(job_id);
 """
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 7
+
+# Catégories par défaut + taux de TVA. Seedées au premier lancement, modifiables
+# via le tab "Catégories TVA" des paramètres. Source : les clés de `_CATEGORIES`
+# dans parsers.py, au taux légal standard français (20 %).
+_DEFAULT_CATEGORY_TVA_RATES = {
+    "hébergement":   0.20,
+    "transport":     0.10,
+    "repas":         0.10,
+    "matériel":      0.20,
+    "téléphonie":    0.20,
+    "logiciel":      0.20,
+    "formation":     0.20,
+    "assurance":     0.00,
+    "loyer":         0.20,
+    "publicité":     0.20,
+    "domaine":       0.20,
+    "comptabilité":  0.20,
+    "autres":        0.20,
+}
 
 
 def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -> None:
@@ -128,6 +153,44 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         except sqlite3.OperationalError as e:
             if "duplicate column name" not in str(e) and "already exists" not in str(e):
                 raise
+
+    # Migration v6 — `taux_tva` passe d'un pourcentage (0..100) à une fraction
+    # (0..1, 4 décimales). Le filtre `taux_tva > 1` rend l'opération idempotente :
+    # une ligne déjà migrée (≤ 1) n'est jamais touchée. Les taux légaux
+    # 2,1 % / 5,5 % / 10 % / 20 % deviennent 0.0210 / 0.0550 / 0.1000 / 0.2000
+    # — sans perte de précision.
+    # Try/except : certaines DBs légataires (tests minimaux) n'ont pas encore
+    # la colonne `taux_tva`. Dans ce cas la migration est sans objet.
+    try:
+        conn.execute(
+            "UPDATE invoices "
+            "SET taux_tva = ROUND(taux_tva / 100.0, 4) "
+            "WHERE taux_tva IS NOT NULL AND taux_tva > 1"
+        )
+    except sqlite3.OperationalError as e:
+        if "no such column" not in str(e):
+            raise
+
+    # Migration v7 — `invoices.catégorie` est désormais toujours stocké en
+    # minuscules. L'opération est idempotente : la condition `catégorie !=
+    # LOWER(catégorie)` exclut les lignes déjà normalisées.
+    try:
+        conn.execute(
+            "UPDATE invoices SET catégorie = LOWER(catégorie) "
+            "WHERE catégorie IS NOT NULL AND catégorie != LOWER(catégorie)"
+        )
+    except sqlite3.OperationalError as e:
+        if "no such column" not in str(e):
+            raise
+
+    # Seed des taux de TVA par catégorie au premier passage. INSERT OR IGNORE
+    # garantit que les modifications utilisateur ne sont jamais écrasées.
+    for cat, taux in _DEFAULT_CATEGORY_TVA_RATES.items():
+        conn.execute(
+            "INSERT OR IGNORE INTO category_tva_rates (catégorie, taux_tva) "
+            "VALUES (?, ?)",
+            (cat, taux),
+        )
 
     # Migrate [known_emitters] from config.toml if present and not yet in DB
     toml_path = config_path or HERE / "config.toml"
@@ -178,6 +241,14 @@ def get_known_emitters(conn: sqlite3.Connection) -> dict[str, str]:
     """Return {keyword: nom} from the known_emitters table."""
     rows = conn.execute("SELECT keyword, nom FROM known_emitters").fetchall()
     return {row["keyword"]: row["nom"] for row in rows}
+
+
+def get_category_tva_rates(conn: sqlite3.Connection) -> dict[str, float]:
+    """Return {catégorie: taux_tva} from the category_tva_rates table."""
+    rows = conn.execute(
+        "SELECT catégorie, taux_tva FROM category_tva_rates"
+    ).fetchall()
+    return {row["catégorie"]: row["taux_tva"] for row in rows}
 
 
 _EXTRACTION_DEFAULTS = {
