@@ -59,7 +59,7 @@ def create_profile(name: str) -> dict:
         counter += 1
 
     profile_dir = PROFILES_DIR / slug
-    for subdir in ("input", "processed", "errors", "output", "review"):
+    for subdir in ("input", "processed", "errors", "duplicates", "output", "review"):
         (profile_dir / subdir).mkdir(parents=True, exist_ok=True)
 
     entry = {
@@ -76,12 +76,13 @@ def resolve_paths(slug: str) -> dict[str, Path]:
     """Retourne les chemins absolus pour un profil donné."""
     base = PROFILES_DIR / slug
     return {
-        "db":        base / "invoices.db",
-        "input":     base / "input",
-        "processed": base / "processed",
-        "errors":    base / "errors",
-        "output":    base / "output",
-        "review":    base / "review",
+        "db":         base / "invoices.db",
+        "input":      base / "input",
+        "processed":  base / "processed",
+        "errors":     base / "errors",
+        "duplicates": base / "duplicates",
+        "output":     base / "output",
+        "review":     base / "review",
     }
 
 

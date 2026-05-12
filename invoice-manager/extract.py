@@ -225,6 +225,18 @@ def extract_text(path: Path, cfg: dict) -> str:
 def hash_exists(conn, h: str) -> bool:
     return conn.execute("SELECT 1 FROM invoices WHERE hash_fichier = ?", (h,)).fetchone() is not None
 
+
+def find_invoice_id_by_hash(conn, h: str) -> str | None:
+    """Retourne l'id de la facture déjà ingérée pour ce hash, ou None.
+
+    Sert à tracer dans `import_jobs` la facture source quand un doublon est
+    rejeté — l'UI peut alors proposer un lien vers l'enregistrement existant.
+    """
+    row = conn.execute(
+        "SELECT id FROM invoices WHERE hash_fichier = ? LIMIT 1", (h,)
+    ).fetchone()
+    return row[0] if row else None
+
 def insert(conn, row: dict) -> None:
     cols = ", ".join(f'"{k}"' for k in row)
     placeholders = ", ".join("?" for _ in row)
@@ -410,12 +422,13 @@ def main() -> None:
 
     from profiles import resolve_paths
     paths = resolve_paths(args.profile)
-    input_dir     = args.input or paths["input"]
-    processed_dir = paths["processed"]
-    errors_dir    = paths["errors"]
-    db_path       = paths["db"]
+    input_dir      = args.input or paths["input"]
+    processed_dir  = paths["processed"]
+    errors_dir     = paths["errors"]
+    duplicates_dir = paths["duplicates"]
+    db_path        = paths["db"]
 
-    for d in (input_dir, processed_dir, errors_dir):
+    for d in (input_dir, processed_dir, errors_dir, duplicates_dir):
         d.mkdir(parents=True, exist_ok=True)
 
     conn = open_db(db_path)
@@ -445,10 +458,16 @@ def main() -> None:
                                           IMPORT_EN_EXTRACTION)
             file_hash = hashlib.sha256(f.read_bytes()).hexdigest()
 
-            if hash_exists(conn, file_hash):
-                print("  [SKIP] déjà en base")
+            existing_id = find_invoice_id_by_hash(conn, file_hash)
+            if existing_id is not None:
+                # Le fichier doit quitter input/ : sinon il y reste indéfiniment,
+                # gonfle `health.pending_files` et rend "↻ Mettre à jour"
+                # silencieux côté UI (issue #109).
+                _move_safely(f, duplicates_dir)
+                print(f"  [SKIP] déjà en base → déplacé dans duplicates/")
                 _mettre_a_jour_statut_import(conn, job_id, f.name,
-                                              IMPORT_DOUBLON)
+                                              IMPORT_DOUBLON,
+                                              invoice_id=existing_id)
                 doublons += 1
                 continue
 

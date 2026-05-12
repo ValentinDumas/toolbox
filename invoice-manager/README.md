@@ -56,7 +56,7 @@ python3 run.py
 C'est tout. `run.py` enchaîne trois étapes automatiquement :
 
 1. **Déduplication** — compare les fichiers de `input/` par checksum SHA256 ; si deux fichiers sont identiques, conserve celui au nom le plus court et supprime les autres
-2. **Extraction** — lit les fichiers de `input/`, parse les montants/dates/SIREN, insère en base, déplace dans `processed/`
+2. **Extraction** — lit les fichiers de `input/`, parse les montants/dates/SIREN, insère en base, déplace dans `processed/`. Si le hash SHA-256 du fichier est déjà présent en base, le fichier est déplacé dans `duplicates/` (et non réingéré). Côté upload via le dashboard, un fichier dont le hash existe déjà est rejeté avant écriture disque avec la raison `déjà importé`.
 3. **Export** — génère `output/ledger-YYYY.csv` et `output/ledger-YYYY.xlsx`
 
 Les items avec confiance < 80 % sont marqués `à_réviser` et accessibles via le bouton **Révision** du dashboard.
@@ -175,11 +175,12 @@ invoice-manager/
 │   └── profiles/
 │       ├── entreprise-principale/
 │       │   ├── invoices.db ← DB migrée automatiquement depuis data/invoices.db (legacy)
-│       │   ├── input/      ← déposer les fichiers ici
-│       │   ├── processed/  ← fichiers traités avec succès
-│       │   ├── errors/     ← fichiers non reconnus
-│       │   ├── output/     ← exports CSV et XLSX
-│       │   └── review/     ← review.csv pour révision batch
+│       │   ├── input/       ← déposer les fichiers ici
+│       │   ├── processed/   ← fichiers traités avec succès
+│       │   ├── errors/      ← fichiers non reconnus
+│       │   ├── duplicates/  ← fichiers déjà importés (hash trouvé en base)
+│       │   ├── output/      ← exports CSV et XLSX
+│       │   └── review/      ← review.csv pour révision batch
 │       └── {slug}/         ← même structure pour chaque profil
 │           └── invoices.db
 │

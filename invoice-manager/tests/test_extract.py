@@ -210,10 +210,11 @@ class TestParseInvoice:
 def _patch_extract_profile(monkeypatch, tmp_project):
     import profiles as _profiles
     monkeypatch.setattr(_profiles, "resolve_paths", lambda slug: {
-        "db":        tmp_project / "data" / "invoices.db",
-        "input":     tmp_project / "input",
-        "processed": tmp_project / "processed",
-        "errors":    tmp_project / "errors",
+        "db":         tmp_project / "data" / "invoices.db",
+        "input":      tmp_project / "input",
+        "processed":  tmp_project / "processed",
+        "errors":     tmp_project / "errors",
+        "duplicates": tmp_project / "duplicates",
     })
 
 
@@ -264,6 +265,29 @@ class TestPipeline:
         count = conn.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]
         conn.close()
         assert count == 1
+
+    def test_duplicate_file_moved_out_of_input(self, tmp_project, monkeypatch):
+        """Issue #109 : un doublon doit quitter input/ pour duplicates/, sinon
+        il gonfle indéfiniment `health.pending_files` et rend le bouton
+        '↻ Mettre à jour' silencieux côté UI."""
+        _patch_extract_profile(monkeypatch, tmp_project)
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test"]
+            ex.main()
+        # Réintroduit le même contenu dans input/ sous un autre nom.
+        shutil.copy(
+            next((tmp_project / "processed").glob("ovh*")),
+            tmp_project / "input" / "ovh-copie.pdf",
+        )
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            ex.main()
+
+        # input/ doit être vide après la 2e passe (sinon pending_files reste > 0).
+        assert list((tmp_project / "input").iterdir()) == []
+        # Le doublon doit être traçable sur disque.
+        assert (tmp_project / "duplicates" / "ovh-copie.pdf").exists()
 
     def test_corrupt_file_goes_to_errors(self, tmp_project, monkeypatch):
         _patch_extract_profile(monkeypatch, tmp_project)

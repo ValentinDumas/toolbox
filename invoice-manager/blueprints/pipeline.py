@@ -3,6 +3,7 @@ blueprints/pipeline.py — Contexte ingestion : upload, exécution pipeline, fic
 
 Routes RESTful : /pipeline/* pour les actions, /fichiers/* et /apercu/* pour le service de fichiers.
 """
+import hashlib
 import io
 import shutil
 import subprocess
@@ -27,6 +28,7 @@ from constants import (
 )
 from context_helpers import active_paths, active_slug
 from db import open_db
+from extract import find_invoice_id_by_hash
 from profiles import resolve_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -152,7 +154,7 @@ def _find_file(paths: dict, filename: str):
     basename = Path(filename).name
     input_dir = paths.get("input")
     profile_root = input_dir.parent.resolve() if input_dir else None
-    for subdir in ("processed", "errors", "input"):
+    for subdir in ("processed", "errors", "duplicates", "input"):
         candidate = paths.get(subdir, PROJECT_ROOT / subdir) / basename
         if not candidate.is_file():
             continue
@@ -203,31 +205,51 @@ def pipeline_depot():
 
     saved: list[str] = []
     failed: list[dict] = []
-    for f in files:
-        if not f.filename:
-            continue
-        basename = Path(f.filename).name
-        # Garde 1/2 : whitelist d'extensions. Rejette .exe, .sh, .js, .zip,
-        # etc. avant même de lire le flux.
-        suffix = Path(basename).suffix.lower()
-        if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
-            failed.append({
-                "filename": f.filename,
-                "reason": f"Extension de fichier non autorisée : {suffix or '(aucune)'}",
-            })
-            continue
-        # Garde 2/2 : sniff magic bytes avant toute écriture disque.
-        header = f.stream.read(32)
-        f.stream.seek(0)
-        if not _sniff_supported_type(header):
-            failed.append({"filename": f.filename, "reason": "type non supporté"})
-            continue
-        try:
-            f.save(input_dir / basename)
-        except OSError as exc:
-            failed.append({"name": f.filename, "error": str(exc)})
-            continue
-        saved.append(basename)
+    # Connexion ouverte une seule fois pour vérifier les hashes des doublons
+    # (issue #109). Fermée juste après la boucle, avant d'enregistrer le job.
+    conn = open_db(paths["db"])
+    try:
+        for f in files:
+            if not f.filename:
+                continue
+            basename = Path(f.filename).name
+            # Garde 1/3 : whitelist d'extensions. Rejette .exe, .sh, .js, .zip,
+            # etc. avant même de lire le flux.
+            suffix = Path(basename).suffix.lower()
+            if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+                failed.append({
+                    "filename": f.filename,
+                    "reason": f"Extension de fichier non autorisée : {suffix or '(aucune)'}",
+                })
+                continue
+            # Garde 2/3 : sniff magic bytes avant toute écriture disque.
+            header = f.stream.read(32)
+            f.stream.seek(0)
+            if not _sniff_supported_type(header):
+                failed.append({"filename": f.filename, "reason": "type non supporté"})
+                continue
+            # Garde 3/3 : hash SHA-256 pour rejeter à la source un fichier déjà
+            # ingéré (issue #109). Évite d'écrire un fichier dans input/ qu'on
+            # devrait aussitôt déplacer dans duplicates/.
+            body = f.stream.read()
+            f.stream.seek(0)
+            file_hash = hashlib.sha256(body).hexdigest()
+            existing_id = find_invoice_id_by_hash(conn, file_hash)
+            if existing_id is not None:
+                failed.append({
+                    "filename": f.filename,
+                    "reason": "déjà importé",
+                    "invoice_id": existing_id,
+                })
+                continue
+            try:
+                f.save(input_dir / basename)
+            except OSError as exc:
+                failed.append({"name": f.filename, "error": str(exc)})
+                continue
+            saved.append(basename)
+    finally:
+        conn.close()
 
     if not saved:
         # Aucun fichier accepté — soit tous rejetés (type non supporté),

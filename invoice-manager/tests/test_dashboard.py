@@ -1130,6 +1130,48 @@ def test_depot_rejette_binaire_renomme_pdf(mem_db, tmp_path, monkeypatch):
     assert not (input_dir / "evil.exe").exists()
 
 
+def test_depot_rejette_fichier_deja_importe(mem_db, tmp_path, monkeypatch):
+    """Issue #109 : un fichier dont le hash existe déjà en base est rejeté
+    à l'upload — sinon il atterrit dans input/, n'est pas réingéré, mais
+    bloque la carte 'Fichiers en attente'."""
+    import hashlib as _hash
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    body = b"%PDF-1.7\n%body original"
+    file_hash = _hash.sha256(body).hexdigest()
+
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    # Sème une facture portant le même hash.
+    import sqlite3 as _sql
+    conn = _sql.connect(db_file)
+    conn.execute(
+        "INSERT INTO invoices (id, hash_fichier, type_document, exercice_fiscal) "
+        "VALUES (?, ?, 'facture_reçue', 2025)",
+        ("INV-EXIST", file_hash),
+    )
+    conn.commit()
+    conn.close()
+
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(body), "deja-vu.pdf")},
+            content_type="multipart/form-data",
+        )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["ok"] is False  # aucun fichier accepté
+    assert payload["files"] == []
+    assert payload["failed"][0]["filename"] == "deja-vu.pdf"
+    assert payload["failed"][0]["reason"] == "déjà importé"
+    assert payload["failed"][0]["invoice_id"] == "INV-EXIST"
+
+    # Le fichier ne doit PAS atterrir dans input/.
+    input_dir = _bp.resolve_paths("test-profile")["input"]
+    assert not (input_dir / "deja-vu.pdf").exists()
+
+
 def test_depot_accepte_pdf_valide(mem_db, tmp_path, monkeypatch):
     """Un PDF avec magic bytes %PDF- est accepté et atterrit dans input/."""
     import blueprints.pipeline as _bp
