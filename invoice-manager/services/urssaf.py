@@ -11,7 +11,108 @@ testables en isolation.
 """
 from __future__ import annotations
 
+import calendar
+import sqlite3
+from datetime import date, datetime
+
 from constants import TAUX_URSSAF_AE_2026
+
+# Cadences URSSAF supportées (cf. AUTO_ENTREPRENEUR_RULES.md §4.2).
+CADENCE_MENSUELLE     = "mensuelle"
+CADENCE_TRIMESTRIELLE = "trimestrielle"
+
+STATUT_PERIODE_A_DECLARER = "à_déclarer"
+STATUT_PERIODE_DECLAREE   = "déclarée"
+
+
+def _last_day(year: int, month: int) -> date:
+    return date(year, month, calendar.monthrange(year, month)[1])
+
+
+def generate_periods(year: int, cadence: str) -> list[dict]:
+    """Liste les périodes URSSAF d'une année selon la cadence du profil.
+
+    Règle métier AUTO_ENTREPRENEUR_RULES.md §4.2 :
+    - mensuelle : 12 périodes, déclaration/paiement = dernier jour du mois
+      *suivant* l'encaissement (CA janvier → déclaré fin février).
+    - trimestrielle : 4 périodes, échéances 30/04, 31/07, 31/10, 31/01 N+1.
+
+    Retour : liste de dicts `{period_key, label, start, end, deadline}` triés
+    chronologiquement. `period_key` est l'identifiant stable utilisé en DB.
+    """
+    if cadence == CADENCE_MENSUELLE:
+        periods = []
+        mois_fr = ["", "janvier", "février", "mars", "avril", "mai", "juin",
+                   "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+        for month in range(1, 13):
+            start = date(year, month, 1)
+            end = _last_day(year, month)
+            # Échéance = dernier jour du mois suivant l'encaissement.
+            if month == 12:
+                deadline = _last_day(year + 1, 1)
+            else:
+                deadline = _last_day(year, month + 1)
+            periods.append({
+                "period_key": f"{year:04d}-M{month:02d}",
+                "label": f"{mois_fr[month].capitalize()} {year}",
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "deadline": deadline.isoformat(),
+            })
+        return periods
+
+    if cadence == CADENCE_TRIMESTRIELLE:
+        deadlines = {
+            1: date(year, 4, 30),
+            2: date(year, 7, 31),
+            3: date(year, 10, 31),
+            4: date(year + 1, 1, 31),
+        }
+        periods = []
+        for tr in range(1, 5):
+            month_start = (tr - 1) * 3 + 1
+            month_end = month_start + 2
+            start = date(year, month_start, 1)
+            end = _last_day(year, month_end)
+            periods.append({
+                "period_key": f"{year:04d}-T{tr}",
+                "label": f"T{tr} {year}",
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "deadline": deadlines[tr].isoformat(),
+            })
+        return periods
+
+    raise ValueError(f"Cadence URSSAF inconnue : {cadence!r}")
+
+
+def get_declared_periods(conn: sqlite3.Connection) -> dict[str, str]:
+    """Retourne {period_key: marked_at} pour toutes les périodes déclarées."""
+    rows = conn.execute(
+        "SELECT period_key, marked_at FROM urssaf_declarations"
+    ).fetchall()
+    return {row["period_key"]: row["marked_at"] for row in rows}
+
+
+def mark_period_declared(
+    conn: sqlite3.Connection, period_key: str, *, actor: str = "user",
+) -> None:
+    """Marque une période comme déclarée (transition d'état append-only)."""
+    now = datetime.now().isoformat(timespec="seconds")
+    conn.execute(
+        "INSERT OR REPLACE INTO urssaf_declarations (period_key, marked_at, marked_by) "
+        "VALUES (?, ?, ?)",
+        (period_key, now, actor),
+    )
+    conn.commit()
+
+
+def unmark_period_declared(conn: sqlite3.Connection, period_key: str) -> None:
+    """Annule la déclaration d'une période (correction d'erreur de saisie)."""
+    conn.execute(
+        "DELETE FROM urssaf_declarations WHERE period_key=?", (period_key,)
+    )
+    conn.commit()
 
 
 def compute_cotisations(

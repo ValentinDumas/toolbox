@@ -75,10 +75,12 @@ def create_app() -> Flask:
     from blueprints.parametres import bp_parametres
     from blueprints.pipeline import bp_pipeline
     from blueprints.profils import bp_profils
+    from blueprints.urssaf import bp_urssaf
     app.register_blueprint(bp_factures)
     app.register_blueprint(bp_parametres)
     app.register_blueprint(bp_pipeline)
     app.register_blueprint(bp_profils)
+    app.register_blueprint(bp_urssaf)
 
     @app.context_processor
     def inject_profile_context():

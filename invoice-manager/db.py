@@ -106,9 +106,15 @@ CREATE TABLE IF NOT EXISTS import_jobs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_import_jobs_job ON import_jobs(job_id);
+
+CREATE TABLE IF NOT EXISTS urssaf_declarations (
+    period_key   TEXT PRIMARY KEY,
+    marked_at    TEXT NOT NULL,
+    marked_by    TEXT NOT NULL DEFAULT 'user'
+);
 """
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # Catégories par défaut + taux de TVA. Seedées au premier lancement, modifiables
 # via le tab "Catégories TVA" des paramètres. Source : les clés de `_CATEGORIES`
@@ -147,6 +153,15 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_fallback INTEGER DEFAULT 0",
         "ALTER TABLE user_profile ADD COLUMN ocr_easyocr_threshold REAL DEFAULT 0.4",
         "ALTER TABLE user_profile ADD COLUMN avatar_data TEXT",
+        # AE — activité principale (vente, service_bic, service_bnc_ssi,
+        # service_bnc_cipav, meuble_tourisme_classe). Détermine les taux
+        # de cotisations URSSAF appliqués (cf. AUTO_ENTREPRENEUR_RULES.md §4.1).
+        "ALTER TABLE user_profile ADD COLUMN activite_principale TEXT",
+        # AE — option versement libératoire de l'IR (#137) et ACRE (#138).
+        # Conservés ici pour traçabilité ; usage côté services/urssaf.py.
+        "ALTER TABLE user_profile ADD COLUMN versement_liberatoire INTEGER DEFAULT 0",
+        "ALTER TABLE user_profile ADD COLUMN acre_actif INTEGER DEFAULT 0",
+        "ALTER TABLE user_profile ADD COLUMN acre_date_fin TEXT",
     ]:
         try:
             conn.execute(sql)

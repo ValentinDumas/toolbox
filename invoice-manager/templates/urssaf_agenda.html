@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Agenda URSSAF — {{ year }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="page-header">
+    <h1>Agenda URSSAF — {{ year }}</h1>
+    <p class="text-muted">
+      Cadence : <strong>{{ cadence }}</strong>{% if activite %} · Activité : <strong>{{ activite }}</strong>{% endif %}.
+      {% if not activite %}
+      <em>Renseigne l'activité principale dans <a href="/parametres">Paramètres</a> pour activer le calcul des cotisations.</em>
+      {% endif %}
+    </p>
+    <nav><a href="/">← Tableau de bord</a></nav>
+  </header>
+
+  <main>
+    <table class="ledger-table" aria-label="Agenda des déclarations URSSAF {{ year }}">
+      <thead>
+        <tr>
+          <th scope="col">Période</th>
+          <th scope="col">Échéance</th>
+          <th scope="col" class="text-right">CA encaissé</th>
+          <th scope="col" class="text-right">Pièces</th>
+          {% if activite %}
+          <th scope="col" class="text-right">Cotisations</th>
+          <th scope="col" class="text-right">CFP</th>
+          <th scope="col" class="text-right">Total dû</th>
+          {% endif %}
+          <th scope="col">Statut</th>
+          <th scope="col">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <th scope="row">{{ r.label }}</th>
+          <td>{{ r.deadline }}</td>
+          <td class="text-right amount">{{ r.ca_ttc | fr_currency }}</td>
+          <td class="text-right">{{ r.count }}</td>
+          {% if activite %}
+          <td class="text-right amount">{{ r.cotisations.cotisations_sociales | fr_currency }}</td>
+          <td class="text-right amount">{{ r.cotisations.cfp | fr_currency }}</td>
+          <td class="text-right amount"><strong>{{ r.cotisations.total | fr_currency }}</strong></td>
+          {% endif %}
+          <td>
+            {% if r.statut == statut_declaree %}
+              <span class="badge badge-paid">Déclarée le {{ r.marked_at[:10] }}</span>
+            {% else %}
+              <span class="badge badge-pending">À déclarer</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.statut == statut_declaree %}
+            <form method="post" action="{{ url_for('urssaf.urssaf_annuler_declaration', period_key=r.period_key) }}">
+              <input type="hidden" name="year" value="{{ year }}">
+              <button type="submit" class="btn-secondary"
+                      aria-label="Annuler la déclaration de {{ r.label }}">Annuler</button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('urssaf.urssaf_marquer_declaree', period_key=r.period_key) }}">
+              <input type="hidden" name="year" value="{{ year }}">
+              <button type="submit" class="btn-primary"
+                      aria-label="Marquer {{ r.label }} comme déclarée">Marquer déclarée</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
