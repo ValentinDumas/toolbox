@@ -222,6 +222,9 @@ Les couches basses (DB, parseurs, profils) **ne connaissent jamais** les couches
 
 | Fichier | Contenu |
 |---------|---------|
+| [`BDD_PRACTICES.md`](BDD_PRACTICES.md) | Tests BDD prioritaires — Given/When/Then en langage ubiquitaire, spec exécutable, robustesse |
+| [`DDD_PRACTICES.md`](DDD_PRACTICES.md) | Langage ubiquitaire, bounded contexts, agrégats, services, repository, ACL |
+| [`CLEAN_CODE.md`](CLEAN_CODE.md) | Noms, SRP, fonctions courtes, gestion d'erreurs, code mort, AAA dans les tests |
 | [`GOOD_PRACTICES.md`](GOOD_PRACTICES.md) | Bonnes pratiques Python (nommage, boucles, lisibilité) |
 | [`ARCHITECTURE_PYTHON.md`](ARCHITECTURE_PYTHON.md) | Structure de projet, séparation des couches, outils |
 | [`UI_DESIGN.md`](UI_DESIGN.md) | Lois de Gestalt, hiérarchie visuelle, couleurs, typographie, tableaux |
@@ -229,6 +232,7 @@ Les couches basses (DB, parseurs, profils) **ne connaissent jamais** les couches
 | [`ACCESSIBILITY.md`](ACCESSIBILITY.md) | WCAG 2.1 AA — contraste, clavier, ARIA, HTML sémantique, tests |
 
 Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
+**Priorité des tests :** tests BDD fonctionnels (Given/When/Then) **d'abord** — ils attestent le design et servent de spécification exécutable. Les tests unitaires techniques viennent en complément.
 
 ---
 
@@ -432,6 +436,8 @@ python3 -m pytest tests/ -v
 ```
 
 184 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export, dashboard.
+
+**Approche :** les tests BDD fonctionnels (Given/When/Then en langage ubiquitaire) sont la **première forme** de test et servent de spécification exécutable du domaine. Voir [`BDD_PRACTICES.md`](BDD_PRACTICES.md). Les tests unitaires techniques (parseurs, helpers purs) viennent en complément.
 
 | Fichier | Ce qui est testé |
 |---|---|

@@ -14,8 +14,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 These practices **override** all rules below when in conflict. Apply them to **every file** (Python, Jinja, JS, SQL, Go) and to **every change**, before considering language-specific or framework conventions.
 
+@BDD_PRACTICES.md
 @DDD_PRACTICES.md
 @CLEAN_CODE.md
+
+**Test priority order:** BDD functional tests (Given/When/Then in ubiquitous language) come **first** — they act as the executable specification of the domain and attest the design. Unit / technical tests come **second**, never as a substitute.
 
 ## Python coding rules
 
