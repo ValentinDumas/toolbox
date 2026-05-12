@@ -18,7 +18,7 @@ The full system has several independent subsystems:
 | **Console model** (what a console *is*) | **this spec** |
 | Mac-side agent (process model, JSON API) | future spec |
 | Transport + auth (Tailscale, tokens) | future spec |
-| Mobile UI (iOS native or PWA) | future spec |
+| Mobile UI (iOS native, SwiftUI) | [`2026-05-12-mobile-ui-design.md`](2026-05-12-mobile-ui-design.md) |
 | `ping-me` integration (notification reply path) | future spec |
 
 This spec defines only the **console abstraction** — the data shape, the
