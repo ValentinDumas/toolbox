@@ -183,14 +183,15 @@ invoice-manager/
 │       └── {slug}/         ← même structure pour chaque profil
 │           └── invoices.db
 │
-├── ── Tests pytest (173 tests) ─────────────────────────────────────────
+├── ── Tests pytest (184 tests) ─────────────────────────────────────────
 ├── tests/
 │   ├── conftest.py         ← fixtures partagées (tmp_db, tmp_project, make_pdf)
-│   ├── test_config.py      ← CADENCE_DEFAULTS par statut fiscal
+│   ├── test_config.py      ← CADENCE_DEFAULTS + CADENCE_OPTIONS par statut fiscal
 │   ├── test_db.py          ← garde-fou migrations, PRAGMA user_version
 │   ├── test_extract.py     ← OCR, parseurs, _guess_doc_type, magic bytes, dédoublonnage
 │   ├── test_review.py      ← workflow CSV : export/import, actions, reclassify
 │   ├── test_export.py      ← filtres année/statut, 4 onglets XLSX, calculs récap
+│   ├── test_montants.py    ← derive_amounts : HT/TVA/TTC dérivés à l'affichage
 │   └── test_dashboard.py   ← routes Flask (PATCH/DELETE/POST), queries, services
 │
 ├── demo/                   ← simulation pipeline complète (PDFs générés à la volée)
@@ -252,7 +253,7 @@ Ces guides s'appliquent à tout code ajouté ou modifié dans ce dépôt.
 | Paramètres | `blueprints/parametres.py` | `GET /parametres`, `POST /parametres/profil\|ocr\|enseignes`, `DELETE /parametres/enseignes/<id>` |
 | Ingestion / fichiers | `blueprints/pipeline.py` | `POST /pipeline/lancer\|depot\|purger-liens-morts`, `GET /fichiers/<path>`, `GET /apercu/<path>` |
 
-Wizard de configuration au premier lancement (`/configuration`) bloquant jusqu'à saisie du SIREN et du profil fiscal. Page `/parametres` pour gérer le profil complet, les enseignes connues et les paramètres OCR. Sélecteur de profil dans le header (dropdown + switcher de contexte + "＋ Nouveau profil"). Bouton "⬆ Importer" pour l'upload multi-fichiers avec drag & drop (extraction en background). Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
+Wizard de configuration au premier lancement (`/configuration`) bloquant jusqu'à saisie du SIREN et du profil fiscal. À la création d'un profil (`POST /profils`), le nom d'entité saisi est miroité dans `user_profile.nom` pour que le header et **Paramètres → Mon profil** l'affichent immédiatement. Page `/parametres` pour gérer le profil complet, les enseignes connues et les paramètres OCR ; la section **Fiscalité** filtre dynamiquement les cadences de déclaration selon le statut fiscal sélectionné. Sélecteur de profil dans le header (dropdown + switcher de contexte + "＋ Nouveau profil"). Bouton "⬆ Importer" pour l'upload multi-fichiers avec drag & drop (extraction en background) ; en cas d'échec d'enregistrement, un bloc `role="alert"` inline liste les fichiers refusés et leur cause. Édition inline du ledger, validation des items en révision, corbeille, pipeline one-click.
 
 **`demo/run_all.py`** — génère des PDFs synthétiques à la volée avec fpdf, exécute le pipeline complet pour les 4 profils fiscaux, vérifie que la DB contient les bons types de documents et que les XLSX ont les 4 onglets attendus.
 
@@ -422,7 +423,7 @@ Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de d
 python3 -m pytest tests/ -v
 ```
 
-173 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export, dashboard.
+184 tests — config, parsers, pipeline, edge cases, révision batch, reclassification, export, dashboard.
 
 | Fichier | Ce qui est testé |
 |---|---|
