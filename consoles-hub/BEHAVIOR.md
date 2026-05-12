@@ -4,6 +4,12 @@ These rules apply to **every session** in this repo. They optimize execution spe
 
 ---
 
+## Posture
+
+Be sceptical, challenge with your vision and ideas.
+
+---
+
 ## Speed levers (no quality loss)
 
 1. **Parallel tool calls** — batch independent reads / greps / bash commands into a single assistant message. Sequence only when one call's output is needed to form the next call's arguments.
