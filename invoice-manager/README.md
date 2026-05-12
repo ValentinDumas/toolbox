@@ -407,6 +407,20 @@ L'article 242 nonies A annexe II du CGI exige une mention explicite du taux et d
 
 Le seuil est défini par `SEUIL_TVA_SIMPLIFIEE_EUR` dans `constants.py`. Sous chaque champ taux, une mention rappelle à l'utilisateur que sans taux renseigné, la TVA ne sera pas considérée comme déductible — aucune valeur (notamment 20 %) n'est jamais assumée silencieusement par le système.
 
+### Franchise en base — neutralisation automatique de la TVA sur les pièces émises
+
+Art. 293 B CGI : un auto-entrepreneur en franchise (et a fortiori un salarié) ne peut pas facturer de TVA. Pour toute pièce **émise** par un profil dont `FISCAL_RULES[profil]["tva_déductible"] == False` (i.e. `auto-entrepreneur`, `salarié`), `services.montants.normaliser_tva_selon_profil` force avant écriture :
+
+- `taux_tva = NULL`
+- `montant_tva = 0`
+- `montant_ttc = montant_ht` (les deux valeurs s'alignent sur celle effectivement lue)
+
+La règle s'applique :
+- à l'**extraction** (`extract.parse_invoice`) — un faux « 20 % » capté par l'OCR sur une facture émise par un AE n'entre jamais en DB ;
+- à la **révision** (`PATCH /factures/<id>`) — empêche l'inférence arithmétique de ré-introduire une TVA fantôme.
+
+Les pièces **reçues** (facture du fournisseur) ne sont pas touchées : la TVA portée par le fournisseur est conservée telle quelle ; sa non-déductibilité est gouvernée par le drapeau `déductible` au niveau de l'item.
+
 ## Output XLSX — 4 onglets
 
 | Onglet | Contenu |

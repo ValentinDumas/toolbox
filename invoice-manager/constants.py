@@ -29,6 +29,11 @@ EXPENSE_TYPES = ("facture_reçue", "reçu", "note_de_frais")
 CONTRA_INCOME_TYPES  = ("avoir_émis",)
 CONTRA_EXPENSE_TYPES = ("avoir_reçu",)
 
+# Pièces *émises* par l'utilisateur (donc soumises à ses propres règles de
+# facturation TVA). Un auto-entrepreneur en franchise (art. 293 B CGI) ne
+# peut pas facturer de TVA sur ces pièces.
+EMITTED_DOC_TYPES = INCOME_TYPES + CONTRA_INCOME_TYPES
+
 # Types présents dans la DB mais qui n'apparaissent pas au livre-journal.
 OFF_LEDGER_TYPES = ("relevé_bancaire", "devis")
 

@@ -23,6 +23,7 @@ from constants import (
     STATUT_VALIDE,
 )
 from db import get_category_tva_rates, get_extraction_cfg, get_known_emitters, get_user_profile, open_db
+from services.montants import normaliser_tva_selon_profil
 from parsers import (
     _confidence_score,
     _guess_category,
@@ -269,7 +270,7 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
     if not émetteur_nom and known_emitters:
         émetteur_nom = _match_known_emitter(text, known_emitters)
 
-    return {
+    row = {
         "id":                       str(uuid.uuid4()),
         "type_document":            doc_type,
         "numéro_facture":           invoice_num,
@@ -321,6 +322,14 @@ def parse_invoice(text: str, fichier_source: str, profil: str, user_siren: str =
         "date_extraction":          datetime.now(timezone.utc).isoformat(),
         "texte_brut":               text,
     }
+    # Franchise en base (art. 293 B CGI) : pour un profil non assujetti
+    # qui *émet* une pièce, on neutralise toute TVA captée par l'OCR
+    # avant insertion. Pièces reçues : non touchées.
+    normaliser_tva_selon_profil(row, row["type_document"], profil)
+    # `montant_eur` reflète le TTC à la date du document (cf. ligne au-dessus) ;
+    # le re-synchroniser après normalisation évite de garder un TTC fantôme.
+    row["montant_eur"] = row["montant_ttc"]
+    return row
 
 # ── File handling ─────────────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from config import CADENCE_DEFAULTS
-from constants import FISCAL_RULES, MONTHS_FR_SHORT, STATUT_A_REVISER
+from constants import MONTHS_FR_SHORT, STATUT_A_REVISER
 from db import get_user_profile, open_db
 from services.comptabilite import is_off_ledger, sens_comptable, to_journal_row
 

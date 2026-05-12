@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal, ROUND_HALF_UP
 from typing import NamedTuple
 
-from constants import LEGAL_RATES, RATE_SNAP_TOLERANCE
+from constants import EMITTED_DOC_TYPES, FISCAL_RULES, LEGAL_RATES, RATE_SNAP_TOLERANCE
 
 # Avertissements émis par `complete_amounts`. Les appelants traduisent en
 # transitions métier (statut, message UI).
@@ -116,6 +116,34 @@ def complete_amounts(
         derived=frozenset(derived),
         warnings=tuple(warnings),
     )
+
+
+def normaliser_tva_selon_profil(
+    fields: dict, type_document: str | None, profil_fiscal: str | None,
+) -> None:
+    """Neutralise la TVA sur une pièce **émise** par un profil sans TVA.
+
+    Règle (art. 293 B CGI pour l'auto-entrepreneur, équivalent pour salarié) :
+    un profil dont `tva_déductible == False` ne facture pas de TVA sur ses
+    propres pièces. On force donc `taux_tva=None`, `montant_tva=0` et
+    `montant_ttc=montant_ht` *avant* toute inférence arithmétique.
+
+    Pièces **reçues** : non touchées — la TVA portée par le fournisseur est
+    conservée telle quelle ; sa non-déductibilité est portée par le drapeau
+    `déductible` au niveau de l'item, pas par ce normaliseur.
+
+    Mutation in-place de `fields`.
+    """
+    if FISCAL_RULES.get(profil_fiscal, {}).get("tva_déductible", False):
+        return
+    if type_document not in EMITTED_DOC_TYPES:
+        return
+    fields["taux_tva"] = None
+    fields["montant_tva"] = 0.0
+    if fields.get("montant_ht") is not None:
+        fields["montant_ttc"] = fields["montant_ht"]
+    elif fields.get("montant_ttc") is not None:
+        fields["montant_ht"] = fields["montant_ttc"]
 
 
 def derive_amounts(ht, tva, ttc):

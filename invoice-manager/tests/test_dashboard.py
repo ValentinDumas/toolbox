@@ -1349,6 +1349,68 @@ def test_warning_démotion_taux_manquant_est_loggué_dans_corrections_log():
     assert result["statut_révision"] == "à_réviser"
 
 
+# ── Franchise en base art. 293 B CGI : neutralisation TVA pour AE ─────────────
+
+def test_facture_emise_auto_entrepreneur_taux_tva_est_neutralisé():
+    """Given une facture *émise* par un auto-entrepreneur avec un taux TVA
+    parasite captée par l'OCR (20 %),
+    When on applique la règle de franchise en base,
+    Then la TVA est neutralisée : taux=None, montant_tva=0, TTC=HT."""
+    from services.montants import normaliser_tva_selon_profil
+    # Given — auto-entrepreneur émet une facture, OCR a piégé un faux 20 %
+    fields = {
+        "montant_ht": 100.0,
+        "taux_tva": 0.20,
+        "montant_tva": 20.0,
+        "montant_ttc": 120.0,
+    }
+    # When
+    normaliser_tva_selon_profil(fields, "facture_émise", "auto-entrepreneur")
+    # Then — invariant franchise en base : HT = TTC, pas de TVA
+    assert fields["taux_tva"] is None
+    assert fields["montant_tva"] == 0.0
+    assert fields["montant_ttc"] == 100.0
+    assert fields["montant_ht"] == 100.0
+
+
+def test_facture_recue_auto_entrepreneur_conserve_tva_fournisseur():
+    """Given une facture *reçue* par un auto-entrepreneur (le fournisseur,
+    lui, facture sa TVA),
+    When on applique la règle de franchise en base,
+    Then la TVA fournisseur est conservée — sa non-déductibilité est
+    gouvernée par le drapeau `déductible`, pas par ce normaliseur."""
+    from services.montants import normaliser_tva_selon_profil
+    # Given — facture reçue d'un fournisseur SASU à 20 %
+    fields = {
+        "montant_ht": 100.0,
+        "taux_tva": 0.20,
+        "montant_tva": 20.0,
+        "montant_ttc": 120.0,
+    }
+    # When
+    normaliser_tva_selon_profil(fields, "facture_reçue", "auto-entrepreneur")
+    # Then — donnée fournisseur intacte
+    assert fields["taux_tva"] == 0.20
+    assert fields["montant_tva"] == 20.0
+    assert fields["montant_ttc"] == 120.0
+    assert fields["montant_ht"] == 100.0
+
+
+def test_facture_emise_sasu_conserve_la_tva():
+    """Profil assujetti (SASU) : la règle ne s'applique pas, TVA inchangée."""
+    from services.montants import normaliser_tva_selon_profil
+    fields = {
+        "montant_ht": 100.0,
+        "taux_tva": 0.20,
+        "montant_tva": 20.0,
+        "montant_ttc": 120.0,
+    }
+    normaliser_tva_selon_profil(fields, "facture_émise", "SASU")
+    assert fields["taux_tva"] == 0.20
+    assert fields["montant_tva"] == 20.0
+    assert fields["montant_ttc"] == 120.0
+
+
 # ── Endpoints d'import et fragments ──────────────────────────────────────────
 
 def _semer_lignes_job(db_path, job_id, files):

@@ -15,6 +15,7 @@ from flask import Blueprint, flash, jsonify, redirect, request
 from constants import STATUT_A_REVISER, STATUT_VALIDE
 from context_helpers import active_db, active_paths, get_profile
 from db import open_db
+from services.montants import normaliser_tva_selon_profil
 from services.revision import (
     _build_corrections_log,
     _check_taux_manquant_si_grand_montant,
@@ -67,6 +68,14 @@ def facture_save(item_id):
             conn.close()
             return jsonify({"ok": False, "errors": errors})
 
+        # Règle franchise en base (art. 293 B CGI) : avant toute inférence
+        # arithmétique, on neutralise la TVA pour les pièces émises par un
+        # profil non assujetti. Sinon `_complete_montants` ré-introduirait
+        # une TVA fantôme depuis un taux parasite.
+        profil_fiscal = (get_profile() or {}).get("fiscal_profile")
+        type_doc = fields.get("type_document") or current.get("type_document")
+        normaliser_tva_selon_profil(fields, type_doc, profil_fiscal)
+
         mismatch_warning = _complete_montants(fields, current)
 
         confidence, confidence_warning = _recompute_confidence(fields, current)
@@ -74,7 +83,6 @@ def facture_save(item_id):
         # Règle fiscale art. 242 nonies A : au-dessus du seuil simplifié, la
         # TVA doit être détaillée pour être déductible. Pas applicable aux
         # profils non assujettis à la déduction (auto-entrepreneur, salarié).
-        profil_fiscal = (get_profile() or {}).get("fiscal_profile")
         taux_warning = _check_taux_manquant_si_grand_montant(
             fields, current, profil_fiscal,
         )
