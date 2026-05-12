@@ -1575,6 +1575,14 @@
       document.getElementById('delete-modal').classList.remove('open');
     });
 
+    // Escape closes any open modal (fix #77)
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      document.querySelectorAll('.modal-backdrop.open').forEach(function (m) {
+        m.classList.remove('open');
+      });
+    });
+
     function retryErrorFile(btn, filename) {
       btn.disabled = true;
       btn.textContent = '…';
