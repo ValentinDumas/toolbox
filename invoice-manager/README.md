@@ -512,7 +512,7 @@ python dashboard.py --port 8080   # changer le port
 
 Le dashboard affiche :
 - **En-tête** : sélecteur de profil — dropdown listant toutes les entités, switcher de contexte instantané, bouton "＋ Nouveau profil". Le badge affiche la photo de profil (si uploadée) ou les initiales, le nom, profil fiscal et SIREN de l'entité active.
-- **Import multi-fichiers** : bouton "⬆ Importer" ouvre une modale avec drag & drop — plusieurs PDF/images simultanément, extraction lancée en background, résultats visibles sans recharger la page.
+- **Import multi-fichiers** : bouton "⬆ Importer" ouvre une modale avec drag & drop — plusieurs PDF/images simultanément, extraction lancée en background, résultats visibles sans recharger la page. Extensions acceptées : `.pdf`, `.png`, `.jpg`, `.jpeg`, `.heic`, `.heif`, `.tif`, `.tiff`, `.webp`. Toute autre extension est rejetée avec un message "Extension de fichier non autorisée" avant tout accès disque (défense en profondeur, doublée d'un sniff magic bytes pour les binaires renommés).
 - **Synthèse fiscale** : CA HT, TVA collectée/déductible/à reverser, total charges
   - *TVA déductible* : TVA payée sur vos achats fournisseurs — récupérable auprès de l'État
   - *TVA à reverser* : TVA collectée sur vos ventes − TVA déductible = montant net dû au fisc (négatif = crédit de TVA)

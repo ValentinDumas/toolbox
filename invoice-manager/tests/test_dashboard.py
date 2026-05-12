@@ -1048,7 +1048,13 @@ def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkey
 
 
 def test_depot_rejette_exe_via_magic_bytes(mem_db, tmp_path, monkeypatch):
-    """Un .exe (header MZ) doit être rejeté avant écriture disque."""
+    """Un .exe (header MZ) doit être rejeté avant écriture disque.
+
+    Depuis l'issue #108, c'est la whitelist d'extensions qui filtre en
+    premier (l'extension .exe ne fait pas partie des types attendus). Le
+    sniff magic bytes reste une deuxième ligne de défense pour les
+    binaires renommés avec une extension autorisée.
+    """
     import blueprints.pipeline as _bp
     monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
 
@@ -1063,6 +1069,24 @@ def test_depot_rejette_exe_via_magic_bytes(mem_db, tmp_path, monkeypatch):
     body = resp.get_json()
     assert body["failed"], "le tableau failed doit contenir le fichier rejeté"
     assert body["failed"][0]["filename"] == "evil.exe"
+    assert "Extension de fichier non autorisée" in body["failed"][0]["reason"]
+
+
+def test_depot_rejette_binaire_renomme_pdf(mem_db, tmp_path, monkeypatch):
+    """Un binaire avec extension autorisée mais magic bytes invalides doit
+    être rejeté par la deuxième ligne de défense (sniff)."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(b"MZ\x90\x00" + b"\x00" * 60), "evil.pdf")},
+            content_type="multipart/form-data",
+        )
+    body = resp.get_json()
+    assert body["failed"][0]["filename"] == "evil.pdf"
     assert body["failed"][0]["reason"] == "type non supporté"
 
     # Le fichier ne doit PAS atterrir dans input/.
@@ -1090,3 +1114,67 @@ def test_depot_accepte_pdf_valide(mem_db, tmp_path, monkeypatch):
 
     input_dir = _bp.resolve_paths("test-profile")["input"]
     assert (input_dir / "real.pdf").exists()
+
+
+def test_depot_rejette_extensions_non_autorisees(mem_db, tmp_path, monkeypatch):
+    """Issue #108 : .exe / .sh / .js / .zip sont rejetés par la whitelist."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    payloads = [
+        ("evil.exe", b"MZ\x90\x00" + b"\x00" * 60),
+        ("script.sh", b"#!/bin/sh\necho pwned\n"),
+        ("payload.js", b"alert('xss')\n"),
+        ("archive.zip", b"PK\x03\x04" + b"\x00" * 60),
+    ]
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={
+                "files": [
+                    (__import__("io").BytesIO(body), name)
+                    for name, body in payloads
+                ],
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is False
+    rejected = {f["filename"]: f["reason"] for f in body["failed"]}
+    assert set(rejected) == {"evil.exe", "script.sh", "payload.js", "archive.zip"}
+    for name, reason in rejected.items():
+        assert reason.startswith("Extension de fichier non autorisée"), (name, reason)
+
+    # Aucun fichier ne doit atterrir sur disque.
+    input_dir = _bp.resolve_paths("test-profile")["input"]
+    for name, _ in payloads:
+        assert not (input_dir / name).exists()
+
+
+def test_depot_accepte_extensions_autorisees(mem_db, tmp_path, monkeypatch):
+    """Issue #108 : .pdf et .png avec magic bytes valides traversent le filtre."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    png_header = b"\x89PNG\r\n\x1a\n" + b"\x00" * 24
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={
+                "files": [
+                    (__import__("io").BytesIO(b"%PDF-1.7\n%body"), "ok.pdf"),
+                    (__import__("io").BytesIO(png_header), "ok.png"),
+                ],
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert set(body["files"]) == {"ok.pdf", "ok.png"}
+    assert body["failed"] == []
