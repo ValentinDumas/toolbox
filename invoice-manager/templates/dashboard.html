@@ -645,10 +645,10 @@
       text-align: left;
       transition: background 0.1s, border-color 0.1s;
     }
-    .health-card-action:hover { background: var(--surface-variant); }
-    .health-card-action:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
-    .health-card-action:active { background: var(--surface-variant); filter: brightness(0.92); }
-    .health-card-action:disabled { opacity: 0.6; cursor: not-allowed; }
+    .health-card-action:not(:disabled):hover { background: var(--surface-variant); }
+    .health-card-action:not(:disabled):focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .health-card-action:not(:disabled):active { background: var(--surface-variant); filter: brightness(0.92); }
+    .health-card-action:disabled { opacity: 0.6; cursor: default; }
     .ocr-preview { margin-top: 16px; margin-bottom: 16px; font-size: 12px; color: var(--on-surface-muted); }
     .ocr-preview summary { cursor: pointer; user-select: none; }
     .ocr-preview pre { white-space: pre-wrap; word-break: break-word;

@@ -518,7 +518,7 @@ Le dashboard affiche :
   - *TVA déductible* : TVA payée sur vos achats fournisseurs — récupérable auprès de l'État
   - *TVA à reverser* : TVA collectée sur vos ventes − TVA déductible = montant net dû au fisc (négatif = crédit de TVA)
   - *Format des montants négatifs* : affichage avec signe `-` en préfixe (ex. `-1 234,56 €`), jamais entre parenthèses comptables
-- **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page. Quand des liens de fichiers introuvables sur disque existent, une 4e carte **Liens morts** apparaît avec un compteur et un bouton de purge intégré — elle disparaît une fois la purge effectuée
+- **Santé** : fichiers en attente, items à valider, erreurs — toujours visible en haut de page. Chaque carte est cliquable (et focusable au clavier) **uniquement quand son compteur est ≥ 1** ; à 0 elle est affichée en état désactivé (atténuée, curseur par défaut, sans hover/focus ring, hors navigation Tab). Quand des liens de fichiers introuvables sur disque existent, une 4e carte **Liens morts** apparaît avec un compteur et un bouton de purge intégré — elle disparaît une fois la purge effectuée
 
 Navigation par onglets (sous la synthèse) :
 - **Ledger** : toutes les factures de l'année, paginées (50 / page), avec badge de statut par ligne. Le nom de fichier source est affiché en sous-texte de la colonne Fournisseur/Client (tronqué à 16 caractères + `…` + extension) — cliquable pour ouvrir la prévisualisation PDF. Les items `à_réviser` affichent un bouton **→ Réviser** dans la colonne Statut (toujours visible, sans survol). Chaque ligne affiche également 🔍 prévisualisation, 📥 téléchargement, et 🗑 suppression
