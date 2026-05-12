@@ -78,22 +78,27 @@ def query_ledger(conn: sqlite3.Connection, year: int, page: int = 1, per_page: i
     """Retourne une page du ledger pour une année."""
     offset = (page - 1) * per_page
     rows = conn.execute(
-        "SELECT * FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL ORDER BY date_document DESC LIMIT ? OFFSET ?",
-        (year, per_page, offset),
+        "SELECT * FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL "
+        "AND statut_révision != ? ORDER BY date_document DESC LIMIT ? OFFSET ?",
+        (year, STATUT_A_REVISER, per_page, offset),
     ).fetchall()
     total_count = conn.execute(
-        "SELECT COUNT(*) FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL", (year,)
+        "SELECT COUNT(*) FROM invoices WHERE exercice_fiscal=? AND deleted_at IS NULL "
+        "AND statut_révision != ?",
+        (year, STATUT_A_REVISER),
     ).fetchone()[0]
 
     ph_in = ",".join("?" * len(INCOME_TYPES))
     ph_ex = ",".join("?" * len(EXPENSE_TYPES))
     total_credit = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_in}) AND deleted_at IS NULL",
-        (year, *INCOME_TYPES),
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? "
+        f"AND type_document IN ({ph_in}) AND deleted_at IS NULL AND statut_révision != ?",
+        (year, *INCOME_TYPES, STATUT_A_REVISER),
     ).fetchone()[0] or 0.0
     total_debit = conn.execute(
-        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_ex}) AND deleted_at IS NULL",
-        (year, *EXPENSE_TYPES),
+        f"SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? "
+        f"AND type_document IN ({ph_ex}) AND deleted_at IS NULL AND statut_révision != ?",
+        (year, *EXPENSE_TYPES, STATUT_A_REVISER),
     ).fetchone()[0] or 0.0
 
     return {
