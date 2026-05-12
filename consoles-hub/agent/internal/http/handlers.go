@@ -17,6 +17,29 @@ type apiError struct {
 	Message string `json:"message"`
 }
 
+// waiting is the tracker handed in by NewHandler. Package-private so tests
+// can stub it via setWaitingTracker.
+var waiting WaitingTracker = noopWaiting{}
+
+type noopWaiting struct{}
+
+func (noopWaiting) IsWaiting(string) bool { return false }
+
+func setWaitingTracker(t WaitingTracker) {
+	if t == nil {
+		waiting = noopWaiting{}
+		return
+	}
+	waiting = t
+}
+
+func applyWaiting(panes []tmux.Pane) []tmux.Pane {
+	for i := range panes {
+		panes[i].WaitingForInput = waiting.IsWaiting(panes[i].ID)
+	}
+	return panes
+}
+
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -52,7 +75,7 @@ func handleListConsoles(w http.ResponseWriter, _ *http.Request) {
 		writeTmuxErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, panes)
+	writeJSON(w, http.StatusOK, applyWaiting(panes))
 }
 
 func handleGetConsole(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +84,7 @@ func handleGetConsole(w http.ResponseWriter, r *http.Request) {
 		writeTmuxErr(w, err)
 		return
 	}
+	p.WaitingForInput = waiting.IsWaiting(p.ID)
 	writeJSON(w, http.StatusOK, p)
 }
 

@@ -26,6 +26,13 @@ ping-me -- npm run build                  # run a command, ping on exit (with du
 ping-me --hook                            # Claude Code Stop hook (reads JSON on stdin)
 ```
 
+When run inside a tmux pane, `--hook` also appends a signal line to
+`~/.local/state/consoles-hub/signals.ndjson`. If
+[`consoles-hub-agent`](../agent/) is running, it watches that file and
+flips the pane's `waiting_for_input` flag, which the iOS client uses to
+highlight panes that need a human. The flag clears automatically the
+next time the pane produces output.
+
 ### Wire as Claude Code Stop hook
 
 Replace the body of `~/workflow/hooks/notify-on-stop.sh` with:

@@ -117,10 +117,35 @@ curl -s -XPOST -H "Authorization: Bearer $TOKEN" \
 ./install.sh rotate-token             # one-shot: stop, regenerate, restart
 ```
 
+## `waiting_for_input`
+
+Each `Pane.waiting_for_input` flag is fed by
+`~/.local/state/consoles-hub/signals.ndjson`. `ping-me --hook` (running
+inside a tmux pane) appends one line of:
+
+```json
+{"pane_id":"%23","at":"2026-05-12T10:21:03Z","kind":"waiting"}
+```
+
+The agent watches the file via `fsnotify`, baselines the pane's current
+`capture-pane` hash, and clears the flag the first time the hash changes
+(i.e. the pane produced new output). This works around tmux 3.6
+returning empty `#{pane_activity}` — the spec's pane-activity comparison
+is replaced by hash-diff. Polling interval is 1 second per signaled pane;
+polling stops on clear.
+
+`pane_id: null` (hook ran outside tmux) and unknown `kind:` values are
+silently ignored. Malformed lines are logged and dropped.
+
+The clearing rule hashes only the **visible** buffer (`tmux capture-pane
+-p`). Activity that happens off-screen (e.g. typing into a pane whose
+prompt has scrolled out of the visible region) won't trigger a clear —
+the next visible change does.
+
 ## Known v0 limits
 
 - `send` text is **literal UTF-8 only** (`tmux send-keys -l`). Named keys
   (`C-c`, `Up`, `Escape`) are not interpreted — coming in v1.
-- `waiting_for_input` is always `false`. Wiring to `ping-me --hook` is its
-  own spec slice.
-- No WebSocket stream yet; only HTTP poll for buffer.
+- `signals.ndjson` is append-only; rotation is its own slice.
+- `waiting_for_input` changes are not pushed over the WebSocket stream
+  yet — clients see updates on the next `/consoles` poll.

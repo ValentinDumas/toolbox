@@ -22,11 +22,12 @@ fi
 
 die() { echo "ping-me: $*" >&2; exit 1; }
 
-[ -n "$NTFY_TOPIC" ] || die "NTFY_TOPIC not set. Run install.sh or edit $CONFIG."
-command -v curl >/dev/null || die "curl is required."
-
 # publish "title" "message" [priority] [tags]
+# No-op when NTFY_TOPIC is unset, so --hook still feeds the signal file
+# even before the user has configured ntfy.
 publish() {
+  [ -n "$NTFY_TOPIC" ] || return 0
+  command -v curl >/dev/null || die "curl is required."
   local title="$1" message="$2" priority="${3:-default}" tags="${4:-}"
   local -a args=( -sS --max-time 10
                   -H "Title: $title"
@@ -37,9 +38,28 @@ publish() {
   curl "${args[@]}" "$NTFY_URL/$NTFY_TOPIC" >/dev/null
 }
 
+# Append one NDJSON signal line for consoles-hub-agent (transport-design §10).
+emit_signal() {
+  local kind="$1"
+  local state_dir="${HOME}/.local/state/consoles-hub"
+  mkdir -p "$state_dir" && chmod 700 "$state_dir"
+  local ts pane_json sig_file
+  ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  if [ -n "${TMUX_PANE:-}" ]; then
+    pane_json="\"${TMUX_PANE}\""
+  else
+    pane_json="null"
+  fi
+  sig_file="${state_dir}/signals.ndjson"
+  printf '{"pane_id":%s,"at":"%s","kind":"%s"}\n' \
+    "$pane_json" "$ts" "$kind" >> "$sig_file"
+  chmod 600 "$sig_file" 2>/dev/null || true
+}
+
 if [ "${1:-}" = "--hook" ]; then
   # Claude Code Stop hook: stdin is JSON; we don't strictly need it.
   cat >/dev/null 2>&1 || true
+  emit_signal "waiting" 2>/dev/null || true
   publish "Claude Code" "Waiting for input" "high" "robot"
   exit 0
 fi
@@ -47,6 +67,7 @@ fi
 if [ "${1:-}" = "--" ]; then
   shift
   [ $# -gt 0 ] || die "no command given after --"
+  [ -n "$NTFY_TOPIC" ] || die "NTFY_TOPIC not set. Run install.sh or edit $CONFIG."
   cmd_label="$*"
   start=$SECONDS
   set +e
@@ -63,4 +84,5 @@ if [ "${1:-}" = "--" ]; then
 fi
 
 [ $# -gt 0 ] || die "usage: ping-me \"message\" | ping-me -- cmd ... | ping-me --hook"
+[ -n "$NTFY_TOPIC" ] || die "NTFY_TOPIC not set. Run install.sh or edit $CONFIG."
 publish "ping-me" "$*"

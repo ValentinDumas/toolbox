@@ -8,14 +8,22 @@ import (
 	"github.com/vdumas/consoles-hub/agent/internal/auth"
 )
 
+// WaitingTracker is the read interface the handlers need from the signals
+// package — kept narrow so handlers don't import all of signals (and tests
+// can stub it).
+type WaitingTracker interface {
+	IsWaiting(paneID string) bool
+}
+
 // NewHandler wires the v0 routes. `/healthz` is unauthenticated so the user
 // can debug connectivity before holding a token. Every other route requires
 // `Authorization: Bearer <token>`.
 //
-// originHosts is the allowlist passed to coder/websocket as OriginPatterns
-// for the live-stream upgrade. Loopback should always be in the list; the
-// tailnet IP is included when the agent is not in --local-only mode.
-func NewHandler(token string, originHosts []string) http.Handler {
+// originHosts is the WebSocket origin allowlist; waitingTracker reports
+// which panes have an unacknowledged ping-me signal.
+func NewHandler(token string, originHosts []string, waitingTracker WaitingTracker) http.Handler {
+	setWaitingTracker(waitingTracker)
+
 	root := http.NewServeMux()
 	root.HandleFunc("GET /healthz", handleHealth)
 
