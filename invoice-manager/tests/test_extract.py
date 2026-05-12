@@ -543,3 +543,165 @@ class TestKnownEmitters:
         text = _GARBLED_HEADER + "Total TTC: 249,99 EUR"
         row = ex.parse_invoice(text, "b.jpg", "auto-entrepreneur")
         assert row["émetteur_nom"] is None
+
+
+# ── import_jobs : suivi par fichier pendant l'extraction ─────────────────────
+
+def _semer_job(db_path, job_id, filenames):
+    """Helper : crée une ligne `en_attente` par fichier (comme le ferait /pipeline/depot)."""
+    from datetime import datetime, timezone
+    from db import open_db
+    now = datetime.now(timezone.utc).isoformat()
+    conn = open_db(db_path)
+    conn.executemany(
+        "INSERT INTO import_jobs (job_id, filename, statut, créé_le, mis_à_jour_le) "
+        "VALUES (?, ?, 'en_attente', ?, ?)",
+        [(job_id, name, now, now) for name in filenames],
+    )
+    conn.commit()
+    conn.close()
+
+
+def _statuts_job(db_path, job_id):
+    """Helper : {filename: statut} pour un job donné."""
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute(
+        "SELECT filename, statut FROM import_jobs WHERE job_id=?",
+        (job_id,),
+    ).fetchall()
+    conn.close()
+    return {r[0]: r[1] for r in rows}
+
+
+class TestImportJobsLifecycle:
+    def test_fichier_traité_passe_à_terminé(self, tmp_project, monkeypatch):
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB1", ["ovh.pdf"])
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB1"]
+            ex.main()
+
+        assert _statuts_job(db_path, "JOB1") == {"ovh.pdf": "terminé"}
+
+    def test_fichier_corrompu_passe_à_erreur(self, tmp_project, monkeypatch):
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB2", ["bad.pdf"])
+        (tmp_project / "input" / "bad.pdf").write_bytes(b"not a pdf at all")
+
+        import sys as _sys
+        _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB2"]
+        ex.main()
+
+        statuts = _statuts_job(db_path, "JOB2")
+        assert statuts == {"bad.pdf": "erreur"}
+
+    def test_message_erreur_persisté(self, tmp_project, monkeypatch):
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB3", ["bad.pdf"])
+        (tmp_project / "input" / "bad.pdf").write_bytes(b"not a pdf at all")
+
+        import sys as _sys
+        _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB3"]
+        ex.main()
+
+        conn = sqlite3.connect(db_path)
+        msg = conn.execute(
+            "SELECT message_erreur FROM import_jobs WHERE job_id=?", ("JOB3",)
+        ).fetchone()[0]
+        conn.close()
+        assert msg and len(msg) > 0
+
+    def test_invoice_id_rattaché_quand_terminé(self, tmp_project, monkeypatch):
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB4", ["ovh.pdf"])
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB4"]
+            ex.main()
+
+        conn = sqlite3.connect(db_path)
+        invoice_id = conn.execute(
+            "SELECT invoice_id FROM import_jobs WHERE job_id=?", ("JOB4",)
+        ).fetchone()[0]
+        nb = conn.execute(
+            "SELECT COUNT(*) FROM invoices WHERE id=?", (invoice_id,)
+        ).fetchone()[0]
+        conn.close()
+        assert nb == 1
+
+    def test_doublon_marqué_comme_tel(self, tmp_project, monkeypatch):
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        # 1er import : facture entre en base
+        _semer_job(db_path, "JOB5a", ["ovh.pdf"])
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB5a"]
+            ex.main()
+        # 2e import du même fichier → hash déjà en base → doublon
+        shutil.copy(
+            next((tmp_project / "processed").glob("ovh*")),
+            tmp_project / "input" / "ovh.pdf",
+        )
+        _semer_job(db_path, "JOB5b", ["ovh.pdf"])
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB5b"]
+            ex.main()
+
+        assert _statuts_job(db_path, "JOB5b") == {"ovh.pdf": "doublon"}
+
+    def test_fichier_disparu_clôturé_en_doublon(self, tmp_project, monkeypatch):
+        # Simule le cas où la dedup amont a supprimé le fichier avant extract.
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB6", ["disparu.pdf"])
+        # On ne crée rien dans input/
+
+        import sys as _sys
+        _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB6"]
+        ex.main()
+
+        assert _statuts_job(db_path, "JOB6") == {"disparu.pdf": "doublon"}
+
+    def test_crash_libère_les_lignes_en_attente(self, tmp_project, monkeypatch):
+        # Si extract.py crashe au milieu, le filet de sécurité doit basculer
+        # toute ligne non terminale en `erreur` pour ne pas bloquer le client.
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB_CRASH", ["ovh.pdf"])
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+
+        # On force une exception au sein de la boucle pour simuler un crash.
+        with patch("extract.extract_text", side_effect=KeyboardInterrupt("kill")):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB_CRASH"]
+            with pytest.raises(KeyboardInterrupt):
+                ex.main()
+
+        # La ligne ne doit plus être ni en_attente ni en_extraction.
+        statut = _statuts_job(db_path, "JOB_CRASH")["ovh.pdf"]
+        assert statut not in ("en_attente", "en_extraction")
+
+    def test_sans_job_id_pas_de_lignes_créées(self, tmp_project, monkeypatch):
+        # Régression CLI : `extract.py` sans --job-id ne doit toucher à rien.
+        _patch_extract_profile(monkeypatch, tmp_project)
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+        with patch("extract.extract_text", return_value=OVH_TEXT):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test"]
+            ex.main()
+
+        conn = sqlite3.connect(tmp_project / "data" / "invoices.db")
+        nb = conn.execute("SELECT COUNT(*) FROM import_jobs").fetchone()[0]
+        conn.close()
+        assert nb == 0

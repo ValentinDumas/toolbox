@@ -96,6 +96,28 @@ def create_app() -> Flask:
     def favicon():
         return Response(status=204)
 
+    @app.route("/fragments/synthese-fiscale")
+    def fragment_synthese_fiscale():
+        """GET /fragments/synthese-fiscale?year=YYYY — Cartes CA / TVA / résultat (HTML partiel).
+        Vit ici (et non dans pipeline.py) car c'est une vue du tableau de bord :
+        l'Ingestion n'a pas à connaître la synthèse fiscale."""
+        year = request.args.get("year", datetime.now().year, type=int)
+        conn = open_db(active_db())
+        summary = query_fiscal_summary(conn, year)
+        conn.close()
+        return render_template("fragments/synthese_fiscale.html",
+                               summary=summary, year=year)
+
+    @app.route("/fragments/sante")
+    def fragment_sante():
+        """GET /fragments/sante?year=YYYY — Carte santé du workspace (HTML partiel)."""
+        year = request.args.get("year", datetime.now().year, type=int)
+        paths = active_paths()
+        conn = open_db(paths["db"])
+        health = query_health(conn, paths)
+        conn.close()
+        return render_template("fragments/sante.html", health=health, year=year)
+
     @app.route("/")
     def index():
         year = request.args.get("year", datetime.now().year, type=int)

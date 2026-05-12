@@ -1,0 +1,60 @@
+<section aria-label="Vue de santé du workspace">
+  <h2 class="section-label">Santé</h2>
+  <div class="health-grid">
+
+    <form method="post" action="/pipeline/lancer" id="run-form" style="display:contents">
+      <input type="hidden" name="year" value="{{ year | default(0) }}">
+      <button type="submit" class="health-card health-card-action" id="run-btn"
+              {% if health.pending_files == 0 %}disabled aria-disabled="true"{% endif %}
+              aria-label="{% if health.pending_files == 0 %}Aucun fichier en attente — pipeline inactif{% else %}Lancer le pipeline — {{ health.pending_files }} fichier{{ 's' if health.pending_files != 1 }} en attente{% endif %}">
+        <div class="health-dot {{ 'dot-error' if health.pending_files > 0 else 'dot-ok' }}"
+             aria-hidden="true"></div>
+        <div class="health-info">
+          <div class="health-count">{{ health.pending_files }}</div>
+          <div class="health-label">Fichier{{ 's' if health.pending_files != 1 }} en attente</div>
+          <div class="{{ 'health-sublabel-error' if health.pending_files > 0 else 'health-sublabel-ok' }}">
+            {{ '↻ Mettre à jour' if health.pending_files > 0 else 'Tout est à jour' }}
+          </div>
+        </div>
+      </button>
+    </form>
+
+    <div class="health-card">
+      <div class="health-dot {{ 'dot-warning' if health.items_a_reviser > 0 else 'dot-ok' }}"
+           aria-hidden="true"></div>
+      <div class="health-info">
+        <div class="health-count">{{ health.items_a_reviser }}</div>
+        <div class="health-label">Item{{ 's' if health.items_a_reviser != 1 }} à réviser</div>
+        <div class="{{ 'health-sublabel-warning' if health.items_a_reviser > 0 else 'health-sublabel-ok' }}">
+          {{ 'Action requise' if health.items_a_reviser > 0 else 'Tout est à jour' }}
+        </div>
+      </div>
+    </div>
+
+    <div class="health-card">
+      <div class="health-dot {{ 'dot-error' if health.error_files > 0 else 'dot-ok' }}"
+           aria-hidden="true"></div>
+      <div class="health-info">
+        <div class="health-count">{{ health.error_files }}</div>
+        <div class="health-label">Fichier{{ 's' if health.error_files != 1 }} en erreur</div>
+        <div class="{{ 'health-sublabel-error' if health.error_files > 0 else 'health-sublabel-ok' }}">
+          {{ 'Vérifier errors/' if health.error_files > 0 else 'Tout est à jour' }}
+        </div>
+      </div>
+    </div>
+
+    {% if health.dead_links > 0 %}
+    <button type="button" class="health-card health-card-action" id="purge-btn"
+            onclick="purgeDeadLinks()"
+            aria-label="Purger les {{ health.dead_links }} lien{{ 's' if health.dead_links != 1 }} de fichiers introuvables sur disque">
+      <div class="health-dot dot-warning" aria-hidden="true"></div>
+      <div class="health-info">
+        <div class="health-count">{{ health.dead_links }}</div>
+        <div class="health-label">Lien{{ 's' if health.dead_links != 1 }} mort{{ 's' if health.dead_links != 1 }}</div>
+        <div class="health-sublabel-warning">↻ Purger</div>
+      </div>
+    </button>
+    {% endif %}
+
+  </div>
+</section>

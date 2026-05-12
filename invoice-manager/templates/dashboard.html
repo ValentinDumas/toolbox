@@ -612,6 +612,8 @@
     .upload-drop-zone.drag-over { border-color: var(--primary); background: #EFF6FF; }
     .upload-file-list { font-size: 13px; margin-bottom: 12px; }
     .upload-file-item { padding: 4px 0; color: var(--on-surface); display: flex; gap: 6px; }
+    .upload-file-statut { color: var(--on-surface-muted); font-size: 12px; }
+    .upload-file-erreur { color: var(--negative); font-size: 12px; }
     .upload-progress { margin-bottom: 12px; }
     .upload-progress-track {
       background: var(--surface-variant); border-radius: 4px; height: 6px; overflow: hidden;
@@ -898,104 +900,15 @@
 
     <main id="main-content">
 
-      {# ── Bloc 1 : Synthèse fiscale ─────────────────────────────────────── #}
-      {% set resultat_brut = summary.ca_ht - summary.total_charges %}
-      <section aria-label="Synthèse fiscale {{ year }}">
-        <h2 class="section-label">Synthèse fiscale</h2>
-        <div class="kpi-grid">
+      {# ── Bloc 1 : Synthèse fiscale (rechargeable via /fragments/synthese-fiscale) #}
+      <div id="fragment-synthese-fiscale">
+        {% include 'fragments/synthese_fiscale.html' %}
+      </div>
 
-          <div class="kpi-card">
-            <div class="kpi-value {% if resultat_brut > 0 %}color-positive{% elif resultat_brut < 0 %}color-negative{% else %}color-neutral{% endif %}">
-              {{ resultat_brut | fr_currency }}
-            </div>
-            <div class="kpi-label">Résultat brut</div>
-            <div class="kpi-formula">
-              <span class="op">+</span><span>CA HT</span><span class="amt">{{ summary.ca_ht | fr_currency }}</span>
-              <span class="op">−</span><span>Charges</span><span class="amt">{{ summary.total_charges | fr_currency }}</span>
-              {% if summary.nb_charges_revision > 0 %}
-              <span class="op"></span><span class="kpi-pending" style="grid-column: 2 / 4;">+ {{ summary.nb_charges_revision }} à réviser (~{{ summary.total_charges_revision | fr_currency }})</span>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
-              {{ summary.tva_a_reverser | fr_currency }}
-            </div>
-            <div class="kpi-label">TVA à reverser</div>
-            <div class="kpi-formula">
-              <span class="op">+</span><span>Collectée</span><span class="amt">{{ summary.tva_collectee | fr_currency }}</span>
-              <span class="op">−</span><span>Déductible</span><span class="amt">{{ summary.tva_deductible | fr_currency }}</span>
-              {% if summary.nb_tva_revision > 0 %}
-              <span class="op"></span><span class="kpi-pending" style="grid-column: 2 / 4;">+ {{ summary.nb_tva_revision }} à réviser (~{{ summary.tva_revision_a_reverser | fr_currency }})</span>
-              {% endif %}
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {# ── Bloc 2 : Santé ────────────────────────────────────────────────── #}
-      <section aria-label="Vue de santé du workspace">
-        <h2 class="section-label">Santé</h2>
-        <div class="health-grid">
-
-          <form method="post" action="/pipeline/lancer" id="run-form" style="display:contents">
-            <input type="hidden" name="year" value="{{ year }}">
-            <button type="submit" class="health-card health-card-action" id="run-btn"
-                    {% if health.pending_files == 0 %}disabled aria-disabled="true"{% endif %}
-                    aria-label="{% if health.pending_files == 0 %}Aucun fichier en attente — pipeline inactif{% else %}Lancer le pipeline — {{ health.pending_files }} fichier{{ 's' if health.pending_files != 1 }} en attente{% endif %}">
-              <div class="health-dot {{ 'dot-error' if health.pending_files > 0 else 'dot-ok' }}"
-                   aria-hidden="true"></div>
-              <div class="health-info">
-                <div class="health-count">{{ health.pending_files }}</div>
-                <div class="health-label">Fichier{{ 's' if health.pending_files != 1 }} en attente</div>
-                <div class="{{ 'health-sublabel-error' if health.pending_files > 0 else 'health-sublabel-ok' }}">
-                  {{ '↻ Mettre à jour' if health.pending_files > 0 else 'Tout est à jour' }}
-                </div>
-              </div>
-            </button>
-          </form>
-
-          <div class="health-card">
-            <div class="health-dot {{ 'dot-warning' if health.items_a_reviser > 0 else 'dot-ok' }}"
-                 aria-hidden="true"></div>
-            <div class="health-info">
-              <div class="health-count">{{ health.items_a_reviser }}</div>
-              <div class="health-label">Item{{ 's' if health.items_a_reviser != 1 }} à réviser</div>
-              <div class="{{ 'health-sublabel-warning' if health.items_a_reviser > 0 else 'health-sublabel-ok' }}">
-                {{ 'Action requise' if health.items_a_reviser > 0 else 'Tout est à jour' }}
-              </div>
-            </div>
-          </div>
-
-          <div class="health-card">
-            <div class="health-dot {{ 'dot-error' if health.error_files > 0 else 'dot-ok' }}"
-                 aria-hidden="true"></div>
-            <div class="health-info">
-              <div class="health-count">{{ health.error_files }}</div>
-              <div class="health-label">Fichier{{ 's' if health.error_files != 1 }} en erreur</div>
-              <div class="{{ 'health-sublabel-error' if health.error_files > 0 else 'health-sublabel-ok' }}">
-                {{ 'Vérifier errors/' if health.error_files > 0 else 'Tout est à jour' }}
-              </div>
-            </div>
-          </div>
-
-          {% if health.dead_links > 0 %}
-          <button type="button" class="health-card health-card-action" id="purge-btn"
-                  onclick="purgeDeadLinks()"
-                  aria-label="Purger les {{ health.dead_links }} lien{{ 's' if health.dead_links != 1 }} de fichiers introuvables sur disque">
-            <div class="health-dot dot-warning" aria-hidden="true"></div>
-            <div class="health-info">
-              <div class="health-count">{{ health.dead_links }}</div>
-              <div class="health-label">Lien{{ 's' if health.dead_links != 1 }} mort{{ 's' if health.dead_links != 1 }}</div>
-              <div class="health-sublabel-warning">↻ Purger</div>
-            </div>
-          </button>
-          {% endif %}
-
-        </div>
-      </section>
+      {# ── Bloc 2 : Santé (rechargeable via /fragments/sante) ─────────────── #}
+      <div id="fragment-sante">
+        {% include 'fragments/sante.html' %}
+      </div>
 
       {# ── Tab bar ───────────────────────────────────────────────────────────── #}
       <div role="tablist" class="tab-bar" aria-label="Navigation">
@@ -1839,7 +1752,7 @@
         <div class="upload-progress-track">
           <div id="upload-progress-bar" class="upload-progress-bar"></div>
         </div>
-        <p id="upload-status" class="upload-status"></p>
+        <p id="upload-status" class="upload-status" aria-live="polite"></p>
       </div>
 
       <div class="modal-actions">
@@ -1920,7 +1833,11 @@
     document.getElementById('upload-submit').disabled = true;
   }
 
+  // Permet d'interrompre la boucle de polling quand l'utilisateur ferme la modale.
+  var jobPollController = null;
+
   function closeUploadModal() {
+    if (jobPollController) { jobPollController.abort(); jobPollController = null; }
     document.getElementById('upload-modal').classList.remove('open');
   }
 
@@ -1929,13 +1846,27 @@
   });
 
   document.getElementById('upload-input').addEventListener('change', function() {
+    // Sécurité : noms de fichiers utilisateurs jamais interpolés en HTML.
     var files = Array.from(this.files);
     var list = document.getElementById('upload-file-list');
-    list.innerHTML = files.map(function(f) {
-      return '<div class="upload-file-item"><span>📄</span><span>' + f.name +
-             '</span><span style="color:var(--on-surface-muted)">(' +
-             (f.size / 1024).toFixed(0) + ' Ko)</span></div>';
-    }).join('');
+    list.replaceChildren();
+    files.forEach(function(f) {
+      var row = document.createElement('div');
+      row.className = 'upload-file-item';
+
+      var icon = document.createElement('span');
+      icon.textContent = '📄';
+
+      var name = document.createElement('span');
+      name.textContent = f.name;
+
+      var size = document.createElement('span');
+      size.className = 'upload-file-statut';
+      size.textContent = '(' + (f.size / 1024).toFixed(0) + ' Ko)';
+
+      row.append(icon, name, size);
+      list.append(row);
+    });
     document.getElementById('upload-submit').disabled = files.length === 0;
   });
 
@@ -1953,9 +1884,96 @@
     input.dispatchEvent(new Event('change'));
   });
 
+  // Pictogrammes par statut métier (cf. constants.IMPORT_*).
+  var IMPORT_ICONS = {
+    en_attente:    '⏸',
+    en_extraction: '⏳',
+    'terminé':     '✅',
+    erreur:        '❌',
+    doublon:       '↩︎',
+  };
+
+  function currentYear() {
+    var params = new URLSearchParams(window.location.search);
+    var fromUrl = parseInt(params.get('year'), 10);
+    return Number.isFinite(fromUrl) ? fromUrl : new Date().getFullYear();
+  }
+
+  function renderJobFiles(files) {
+    // Sécurité : on construit chaque ligne via createElement + textContent,
+    // jamais via innerHTML — `filename` et `message_erreur` viennent de
+    // données utilisateur et pourraient contenir du HTML actif.
+    var list = document.getElementById('upload-file-list');
+    list.replaceChildren();
+    files.forEach(function(f) {
+      var row = document.createElement('div');
+      row.className = 'upload-file-item';
+
+      var icon = document.createElement('span');
+      icon.textContent = IMPORT_ICONS[f.statut] || '·';
+
+      var name = document.createElement('span');
+      name.textContent = f.filename;
+
+      var statut = document.createElement('span');
+      statut.className = 'upload-file-statut';
+      statut.textContent = f.statut;
+
+      row.append(icon, name, statut);
+
+      if (f.message_erreur) {
+        var err = document.createElement('span');
+        err.className = 'upload-file-erreur';
+        err.textContent = f.message_erreur;
+        row.append(err);
+      }
+      list.append(row);
+    });
+  }
+
+  async function rafraichirCartesEtSante() {
+    var year = currentYear();
+    var [synthese, sante] = await Promise.all([
+      fetch('/fragments/synthese-fiscale?year=' + year).then(function(r) { return r.text(); }),
+      fetch('/fragments/sante?year=' + year).then(function(r) { return r.text(); }),
+    ]);
+    document.getElementById('fragment-synthese-fiscale').innerHTML = synthese;
+    document.getElementById('fragment-sante').innerHTML = sante;
+  }
+
+  // Plafond client : si le job ne se termine pas en 5 min, on rend la main
+  // à l'utilisateur plutôt que de boucler indéfiniment.
+  var JOB_POLL_INTERVAL_MS = 1000;
+  var JOB_POLL_TIMEOUT_MS  = 5 * 60 * 1000;
+
+  async function suivreJob(jobId, signal) {
+    var bar    = document.getElementById('upload-progress-bar');
+    var status = document.getElementById('upload-status');
+    var debut  = Date.now();
+
+    while (true) {
+      if (signal && signal.aborted) throw new DOMException('Interrompu', 'AbortError');
+      var resp = await fetch('/pipeline/jobs/' + jobId, { signal: signal });
+      if (resp.status === 404) throw new Error('Job introuvable côté serveur.');
+      var job = await resp.json();
+      renderJobFiles(job.files);
+      var s = job.summary;
+      var fait = s['terminé'] + s.erreur + s.doublon;
+      var pct  = s.total ? Math.round((fait / s.total) * 100) : 0;
+      bar.style.width = pct + '%';
+      status.textContent = 'Extraction : ' + fait + ' / ' + s.total +
+                           ' (' + s.en_extraction + ' en cours)';
+      if (job.finished) return job;
+      if (Date.now() - debut > JOB_POLL_TIMEOUT_MS) {
+        throw new Error('Délai dépassé : le pipeline n\'a pas répondu en 5 minutes.');
+      }
+      await new Promise(function(r) { setTimeout(r, JOB_POLL_INTERVAL_MS); });
+    }
+  }
+
   async function submitUpload() {
-    var input   = document.getElementById('upload-input');
-    var files   = Array.from(input.files);
+    var input = document.getElementById('upload-input');
+    var files = Array.from(input.files);
     if (!files.length) return;
 
     var fd = new FormData();
@@ -1965,47 +1983,73 @@
     var bar      = document.getElementById('upload-progress-bar');
     var status   = document.getElementById('upload-status');
     progress.style.display = 'block';
-    bar.style.width = '30%';
+    bar.style.width = '5%';
+    bar.style.background = '';
     status.textContent = 'Envoi de ' + files.length + ' fichier(s)…';
     document.getElementById('upload-submit').disabled = true;
 
+    // Construit en DOM (jamais innerHTML) l'alerte « Fichiers non enregistrés »,
+    // car `f.name` vient du navigateur et pourrait contenir du HTML actif
+    // (cf. issue #69).
     function renderFailures(failed) {
-      if (!failed || !failed.length) return '';
-      var items = failed.map(function (f) {
-        return '<li><strong>' + f.name + '</strong> — ' + (f.error || 'échec') + '</li>';
-      }).join('');
-      return '<div role="alert" aria-live="assertive" class="upload-errors" ' +
-             'style="margin-top:12px;padding:10px 12px;border:1px solid #FCA5A5;' +
-             'background:#FEE2E2;color:#991B1B;border-radius:6px;font-size:13px">' +
-             '<strong>Fichier(s) non enregistré(s) :</strong>' +
-             '<ul style="margin:6px 0 0 18px">' + items + '</ul></div>';
+      var existing = document.getElementById('upload-failed-warning');
+      if (existing) existing.remove();
+      if (!failed || !failed.length) return;
+      var wrap = document.createElement('div');
+      wrap.id = 'upload-failed-warning';
+      wrap.className = 'upload-errors';
+      wrap.setAttribute('role', 'alert');
+      wrap.setAttribute('aria-live', 'assertive');
+      var title = document.createElement('strong');
+      title.textContent = 'Fichier(s) non enregistré(s) :';
+      var list = document.createElement('ul');
+      failed.forEach(function (f) {
+        var li = document.createElement('li');
+        var name = document.createElement('strong');
+        name.textContent = f.name;
+        li.append(name, ' — ', f.error || 'échec');
+        list.append(li);
+      });
+      wrap.append(title, list);
+      status.insertAdjacentElement('afterend', wrap);
     }
 
+    jobPollController = new AbortController();
     try {
       var resp = await fetch('/pipeline/depot', { method: 'POST', body: fd });
-      var data;
-      try { data = await resp.json(); }
+      var depot;
+      try { depot = await resp.json(); }
       catch (_) {
         throw new Error('Réponse serveur invalide (HTTP ' + resp.status + ').');
       }
-      if (!data.ok) {
-        status.innerHTML = 'Erreur : ' + (data.error || 'serveur') + renderFailures(data.failed);
+      // Échec total côté serveur (aucun fichier sauvegardé).
+      if (!depot.ok) {
+        status.textContent = 'Erreur : ' + (depot.error || 'serveur');
         bar.style.background = 'var(--negative)';
-        document.getElementById('upload-submit').disabled = false;
+        renderFailures(depot.failed);
         return;
       }
-      bar.style.width = '70%';
-      var msg = 'Extraction en cours pour ' + data.count + ' fichier(s)…';
-      status.innerHTML = msg + renderFailures(data.failed);
-      setTimeout(function() {
-        bar.style.width = '100%';
-        status.innerHTML = 'Terminé. Rechargement du tableau de bord…' + renderFailures(data.failed);
-        setTimeout(function() { closeUploadModal(); window.location.reload(); }, data.failed && data.failed.length ? 2500 : 800);
-      }, 2500);
-    } catch(err) {
+      // Sauvegarde partielle : on liste les échecs ET on suit le job pour les
+      // fichiers qui sont bien arrivés.
+      renderFailures(depot.failed);
+
+
+      var job = await suivreJob(depot.job_id, jobPollController.signal);
+      await rafraichirCartesEtSante();
+
+      bar.style.width = '100%';
+      var erreurs = job.summary.erreur + ((depot.failed && depot.failed.length) || 0);
+      status.textContent = erreurs
+        ? 'Terminé avec ' + erreurs + ' erreur(s). Voir le détail ci-dessus.'
+        : 'Terminé. Tableau de bord mis à jour.';
+      if (!erreurs) setTimeout(closeUploadModal, 1200);
+    } catch (err) {
+      if (err.name === 'AbortError') return; // Fermeture explicite — pas une erreur.
       status.textContent = 'Erreur : ' + err.message;
       bar.style.background = 'var(--negative)';
+    } finally {
       document.getElementById('upload-submit').disabled = false;
+      jobPollController = null;
     }
   }
   </script>

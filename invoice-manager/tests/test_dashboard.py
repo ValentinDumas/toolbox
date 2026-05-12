@@ -842,9 +842,114 @@ def test_build_corrections_log_validated_item_logs_diff():
     assert entry["après"] == "Nouveau Nom"
 
 def test_build_corrections_log_warning_demotes():
-    
+
     current = {"statut_révision": "validé", "corrections_log": "[]",
                "montant_ht": 100.0, "montant_ttc": None}
     fields = {}
     result = _build_corrections_log(fields, current, "2025-03-01T10:00:00+00:00", "Confiance basse")
     assert result["statut_révision"] == "à_réviser"
+
+
+# ── Endpoints d'import et fragments ──────────────────────────────────────────
+
+def _semer_lignes_job(db_path, job_id, files):
+    """Helper : insère des lignes d'agrégat import_jobs comme le ferait /pipeline/depot."""
+    from datetime import datetime, timezone
+    from db import open_db
+    now = datetime.now(timezone.utc).isoformat()
+    conn = open_db(db_path)
+    for filename, statut in files:
+        conn.execute(
+            "INSERT INTO import_jobs (job_id, filename, statut, créé_le, mis_à_jour_le) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (job_id, filename, statut, now, now),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_pipeline_jobs_renvoie_statut_par_fichier(mem_db, tmp_path, monkeypatch):
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    _semer_lignes_job(db_file, "JOBX", [
+        ("a.pdf", "terminé"),
+        ("b.pdf", "en_extraction"),
+    ])
+    with app.test_client() as client:
+        resp = client.get("/pipeline/jobs/JOBX")
+    body = resp.get_json()
+    assert resp.status_code == 200
+    assert body["summary"]["total"] == 2
+    assert body["summary"]["terminé"] == 1
+    assert body["summary"]["en_extraction"] == 1
+    assert body["finished"] is False
+
+
+def test_pipeline_jobs_finished_quand_tout_terminal(mem_db, tmp_path, monkeypatch):
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    _semer_lignes_job(db_file, "JOBY", [
+        ("a.pdf", "terminé"),
+        ("b.pdf", "erreur"),
+        ("c.pdf", "doublon"),
+    ])
+    with app.test_client() as client:
+        body = client.get("/pipeline/jobs/JOBY").get_json()
+    assert body["finished"] is True
+
+
+def test_fragment_sante_renvoie_uniquement_la_section(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/fragments/sante?year=2025")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "<html" not in body.lower()
+    assert "health-grid" in body
+    assert "Santé" in body
+
+
+def test_fragment_synthese_fiscale_renvoie_les_kpis(mem_db, tmp_path, monkeypatch):
+    _insert_invoice(mem_db, id="x1", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0, exercice_fiscal=2025)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/fragments/synthese-fiscale?year=2025")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "<html" not in body.lower()
+    assert "kpi-grid" in body
+    assert "Synthèse fiscale" in body
+
+
+def test_pipeline_jobs_renvoie_404_pour_job_inconnu(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/pipeline/jobs/JOB_INEXISTANT")
+    # Sans 404 le client polle indéfiniment un id erroné.
+    assert resp.status_code == 404
+
+
+def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkeypatch):
+    # On bloque le lancement du subprocess pour isoler la création du job.
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(b"fake-pdf"), "test.pdf")},
+            content_type="multipart/form-data",
+        )
+    body = resp.get_json()
+    assert resp.status_code == 200
+    assert body["ok"] is True
+    assert "job_id" in body and len(body["job_id"]) > 0
+
+    import sqlite3 as _sql
+    conn = _sql.connect(db_file)
+    row = conn.execute(
+        "SELECT filename, statut FROM import_jobs WHERE job_id=?",
+        (body["job_id"],),
+    ).fetchone()
+    conn.close()
+    assert row == ("test.pdf", "en_attente")

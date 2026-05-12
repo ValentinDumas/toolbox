@@ -10,6 +10,16 @@ STATUT_PRET      = "prêt_à_valider"
 
 VALIDATED_STATUSES = (STATUT_VALIDE,)
 
+# ── Statuts d'import (agrégat import_jobs) ───────────────────────────────────
+
+IMPORT_EN_ATTENTE   = "en_attente"
+IMPORT_EN_EXTRACTION = "en_extraction"
+IMPORT_TERMINE      = "terminé"
+IMPORT_ERREUR       = "erreur"
+IMPORT_DOUBLON      = "doublon"
+
+IMPORT_STATUTS_TERMINAUX = (IMPORT_TERMINE, IMPORT_ERREUR, IMPORT_DOUBLON)
+
 # ── Types de documents ────────────────────────────────────────────────────────
 
 INCOME_TYPES  = ("facture_émise",)
