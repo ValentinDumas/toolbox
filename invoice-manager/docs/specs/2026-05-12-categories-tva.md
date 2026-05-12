@@ -62,6 +62,16 @@ WHERE catégorie IS NOT NULL AND catégorie != LOWER(catégorie);
 
 `sous_catégorie` est **hors scope** : champ toujours `None` aujourd'hui, non surfacé dans l'UI ni dans les exports.
 
+### 5. Sélecteur de catégorie sur les cartes du dashboard
+
+Le champ `catégorie` des cartes de révision (`templates/dashboard.html`) est un `<select>` strict alimenté par `category_tva_rates`, sur le modèle du `<select name="type_document">` déjà en place.
+
+- Première option `(aucune)` (valeur `""`) — permet d'effacer la catégorie d'une facture (colonne mise à `NULL`).
+- Options suivantes triées alphabétiquement (`sorted(get_category_tva_rates(conn).keys())` dans `app.py:index`).
+- Si la valeur courante de `row.catégorie` n'est pas dans le référentiel (donnée historique avant cette spec, ou catégorie supprimée des paramètres après coup), une option supplémentaire `« <valeur> (non enregistrée) »` est ajoutée en queue et pré-sélectionnée. La valeur est préservée tant que l'utilisateur ne la remplace pas.
+- Le serveur (`services/revision.py:_validate_review_fields`) rejette toute soumission dont la catégorie n'appartient pas au référentiel : `errors["catégorie"]` côté JSON et **aucune** mutation DB.
+- `_parse_review_fields` distingue désormais « champ absent du form » (= pas de mise à jour) de « chaîne vide » (= effacement explicite → `NULL`). C'est le seul champ texte effaçable depuis l'UI : `émetteur_nom`, `numéro_facture`, etc. conservent la convention « vide = ne pas toucher ».
+
 ## Hors scope
 
 - Édition inline du taux dans la liste — l'UPSERT via le formulaire d'ajout suffit.
