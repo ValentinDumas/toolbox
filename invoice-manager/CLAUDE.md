@@ -47,6 +47,16 @@ Load the `owasp-security` skill (installed under `~/.claude/skills/owasp-securit
 
 The skill is NOT auto-imported here — load it only when relevant, to keep the prompt cache stable for non-security work. Run `/security-check` or `/security-review` before merging any branch that touched the above.
 
+## QA pass skill — load on demand
+
+Load the `qa-pass` skill (installed under `~/.claude/skills/qa-pass/`) **before** any task that asks to:
+
+- test the dashboard / app / UI end-to-end
+- "find bugs", "QA the app", "check workflows", or any variant of UI regression hunting
+- drive Playwright across multiple flows and file GitHub issues for findings
+
+The skill codifies the sanity checks (`lsof -p <pid> | grep cwd`, no `SELECT *` on tables with blob columns), token discipline (one snapshot per page then `browser_evaluate`), state-rollback SQL, and the issue-template format. Not auto-imported — keeps the prompt cache stable for non-QA work.
+
 ---
 
 ## Commands
