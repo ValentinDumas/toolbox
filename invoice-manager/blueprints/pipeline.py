@@ -98,12 +98,27 @@ def _lire_job(db_path: Path, job_id: str) -> dict | None:
 
 
 def _find_file(paths: dict, filename: str):
-    """Cherche un fichier dans les sous-répertoires processed/errors/input."""
+    """Cherche un fichier dans les sous-répertoires processed/errors/input.
+
+    Défense en profondeur : basename only, puis on résout le candidat et on
+    vérifie qu'il reste dans la racine du profil — couvre le cas où un
+    sous-répertoire serait un symlink pointant hors du profil.
+    """
     basename = Path(filename).name
+    input_dir = paths.get("input")
+    profile_root = input_dir.parent.resolve() if input_dir else None
     for subdir in ("processed", "errors", "input"):
         candidate = paths.get(subdir, PROJECT_ROOT / subdir) / basename
-        if candidate.is_file():
-            return candidate
+        if not candidate.is_file():
+            continue
+        if profile_root is not None:
+            try:
+                resolved = candidate.resolve(strict=True)
+            except (OSError, RuntimeError):
+                continue
+            if not resolved.is_relative_to(profile_root):
+                continue
+        return candidate
     return None
 
 
@@ -271,10 +286,19 @@ def apercu_fichier(filename):
     if suffix == ".pdf":
         return send_file(candidate, mimetype="application/pdf", as_attachment=False)
     if suffix in (".heic", ".heif"):
+        # Garde anti-bombe : refuser les fichiers > 50 Mo et limiter la
+        # taille décodée à 50 mégapixels pour ne pas OOM le dashboard.
+        if candidate.stat().st_size > 50 * 1024 * 1024:
+            abort(413)
         import pillow_heif
         from PIL import Image
+        Image.MAX_IMAGE_PIXELS = 50_000_000
         pillow_heif.register_heif_opener()
-        img = Image.open(candidate)
+        try:
+            img = Image.open(candidate)
+            img.load()
+        except Image.DecompressionBombError:
+            abort(413)
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
         buf.seek(0)
