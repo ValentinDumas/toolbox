@@ -1516,6 +1516,26 @@
       _modalLastTrigger = null;
     }
 
+    // Scroll-lock du body quand une modale est ouverte (issue #125) :
+    // compteur pour gérer le cas d'ouvertures imbriquées sans casser un
+    // scroll-lock en cours.
+    var _modalOpenCount = 0;
+    var _previousBodyOverflow = '';
+    function _lockBodyScroll() {
+      if (_modalOpenCount === 0) {
+        _previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+      }
+      _modalOpenCount += 1;
+    }
+    function _unlockBodyScroll() {
+      if (_modalOpenCount === 0) return;
+      _modalOpenCount -= 1;
+      if (_modalOpenCount === 0) {
+        document.body.style.overflow = _previousBodyOverflow;
+      }
+    }
+
     // Delete confirmation modal
     function openDeleteModal(btn) {
       _modalLastTrigger = btn;
@@ -1525,22 +1545,26 @@
       form.action = '/factures/' + btn.dataset.deleteId + '/supprimer';
       body.textContent = btn.dataset.deleteLabel;
       modal.classList.add('open');
+      _lockBodyScroll();
       document.getElementById('modal-cancel').focus();
     }
     document.getElementById('modal-cancel').addEventListener('click', function () {
       document.getElementById('delete-modal').classList.remove('open');
+      _unlockBodyScroll();
       _restoreModalFocus();
     });
 
     // Escape closes any open modal (fix #77) + restore focus (issue #124)
+    // + restore body scroll (issue #125)
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
-      var anyClosed = false;
+      var closedCount = 0;
       document.querySelectorAll('.modal-backdrop.open').forEach(function (m) {
         m.classList.remove('open');
-        anyClosed = true;
+        closedCount += 1;
       });
-      if (anyClosed) _restoreModalFocus();
+      for (var i = 0; i < closedCount; i++) _unlockBodyScroll();
+      if (closedCount > 0) _restoreModalFocus();
     });
 
     function retryErrorFile(btn, filename) {
@@ -1566,6 +1590,7 @@
       form.action = '/pipeline/erreurs/' + encodeURIComponent(btn.dataset.errorFilename);
       body.textContent = btn.dataset.deleteLabel;
       modal.classList.add('open');
+      _lockBodyScroll();
       document.getElementById('modal-cancel').focus();
     }
 
@@ -1596,6 +1621,7 @@
     document.getElementById('delete-modal').addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         this.classList.remove('open');
+        _unlockBodyScroll();
         _restoreModalFocus();
       }
     });
@@ -1868,11 +1894,13 @@
     closeProfileMenu(false);
     var modal = document.getElementById('create-profile-modal');
     modal.classList.add('open');
+    _lockBodyScroll();
     document.getElementById('new-profile-name').focus();
   }
 
   function closeCreateProfileModal() {
     document.getElementById('create-profile-modal').classList.remove('open');
+    _unlockBodyScroll();
     _restoreModalFocus();
   }
 
@@ -1898,6 +1926,7 @@
     _modalLastTrigger = document.activeElement;
     var modal = document.getElementById('upload-modal');
     modal.classList.add('open');
+    _lockBodyScroll();
     document.getElementById('upload-input').value = '';
     document.getElementById('upload-file-list').innerHTML = '';
     document.getElementById('upload-progress').style.display = 'none';
@@ -1910,6 +1939,7 @@
   function closeUploadModal() {
     if (jobPollController) { jobPollController.abort(); jobPollController = null; }
     document.getElementById('upload-modal').classList.remove('open');
+    _unlockBodyScroll();
     _restoreModalFocus();
   }
 

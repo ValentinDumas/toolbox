@@ -540,30 +540,46 @@
     })();
     {% endif %}
 
-    // Enseigne delete modal
+    // Enseigne delete modal (focus restore #124 + body scroll-lock #125)
     var _pendingDeleteForm = null;
+    var _enseigneLastTrigger = null;
+    var _enseignePrevBodyOverflow = '';
+    function _openEnseigneModal(btn) {
+      _enseigneLastTrigger = btn;
+      _pendingDeleteForm = btn.closest('form');
+      document.getElementById('enseigne-modal-keyword').textContent = btn.dataset.keyword;
+      var modal = document.getElementById('enseigne-delete-modal');
+      modal.classList.add('open');
+      _enseignePrevBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.getElementById('enseigne-modal-cancel').focus();
+    }
+    function _closeEnseigneModal() {
+      var modal = document.getElementById('enseigne-delete-modal');
+      if (!modal.classList.contains('open')) return;
+      modal.classList.remove('open');
+      document.body.style.overflow = _enseignePrevBodyOverflow;
+      _pendingDeleteForm = null;
+      if (_enseigneLastTrigger && typeof _enseigneLastTrigger.focus === 'function') {
+        _enseigneLastTrigger.focus();
+      }
+      _enseigneLastTrigger = null;
+    }
     document.querySelectorAll('.btn-delete-enseigne').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.preventDefault();
-        _pendingDeleteForm = btn.closest('form');
-        document.getElementById('enseigne-modal-keyword').textContent = btn.dataset.keyword;
-        var modal = document.getElementById('enseigne-delete-modal');
-        modal.classList.add('open');
-        document.getElementById('enseigne-modal-cancel').focus();
+        _openEnseigneModal(btn);
       });
     });
-    document.getElementById('enseigne-modal-cancel').addEventListener('click', function() {
-      document.getElementById('enseigne-delete-modal').classList.remove('open');
-      _pendingDeleteForm = null;
-    });
+    document.getElementById('enseigne-modal-cancel').addEventListener('click', _closeEnseigneModal);
     document.getElementById('enseigne-modal-confirm').addEventListener('click', function() {
       if (_pendingDeleteForm) _pendingDeleteForm.submit();
     });
     document.getElementById('enseigne-delete-modal').addEventListener('click', function(e) {
-      if (e.target === this) this.classList.remove('open');
+      if (e.target === this) _closeEnseigneModal();
     });
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') document.getElementById('enseigne-delete-modal').classList.remove('open');
+      if (e.key === 'Escape') _closeEnseigneModal();
     });
     // Focus trap in modal
     document.getElementById('enseigne-delete-modal').addEventListener('keydown', function(e) {
