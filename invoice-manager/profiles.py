@@ -100,6 +100,48 @@ def maybe_migrate_legacy() -> str | None:
     return entry["slug"]
 
 
+def backfill_profile_names_from_registry() -> dict[str, str]:
+    """
+    Restaure le nom d'entité dans `user_profile.nom` pour les profils créés
+    avant b072529 (#63), où la DB du profil restait avec un nom vide bien
+    que le registre `data/profiles.json` portait la bonne valeur.
+
+    Idempotent : ne réécrit jamais un nom déjà présent dans la DB. Un nom
+    saisi manuellement par l'utilisateur dans Paramètres > Mon profil est
+    donc préservé.
+
+    Retourne {slug: nom_appliqué} pour les profils effectivement mis à jour.
+    """
+    # Import local pour éviter une dépendance circulaire au chargement du module.
+    from db import open_db
+
+    updated: dict[str, str] = {}
+    for entry in load_profiles():
+        slug = entry.get("slug")
+        registry_name = (entry.get("name") or "").strip()
+        if not slug or not registry_name:
+            continue
+        db_path = PROFILES_DIR / slug / "invoices.db"
+        if not db_path.exists():
+            continue
+        conn = open_db(db_path)
+        try:
+            row = conn.execute("SELECT nom FROM user_profile WHERE id=1").fetchone()
+            current_nom = (row["nom"] if row and row["nom"] is not None else "").strip()
+            if current_nom:
+                continue
+            conn.execute(
+                "INSERT INTO user_profile (id, nom) VALUES (1, ?) "
+                "ON CONFLICT(id) DO UPDATE SET nom=excluded.nom",
+                (registry_name,),
+            )
+            conn.commit()
+            updated[slug] = registry_name
+        finally:
+            conn.close()
+    return updated
+
+
 def migrate_legacy_files(slug: str) -> dict[str, int]:
     """
     Déplace les fichiers des dossiers legacy (processed/, errors/, input/) vers

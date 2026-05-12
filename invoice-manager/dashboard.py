@@ -15,7 +15,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from app import create_app
-from profiles import maybe_migrate_legacy
+from profiles import backfill_profile_names_from_registry, maybe_migrate_legacy
 
 
 def main() -> None:
@@ -26,6 +26,13 @@ def main() -> None:
     migrated = maybe_migrate_legacy()
     if migrated:
         print(f"  [migration] data/invoices.db → profil '{migrated}'")
+
+    # Issue #67 — profils créés avant b072529 ont user_profile.nom vide.
+    # Rétablit le nom depuis le registre, sans jamais écraser un nom existant.
+    backfilled = backfill_profile_names_from_registry()
+    if backfilled:
+        print(f"  [migration] nom d'entité restauré pour {len(backfilled)} profil(s) : "
+              f"{', '.join(backfilled)}")
 
     app = create_app()
     print(f"  Dashboard : http://localhost:{args.port}")
