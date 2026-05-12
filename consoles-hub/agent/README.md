@@ -4,7 +4,26 @@ HTTP API over tmux, bound to **loopback + tailnet only**, gated by a
 bearer token. Implements `docs/specs/2026-05-12-agent-transport-design.md` §8
 minus the WebSocket stream.
 
-## Build & run
+## Install (supported)
+
+From the repo root:
+
+```sh
+./install.sh                          # build + install launchd user agent, start it
+./install.sh status                   # is it loaded? listening? token? log tail
+./install.sh rotate-token             # regenerate the bearer token
+./install.sh uninstall                # stop, remove binary+plist+logs (keep token)
+./install.sh install --local-only     # loopback-only — offline dev, never ship
+./install.sh install --port 9000      # custom port
+```
+
+The launchd plist lives at
+`~/Library/LaunchAgents/com.vdumas.consoles-hub.agent.plist`; the binary at
+`~/Library/Application Support/consoles-hub/bin/consoles-hub-agent`; logs at
+`~/Library/Logs/consoles-hub/agent.{out,err}.log`. Never installed with
+`sudo`; runs as the user.
+
+## Dev build & run
 
 ```sh
 cd agent
@@ -62,11 +81,8 @@ curl -s -XPOST -H "Authorization: Bearer $TOKEN" \
 ### Rotation
 
 ```sh
-rm ~/.config/consoles-hub/token
-# restart the agent — it regenerates a fresh 256-bit token
+./install.sh rotate-token             # one-shot: stop, regenerate, restart
 ```
-
-A first-class `install.sh --rotate-token` is a later slice.
 
 ## Known v0 limits
 

@@ -73,6 +73,7 @@ their iOS phone over a Tailscale network. See `docs/specs/` for the design.
 |---|---|
 | Console model | `docs/specs/2026-05-12-console-model-design.md` |
 | Agent + transport | `docs/specs/2026-05-12-agent-transport-design.md` |
+| Install / launchd | `install.sh` (root of repo) + `com.vdumas.consoles-hub.agent.plist.tmpl` |
 | Mobile UI | (future) |
 
 The `ping-me/` subdirectory contains the iOS push notifier (bash, free,
