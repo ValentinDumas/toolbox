@@ -168,16 +168,24 @@ def query_error_files(paths: dict) -> list[dict]:
     return files
 
 
-def query_items_a_reviser(conn: sqlite3.Connection, year: int) -> list:
-    """Retourne les items à réviser pour l'année donnée."""
+def query_items_a_reviser(conn: sqlite3.Connection, year: int | None = None) -> list:
+    """Retourne tous les items à réviser, indépendamment de l'exercice fiscal.
+
+    Les items à réviser ont souvent un `exercice_fiscal` NULL (date encore non
+    extraite). Les filtrer par année les rendrait invisibles — or réviser
+    précisément ces items est l'objet de la vue. Une fois validés, leur
+    `date_document` (et donc l'exercice fiscal) sera renseigné et ils
+    rejoindront le ledger filtré par année.
+
+    Le paramètre `year` est conservé pour compatibilité d'appel mais ignoré.
+    """
     rows = conn.execute(
         "SELECT id, type_document, montant_ht, montant_tva, montant_ttc, "
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
         "confiance, fichier_source, texte_brut, statut_révision "
         "FROM invoices WHERE statut_révision=? AND deleted_at IS NULL "
-        "AND exercice_fiscal=? "
         "ORDER BY date_document",
-        (STATUT_A_REVISER, year),
+        (STATUT_A_REVISER,),
     ).fetchall()
     return [dict(r) for r in rows]
 
