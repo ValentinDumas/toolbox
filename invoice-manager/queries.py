@@ -184,7 +184,7 @@ def query_items_a_reviser(conn: sqlite3.Connection, year: int | None = None) -> 
         "date_document, émetteur_nom, numéro_facture, catégorie, notes_correction, "
         "confiance, fichier_source, texte_brut, statut_révision "
         "FROM invoices WHERE statut_révision=? AND deleted_at IS NULL "
-        "ORDER BY date_document",
+        "ORDER BY (confiance IS NULL), confiance DESC, date_document",
         (STATUT_A_REVISER,),
     ).fetchall()
     return [dict(r) for r in rows]

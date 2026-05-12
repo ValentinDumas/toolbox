@@ -67,6 +67,9 @@
       margin-bottom: 32px;
     }
     h1 { font-size: 22px; font-weight: 600; }
+.brand-link { text-decoration: none; color: inherit; display: inline-block; }
+.brand-link:hover h1 { opacity: 0.85; }
+.brand-link:focus-visible { outline: 2px solid var(--accent, #4f46e5); outline-offset: 4px; border-radius: 4px; }
 /* Year filter */
     .year-form { display: flex; align-items: center; gap: 6px; }
     .year-label { font-size: 13px; color: var(--on-surface-muted); }
@@ -803,7 +806,10 @@
 
     <header>
       <div>
-        <h1>ProLedger</h1>
+        <a href="/" class="brand-link" aria-label="Accueil ProLedger"
+           onclick="if (location.pathname === '/') { event.preventDefault(); window.scrollTo({top:0,behavior:'smooth'}); }">
+          <h1>ProLedger</h1>
+        </a>
         <form method="get" action="/" class="year-form" aria-label="Filtre par année">
           <label for="year-select" class="year-label">Exercice fiscal</label>
           <select id="year-select" name="year" class="year-select"
@@ -1427,6 +1433,23 @@
   <script>
     // Tab navigation
     (function () {
+      // Préserve la position de défilement à travers les rechargements
+      // déclenchés par un CTA (sauvegarde, retry, purge, upload…).
+      window.reloadKeepScroll = function () {
+        try { sessionStorage.setItem('scroll_y', String(window.scrollY)); } catch (e) {}
+        location.reload();
+      };
+      var savedScroll = null;
+      try { savedScroll = sessionStorage.getItem('scroll_y'); } catch (e) {}
+      if (savedScroll !== null) {
+        try { sessionStorage.removeItem('scroll_y'); } catch (e) {}
+        // Désactive la restauration native (qui aurait scrollé en haut sur reload)
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        window.addEventListener('load', function () {
+          window.scrollTo(0, parseInt(savedScroll, 10) || 0);
+        });
+      }
+
       var TABS = ['ledger', 'reviser', 'corbeille', 'erreurs'];
       window.activateTab = function activateTab(id) {
         TABS.forEach(function (t) {
@@ -1514,7 +1537,7 @@
       })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data.ok) { location.reload(); }
+        if (data.ok) { reloadKeepScroll(); }
         else { btn.disabled = false; btn.textContent = '↩ Réessayer'; }
       })
       .catch(function () { btn.disabled = false; btn.textContent = '↩ Réessayer'; });
@@ -1543,7 +1566,7 @@
           if (data.ok && data.purged > 0) {
             if (sublabel) sublabel.textContent = '✓ Purgé';
             if (countEl) countEl.textContent = '0';
-            setTimeout(function () { location.reload(); }, 1200);
+            setTimeout(function () { reloadKeepScroll(); }, 1200);
           } else {
             btn.disabled = false;
             if (sublabel) sublabel.textContent = '↻ Purger';
@@ -1687,7 +1710,7 @@
             if (data.warning) {
               sessionStorage.setItem('save_warning', data.warning);
             }
-            location.reload();
+            reloadKeepScroll();
           }
         })
         .catch(function () {
@@ -2060,7 +2083,7 @@
       status.textContent = erreurs
         ? 'Terminé avec ' + erreurs + ' erreur(s). Voir le détail ci-dessus.'
         : 'Terminé. Tableau de bord mis à jour.';
-      if (!erreurs) setTimeout(function () { window.location.reload(); }, 1200);
+      if (!erreurs) setTimeout(function () { reloadKeepScroll(); }, 1200);
     } catch (err) {
       if (err.name === 'AbortError') return; // Fermeture explicite — pas une erreur.
       status.textContent = 'Erreur : ' + err.message;
