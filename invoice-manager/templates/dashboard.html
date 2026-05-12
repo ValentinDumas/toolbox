@@ -1201,7 +1201,7 @@
             </div>
 
             {% if item.texte_brut %}
-            <details class="ocr-preview" {% if item.confiance is not none and item.confiance < 0.6 %}open{% endif %}>
+            <details class="ocr-preview">
               <summary>Texte source (référence OCR)</summary>
               <pre>{{ item.texte_brut }}</pre>
             </details>
