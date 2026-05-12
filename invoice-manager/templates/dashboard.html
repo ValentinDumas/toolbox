@@ -1793,11 +1793,13 @@
     <div class="modal">
       <h2 id="create-profile-title">Nouveau profil</h2>
       <p>Créer un profil pour une entité légale distincte. Le setup wizard s'ouvrira ensuite pour configurer SIREN et profil fiscal.</p>
-      <form method="post" action="/profils">
+      <form method="post" action="/profils" id="create-profile-form">
         <div class="form-field">
           <label for="new-profile-name" class="form-label">Nom de l'entité</label>
           <input type="text" id="new-profile-name" name="name" class="form-input"
                  placeholder="Ex : SASU Dupont, Micro-entreprise…" required>
+          <span id="new-profile-name-error" class="field-error" role="alert" aria-live="polite"
+                style="display:none;color:var(--error);font-size:.8rem;margin-top:.25rem;"></span>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" onclick="closeCreateProfileModal()">Annuler</button>
@@ -1889,6 +1891,19 @@
 
   document.getElementById('create-profile-modal').addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeCreateProfileModal();
+  });
+
+  document.getElementById('create-profile-form').addEventListener('submit', function (e) {
+    var input = document.getElementById('new-profile-name');
+    var err = document.getElementById('new-profile-name-error');
+    if (!input.value.trim()) {
+      e.preventDefault();
+      err.textContent = "Le nom de l'entité est requis.";
+      err.style.display = 'block';
+      input.focus();
+    } else {
+      err.style.display = 'none';
+    }
   });
 
   // ── Modal : Upload ──────────────────────────────────────────────────────────
