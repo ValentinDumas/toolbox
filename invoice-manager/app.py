@@ -37,14 +37,14 @@ _PROFILE_EXEMPT = {
 
 
 def _fr_currency(value) -> str:
-    """Formate un float en monnaie française : 1 234,56 €. Négatif → (1 234,56 €)."""
+    """Formate un float en monnaie française : 1 234,56 €. Négatif → -1 234,56 €."""
     if value is None:
         value = 0.0
     neg = value < 0
     formatted = f"{abs(value):,.2f}"
     formatted = formatted.replace(",", "X").replace(".", ",").replace("X", " ")
     formatted += " €"
-    return f"({formatted})" if neg else formatted
+    return f"-{formatted}" if neg else formatted
 
 
 def _truncate_filename(name: str, max_stem: int = 16) -> str:

@@ -60,7 +60,7 @@ Trust and precision are the two visual values — no decoration without function
 The core component of any accounting UI. Rules:
 - Zebra striping with `surface` / `surface-variant` — no full-width borders
 - Amount column: right-aligned, tabular-nums, fixed-width
-- Positive amounts: `positive` color; negative amounts: `negative` color with parentheses `(1 234,00 €)` — never a minus sign alone
+- Positive amounts: `positive` color; negative amounts: `negative` color with a leading minus sign `-1 234,00 €` — never parentheses
 - Sticky header row on scroll
 - Row hover: `surface-variant` background, no border change
 - Selected row: 2px left border in `primary`
@@ -106,7 +106,7 @@ Inline pill for invoice/payment state. Variants:
 ### Financial Figures
 - Always display currency symbol and two decimal places: `1 234,56 €` — never truncate amounts
 - Use space as thousands separator (French locale) or comma (US locale) — pick one per project, never mix
-- Negative values: parentheses convention `(500,00 €)` for accountants; minus sign for developers — decide per audience and be consistent
+- Negative values: leading minus sign `-500,00 €` — consistent across the app, accessible to screen readers, and unambiguous
 - Zero amounts: display as `0,00 €`, never blank
 
 ### Debit / Credit
