@@ -1819,13 +1819,27 @@
   });
 
   document.getElementById('upload-input').addEventListener('change', function() {
+    // Sécurité : noms de fichiers utilisateurs jamais interpolés en HTML.
     var files = Array.from(this.files);
     var list = document.getElementById('upload-file-list');
-    list.innerHTML = files.map(function(f) {
-      return '<div class="upload-file-item"><span>📄</span><span>' + f.name +
-             '</span><span style="color:var(--on-surface-muted)">(' +
-             (f.size / 1024).toFixed(0) + ' Ko)</span></div>';
-    }).join('');
+    list.replaceChildren();
+    files.forEach(function(f) {
+      var row = document.createElement('div');
+      row.className = 'upload-file-item';
+
+      var icon = document.createElement('span');
+      icon.textContent = '📄';
+
+      var name = document.createElement('span');
+      name.textContent = f.name;
+
+      var size = document.createElement('span');
+      size.className = 'upload-file-statut';
+      size.textContent = '(' + (f.size / 1024).toFixed(0) + ' Ko)';
+
+      row.append(icon, name, size);
+      list.append(row);
+    });
     document.getElementById('upload-submit').disabled = files.length === 0;
   });
 
