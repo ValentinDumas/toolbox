@@ -726,9 +726,16 @@ def test_query_corbeille_returns_deleted_rows(mem_db):
     assert "alive" not in ids
 
 
-def test_post_review_restore(mem_db, tmp_path, monkeypatch):
-    _insert_invoice(mem_db, id="dead1", statut_révision="validé", exercice_fiscal=2025,
-                    deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user")
+def test_post_review_restore_preserves_validated_status(mem_db, tmp_path, monkeypatch):
+    """Restaurer une facture supprimée alors qu'elle était `validé` doit la
+    rendre `validé` à nouveau, sans repasser par « à réviser » (sinon la
+    validation humaine effectuée avant suppression est perdue)."""
+    _insert_invoice(
+        mem_db, id="dead1", statut_révision="validé", exercice_fiscal=2025,
+        révisé_par="user", date_révision="2026-05-09T00:00:00+00:00",
+        validé_le="2026-05-09T00:00:00+00:00",
+        deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user",
+    )
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
     with app.test_client() as client:
         resp = client.post("/factures/dead1/restaurer")
@@ -737,7 +744,32 @@ def test_post_review_restore(mem_db, tmp_path, monkeypatch):
     check = _sq.connect(str(db_path))
     check.row_factory = _sq.Row
     row = check.execute(
-        "SELECT deleted_at, statut_révision FROM invoices WHERE id='dead1'"
+        "SELECT deleted_at, statut_révision, révisé_par, validé_le "
+        "FROM invoices WHERE id='dead1'"
+    ).fetchone()
+    check.close()
+    assert row["deleted_at"] is None
+    assert row["statut_révision"] == "validé"
+    assert row["révisé_par"] == "user"
+    assert row["validé_le"] == "2026-05-09T00:00:00+00:00"
+
+
+def test_post_review_restore_preserves_a_reviser_status(mem_db, tmp_path, monkeypatch):
+    """Cas symétrique : une facture supprimée alors qu'elle était `à_réviser`
+    doit revenir `à_réviser`."""
+    _insert_invoice(
+        mem_db, id="dead2", statut_révision="à_réviser", exercice_fiscal=2025,
+        deleted_at="2026-05-10T00:00:00+00:00", deleted_by="user",
+    )
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/dead2/restaurer")
+    assert resp.status_code == 302
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute(
+        "SELECT deleted_at, statut_révision FROM invoices WHERE id='dead2'"
     ).fetchone()
     check.close()
     assert row["deleted_at"] is None

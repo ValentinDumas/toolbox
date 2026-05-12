@@ -147,7 +147,12 @@ def facture_valider(item_id):
 
 @bp_factures.route("/factures/<item_id>/restaurer", methods=["POST"])
 def facture_restaurer(item_id):
-    """POST /factures/<id>/restaurer — Restaure une facture depuis la corbeille."""
+    """POST /factures/<id>/restaurer — Restaure une facture depuis la corbeille.
+
+    Préserve le statut de révision tel qu'il était au moment de la suppression :
+    une facture supprimée alors qu'elle était `validé` revient `validé`. Pour
+    repasser explicitement en « à réviser », utiliser `facture_reinitialiser`.
+    """
     year = request.form.get("year", datetime.now().year)
     try:
         conn = open_db(active_db())
@@ -156,10 +161,8 @@ def facture_restaurer(item_id):
             flash("Facture introuvable", "error")
             return redirect(f"/?year={year}")
         conn.execute(
-            "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL, "
-            "statut_révision=?, révisé_par=NULL, "
-            "date_révision=NULL, validé_le=NULL WHERE id=?",
-            (STATUT_A_REVISER, item_id),
+            "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL WHERE id=?",
+            (item_id,),
         )
         conn.commit()
         conn.close()
