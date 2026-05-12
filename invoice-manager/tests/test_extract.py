@@ -673,6 +673,25 @@ class TestImportJobsLifecycle:
 
         assert _statuts_job(db_path, "JOB6") == {"disparu.pdf": "doublon"}
 
+    def test_crash_libère_les_lignes_en_attente(self, tmp_project, monkeypatch):
+        # Si extract.py crashe au milieu, le filet de sécurité doit basculer
+        # toute ligne non terminale en `erreur` pour ne pas bloquer le client.
+        _patch_extract_profile(monkeypatch, tmp_project)
+        db_path = tmp_project / "data" / "invoices.db"
+        _semer_job(db_path, "JOB_CRASH", ["ovh.pdf"])
+        make_pdf(OVH_TEXT, tmp_project / "input" / "ovh.pdf")
+
+        # On force une exception au sein de la boucle pour simuler un crash.
+        with patch("extract.extract_text", side_effect=KeyboardInterrupt("kill")):
+            import sys as _sys
+            _sys.argv = ["extract.py", "--profile", "test", "--job-id", "JOB_CRASH"]
+            with pytest.raises(KeyboardInterrupt):
+                ex.main()
+
+        # La ligne ne doit plus être ni en_attente ni en_extraction.
+        statut = _statuts_job(db_path, "JOB_CRASH")["ovh.pdf"]
+        assert statut not in ("en_attente", "en_extraction")
+
     def test_sans_job_id_pas_de_lignes_créées(self, tmp_project, monkeypatch):
         # Régression CLI : `extract.py` sans --job-id ne doit toucher à rien.
         _patch_extract_profile(monkeypatch, tmp_project)

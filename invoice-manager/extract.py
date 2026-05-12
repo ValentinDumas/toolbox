@@ -343,9 +343,10 @@ def _move_safely(src: Path, dest_dir: Path, suffix: str = "") -> Path:
 
 # ── Suivi des jobs d'import ───────────────────────────────────────────────────
 
-def _maj_statut_import(conn, job_id: str | None, filename: str, statut: str,
-                       invoice_id: str | None = None,
-                       message_erreur: str | None = None) -> None:
+def _mettre_a_jour_statut_import(conn, job_id: str | None, filename: str,
+                                  statut: str,
+                                  invoice_id: str | None = None,
+                                  message_erreur: str | None = None) -> None:
     """Met à jour le statut d'un fichier dans l'agrégat import_jobs.
     No-op si job_id est None (utilisation CLI hors dashboard)."""
     if not job_id:
@@ -370,6 +371,30 @@ def _cloturer_job(conn, job_id: str | None) -> None:
         (IMPORT_DOUBLON, now, job_id, IMPORT_EN_ATTENTE),
     )
     conn.commit()
+
+
+def _marquer_non_terminaux_en_erreur(db_path, job_id: str | None,
+                                      raison: str) -> None:
+    """Filet de sécurité : si le process plante avant la fin, on flippe les lignes
+    `en_attente` et `en_extraction` du job en `erreur` pour libérer le client.
+    Ouvre sa propre connexion car appelé depuis un finally — `conn` peut être
+    inutilisable."""
+    if not job_id:
+        return
+    try:
+        conn = open_db(db_path)
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE import_jobs SET statut=?, message_erreur=?, mis_à_jour_le=? "
+            "WHERE job_id=? AND statut IN (?, ?)",
+            (IMPORT_ERREUR, raison, now, job_id,
+             IMPORT_EN_ATTENTE, IMPORT_EN_EXTRACTION),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        # Le finally ne doit jamais masquer l'exception d'origine.
+        pass
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -413,47 +438,61 @@ def main() -> None:
         return
     traités = erreurs = à_réviser = doublons = 0
 
-    for f in files:
-        print(f"→ {f.name}")
-        _maj_statut_import(conn, job_id, f.name, IMPORT_EN_EXTRACTION)
-        file_hash = hashlib.sha256(f.read_bytes()).hexdigest()
+    try:
+        for f in files:
+            print(f"→ {f.name}")
+            _mettre_a_jour_statut_import(conn, job_id, f.name,
+                                          IMPORT_EN_EXTRACTION)
+            file_hash = hashlib.sha256(f.read_bytes()).hexdigest()
 
-        if hash_exists(conn, file_hash):
-            print("  [SKIP] déjà en base")
-            _maj_statut_import(conn, job_id, f.name, IMPORT_DOUBLON)
-            doublons += 1
-            continue
+            if hash_exists(conn, file_hash):
+                print("  [SKIP] déjà en base")
+                _mettre_a_jour_statut_import(conn, job_id, f.name,
+                                              IMPORT_DOUBLON)
+                doublons += 1
+                continue
 
-        try:
-            text = extract_text(f, cfg)
-            if not text.strip():
-                raise ValueError("Texte vide après extraction")
-            row = parse_invoice(text, str(f), profil, user_siren, known_emitters)
-            row["hash_fichier"] = file_hash
-            insert(conn, row)
-            dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")
-            conn.execute(
-                "UPDATE invoices SET fichier_source=? WHERE id=?",
-                (str(dest.resolve()), row["id"]),
-            )
-            conn.commit()
-            _maj_statut_import(conn, job_id, f.name, IMPORT_TERMINE,
-                               invoice_id=row["id"])
-            traités += 1
-            flag = f"  [OK] confiance={row['confiance']:.0%}"
-            if row["statut_révision"] == STATUT_A_REVISER:
-                flag += " ⚠ à réviser"
-                à_réviser += 1
-            print(flag)
-        except Exception as e:
-            print(f"  [ERREUR] {e}")
-            shutil.move(str(f), errors_dir / f.name)
-            _maj_statut_import(conn, job_id, f.name, IMPORT_ERREUR,
-                               message_erreur=str(e))
-            erreurs += 1
+            try:
+                text = extract_text(f, cfg)
+                if not text.strip():
+                    raise ValueError("Texte vide après extraction")
+                row = parse_invoice(text, str(f), profil, user_siren, known_emitters)
+                row["hash_fichier"] = file_hash
+                insert(conn, row)
+                dest = _move_safely(f, processed_dir, f"_{row['id'][:8]}")
+                conn.execute(
+                    "UPDATE invoices SET fichier_source=? WHERE id=?",
+                    (str(dest.resolve()), row["id"]),
+                )
+                conn.commit()
+                _mettre_a_jour_statut_import(conn, job_id, f.name,
+                                              IMPORT_TERMINE,
+                                              invoice_id=row["id"])
+                traités += 1
+                flag = f"  [OK] confiance={row['confiance']:.0%}"
+                if row["statut_révision"] == STATUT_A_REVISER:
+                    flag += " ⚠ à réviser"
+                    à_réviser += 1
+                print(flag)
+            except Exception as e:
+                print(f"  [ERREUR] {e}")
+                shutil.move(str(f), errors_dir / f.name)
+                _mettre_a_jour_statut_import(conn, job_id, f.name,
+                                              IMPORT_ERREUR,
+                                              message_erreur=str(e))
+                erreurs += 1
 
-    _cloturer_job(conn, job_id)
-    conn.close()
+        _cloturer_job(conn, job_id)
+        conn.close()
+    finally:
+        # Filet de sécurité : si un crash sort de la boucle sans passer par
+        # `_cloturer_job`, on libère le client en marquant les lignes pendantes
+        # comme `erreur`. Ouvre sa propre connexion : la précédente peut être
+        # dans un état inutilisable.
+        _marquer_non_terminaux_en_erreur(
+            db_path, job_id,
+            raison="Pipeline interrompu — relancer l'import",
+        )
     print(f"\nRésultat : {traités} traités, {erreurs} erreurs, {à_réviser} à réviser, {doublons} doublons ignorés")
 
 if __name__ == "__main__":

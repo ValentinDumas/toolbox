@@ -612,6 +612,8 @@
     .upload-drop-zone.drag-over { border-color: var(--primary); background: #EFF6FF; }
     .upload-file-list { font-size: 13px; margin-bottom: 12px; }
     .upload-file-item { padding: 4px 0; color: var(--on-surface); display: flex; gap: 6px; }
+    .upload-file-statut { color: var(--on-surface-muted); font-size: 12px; }
+    .upload-file-erreur { color: var(--negative); font-size: 12px; }
     .upload-progress { margin-bottom: 12px; }
     .upload-progress-track {
       background: var(--surface-variant); border-radius: 4px; height: 6px; overflow: hidden;
@@ -1736,7 +1738,7 @@
         <div class="upload-progress-track">
           <div id="upload-progress-bar" class="upload-progress-bar"></div>
         </div>
-        <p id="upload-status" class="upload-status"></p>
+        <p id="upload-status" class="upload-status" aria-live="polite"></p>
       </div>
 
       <div class="modal-actions">
@@ -1804,7 +1806,11 @@
     document.getElementById('upload-submit').disabled = true;
   }
 
+  // Permet d'interrompre la boucle de polling quand l'utilisateur ferme la modale.
+  var jobPollController = null;
+
   function closeUploadModal() {
+    if (jobPollController) { jobPollController.abort(); jobPollController = null; }
     document.getElementById('upload-modal').classList.remove('open');
   }
 
@@ -1853,16 +1859,35 @@
   }
 
   function renderJobFiles(files) {
+    // Sécurité : on construit chaque ligne via createElement + textContent,
+    // jamais via innerHTML — `filename` et `message_erreur` viennent de
+    // données utilisateur et pourraient contenir du HTML actif.
     var list = document.getElementById('upload-file-list');
-    list.innerHTML = files.map(function(f) {
-      var icon = IMPORT_ICONS[f.statut] || '·';
-      var note = f.message_erreur
-        ? ' <span style="color:var(--negative);font-size:12px">' + f.message_erreur + '</span>'
-        : '';
-      return '<div class="upload-file-item"><span>' + icon + '</span><span>' +
-             f.filename + '</span><span style="color:var(--on-surface-muted);' +
-             'font-size:12px">' + f.statut + '</span>' + note + '</div>';
-    }).join('');
+    list.replaceChildren();
+    files.forEach(function(f) {
+      var row = document.createElement('div');
+      row.className = 'upload-file-item';
+
+      var icon = document.createElement('span');
+      icon.textContent = IMPORT_ICONS[f.statut] || '·';
+
+      var name = document.createElement('span');
+      name.textContent = f.filename;
+
+      var statut = document.createElement('span');
+      statut.className = 'upload-file-statut';
+      statut.textContent = f.statut;
+
+      row.append(icon, name, statut);
+
+      if (f.message_erreur) {
+        var err = document.createElement('span');
+        err.className = 'upload-file-erreur';
+        err.textContent = f.message_erreur;
+        row.append(err);
+      }
+      list.append(row);
+    });
   }
 
   async function rafraichirCartesEtSante() {
@@ -1880,13 +1905,16 @@
   var JOB_POLL_INTERVAL_MS = 1000;
   var JOB_POLL_TIMEOUT_MS  = 5 * 60 * 1000;
 
-  async function suivreJob(jobId) {
+  async function suivreJob(jobId, signal) {
     var bar    = document.getElementById('upload-progress-bar');
     var status = document.getElementById('upload-status');
     var debut  = Date.now();
 
     while (true) {
-      var job = await fetch('/pipeline/jobs/' + jobId).then(function(r) { return r.json(); });
+      if (signal && signal.aborted) throw new DOMException('Interrompu', 'AbortError');
+      var resp = await fetch('/pipeline/jobs/' + jobId, { signal: signal });
+      if (resp.status === 404) throw new Error('Job introuvable côté serveur.');
+      var job = await resp.json();
       renderJobFiles(job.files);
       var s = job.summary;
       var fait = s['terminé'] + s.erreur + s.doublon;
@@ -1964,6 +1992,7 @@
       // fichiers qui sont bien arrivés.
       renderFailures(depot.failed);
 
+
       var job = await suivreJob(depot.job_id, jobPollController.signal);
       await rafraichirCartesEtSante();
 
@@ -1974,7 +2003,7 @@
         : 'Terminé. Tableau de bord mis à jour.';
       if (!erreurs) setTimeout(closeUploadModal, 1200);
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError') return; // Fermeture explicite — pas une erreur.
       status.textContent = 'Erreur : ' + err.message;
       bar.style.background = 'var(--negative)';
     } finally {

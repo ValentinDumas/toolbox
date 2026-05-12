@@ -14,15 +14,20 @@ from pathlib import Path
 from urllib.parse import quote
 
 from flask import (
-    Blueprint, Response, abort, jsonify, redirect, render_template, request,
-    send_file,
+    Blueprint, Response, abort, jsonify, redirect, request, send_file,
 )
 
-from constants import IMPORT_EN_ATTENTE, IMPORT_STATUTS_TERMINAUX
+from constants import (
+    IMPORT_DOUBLON,
+    IMPORT_EN_ATTENTE,
+    IMPORT_EN_EXTRACTION,
+    IMPORT_ERREUR,
+    IMPORT_STATUTS_TERMINAUX,
+    IMPORT_TERMINE,
+)
 from context_helpers import active_paths, active_slug
 from db import open_db
 from profiles import resolve_paths
-from queries import query_fiscal_summary, query_health
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -57,8 +62,15 @@ def _enregistrer_job(db_path: Path, job_id: str, filenames: list[str]) -> None:
     conn.close()
 
 
-def _lire_job(db_path: Path, job_id: str) -> dict:
-    """Retourne l'état courant d'un job (fichiers + résumé + drapeau de fin)."""
+_TOUS_LES_STATUTS = (
+    IMPORT_EN_ATTENTE, IMPORT_EN_EXTRACTION,
+    IMPORT_TERMINE, IMPORT_ERREUR, IMPORT_DOUBLON,
+)
+
+
+def _lire_job(db_path: Path, job_id: str) -> dict | None:
+    """État courant d'un job (fichiers + résumé + drapeau de fin).
+    Retourne None si le job_id n'existe pas — laisse l'appelant choisir le 404."""
     conn = open_db(db_path)
     rows = conn.execute(
         "SELECT filename, statut, invoice_id, message_erreur "
@@ -66,6 +78,8 @@ def _lire_job(db_path: Path, job_id: str) -> dict:
         (job_id,),
     ).fetchall()
     conn.close()
+    if not rows:
+        return None
     files = [
         {
             "filename": r["filename"],
@@ -76,11 +90,9 @@ def _lire_job(db_path: Path, job_id: str) -> dict:
         for r in rows
     ]
     summary = {"total": len(files)}
-    for s in ("en_attente", "en_extraction", "terminé", "erreur", "doublon"):
-        summary[s] = sum(1 for f in files if f["statut"] == s)
-    finished = bool(files) and all(
-        f["statut"] in IMPORT_STATUTS_TERMINAUX for f in files
-    )
+    for statut in _TOUS_LES_STATUTS:
+        summary[statut] = sum(1 for f in files if f["statut"] == statut)
+    finished = all(f["statut"] in IMPORT_STATUTS_TERMINAUX for f in files)
     return {"job_id": job_id, "files": files, "summary": summary,
             "finished": finished}
 
@@ -163,33 +175,16 @@ def pipeline_depot():
 
 @bp_pipeline.route("/pipeline/jobs/<job_id>")
 def pipeline_job_statut(job_id):
-    """GET /pipeline/jobs/<job_id> — État d'un job d'import (JSON)."""
+    """GET /pipeline/jobs/<job_id> — État d'un job d'import (JSON).
+    Renvoie 404 pour un job_id inconnu, ce qui évite au client de poller
+    indéfiniment un identifiant erroné."""
     paths = active_paths()
     if not paths:
         return jsonify({"ok": False, "error": "Aucun profil actif"}), 400
-    return jsonify(_lire_job(paths["db"], job_id))
-
-
-@bp_pipeline.route("/fragments/synthese-fiscale")
-def fragment_synthese_fiscale():
-    """GET /fragments/synthese-fiscale?year=YYYY — Cartes CA / TVA / résultat (HTML partiel)."""
-    year = request.args.get("year", datetime.now().year, type=int)
-    conn = open_db(active_paths()["db"])
-    summary = query_fiscal_summary(conn, year)
-    conn.close()
-    return render_template("fragments/synthese_fiscale.html",
-                           summary=summary, year=year)
-
-
-@bp_pipeline.route("/fragments/sante")
-def fragment_sante():
-    """GET /fragments/sante — Carte santé du workspace (HTML partiel)."""
-    year = request.args.get("year", datetime.now().year, type=int)
-    paths = active_paths()
-    conn = open_db(paths["db"])
-    health = query_health(conn, paths)
-    conn.close()
-    return render_template("fragments/sante.html", health=health, year=year)
+    job = _lire_job(paths["db"], job_id)
+    if job is None:
+        return jsonify({"ok": False, "error": "Job inconnu"}), 404
+    return jsonify(job)
 
 
 @bp_pipeline.route("/pipeline/erreurs/<filename>/reessayer", methods=["POST"])

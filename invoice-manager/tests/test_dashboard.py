@@ -892,6 +892,14 @@ def test_fragment_synthese_fiscale_renvoie_les_kpis(mem_db, tmp_path, monkeypatc
     assert "Synthèse fiscale" in body
 
 
+def test_pipeline_jobs_renvoie_404_pour_job_inconnu(mem_db, tmp_path, monkeypatch):
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/pipeline/jobs/JOB_INEXISTANT")
+    # Sans 404 le client polle indéfiniment un id erroné.
+    assert resp.status_code == 404
+
+
 def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkeypatch):
     # On bloque le lancement du subprocess pour isoler la création du job.
     import blueprints.pipeline as _bp
