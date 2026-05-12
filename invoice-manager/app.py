@@ -22,6 +22,7 @@ from queries import (
     query_health, query_items_a_reviser, query_ledger,
 )
 from services.montants import derive_amounts
+from services.profil import tva_visible_pour
 
 HERE = Path(__file__).resolve().parent
 
@@ -68,6 +69,7 @@ def create_app() -> Flask:
     app.jinja_env.filters["basename"] = lambda p: os.path.basename(p) if p else ""
     app.jinja_env.filters["truncate_filename"] = _truncate_filename
     app.jinja_env.globals["derive_amounts"] = derive_amounts
+    app.jinja_env.globals["tva_visible_pour"] = tva_visible_pour
 
     from blueprints.factures import bp_factures
     from blueprints.parametres import bp_parametres
