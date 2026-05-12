@@ -1,0 +1,9 @@
+# xcodegen-managed: regenerate locally with `xcodegen`.
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+build/
+.build/
+*.xcuserstate
+.swiftpm/
