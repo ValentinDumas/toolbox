@@ -59,11 +59,8 @@ def facture_save(item_id):
     return jsonify({"ok": True, "warning": warning})
 
 
-@bp_factures.route("/factures/<item_id>", methods=["DELETE", "POST"])
-def facture_supprimer(item_id):
-    """DELETE /factures/<id> — Soft-delete d'une facture."""
+def _soft_delete_invoice(item_id: str) -> None:
     now = datetime.now(timezone.utc).isoformat()
-    year = request.form.get("year", datetime.now().year)
     try:
         conn = open_db(active_db())
         conn.execute(
@@ -74,8 +71,24 @@ def facture_supprimer(item_id):
         conn.close()
     except sqlite3.DatabaseError:
         pass
-    if request.method == "DELETE":
-        return jsonify({"ok": True})
+
+
+@bp_factures.route("/factures/<item_id>", methods=["DELETE"])
+def facture_supprimer(item_id):
+    """DELETE /factures/<id> — Soft-delete (API JSON)."""
+    _soft_delete_invoice(item_id)
+    return jsonify({"ok": True})
+
+
+@bp_factures.route("/factures/<item_id>/supprimer", methods=["POST"])
+def facture_supprimer_form(item_id):
+    """POST /factures/<id>/supprimer — Soft-delete depuis un formulaire HTML.
+
+    Route dédiée pour éviter la collision avec PATCH /factures/<id> (save) :
+    un submit POST mal acheminé soft-supprimait silencieusement la facture.
+    """
+    year = request.form.get("year", datetime.now().year)
+    _soft_delete_invoice(item_id)
     return redirect(f"/?year={year}")
 
 
