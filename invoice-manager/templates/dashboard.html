@@ -611,8 +611,13 @@
     }
     .upload-drop-zone.drag-over { border-color: var(--primary); background: #EFF6FF; }
     .upload-file-list { font-size: 13px; margin-bottom: 12px; }
-    .upload-file-item { padding: 4px 0; color: var(--on-surface); display: flex; gap: 6px; }
-    .upload-file-statut { color: var(--on-surface-muted); font-size: 12px; }
+    .upload-file-item {
+      padding: 4px 0; color: var(--on-surface);
+      display: flex; gap: 6px; align-items: flex-start;
+      min-width: 0; overflow-wrap: anywhere; word-break: break-word;
+    }
+    .upload-file-item > span { min-width: 0; }
+    .upload-file-statut { color: var(--on-surface-muted); font-size: 12px; flex-shrink: 0; }
     .upload-file-erreur { color: var(--negative); font-size: 12px; }
     .upload-progress { margin-bottom: 12px; }
     .upload-progress-track {
