@@ -54,6 +54,9 @@
             {% endif %}
           </td>
           <td>
+            <a href="{{ url_for('urssaf.urssaf_exporter_declaration', period_key=r.period_key) }}"
+               class="btn-secondary"
+               aria-label="Exporter le récap URSSAF de {{ r.label }} (CSV)">Exporter CSV</a>
             {% if r.statut == statut_declaree %}
             <form method="post" action="{{ url_for('urssaf.urssaf_annuler_declaration', period_key=r.period_key) }}">
               <input type="hidden" name="year" value="{{ year }}">

@@ -8,11 +8,15 @@ métier (CA encaissé, cotisations) sont délégués à `services/urssaf.py` et
 """
 from datetime import datetime
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint, abort, jsonify, redirect, render_template, request,
+    send_file, url_for,
+)
 
-from context_helpers import active_db
+from context_helpers import active_db, active_paths
 from db import get_user_profile, open_db
 from queries import query_ca_encaisse
+from services.urssaf_export import export_declaration_csv
 from services.urssaf import (
     CADENCE_MENSUELLE,
     CADENCE_TRIMESTRIELLE,
@@ -100,3 +104,28 @@ def urssaf_annuler_declaration(period_key: str):
     unmark_period_declared(conn, period_key)
     conn.close()
     return redirect(url_for("urssaf.urssaf_agenda", year=request.form.get("year")))
+
+
+@bp_urssaf.route("/urssaf/declarations/<period_key>/exporter")
+def urssaf_exporter_declaration(period_key: str):
+    """GET : génère et télécharge le récap CSV d'une période URSSAF (#134)."""
+    year_str, _, _ = period_key.partition("-")
+    try:
+        year = int(year_str)
+    except ValueError:
+        abort(400, "period_key invalide")
+
+    conn = open_db(active_db())
+    profile = get_user_profile(conn) or {}
+    cadence = _resolve_cadence(profile)
+    periods = generate_periods(year, cadence)
+    period = next((p for p in periods if p["period_key"] == period_key), None)
+    if period is None:
+        conn.close()
+        abort(404, "Période URSSAF introuvable")
+
+    output_dir = active_paths()["output"] / "urssaf"
+    path = export_declaration_csv(conn, profile, period, output_dir)
+    conn.close()
+    return send_file(path, as_attachment=True, download_name=path.name,
+                     mimetype="text/csv")
