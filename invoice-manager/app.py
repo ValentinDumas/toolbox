@@ -15,7 +15,7 @@ from flask import (
 
 from constants import EXPENSE_TYPES, INCOME_TYPES
 from context_helpers import active_db, active_paths, get_profile
-from db import get_user_profile, open_db
+from db import get_category_tva_rates, get_user_profile, open_db
 from profiles import get_profile_meta, load_profiles
 from queries import (
     query_corbeille, query_error_files, query_fiscal_summary,
@@ -161,6 +161,7 @@ def create_app() -> Flask:
             corbeille_list = query_corbeille(conn, year)
             errors_list = query_error_files(paths)
             profile = get_user_profile(conn) or {}
+            categories_tva = sorted(get_category_tva_rates(conn).keys())
             conn.close()
         except sqlite3.DatabaseError as exc:
             return render_template("error.html", message=str(exc), hint="python run.py"), 500
@@ -187,6 +188,7 @@ def create_app() -> Flask:
             review_error=review_error,
             expense_types=EXPENSE_TYPES,
             doc_types=INCOME_TYPES + EXPENSE_TYPES + ("avoir", "devis"),
+            categories_tva=categories_tva,
             profile=profile,
             profile_incomplete=profile_incomplete,
         )

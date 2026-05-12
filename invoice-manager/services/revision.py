@@ -16,15 +16,21 @@ def _parse_review_fields(form) -> tuple[dict, dict]:
     errors = {}
 
     for field in ("type_document", "émetteur_nom", "numéro_facture",
-                  "catégorie", "notes_correction"):
+                  "notes_correction"):
         val = form.get(field, "").strip()
         if val:
-            # Invariant DB : `catégorie` est toujours stocké en minuscules
-            # (cf. table category_tva_rates + migration v7). Normalisation au
-            # bord, avant validation ou persistance.
-            if field == "catégorie":
-                val = val.lower()
             fields[field] = val
+
+    # `catégorie` est le seul champ texte effaçable depuis l'UI : le <select>
+    # renvoie toujours une valeur (vide pour « (aucune) »). On distingue donc
+    # « champ absent du form » (= ne pas toucher) de « chaîne vide » (= effacer
+    # explicitement la colonne en NULL).
+    if "catégorie" in form:
+        raw = form.get("catégorie", "").strip()
+        # Invariant DB : `catégorie` est toujours stocké en minuscules
+        # (cf. table category_tva_rates + migration v7). Normalisation au
+        # bord, avant validation ou persistance.
+        fields["catégorie"] = raw.lower() if raw else None
 
     # Date : ACL stricte. L'input HTML5 type="date" produit YYYY-MM-DD ;
     # on n'accepte rien d'autre pour préserver l'invariant "exercice_fiscal
@@ -125,6 +131,18 @@ def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:
     has_emitter = fields.get("émetteur_nom") or current.get("émetteur_nom")
     if not has_emitter:
         errors["émetteur_nom"] = "Émetteur requis pour identifier la contrepartie"
+
+    # `catégorie` doit appartenir au référentiel défini dans Paramètres ›
+    # Catégories TVA (table category_tva_rates). Le <select> du dashboard
+    # rend cette contrainte évidente côté UI ; on la confirme ici contre
+    # les soumissions falsifiées ou les anciennes valeurs orphelines.
+    if fields.get("catégorie"):
+        from db import get_category_tva_rates
+        if fields["catégorie"] not in get_category_tva_rates(conn):
+            errors["catégorie"] = (
+                f"Catégorie inconnue : « {fields['catégorie']} ». "
+                "Enregistrez-la dans Paramètres › Catégories TVA avant utilisation."
+            )
 
     return errors
 

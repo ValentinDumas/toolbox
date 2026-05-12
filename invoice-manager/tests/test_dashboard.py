@@ -732,6 +732,156 @@ def test_post_review_save_corrections_log_appended_on_post_validation_edit(mem_d
     assert nom_entry["après"] == "Nouveau Nom"
 
 
+# ── Catégorie : selectbox depuis le référentiel Paramètres ────────────────────
+
+def test_save_facture_avec_catégorie_enregistrée_est_acceptée(mem_db, tmp_path, monkeypatch):
+    """Given une facture à réviser et une catégorie présente dans le référentiel,
+    When on enregistre la facture avec cette catégorie,
+    Then la sauvegarde réussit et la catégorie est persistée."""
+    # Given
+    _insert_invoice(mem_db, id="cat-ok", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ttc=120.0,
+                    date_document="2025-03-01", émetteur_nom="ACME")
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When : 'transport' fait partie du seed _DEFAULT_CATEGORY_TVA_RATES
+    with app.test_client() as client:
+        resp = client.patch("/factures/cat-ok", data={
+            "montant_ttc": "120.0",
+            "date_document": "2025-03-01",
+            "émetteur_nom": "ACME",
+            "catégorie": "transport",
+        })
+
+    # Then
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT catégorie FROM invoices WHERE id='cat-ok'").fetchone()
+    check.close()
+    assert row["catégorie"] == "transport"
+
+
+def test_save_facture_avec_catégorie_inconnue_est_rejetée(mem_db, tmp_path, monkeypatch):
+    """Given une facture et une catégorie absente du référentiel,
+    When on tente d'enregistrer avec cette catégorie,
+    Then la requête échoue avec une erreur de champ et la DB n'est pas modifiée."""
+    # Given
+    _insert_invoice(mem_db, id="cat-ko", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ttc=120.0,
+                    date_document="2025-03-01", émetteur_nom="ACME",
+                    catégorie=None)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.patch("/factures/cat-ko", data={
+            "montant_ttc": "120.0",
+            "date_document": "2025-03-01",
+            "émetteur_nom": "ACME",
+            "catégorie": "catégorie_qui_n_existe_pas",
+        })
+
+    # Then
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "catégorie" in data["errors"]
+    assert "inconnue" in data["errors"]["catégorie"].lower()
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT catégorie, statut_révision FROM invoices WHERE id='cat-ko'").fetchone()
+    check.close()
+    assert row["catégorie"] is None
+    assert row["statut_révision"] == "à_réviser"
+
+
+def test_save_facture_avec_catégorie_vide_efface_la_valeur(mem_db, tmp_path, monkeypatch):
+    """Given une facture déjà catégorisée,
+    When l'utilisateur enregistre avec '(aucune)' (chaîne vide),
+    Then la catégorie est effacée en base."""
+    # Given
+    _insert_invoice(mem_db, id="cat-clear", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ttc=120.0,
+                    date_document="2025-03-01", émetteur_nom="ACME",
+                    catégorie="transport")
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.patch("/factures/cat-clear", data={
+            "montant_ttc": "120.0",
+            "date_document": "2025-03-01",
+            "émetteur_nom": "ACME",
+            "catégorie": "",
+        })
+
+    # Then : '(aucune)' = chaîne vide = effacement explicite → NULL
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT catégorie FROM invoices WHERE id='cat-clear'").fetchone()
+    check.close()
+    assert row["catégorie"] is None
+
+
+def test_carte_affiche_select_avec_catégories_enregistrées(mem_db, tmp_path, monkeypatch):
+    """Given un référentiel de catégories TVA seedé au boot,
+    When l'utilisateur charge le dashboard avec une facture à réviser,
+    Then la carte expose un <select name='catégorie'> contenant les catégories du référentiel."""
+    # Given
+    _insert_invoice(mem_db, id="ui-cat", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ttc=120.0,
+                    date_document="2025-03-01", émetteur_nom="ACME",
+                    catégorie="transport")
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+
+    # Then
+    assert resp.status_code == 200
+    html = resp.data.decode("utf-8")
+    # Le <select> est rendu (au moins une fois pour la carte items_a_reviser)
+    assert 'name="catégorie"' in html
+    assert '<select class="review-select"' in html
+    # Les catégories seedées apparaissent comme <option>
+    assert '<option value="transport"' in html
+    assert '<option value="hébergement"' in html
+    # L'option (aucune) est présente
+    assert '(aucune)</option>' in html
+    # 'transport' est pré-sélectionnée pour cette facture
+    assert 'value="transport" selected' in html
+
+
+def test_carte_signale_catégorie_legacy_avec_mention_non_enregistrée(mem_db, tmp_path, monkeypatch):
+    """Given une facture dont la catégorie n'est plus dans le référentiel,
+    When l'utilisateur charge le dashboard,
+    Then la valeur orpheline est préservée et signalée '(non enregistrée)'."""
+    # Given : 'catégorie_legacy_obsolete' n'est pas dans _DEFAULT_CATEGORY_TVA_RATES
+    _insert_invoice(mem_db, id="ui-legacy", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ttc=120.0,
+                    date_document="2025-03-01", émetteur_nom="ACME",
+                    catégorie="catégorie_legacy_obsolete")
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+
+    # Then
+    assert resp.status_code == 200
+    html = resp.data.decode("utf-8")
+    assert "catégorie_legacy_obsolete (non enregistrée)" in html
+    assert 'value="catégorie_legacy_obsolete" selected' in html
+
+
 def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     """Delete must soft-delete (set deleted_at), not remove the row."""
     _insert_invoice(mem_db, id="del1", statut_révision="à_réviser", exercice_fiscal=2025)

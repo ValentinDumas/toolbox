@@ -1121,10 +1121,17 @@
                           </div>
                           <div>
                             <label class="review-label" for="cat-v-{{ row.id }}">Catégorie</label>
-                            <input class="review-input" type="text"
-                                   id="cat-v-{{ row.id }}" name="catégorie"
-                                   value="{{ row.catégorie or '' }}">
-                            <p class="field-error" data-field="catégorie"></p>
+                            <select class="review-select" id="cat-v-{{ row.id }}" name="catégorie"
+                                    aria-describedby="err-cat-v-{{ row.id }}">
+                              <option value="" {% if not row.catégorie %}selected{% endif %}>(aucune)</option>
+                              {% for cat in categories_tva %}
+                              <option value="{{ cat }}" {% if row.catégorie == cat %}selected{% endif %}>{{ cat }}</option>
+                              {% endfor %}
+                              {% if row.catégorie and row.catégorie not in categories_tva %}
+                              <option value="{{ row.catégorie }}" selected>{{ row.catégorie }} (non enregistrée)</option>
+                              {% endif %}
+                            </select>
+                            <p class="field-error" role="alert" id="err-cat-v-{{ row.id }}" data-field="catégorie"></p>
                           </div>
                           <div class="review-field-full">
                             <label class="review-label" for="notes-v-{{ row.id }}">Notes</label>
@@ -1303,10 +1310,17 @@
                 </div>
                 <div>
                   <label class="review-label" for="cat-{{ item.id }}">Catégorie</label>
-                  <input class="review-input" type="text"
-                         id="cat-{{ item.id }}" name="catégorie"
-                         value="{{ item.catégorie or '' }}">
-                  <p class="field-error" data-field="catégorie"></p>
+                  <select class="review-select" id="cat-{{ item.id }}" name="catégorie"
+                          aria-describedby="err-cat-{{ item.id }}">
+                    <option value="" {% if not item.catégorie %}selected{% endif %}>(aucune)</option>
+                    {% for cat in categories_tva %}
+                    <option value="{{ cat }}" {% if item.catégorie == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                    {% if item.catégorie and item.catégorie not in categories_tva %}
+                    <option value="{{ item.catégorie }}" selected>{{ item.catégorie }} (non enregistrée)</option>
+                    {% endif %}
+                  </select>
+                  <p class="field-error" role="alert" id="err-cat-{{ item.id }}" data-field="catégorie"></p>
                 </div>
                 <div class="review-field-full">
                   <label class="review-label" for="notes-{{ item.id }}">Notes de correction</label>
