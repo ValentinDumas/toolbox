@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project vision — TOP PRIORITY, read before any change
+
+@VISION.md
+
 ## Code of conduct — read first, every session
 
 @BEHAVIOR.md
@@ -38,6 +42,8 @@ Load the `owasp-security` skill (installed under `~/.claude/skills/owasp-securit
 - raw SQL or any query built from user input
 - authentication, session, or permission logic
 - a new external dependency, or a bumped one with known CVEs
+- the optional Claude Vision backend (outbound data egress)
+- any item from `VISION.md > Security` (phases 1–5)
 
 The skill is NOT auto-imported here — load it only when relevant, to keep the prompt cache stable for non-security work. Run `/security-check` or `/security-review` before merging any branch that touched the above.
 
@@ -52,17 +58,6 @@ Load the `qa-pass` skill (installed under `~/.claude/skills/qa-pass/`) **before*
 The skill codifies sanity checks (`lsof -p <pid> | grep cwd`, no `SELECT *` on tables with blob columns), token discipline (one snapshot per page then `browser_evaluate`), state-rollback SQL, and the issue-template format. Not auto-imported — keeps the prompt cache stable for non-QA work.
 
 ---
-
-## Project vision — read first, every session
-
-@VISION.md
-
-## Project-specific security additions
-
-The `owasp-security` skill must also be loaded before any change touching:
-
-- the optional Claude Vision backend (outbound data egress)
-- any item from `VISION.md > Security` (phases 1–5)
 
 ## Commands
 
