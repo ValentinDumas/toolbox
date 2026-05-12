@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code of conduct — read first, every session
+
+@BEHAVIOR.md
+
 ## Software craftsmanship — TOP PRIORITY
 
 These practices **override** all rules below when in conflict. Apply them to **every file** (Python, Jinja, JS, SQL) and to **every change**, before considering language-specific or framework conventions.
