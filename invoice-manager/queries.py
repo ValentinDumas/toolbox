@@ -130,7 +130,9 @@ def query_health(conn: sqlite3.Connection, paths: dict) -> dict:
     ).fetchone()[0]
 
     rows = conn.execute(
-        "SELECT fichier_source FROM invoices WHERE fichier_source IS NOT NULL"
+        "SELECT fichier_source FROM invoices "
+        "WHERE fichier_source IS NOT NULL AND TRIM(fichier_source) <> '' "
+        "AND deleted_at IS NULL"
     ).fetchall()
     dead_links = sum(
         1 for row in rows

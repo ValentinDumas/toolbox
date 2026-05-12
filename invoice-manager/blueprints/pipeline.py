@@ -245,11 +245,15 @@ def pipeline_purger_liens_morts():
     paths = resolve_paths(slug)
     conn = open_db(paths["db"])
     rows = conn.execute(
-        "SELECT id, fichier_source FROM invoices WHERE fichier_source IS NOT NULL"
+        "SELECT id, fichier_source FROM invoices "
+        "WHERE fichier_source IS NOT NULL AND TRIM(fichier_source) <> '' "
+        "AND deleted_at IS NULL"
     ).fetchall()
     purged = 0
     for row in rows:
         basename = Path(row["fichier_source"]).name
+        if not basename:
+            continue
         found = any(
             (paths[d] / basename).is_file()
             for d in ("processed", "errors", "input")
