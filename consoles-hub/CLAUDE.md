@@ -78,3 +78,10 @@ their iOS phone over a Tailscale network. See `docs/specs/` for the design.
 
 The `ping-me/` subdirectory contains the iOS push notifier (bash, free,
 ntfy.sh-backed). It is also usable standalone.
+
+## Documentation hygiene
+
+Always update `README.md` and any associated documentation (specs under
+`docs/specs/`, install/usage notes, subdirectory READMEs) when a change
+alters behavior, configuration, commands, or interfaces. Docs land in the
+same commit as the code change — never deferred.

@@ -203,3 +203,10 @@ CI (`ci.yml`) runs `pytest` automatically on every push — wait for the green c
 - No new dependencies without updating `pyproject.toml`.
 - Config lives in `config.toml` (gitignored). The example is committed as `config.toml.example`.
 - Module-level constants in uppercase (e.g. `MAX_SOURCE_CHARS`). No magic numbers in function signatures.
+
+## Documentation hygiene
+
+Always update `README.md` and any associated documentation (specs under
+`docs/specs/`, install/usage notes, subdirectory READMEs) when a change
+alters behavior, configuration, commands, or interfaces. Docs land in the
+same commit as the code change — never deferred.

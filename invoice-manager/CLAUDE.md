@@ -137,3 +137,10 @@ default_profile = "SASU"      # Affects deductibility rules at export
 Supported: `auto-entrepreneur`, `SASU`, `SARL`, `salarié`. Each has different:
 - TVA deductibility rules (in `export.py`)
 - Default declaration cadence (in `config.py::CADENCE_DEFAULTS`)
+
+## Documentation hygiene
+
+Always update `README.md` and any associated documentation (specs under
+`docs/specs/`, install/usage notes, subdirectory READMEs) when a change
+alters behavior, configuration, commands, or interfaces. Docs land in the
+same commit as the code change — never deferred.
