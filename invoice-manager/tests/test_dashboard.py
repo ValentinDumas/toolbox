@@ -930,6 +930,170 @@ def test_carte_signale_catégorie_legacy_avec_mention_non_enregistrée(mem_db, t
     assert 'value="catégorie_legacy_obsolete" selected' in html
 
 
+# ── Formulaire de révision : champs visibles selon le profil fiscal ───────────
+
+def test_formulaire_revision_pour_auto_entrepreneur_n_affiche_qu_un_champ_montant(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given un AE en franchise et un item à réviser,
+    When on rend le dashboard,
+    Then le formulaire expose un seul input « Montant » (name='montant_ttc')
+    et aucun input HT / TVA / Taux."""
+    # Given : _make_app insère par défaut un profil 'auto-entrepreneur'.
+    _insert_invoice(mem_db, id="ae-rev", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ttc=120.0,
+                    date_document="2025-03-01", émetteur_nom="ACME")
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+
+    # Then
+    assert resp.status_code == 200
+    html = resp.data.decode("utf-8")
+    assert 'name="montant_ttc"' in html
+    assert 'name="montant_ht"' not in html
+    assert 'name="montant_tva"' not in html
+    assert 'name="taux_tva"' not in html
+
+
+def test_formulaire_revision_pour_sasu_affiche_les_quatre_champs_montant(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given un profil SASU et un item à réviser,
+    When on rend le dashboard,
+    Then les inputs HT, TVA, Taux et TTC sont tous présents."""
+    # Given : on insère l'item, on construit l'app, puis on bascule le profil
+    # en SASU avant de servir la page (cf. test_post_review_save_facture_validée_sasu_*).
+    _insert_invoice(mem_db, id="sasu-rev", statut_révision="à_réviser",
+                    exercice_fiscal=2025, montant_ht=100.0, montant_tva=20.0,
+                    montant_ttc=120.0, taux_tva=0.20,
+                    date_document="2025-03-01", émetteur_nom="ACME")
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db_path))
+    conn.execute("UPDATE user_profile SET fiscal_profile='SASU' WHERE id=1")
+    conn.commit()
+    conn.close()
+
+    # When
+    with app.test_client() as client:
+        resp = client.get("/?year=2025")
+
+    # Then
+    assert resp.status_code == 200
+    html = resp.data.decode("utf-8")
+    assert 'name="montant_ht"' in html
+    assert 'name="montant_tva"' in html
+    assert 'name="taux_tva"' in html
+    assert 'name="montant_ttc"' in html
+
+
+# ── Numéro de facture : requis pour les pièces émises uniquement ──────────────
+
+def test_facture_emise_sans_numero_est_refusee(mem_db, tmp_path, monkeypatch):
+    """Given une facture émise sans numéro,
+    When on PATCH /factures/<id> sans numéro_facture,
+    Then errors['numéro_facture'] est renvoyé et le statut DB reste à_réviser."""
+    # Given
+    _insert_invoice(mem_db, id="emise-sans-num", statut_révision="à_réviser",
+                    type_document="facture_émise", exercice_fiscal=2025,
+                    montant_ttc=120.0, date_document="2025-03-01",
+                    destinataire_nom="Client SARL", émetteur_nom="Moi SAS",
+                    numéro_facture=None)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.patch("/factures/emise-sans-num", data={
+            "type_document": "facture_émise",
+            "montant_ttc": "120.0",
+            "date_document": "2025-03-01",
+            "émetteur_nom": "Moi SAS",
+            "numéro_facture": "",
+        })
+
+    # Then
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "numéro_facture" in data["errors"]
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute(
+        "SELECT statut_révision FROM invoices WHERE id='emise-sans-num'"
+    ).fetchone()
+    check.close()
+    assert row["statut_révision"] == "à_réviser"
+
+
+def test_facture_recue_sans_numero_est_acceptee(mem_db, tmp_path, monkeypatch):
+    """Given une facture reçue (charge) sans numéro,
+    When on PATCH /factures/<id> sans numéro_facture,
+    Then ok=True : le numéro reste optionnel sur les pièces reçues."""
+    # Given
+    _insert_invoice(mem_db, id="recue-sans-num", statut_révision="à_réviser",
+                    type_document="facture_reçue", exercice_fiscal=2025,
+                    montant_ttc=39.99, date_document="2025-03-01",
+                    émetteur_nom="OVH SAS", numéro_facture=None)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When
+    with app.test_client() as client:
+        resp = client.patch("/factures/recue-sans-num", data={
+            "type_document": "facture_reçue",
+            "montant_ttc": "39.99",
+            "date_document": "2025-03-01",
+            "émetteur_nom": "OVH SAS",
+            "numéro_facture": "",
+        })
+
+    # Then
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_save_piece_recue_ae_avec_ttc_seul_n_ecrase_pas_les_ht_tva_ocr(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given un AE et une pièce reçue dont l'OCR a extrait HT=33.33, TVA=6.66, TTC=39.99,
+    When l'utilisateur PATCH avec uniquement montant_ttc=39.99,
+    Then la DB conserve HT=33.33, TVA=6.66 et TTC=39.99 — la TVA fournisseur
+    extraite par l'OCR ne doit pas être effacée par la simplification UI."""
+    # Given
+    _insert_invoice(mem_db, id="ae-recue", statut_révision="à_réviser",
+                    type_document="facture_reçue", exercice_fiscal=2025,
+                    montant_ht=33.33, montant_tva=6.66, montant_ttc=39.99,
+                    taux_tva=0.20, date_document="2025-03-01",
+                    émetteur_nom="OVH SAS")
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+    # When : formulaire AE simplifié — n'envoie que montant_ttc.
+    with app.test_client() as client:
+        resp = client.patch("/factures/ae-recue", data={
+            "type_document": "facture_reçue",
+            "montant_ttc": "39.99",
+            "date_document": "2025-03-01",
+            "émetteur_nom": "OVH SAS",
+        })
+
+    # Then : la sauvegarde réussit et les montants OCR sont préservés.
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute(
+        "SELECT montant_ht, montant_tva, montant_ttc FROM invoices WHERE id='ae-recue'"
+    ).fetchone()
+    check.close()
+    assert abs(row["montant_ht"] - 33.33) < 0.01
+    assert abs(row["montant_tva"] - 6.66) < 0.01
+    assert abs(row["montant_ttc"] - 39.99) < 0.01
+
+
 def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     """Delete must soft-delete (set deleted_at), not remove the row."""
     _insert_invoice(mem_db, id="del1", statut_révision="à_réviser", exercice_fiscal=2025)

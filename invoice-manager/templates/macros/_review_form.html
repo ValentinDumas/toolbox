@@ -1,0 +1,146 @@
+{# templates/macros/_review_form.html
+
+   Formulaire mutualisé d'édition d'une pièce comptable. Utilisé en deux
+   contextes :
+   - panel « À réviser » (`is_revision=True`) : pièce au statut `à_réviser`,
+     mise en évidence des champs vides via `review-input-missing` ;
+   - édition inline (`is_revision=False`) : pièce déjà validée dépliée
+     sous sa ligne du Journal, libellé « Notes », bouton « Enregistrer la
+     correction » accompagné d'un bouton « Annuler ».
+
+   Le suffixe `id_suffix` (`""` ou `"-v"`) préserve l'unicité des `id`/`for`
+   HTML entre les deux instances rendues côte à côte. #}
+{% macro review_form(item, profile, categories_tva, doc_types, expense_types, id_suffix='', is_revision=True) %}
+{% set sfx = id_suffix %}
+{% set missing_amounts = is_revision and item.montant_ht is none and item.montant_ttc is none %}
+{% set tva_visible = tva_visible_pour(profile) %}
+<form method="post" action="/factures/{{ item.id }}" class="js-facture-save">
+  <input type="hidden" name="year" value="{{ year }}">
+  <div class="review-fields">
+    <div>
+      <label class="review-label" for="type{{ sfx }}-{{ item.id }}">Type</label>
+      <select class="review-select" id="type{{ sfx }}-{{ item.id }}" name="type_document"
+              aria-describedby="err-type{{ sfx }}-{{ item.id }}">
+        {% for dt in doc_types %}
+        <option value="{{ dt }}" {{ 'selected' if item.type_document == dt }}>{{ dt }}</option>
+        {% endfor %}
+      </select>
+      <p class="field-error" role="alert" id="err-type{{ sfx }}-{{ item.id }}" data-field="type_document"></p>
+    </div>
+    {% if tva_visible %}
+    <div>
+      <label class="review-label" for="ht{{ sfx }}-{{ item.id }}">Montant HT</label>
+      <input class="review-input review-input-amount{% if missing_amounts %} review-input-missing{% endif %}" type="number" step="0.01"
+             id="ht{{ sfx }}-{{ item.id }}" name="montant_ht"
+             aria-describedby="err-ht{{ sfx }}-{{ item.id }}"
+             value="{{ item.montant_ht if item.montant_ht is not none else '' }}">
+      <p class="field-error" role="alert" id="err-ht{{ sfx }}-{{ item.id }}" data-field="montant_ht"></p>
+    </div>
+    <div>
+      <label class="review-label" for="tva{{ sfx }}-{{ item.id }}">TVA</label>
+      <input class="review-input review-input-amount" type="number" step="0.01"
+             id="tva{{ sfx }}-{{ item.id }}" name="montant_tva"
+             aria-describedby="err-tva{{ sfx }}-{{ item.id }}"
+             value="{{ item.montant_tva if item.montant_tva is not none else '' }}">
+      <p class="field-error" role="alert" id="err-tva{{ sfx }}-{{ item.id }}" data-field="montant_tva"></p>
+    </div>
+    <div>
+      <label class="review-label" for="taux{{ sfx }}-{{ item.id }}">Taux</label>
+      <select class="review-input" id="taux{{ sfx }}-{{ item.id }}" name="taux_tva"
+              aria-describedby="err-taux{{ sfx }}-{{ item.id }} hint-taux{{ sfx }}-{{ item.id }}">
+        <option value="" {% if item.taux_tva is none %}selected{% endif %}>—</option>
+        <option value="0"     {% if item.taux_tva == 0    %}selected{% endif %}>0 %</option>
+        <option value="0.021" {% if item.taux_tva == 0.021 %}selected{% endif %}>2,1 %</option>
+        <option value="0.055" {% if item.taux_tva == 0.055 %}selected{% endif %}>5,5 %</option>
+        <option value="0.10"  {% if item.taux_tva == 0.10 %}selected{% endif %}>10 %</option>
+        <option value="0.20"  {% if item.taux_tva == 0.20 %}selected{% endif %}>20 %</option>
+      </select>
+      <p class="review-hint" id="hint-taux{{ sfx }}-{{ item.id }}">
+        <small>Vide : TVA non considérée comme déductible. Demandez une facture conforme pour la récupérer.</small>
+      </p>
+      <p class="field-error" role="alert" id="err-taux{{ sfx }}-{{ item.id }}" data-field="taux_tva"></p>
+    </div>
+    <div>
+      <label class="review-label" for="ttc{{ sfx }}-{{ item.id }}">TTC</label>
+      <input class="review-input review-input-amount{% if missing_amounts %} review-input-missing{% endif %}" type="number" step="0.01"
+             id="ttc{{ sfx }}-{{ item.id }}" name="montant_ttc"
+             aria-describedby="err-ttc{{ sfx }}-{{ item.id }}"
+             value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
+      <p class="field-error" role="alert" id="err-ttc{{ sfx }}-{{ item.id }}" data-field="montant_ttc"></p>
+    </div>
+    {% else %}
+    {# Profil non assujetti (franchise en base art. 293 B CGI, salarié) :
+       un seul champ « Montant » = TTC effectif, pas d'éclatement HT/TVA. #}
+    <div>
+      <label class="review-label" for="ttc{{ sfx }}-{{ item.id }}">Montant</label>
+      <input class="review-input review-input-amount{% if missing_amounts %} review-input-missing{% endif %}" type="number" step="0.01"
+             id="ttc{{ sfx }}-{{ item.id }}" name="montant_ttc"
+             aria-describedby="err-ttc{{ sfx }}-{{ item.id }}"
+             value="{{ item.montant_ttc if item.montant_ttc is not none else '' }}">
+      <p class="field-error" role="alert" id="err-ttc{{ sfx }}-{{ item.id }}" data-field="montant_ttc"></p>
+    </div>
+    {% endif %}
+    <div>
+      <label class="review-label" for="date{{ sfx }}-{{ item.id }}">Date</label>
+      <input class="review-input{% if is_revision and not item.date_document %} review-input-missing{% endif %}" type="date" required
+             id="date{{ sfx }}-{{ item.id }}" name="date_document"
+             aria-describedby="err-date{{ sfx }}-{{ item.id }}"
+             value="{{ item.date_document or '' }}">
+      <p class="field-error" role="alert" id="err-date{{ sfx }}-{{ item.id }}" data-field="date_document"></p>
+    </div>
+    <div>
+      <label class="review-label" for="emetteur{{ sfx }}-{{ item.id }}">Émetteur</label>
+      <input class="review-input{% if is_revision and not item.émetteur_nom %} review-input-missing{% endif %}" type="text"
+             id="emetteur{{ sfx }}-{{ item.id }}" name="émetteur_nom"
+             aria-describedby="err-emetteur{{ sfx }}-{{ item.id }}"
+             value="{{ item.émetteur_nom or '' }}">
+      <p class="field-error" role="alert" id="err-emetteur{{ sfx }}-{{ item.id }}" data-field="émetteur_nom"></p>
+    </div>
+    <div>
+      <label class="review-label" for="num{{ sfx }}-{{ item.id }}">N° facture</label>
+      <input class="review-input{% if is_revision and not item.numéro_facture %} review-input-missing{% endif %}" type="text"
+             id="num{{ sfx }}-{{ item.id }}" name="numéro_facture"
+             aria-describedby="err-num{{ sfx }}-{{ item.id }}"
+             value="{{ item.numéro_facture or '' }}">
+      <p class="field-error" role="alert" id="err-num{{ sfx }}-{{ item.id }}" data-field="numéro_facture"></p>
+    </div>
+    <div>
+      <label class="review-label" for="cat{{ sfx }}-{{ item.id }}">Catégorie</label>
+      <select class="review-select" id="cat{{ sfx }}-{{ item.id }}" name="catégorie"
+              aria-describedby="err-cat{{ sfx }}-{{ item.id }}">
+        <option value="" {% if not item.catégorie %}selected{% endif %}>(aucune)</option>
+        {% for cat in categories_tva %}
+        <option value="{{ cat }}" {% if item.catégorie == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+        {% if item.catégorie and item.catégorie not in categories_tva %}
+        <option value="{{ item.catégorie }}" selected>{{ item.catégorie }} (non enregistrée)</option>
+        {% endif %}
+      </select>
+      <p class="field-error" role="alert" id="err-cat{{ sfx }}-{{ item.id }}" data-field="catégorie"></p>
+    </div>
+    <div class="review-field-full">
+      <label class="review-label" for="notes{{ sfx }}-{{ item.id }}">{{ 'Notes de correction' if is_revision else 'Notes' }}</label>
+      <textarea class="review-textarea" id="notes{{ sfx }}-{{ item.id }}" name="notes_correction"
+                rows="2">{{ item.notes_correction or '' }}</textarea>
+      <p class="field-error" data-field="notes_correction"></p>
+    </div>
+  </div>
+
+  {% if is_revision %}
+  {% set item_label = item.émetteur_nom or (item.fichier_source|basename) or 'Document inconnu' %}
+  <div class="review-actions">
+    <button type="submit" class="btn-primary btn-full-width"
+            aria-label="Valider — {{ item_label }}{% if item.date_document %} — {{ item.date_document }}{% endif %}">
+      Valider
+    </button>
+    <p class="field-error" data-field="_base" style="width:100%;text-align:center"></p>
+  </div>
+  {% else %}
+  <div class="review-actions">
+    <button type="submit" class="btn-primary">Enregistrer la correction</button>
+    <button type="button" class="btn-cancel-edit btn-secondary">Annuler</button>
+    <p class="field-error" data-field="_base" style="flex:1 1 100%"></p>
+  </div>
+  {% endif %}
+</form>
+{% endmacro %}

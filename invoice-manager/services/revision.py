@@ -8,6 +8,7 @@ from datetime import date
 
 from constants import (
     CONFIDENCE_THRESHOLD,
+    EMITTED_DOC_TYPES,
     FISCAL_RULES,
     SEUIL_TVA_SIMPLIFIEE_EUR,
     STATUT_A_REVISER,
@@ -177,6 +178,18 @@ def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:
             errors["catégorie"] = (
                 f"Catégorie inconnue : « {fields['catégorie']} ». "
                 "Enregistrez-la dans Paramètres › Catégories TVA avant utilisation."
+            )
+
+    # Mention légale française §7.2 AUTO_ENTREPRENEUR_RULES.md : toute pièce
+    # émise par l'utilisateur (facture ou avoir émis) doit porter un numéro
+    # séquentiel sans rupture. Pas de contrainte pour les pièces reçues
+    # (charges), dont le numéro reste informatif.
+    type_doc = fields.get("type_document") or current.get("type_document")
+    if type_doc in EMITTED_DOC_TYPES:
+        num = fields.get("numéro_facture") or current.get("numéro_facture")
+        if not num:
+            errors["numéro_facture"] = (
+                "Numéro de facture requis pour les pièces émises"
             )
 
     return errors
