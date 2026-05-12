@@ -165,6 +165,80 @@ def test_ledger_totals(mem_db):
     assert result["total_debit"] == 150.0
 
 
+def test_ledger_total_debit_auto_entrepreneur_somme_les_ttc(mem_db):
+    # Given un auto-entrepreneur (franchise art. 293 B CGI) et une
+    # facture reçue d'un fournisseur qui, lui, facture la TVA
+    from queries import query_ledger
+    _insert_invoice(mem_db, id="exp", type_document="facture_reçue",
+                    montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0,
+                    exercice_fiscal=2025)
+    # When on calcule le total du pied de ledger pour ce profil
+    result = query_ledger(mem_db, 2025, tva_visible=False)
+    # Then la base est le TTC (la TVA payée au fournisseur n'est pas
+    # récupérable et fait partie de la charge réelle pour un AE)
+    assert result["total_debit"] == 120.0
+
+
+def test_ledger_total_debit_sasu_somme_les_ht_inchange(mem_db):
+    # Given un profil SASU (TVA déductible) et la même facture reçue
+    from queries import query_ledger
+    _insert_invoice(mem_db, id="exp", type_document="facture_reçue",
+                    montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0,
+                    exercice_fiscal=2025)
+    # When on calcule le total du pied de ledger
+    result = query_ledger(mem_db, 2025, tva_visible=True)
+    # Then la base reste le HT (la TVA est récupérée par ailleurs)
+    assert result["total_debit"] == 100.0
+
+
+def test_ledger_total_credit_auto_entrepreneur_en_ttc(mem_db):
+    # Given un AE et une facture émise (un AE ne facture pas de TVA :
+    # HT = TTC, donc la valeur est identique HT/TTC mais le test fige
+    # la règle « pour ce profil, le pied somme TTC »)
+    from queries import query_ledger
+    _insert_invoice(mem_db, id="inc", type_document="facture_émise",
+                    montant_ht=300.0, montant_tva=0.0, montant_ttc=300.0,
+                    exercice_fiscal=2025)
+    result = query_ledger(mem_db, 2025, tva_visible=False)
+    assert result["total_credit"] == 300.0
+
+
+def test_synthese_fiscale_total_charges_auto_entrepreneur_en_ttc(mem_db):
+    # Given un AE avec une facture reçue validée à TVA
+    from queries import query_fiscal_summary
+    _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
+                    montant_ht=400.0, montant_tva=80.0, montant_ttc=480.0,
+                    statut_révision="validé", exercice_fiscal=2025)
+    # When on demande la synthèse fiscale pour ce profil
+    s = query_fiscal_summary(mem_db, 2025, tva_visible=False)
+    # Then les charges sont sommées TTC — c'est ce que l'AE paie
+    # réellement (cf. AUTO_ENTREPRENEUR_RULES.md, franchise en base)
+    assert s["total_charges"] == 480.0
+
+
+def test_synthese_fiscale_total_charges_sasu_en_ht_inchange(mem_db):
+    # Given une SASU avec la même facture reçue
+    from queries import query_fiscal_summary
+    _insert_invoice(mem_db, id="r1", type_document="facture_reçue",
+                    montant_ht=400.0, montant_tva=80.0, montant_ttc=480.0,
+                    statut_révision="validé", exercice_fiscal=2025)
+    s = query_fiscal_summary(mem_db, 2025, tva_visible=True)
+    # Then les charges restent en HT (non-régression)
+    assert s["total_charges"] == 400.0
+
+
+def test_synthese_fiscale_charges_revision_auto_entrepreneur_en_ttc(mem_db):
+    # Les items à réviser doivent suivre la même base de calcul que
+    # les charges validées pour rester comparables dans le bandeau.
+    from queries import query_fiscal_summary
+    _insert_invoice(mem_db, id="rr", type_document="facture_reçue",
+                    montant_ht=50.0, montant_tva=10.0, montant_ttc=60.0,
+                    statut_révision="à_réviser", exercice_fiscal=2025)
+    s = query_fiscal_summary(mem_db, 2025, tva_visible=False)
+    assert s["total_charges_revision"] == 60.0
+    assert s["nb_charges_revision"] == 1
+
+
 def test_ledger_validé_edit_row_markup(mem_db, tmp_path, monkeypatch):
     """L'item validé doit rendre un <tr class='edit-row'> inline et un <button aria-controls>."""
     _insert_invoice(mem_db, id="v1", statut_révision="validé",

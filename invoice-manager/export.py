@@ -15,9 +15,20 @@ from datetime import date, datetime
 from pathlib import Path
 
 from config import CADENCE_DEFAULTS
-from constants import MONTHS_FR_SHORT, STATUT_A_REVISER
+from constants import FISCAL_RULES, MONTHS_FR_SHORT, STATUT_A_REVISER
 from db import get_user_profile, open_db
 from services.comptabilite import is_off_ledger, sens_comptable, to_journal_row
+
+
+def _tva_visible_for_statut(statut: str | None) -> bool:
+    """Vrai si le profil fiscal raisonne en HT (TVA déductible), faux sinon.
+
+    Mirroir CLI-side de `services.profil.tva_visible_pour` (qui prend un
+    profil chargé en DB) : ici on dispose seulement du libellé `statut`
+    passé en argument ou lu sur `user_profile`. Voir
+    AUTO_ENTREPRENEUR_RULES.md § TVA pour la règle métier.
+    """
+    return FISCAL_RULES.get(statut, {}).get("tva_déductible", False)
 
 try:
     import openpyxl
@@ -176,11 +187,17 @@ def _write_journal(wb, rows: list[dict]) -> None:
 
 def _write_recap(wb, rows: list[dict], statut: str | None) -> None:
     ws = wb.create_sheet("Récapitulatif")
+    tva_visible = _tva_visible_for_statut(statut)
     total_ttc = sum(r.get("montant_ttc") or 0 for r in rows)
     total_ht = sum(r.get("montant_ht") or 0 for r in rows)
     total_tva = sum(r.get("montant_tva") or 0 for r in rows)
+    # Profil non-déductible (AE en franchise, salarié) : la TVA payée
+    # aux fournisseurs n'est pas récupérable, l'assiette de charge est
+    # TTC. Profil déductible (SASU/SARL) : assiette HT historique.
+    charge_amount = (lambda r: r.get("montant_ht") or r.get("montant_ttc") or 0) if tva_visible \
+        else (lambda r: r.get("montant_ttc") or r.get("montant_ht") or 0)
     charges_ded = sum(
-        (r.get("montant_ht") or r.get("montant_ttc") or 0) * (r.get("taux_déductibilité") or 0)
+        charge_amount(r) * (r.get("taux_déductibilité") or 0)
         for r in rows if r.get("déductible")
     )
     factures_emises = [r for r in rows if r.get("type_document") == "facture_émise"]
@@ -226,11 +243,15 @@ def _write_declaration(wb, rows: list[dict], year: int | None, statut: str | Non
     ws.append(["Statut", statut or "non défini"])
     ws.append(["", ""])
 
+    tva_visible = _tva_visible_for_statut(statut)
+    charge_amount = (lambda r: r.get("montant_ht") or r.get("montant_ttc") or 0) if tva_visible \
+        else (lambda r: r.get("montant_ttc") or r.get("montant_ht") or 0)
+
     by_cat: dict[str, float] = {}
     for r in rows:
         if r.get("déductible"):
             cat = r.get("catégorie") or "autres"
-            montant = (r.get("montant_ht") or r.get("montant_ttc") or 0) * (r.get("taux_déductibilité") or 1)
+            montant = charge_amount(r) * (r.get("taux_déductibilité") or 1)
             by_cat[cat] = by_cat.get(cat, 0) + montant
 
     ws.append(["CHARGES PAR CATÉGORIE (déductibles)", "Montant €"])
@@ -287,6 +308,9 @@ def _period_label(cadence: str, period_key: str) -> str:
 def _compute_deadlines(rows: list[dict], cadence: str, statut: str | None) -> list[tuple]:
     """Returns list of (label, ca, charges_ded, deadline_str)."""
     periods: dict[str, dict] = {}
+    tva_visible = _tva_visible_for_statut(statut)
+    charge_amount = (lambda r: r.get("montant_ht") or r.get("montant_ttc") or 0) if tva_visible \
+        else (lambda r: r.get("montant_ttc") or r.get("montant_ht") or 0)
 
     for r in rows:
         raw_date = r.get("date_document")
@@ -308,7 +332,7 @@ def _compute_deadlines(rows: list[dict], cadence: str, statut: str | None) -> li
         if r.get("type_document") == "facture_émise":
             period["ca"] += r.get("montant_ttc") or 0
         elif r.get("déductible"):
-            period["charges"] += (r.get("montant_ht") or r.get("montant_ttc") or 0) * (r.get("taux_déductibilité") or 1)
+            period["charges"] += charge_amount(r) * (r.get("taux_déductibilité") or 1)
 
     result = []
     for key in sorted(periods):
@@ -368,10 +392,14 @@ def _write_stats(wb, rows: list[dict], year: int | None, statut: str | None, cad
         ws.append([key] + counts + [sum(counts)])
 
     # ── Bloc B : montants par mois ────────────────────────────────────────────
+    # Pour un profil non-déductible (AE, salarié), HT n'a pas de sens
+    # comptable propre — la base utile est TTC. On adapte libellés et somme.
+    tva_visible = _tva_visible_for_statut(statut)
+    base_label = "HT" if tva_visible else "TTC"
     ws.append([])
     ws.append(["MONTANTS PAR MOIS", "", "", ""])
     _style_header(ws, ws.max_row, 4)
-    ws.append(["Mois", "Total charges HT", "CA HT", "Balance"])
+    ws.append(["Mois", f"Total charges {base_label}", f"CA {base_label}", "Balance"])
     _style_header(ws, ws.max_row, 4)
 
     monthly_amounts: dict[str, dict] = {}
@@ -386,9 +414,12 @@ def _write_stats(wb, rows: list[dict], year: int | None, statut: str | None, cad
         key = f"{dt.year}-{dt.month:02d}"
         ma = monthly_amounts.setdefault(key, {"charges": 0.0, "ca": 0.0})
         if r.get("type_document") == "facture_émise":
-            ma["ca"] += r.get("montant_ht") or 0
+            ma["ca"] += (r.get("montant_ht") if tva_visible else r.get("montant_ttc")) or 0
         else:
-            ma["charges"] += r.get("montant_ht") or r.get("montant_ttc") or 0
+            if tva_visible:
+                ma["charges"] += r.get("montant_ht") or r.get("montant_ttc") or 0
+            else:
+                ma["charges"] += r.get("montant_ttc") or r.get("montant_ht") or 0
 
     for key in sorted(monthly_amounts):
         ma = monthly_amounts[key]

@@ -8,6 +8,21 @@ The single success metric: a user can drop a year of documents into `input/`, ru
 
 ---
 
+## Priorité produit — focus auto-entrepreneur
+
+**Décision (2026-05-12) :** le développement de l'application est désormais piloté en priorité par le profil **auto-entrepreneur**. C'est le scénario d'usage qui dirige le backlog, les arbitrages UX, les règles de calcul par défaut et la couverture de tests.
+
+- Tout ce qui a été mis en place pour les autres raisons sociales (`SASU`, `SARL`, `salarié`) **reste en place** : pas de régression fonctionnelle, pas de suppression de code, pas de masquage UI. Les règles fiscales, profils et exports existants continuent de fonctionner.
+- En revanche, à choix égal :
+  - une nouvelle feature démarre par le chemin auto-entrepreneur (UI, calculs, tests BDD) avant d'être étendue aux autres profils ;
+  - une règle fiscale ambiguë est tranchée d'abord pour l'auto-entrepreneur (micro-BIC / micro-BNC, franchise en base de TVA, abattements, cotisations URSSAF, CFE, versement libératoire) ;
+  - les arbitrages d'écran (dashboard, déclarations, récapitulatifs) optimisent en premier la lisibilité pour un auto-entrepreneur en franchise de TVA.
+- Les autres profils sont maintenus en mode **best-effort** : ils continuent d'exister, sont testés, mais ne pilotent plus la roadmap.
+
+Les règles fiscales, sociales et déclaratives propres à l'auto-entrepreneur (chiffres d'affaires plafonds, taux de cotisations, abattements forfaitaires, TVA, CFE, ACRE, déclarations URSSAF / impots.gouv.fr) sont documentées dans **[AUTO_ENTREPRENEUR_RULES.md](AUTO_ENTREPRENEUR_RULES.md)**. Ce document est la **source de référence** pour toute logique de calcul, validation ou export touchant ce profil. Il doit être mis à jour dans le même commit que toute évolution réglementaire ou implémentation associée.
+
+---
+
 ## Why
 
 French fiscal documents are sensitive: they expose SIREN, SIRET, intra-EU VAT numbers, customer/supplier identities, revenue, and personal addresses. Cloud accounting SaaS solve a real workflow problem but at the cost of:

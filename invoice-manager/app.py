@@ -111,11 +111,13 @@ def create_app() -> Flask:
         l'Ingestion n'a pas à connaître la synthèse fiscale."""
         year = request.args.get("year", datetime.now().year, type=int)
         conn = open_db(active_db())
-        summary = query_fiscal_summary(conn, year)
         # Profil requis par le template pour décider de l'affichage des
         # cartes TVA (cf. tva_visible_pour) : un AE en franchise n'a pas
-        # de TVA à reverser.
+        # de TVA à reverser. Il sert aussi à choisir la base des totaux
+        # (HT si on déduit la TVA, TTC sinon — la TVA non récupérable
+        # fait partie de la charge réelle pour un AE).
         profile = get_user_profile(conn) or {}
+        summary = query_fiscal_summary(conn, year, tva_visible=tva_visible_pour(profile))
         conn.close()
         return render_template("fragments/synthese_fiscale.html",
                                summary=summary, year=year, profile=profile)
@@ -160,13 +162,14 @@ def create_app() -> Flask:
             if url_year_mismatch:
                 conn.close()
                 return redirect(url_for("index", year=year, page=page))
-            summary = query_fiscal_summary(conn, year)
-            ledger = query_ledger(conn, year, page=page)
+            profile = get_user_profile(conn) or {}
+            tva_visible = tva_visible_pour(profile)
+            summary = query_fiscal_summary(conn, year, tva_visible=tva_visible)
+            ledger = query_ledger(conn, year, page=page, tva_visible=tva_visible)
             health = query_health(conn, paths)
             items_a_reviser_list = query_items_a_reviser(conn, year)
             corbeille_list = query_corbeille(conn, year)
             errors_list = query_error_files(paths)
-            profile = get_user_profile(conn) or {}
             categories_tva = sorted(get_category_tva_rates(conn).keys())
             conn.close()
         except sqlite3.DatabaseError as exc:

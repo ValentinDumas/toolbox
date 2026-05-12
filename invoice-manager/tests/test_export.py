@@ -277,6 +277,113 @@ class TestStatsSheet:
         assert _deadline_annuelle(2025) == date(2026, 5, 31)
 
 
+# ── Assiette des charges selon le profil fiscal ─────────────────────────────
+#
+# Pour un auto-entrepreneur (franchise art. 293 B CGI) ou un salarié,
+# la TVA payée aux fournisseurs n'est pas récupérable : l'assiette de
+# la charge est TTC. Pour SASU/SARL, l'assiette historique reste HT.
+
+def _charge_row(**overrides) -> dict:
+    """Fixture d'une charge déductible à 100% — HT 100 / TVA 20 / TTC 120."""
+    base = {
+        "type_document": "facture_reçue",
+        "montant_ht": 100.0,
+        "montant_tva": 20.0,
+        "montant_ttc": 120.0,
+        "catégorie": "hébergement",
+        "déductible": 1,
+        "taux_déductibilité": 1.0,
+        "date_document": "2025-03-15",
+    }
+    base.update(overrides)
+    return base
+
+
+def _read_recap_charges_deductibles(out_path: Path) -> float:
+    wb = openpyxl.load_workbook(out_path)
+    ws = wb["Récapitulatif"]
+    values = {r[0]: r[1] for r in ws.iter_rows(values_only=True) if r[0]}
+    return values["Charges déductibles"]
+
+
+def _read_declaration_total(out_path: Path) -> float:
+    wb = openpyxl.load_workbook(out_path)
+    ws = wb["Déclaration"]
+    for row in ws.iter_rows(values_only=True):
+        if row[0] == "TOTAL CHARGES DÉDUCTIBLES":
+            return row[1]
+    raise AssertionError("Ligne TOTAL CHARGES DÉDUCTIBLES introuvable")
+
+
+def _read_stats_block_b_headers(out_path: Path) -> list:
+    # Bloc B = celui qui suit le titre « MONTANTS PAR MOIS ».
+    wb = openpyxl.load_workbook(out_path)
+    ws = wb["Statistiques"]
+    found_title = False
+    for r in range(1, ws.max_row + 1):
+        val = ws.cell(row=r, column=1).value
+        if val == "MONTANTS PAR MOIS":
+            found_title = True
+            continue
+        if found_title and val == "Mois":
+            return [ws.cell(row=r, column=c).value for c in range(1, 5)]
+    raise AssertionError("Entêtes du bloc B introuvables")
+
+
+def test_recapitulatif_charges_deductibles_auto_entrepreneur_en_ttc(tmp_path):
+    # Given une charge déductible HT 100 / TTC 120
+    rows = [_charge_row()]
+    out = tmp_path / "ledger-ae.xlsx"
+    # When on génère le XLSX pour un AE
+    exp.write_xlsx(rows, out, 2025, "auto-entrepreneur", "trimestrielle")
+    # Then la ligne « Charges déductibles » somme le TTC (120 € × 100%)
+    assert _read_recap_charges_deductibles(out) == pytest.approx(120.0, abs=0.01)
+
+
+def test_recapitulatif_charges_deductibles_sasu_en_ht_inchange(tmp_path):
+    rows = [_charge_row()]
+    out = tmp_path / "ledger-sasu.xlsx"
+    exp.write_xlsx(rows, out, 2025, "SASU", "trimestrielle")
+    # Then somme en HT (100 € × 100%) — non-régression
+    assert _read_recap_charges_deductibles(out) == pytest.approx(100.0, abs=0.01)
+
+
+def test_declaration_par_categorie_auto_entrepreneur_en_ttc(tmp_path):
+    rows = [_charge_row(), _charge_row(catégorie="autres", montant_ht=50.0,
+                                       montant_tva=10.0, montant_ttc=60.0)]
+    out = tmp_path / "ledger-decl-ae.xlsx"
+    exp.write_xlsx(rows, out, 2025, "auto-entrepreneur", "trimestrielle")
+    # Then total catégoriel = 120 + 60 (TTC)
+    assert _read_declaration_total(out) == pytest.approx(180.0, abs=0.01)
+
+
+def test_declaration_par_categorie_sasu_en_ht_inchange(tmp_path):
+    rows = [_charge_row(), _charge_row(catégorie="autres", montant_ht=50.0,
+                                       montant_tva=10.0, montant_ttc=60.0)]
+    out = tmp_path / "ledger-decl-sasu.xlsx"
+    exp.write_xlsx(rows, out, 2025, "SASU", "trimestrielle")
+    # Then total catégoriel = 100 + 50 (HT)
+    assert _read_declaration_total(out) == pytest.approx(150.0, abs=0.01)
+
+
+def test_statistiques_montants_par_mois_labels_ttc_pour_auto_entrepreneur(tmp_path):
+    rows = [_charge_row()]
+    out = tmp_path / "ledger-stats-ae.xlsx"
+    exp.write_xlsx(rows, out, 2025, "auto-entrepreneur", "trimestrielle")
+    headers = _read_stats_block_b_headers(out)
+    # Le bandeau bascule en TTC pour rester cohérent avec l'assiette
+    # comptable du profil
+    assert headers == ["Mois", "Total charges TTC", "CA TTC", "Balance"]
+
+
+def test_statistiques_montants_par_mois_labels_ht_pour_sasu(tmp_path):
+    rows = [_charge_row()]
+    out = tmp_path / "ledger-stats-sasu.xlsx"
+    exp.write_xlsx(rows, out, 2025, "SASU", "trimestrielle")
+    headers = _read_stats_block_b_headers(out)
+    assert headers == ["Mois", "Total charges HT", "CA HT", "Balance"]
+
+
 # ── Journal Débit/Crédit (livre-journal PCG) ─────────────────────────────────
 
 class TestJournalDebitCredit:
