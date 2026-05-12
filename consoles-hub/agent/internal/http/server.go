@@ -2,15 +2,26 @@
 // Delivery mechanism only — domain logic lives in internal/tmux.
 package http
 
-import "net/http"
+import (
+	"net/http"
 
-// NewMux wires the v0 routes.
-func NewMux() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", handleHealth)
-	mux.HandleFunc("GET /consoles", handleListConsoles)
-	mux.HandleFunc("GET /consoles/{id}", handleGetConsole)
-	mux.HandleFunc("GET /consoles/{id}/buffer", handleBuffer)
-	mux.HandleFunc("POST /consoles/{id}/send", handleSend)
-	return mux
+	"github.com/vdumas/consoles-hub/agent/internal/auth"
+)
+
+// NewHandler wires the v0 routes. `/healthz` is unauthenticated so the user
+// can debug connectivity before holding a token. Every other route requires
+// `Authorization: Bearer <token>`.
+func NewHandler(token string) http.Handler {
+	root := http.NewServeMux()
+	root.HandleFunc("GET /healthz", handleHealth)
+
+	protected := http.NewServeMux()
+	protected.HandleFunc("GET /consoles", handleListConsoles)
+	protected.HandleFunc("GET /consoles/{id}", handleGetConsole)
+	protected.HandleFunc("GET /consoles/{id}/buffer", handleBuffer)
+	protected.HandleFunc("POST /consoles/{id}/send", handleSend)
+
+	root.Handle("/consoles", auth.Middleware(token, protected))
+	root.Handle("/consoles/", auth.Middleware(token, protected))
+	return root
 }
