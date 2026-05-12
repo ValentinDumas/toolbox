@@ -86,16 +86,17 @@ def facture_save(item_id):
         taux_warning = _check_taux_manquant_si_grand_montant(
             fields, current, profil_fiscal,
         )
-        # Une incohérence HT/TVA/TTC ou un taux manquant au-dessus du seuil
-        # déclasse la facture en « à réviser », exactement comme une baisse
-        # de confiance après édition.
-        warning = mismatch_warning or confidence_warning or taux_warning
-        fields = _build_corrections_log(fields, current, now, warning)
+        # Une incohérence HT/TVA/TTC est informative — la facture reste
+        # validée tant que la confiance se maintient. Seules une baisse de
+        # confiance et un taux manquant au-dessus du seuil démotent.
+        demotion_warning = confidence_warning or taux_warning
+        display_warning = demotion_warning or mismatch_warning
+        fields = _build_corrections_log(fields, current, now, demotion_warning)
         _persist_invoice(conn, item_id, fields)
         conn.close()
     except sqlite3.DatabaseError as e:
         return jsonify({"ok": False, "errors": {"_base": f"Erreur base de données : {e}"}})
-    return jsonify({"ok": True, "warning": warning})
+    return jsonify({"ok": True, "warning": display_warning})
 
 
 def _soft_delete_invoice(item_id: str) -> None:

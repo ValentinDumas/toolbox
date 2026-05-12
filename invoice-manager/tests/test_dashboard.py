@@ -2056,14 +2056,17 @@ class TestComplétionMontantsÀLaSauvegarde:
         assert row["montant_tva"] == 20.00
         assert row["taux_tva"] == 0.20
 
-    def test_édition_avec_montants_incohérents_rétrograde_en_à_réviser(
+    def test_édition_avec_montants_incohérents_reste_validée_avec_avertissement(
         self, mem_db, tmp_path, monkeypatch
     ):
-        # Given une facture validée
+        # Given une facture validée, avec tous les champs renseignés pour que
+        # la confiance reste à 1,0 même après l'édition (on isole ainsi le
+        # warning mismatch des autres motifs de démotion possibles).
         _insert_invoice(
             mem_db, id="mismatch", statut_révision="validé",
             montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0,
-            exercice_fiscal=2025,
+            exercice_fiscal=2025, numéro_facture="F-001",
+            émetteur_siren="123456789",
         )
         app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
 
@@ -2076,9 +2079,10 @@ class TestComplétionMontantsÀLaSauvegarde:
                 "montant_ttc": "120.00",
                 "date_document": "2025-04-01",
                 "émetteur_nom": "Fournisseur SAS",
+                "numéro_facture": "F-001",
             })
 
-        # Then la facture repasse en « à réviser » avec un avertissement
+        # Then la facture reste validée mais l'incohérence est signalée à l'écran
         data = resp.get_json()
         assert data["ok"] is True
         assert "TVA incohérente" in (data.get("warning") or "")
@@ -2089,7 +2093,7 @@ class TestComplétionMontantsÀLaSauvegarde:
             "FROM invoices WHERE id='mismatch'"
         ).fetchone()
         check.close()
-        assert row["statut_révision"] == "à_réviser"
+        assert row["statut_révision"] == "validé"
         # Les valeurs saisies sont conservées telles quelles — pas d'écrasement
         assert row["montant_ht"]  == 100.00
         assert row["montant_tva"] == 15.00

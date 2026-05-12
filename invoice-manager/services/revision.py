@@ -112,7 +112,7 @@ def _complete_montants(fields: dict, current: dict) -> str | None:
             fields[nom] = val
 
     if WARN_TVA_MISMATCH in result.warnings:
-        return "TVA incohérente avec HT/TTC — item retourné en « À réviser »."
+        return "TVA incohérente avec HT/TTC — vérifiez les montants."
     return None
 
 
