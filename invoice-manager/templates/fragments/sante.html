@@ -19,7 +19,10 @@
       </button>
     </form>
 
-    <div class="health-card">
+    <button type="button" class="health-card health-card-action"
+            onclick="activateTab('reviser')"
+            {% if health.items_a_reviser == 0 %}disabled aria-disabled="true"{% endif %}
+            aria-label="{% if health.items_a_reviser == 0 %}Aucun item à réviser{% else %}Voir les {{ health.items_a_reviser }} item{{ 's' if health.items_a_reviser != 1 }} à réviser{% endif %}">
       <div class="health-dot {{ 'dot-warning' if health.items_a_reviser > 0 else 'dot-ok' }}"
            aria-hidden="true"></div>
       <div class="health-info">
@@ -29,9 +32,12 @@
           {{ 'Action requise' if health.items_a_reviser > 0 else 'Tout est à jour' }}
         </div>
       </div>
-    </div>
+    </button>
 
-    <div class="health-card">
+    <button type="button" class="health-card health-card-action"
+            onclick="activateTab('erreurs')"
+            {% if health.error_files == 0 %}disabled aria-disabled="true"{% endif %}
+            aria-label="{% if health.error_files == 0 %}Aucun fichier en erreur{% else %}Voir les {{ health.error_files }} fichier{{ 's' if health.error_files != 1 }} en erreur{% endif %}">
       <div class="health-dot {{ 'dot-error' if health.error_files > 0 else 'dot-ok' }}"
            aria-hidden="true"></div>
       <div class="health-info">
@@ -41,7 +47,7 @@
           {{ 'Vérifier errors/' if health.error_files > 0 else 'Tout est à jour' }}
         </div>
       </div>
-    </div>
+    </button>
 
     {% if health.dead_links > 0 %}
     <button type="button" class="health-card health-card-action" id="purge-btn"
