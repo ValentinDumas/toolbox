@@ -135,6 +135,7 @@
       pointer-events: none; z-index: 9999; white-space: nowrap;
     }
     .toast.toast-success { background: var(--success); }
+    .toast.toast-error   { background: var(--error); }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* Confirm modal */
@@ -473,8 +474,10 @@
       </div>
     </div>
   </div>
-  {# Toast #}
-  <div id="toast" class="toast toast-success" role="status" aria-live="polite"></div>
+  {# Toast — `role`/classe ajustés dynamiquement par le script ci-dessous selon
+     succès vs erreur (cf. issue #123) : on évite un `role="status"` + classe
+     `toast-success` détournés en rouge inline pour les erreurs. #}
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   {# Enseigne delete confirm modal #}
   <div id="enseigne-delete-modal" class="modal-backdrop" role="alertdialog" aria-modal="true"
@@ -510,11 +513,17 @@
       reader.readAsDataURL(input.files[0]);
     }
 
-    // Toast
+    // Toast — sémantique distincte succès vs erreur (issue #123).
+    // Succès : role="status" + aria-live="polite" → message non-urgent.
+    // Erreur : role="alert" + aria-live="assertive" → annonce immédiate
+    // par les lecteurs d'écran.
     {% if saved %}
     (function() {
       var t = document.getElementById('toast');
       t.textContent = '{% if section == "app" %}Configuration enregistrée.{% else %}Profil mis à jour avec succès.{% endif %}';
+      t.classList.add('toast-success');
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
       t.classList.add('show');
       setTimeout(function() { t.classList.remove('show'); }, 3000);
     })();
@@ -523,7 +532,9 @@
     (function() {
       var t = document.getElementById('toast');
       t.textContent = {{ error_message|tojson }};
-      t.style.background = '#DC2626';
+      t.classList.add('toast-error');
+      t.setAttribute('role', 'alert');
+      t.setAttribute('aria-live', 'assertive');
       t.classList.add('show');
       setTimeout(function() { t.classList.remove('show'); }, 4000);
     })();
