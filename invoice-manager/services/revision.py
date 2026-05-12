@@ -80,6 +80,65 @@ def _parse_review_fields(form) -> tuple[dict, dict]:
     return fields, errors
 
 
+def _propager_édition_partielle(
+    fields: dict, current: dict, form_keys: set[str],
+) -> None:
+    """Recalcule HT/TVA/TTC depuis le champ modifié quand l'humain n'en touche qu'un.
+
+    Sans cette propagation, éditer le seul TTC laisse `montant_ht` figé en
+    base : le ledger affiche bien le nouveau TTC, mais les totaux et la
+    synthèse fiscale (basés sur `SUM(montant_ht)`) restent inchangés et
+    désynchronisés du document. Cf. signalement utilisateur 2026-05-12.
+
+    Règle :
+    - Le champ modifié devient pivot ; les deux autres sont recalculés via
+      le taux TVA (explicite, sinon implicite TVA/HT, sinon 0 pour les
+      profils sans TVA visible).
+    - Si plusieurs montants changent, on respecte la saisie humaine — c'est
+      le seul cas où un mismatch délibéré est conservé (warning émis par
+      `_complete_montants`).
+    - Seuls les champs effectivement présents dans le formulaire comptent
+      pour la détection ; un montant absent du form (profil non assujetti)
+      sera lui aussi recalculé.
+    """
+    montants = ("montant_ht", "montant_tva", "montant_ttc")
+    edited = [
+        m for m in montants
+        if m in form_keys and fields.get(m) is not None
+        and fields.get(m) != current.get(m)
+    ]
+    if len(edited) != 1:
+        return
+    pivot = edited[0]
+    new_val = fields[pivot]
+
+    taux = fields.get("taux_tva")
+    if taux is None:
+        taux = current.get("taux_tva")
+    if taux is None:
+        ht_old = current.get("montant_ht")
+        tva_old = current.get("montant_tva")
+        if ht_old and tva_old is not None and ht_old > 0:
+            taux = tva_old / ht_old
+        else:
+            taux = 0.0
+
+    if pivot == "montant_ht":
+        fields["montant_ht"]  = round(new_val, 2)
+        fields["montant_tva"] = round(new_val * taux, 2)
+        fields["montant_ttc"] = round(new_val * (1 + taux), 2)
+    elif pivot == "montant_ttc":
+        ht = new_val / (1 + taux) if (1 + taux) > 0 else new_val
+        fields["montant_ht"]  = round(ht, 2)
+        fields["montant_tva"] = round(new_val - ht, 2)
+        fields["montant_ttc"] = round(new_val, 2)
+    elif pivot == "montant_tva":
+        ht = current.get("montant_ht") or 0.0
+        fields["montant_ht"]  = round(ht, 2)
+        fields["montant_tva"] = round(new_val, 2)
+        fields["montant_ttc"] = round(ht + new_val, 2)
+
+
 def _complete_montants(fields: dict, current: dict) -> str | None:
     """Complète HT/TVA/TTC/taux à partir des valeurs connues (fields ∪ current).
 

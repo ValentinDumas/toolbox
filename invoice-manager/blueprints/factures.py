@@ -22,6 +22,7 @@ from services.revision import (
     _complete_montants,
     _parse_review_fields,
     _persist_invoice,
+    _propager_édition_partielle,
     _recompute_confidence,
     _validate_review_fields,
 )
@@ -67,6 +68,11 @@ def facture_save(item_id):
         if errors:
             conn.close()
             return jsonify({"ok": False, "errors": errors})
+
+        # Édition partielle d'un seul montant : on propage la nouvelle valeur
+        # vers HT/TVA/TTC via le taux TVA. Sans cela, éditer le seul TTC
+        # laisse `montant_ht` figé et désynchronise les totaux du ledger.
+        _propager_édition_partielle(fields, current, set(request.form.keys()))
 
         # Règle franchise en base (art. 293 B CGI) : avant toute inférence
         # arithmétique, on neutralise la TVA pour les pièces émises par un

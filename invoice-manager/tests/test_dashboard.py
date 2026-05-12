@@ -2070,11 +2070,13 @@ class TestComplétionMontantsÀLaSauvegarde:
         )
         app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
 
-        # When l'humain saisit trois valeurs incohérentes (HT+TVA ≠ TTC à 5 €)
+        # When l'humain modifie *explicitement* plusieurs montants en saisissant
+        # trois valeurs incohérentes (HT+TVA ≠ TTC à 15 €). Cas d'une correction
+        # multi-champs délibérée : on respecte la saisie sans propager.
         with app.test_client() as client:
             resp = client.patch("/factures/mismatch", data={
                 "type_document": "facture_reçue",
-                "montant_ht":  "100.00",
+                "montant_ht":  "90.00",
                 "montant_tva": "15.00",
                 "montant_ttc": "120.00",
                 "date_document": "2025-04-01",
@@ -2095,7 +2097,7 @@ class TestComplétionMontantsÀLaSauvegarde:
         check.close()
         assert row["statut_révision"] == "validé"
         # Les valeurs saisies sont conservées telles quelles — pas d'écrasement
-        assert row["montant_ht"]  == 100.00
+        assert row["montant_ht"]  == 90.00
         assert row["montant_tva"] == 15.00
         assert row["montant_ttc"] == 120.00
 
@@ -2111,12 +2113,13 @@ class TestComplétionMontantsÀLaSauvegarde:
         )
         app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
 
-        # When l'humain saisit en même temps un mismatch ET ne complète pas
-        # les champs manquants (numéro / SIREN restent absents)
+        # When l'humain saisit en même temps un mismatch multi-champs (HT et
+        # TVA explicitement modifiés en valeurs incohérentes) ET ne complète
+        # pas les champs manquants (numéro / SIREN restent absents)
         with app.test_client() as client:
             resp = client.patch("/factures/mix", data={
                 "type_document": "facture_reçue",
-                "montant_ht":  "100.00",
+                "montant_ht":  "90.00",
                 "montant_tva": "15.00",
                 "montant_ttc": "120.00",
                 "date_document": "2025-04-01",
@@ -2137,6 +2140,86 @@ class TestComplétionMontantsÀLaSauvegarde:
         ).fetchone()
         check.close()
         assert row["statut_révision"] == "à_réviser"
+
+    def test_édition_du_seul_ttc_recalcule_ht_et_tva_via_le_taux(
+        self, mem_db, tmp_path, monkeypatch,
+    ):
+        # Given une facture validée cohérente (HT=100, TVA=20, TTC=120, taux=20%)
+        _insert_invoice(
+            mem_db, id="ttc-only", statut_révision="validé",
+            montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0, taux_tva=0.20,
+            exercice_fiscal=2025, numéro_facture="F-001",
+            émetteur_siren="123456789",
+        )
+        app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When l'humain ne modifie que le TTC (les autres champs montants
+        # restent à leur valeur prérenseignée par le form)
+        with app.test_client() as client:
+            resp = client.patch("/factures/ttc-only", data={
+                "type_document": "facture_reçue",
+                "montant_ht":  "100.00",
+                "montant_tva": "20.00",
+                "montant_ttc": "240.00",
+                "taux_tva":    "0.20",
+                "date_document": "2025-04-01",
+                "émetteur_nom": "Fournisseur SAS",
+                "numéro_facture": "F-001",
+            })
+
+        # Then HT et TVA sont recalculés au prorata du taux pour rester
+        # cohérents avec le nouveau TTC — les totaux du ledger (SUM(montant_ht))
+        # refléteront la modification.
+        assert resp.get_json()["ok"] is True
+        check = sqlite3.connect(str(db_path)); check.row_factory = sqlite3.Row
+        row = check.execute(
+            "SELECT montant_ht, montant_tva, montant_ttc, statut_révision "
+            "FROM invoices WHERE id='ttc-only'"
+        ).fetchone()
+        check.close()
+        assert row["montant_ttc"] == 240.00
+        assert row["montant_ht"]  == 200.00
+        assert row["montant_tva"] == 40.00
+        assert row["statut_révision"] == "validé"
+
+    def test_édition_du_seul_montant_sur_profil_sans_tva_synchronise_ht(
+        self, mem_db, tmp_path, monkeypatch,
+    ):
+        # Given une facture reçue d'un AE en franchise (TVA fournisseur connue)
+        _insert_invoice(
+            mem_db, id="ae-rcv", statut_révision="validé",
+            type_document="facture_reçue",
+            montant_ht=83.33, montant_tva=16.67, montant_ttc=100.0, taux_tva=0.20,
+            exercice_fiscal=2025,
+            émetteur_nom="Fournisseur SAS", émetteur_siren="123456789",
+            numéro_facture="F-001",
+        )
+        app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When l'utilisateur AE corrige le seul champ "Montant" visible
+        # (form sans HT ni TVA — cf. tva_visible_pour)
+        with app.test_client() as client:
+            resp = client.patch("/factures/ae-rcv", data={
+                "type_document": "facture_reçue",
+                "montant_ttc":  "200.00",
+                "date_document": "2025-04-01",
+                "émetteur_nom": "Fournisseur SAS",
+                "numéro_facture": "F-001",
+            })
+
+        # Then HT est recalculé au prorata du taux implicite (TVA/HT=0,20),
+        # pour que la synthèse fiscale et les totaux du ledger reflètent
+        # la correction.
+        assert resp.get_json()["ok"] is True
+        check = sqlite3.connect(str(db_path)); check.row_factory = sqlite3.Row
+        row = check.execute(
+            "SELECT montant_ht, montant_tva, montant_ttc "
+            "FROM invoices WHERE id='ae-rcv'"
+        ).fetchone()
+        check.close()
+        assert row["montant_ttc"] == 200.00
+        assert row["montant_ht"]  == 166.67
+        assert row["montant_tva"] == 33.33
 
     def test_taux_hors_intervalle_est_rejeté(self, mem_db, tmp_path, monkeypatch):
         # Given une facture à réviser
