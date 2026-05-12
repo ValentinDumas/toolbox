@@ -14,6 +14,8 @@
     button{width:100%;margin-top:16px;padding:10px;background:#1C4ED8;color:white;border:none;
            border-radius:6px;font-size:15px;font-weight:600;cursor:pointer}
     button:hover{background:#1D4ED8cc}
+    .error{margin-top:12px;padding:10px 12px;border:1px solid #FCA5A5;background:#FEF2F2;
+           color:#991B1B;border-radius:6px;font-size:14px}
   </style>
 </head>
 <body>
@@ -21,7 +23,9 @@
   <p>Commencez par nommer votre première entité légale (ex : SASU Dupont, Micro-entreprise...).</p>
   <form method="post" action="/profils">
     <label for="name">Nom de l'entité</label>
-    <input type="text" id="name" name="name" required autofocus placeholder="Ex : SASU Dupont">
+    <input type="text" id="name" name="name" required autofocus placeholder="Ex : SASU Dupont"
+           maxlength="80"{% if error %} aria-invalid="true" aria-describedby="error-msg"{% endif %}>
+    {% if error %}<div class="error" id="error-msg" role="alert">{{ error }}</div>{% endif %}
     <button type="submit">Créer et configurer →</button>
   </form>
 </body>
