@@ -21,19 +21,20 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
     def scalar(sql, *args):
         return conn.execute(sql, args).fetchone()[0] or 0.0
 
+    ph_expense = ",".join("?" * len(EXPENSE_TYPES))
+    ph_validated = ",".join("?" * len(VALIDATED_STATUSES))
+
     ca_ht = scalar(
         "SELECT COALESCE(SUM(montant_ht),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND deleted_at IS NULL",
         year, "facture_émise",
     )
-    tva_collectee = scalar(
-        "SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND deleted_at IS NULL",
-        year, "facture_émise",
-    )
-    ph_expense = ",".join("?" * len(EXPENSE_TYPES))
-    ph_validated = ",".join("?" * len(VALIDATED_STATUSES))
+    tva_collectee = conn.execute(
+        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND statut_révision IN ({ph_validated}) AND deleted_at IS NULL",
+        (year, "facture_émise", *VALIDATED_STATUSES),
+    ).fetchone()[0] or 0.0
     tva_deductible = conn.execute(
-        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND deleted_at IS NULL",
-        (year, *EXPENSE_TYPES),
+        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision IN ({ph_validated}) AND deleted_at IS NULL",
+        (year, *EXPENSE_TYPES, *VALIDATED_STATUSES),
     ).fetchone()[0] or 0.0
 
     total_charges = conn.execute(
@@ -47,14 +48,29 @@ def query_fiscal_summary(conn: sqlite3.Connection, year: int) -> dict:
     nb_charges_revision = row_revision[0] or 0
     total_charges_revision = row_revision[1] or 0.0
 
+    tva_collectee_revision = conn.execute(
+        "SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document=? AND statut_révision=? AND deleted_at IS NULL",
+        (year, "facture_émise", STATUT_A_REVISER),
+    ).fetchone()[0] or 0.0
+    tva_deductible_revision = conn.execute(
+        f"SELECT COALESCE(SUM(montant_tva),0) FROM invoices WHERE exercice_fiscal=? AND type_document IN ({ph_expense}) AND statut_révision=? AND deleted_at IS NULL",
+        (year, *EXPENSE_TYPES, STATUT_A_REVISER),
+    ).fetchone()[0] or 0.0
+    nb_tva_revision = conn.execute(
+        f"SELECT COUNT(*) FROM invoices WHERE exercice_fiscal=? AND type_document IN (?, {ph_expense}) AND statut_révision=? AND COALESCE(montant_tva,0) <> 0 AND deleted_at IS NULL",
+        (year, "facture_émise", *EXPENSE_TYPES, STATUT_A_REVISER),
+    ).fetchone()[0] or 0
+
     return {
         "ca_ht": ca_ht,
         "tva_collectee": tva_collectee,
         "tva_deductible": tva_deductible,
-        "tva_a_reverser": round(tva_collectee - tva_deductible, 2),
+        "tva_a_reverser": tva_collectee - tva_deductible,
         "total_charges": total_charges,
         "total_charges_revision": total_charges_revision,
         "nb_charges_revision": nb_charges_revision,
+        "tva_revision_a_reverser": tva_collectee_revision - tva_deductible_revision,
+        "nb_tva_revision": nb_tva_revision,
     }
 
 

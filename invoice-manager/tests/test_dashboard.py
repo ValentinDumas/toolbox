@@ -83,6 +83,39 @@ def test_fiscal_summary_charges_excludes_a_reviser(mem_db):
     assert s["nb_charges_revision"] == 1
 
 
+def test_fiscal_summary_tva_excludes_a_reviser(mem_db):
+    from queries import query_fiscal_summary
+    _insert_invoice(mem_db, id="ev", type_document="facture_émise",
+                    montant_ht=1000.0, montant_tva=200.0,
+                    statut_révision="validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="rv", type_document="facture_reçue",
+                    montant_ht=400.0, montant_tva=80.0,
+                    statut_révision="validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="ea", type_document="facture_émise",
+                    montant_ht=500.0, montant_tva=100.0,
+                    statut_révision="à_réviser", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="ra", type_document="facture_reçue",
+                    montant_ht=200.0, montant_tva=40.0,
+                    statut_révision="à_réviser", exercice_fiscal=2025)
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["tva_collectee"] == 200.0
+    assert s["tva_deductible"] == 80.0
+    assert abs(s["tva_a_reverser"] - 120.0) < 0.01
+
+
+def test_fiscal_summary_exposes_tva_revision(mem_db):
+    from queries import query_fiscal_summary
+    _insert_invoice(mem_db, id="ea", type_document="facture_émise",
+                    montant_ht=500.0, montant_tva=100.0,
+                    statut_révision="à_réviser", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="ra", type_document="facture_reçue",
+                    montant_ht=200.0, montant_tva=40.0,
+                    statut_révision="à_réviser", exercice_fiscal=2025)
+    s = query_fiscal_summary(mem_db, 2025)
+    assert s["nb_tva_revision"] == 2
+    assert abs(s["tva_revision_a_reverser"] - 60.0) < 0.01
+
+
 def test_fiscal_summary_year_filter(mem_db):
     from queries import query_fiscal_summary
     _insert_invoice(mem_db, id="e2025", type_document="facture_émise",

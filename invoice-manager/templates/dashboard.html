@@ -94,7 +94,7 @@
     /* KPI cards */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 16px;
     }
     .kpi-card {
@@ -190,6 +190,20 @@
       margin-top: 4px;
       font-variant-numeric: tabular-nums;
     }
+    .kpi-formula {
+      margin-top: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--on-surface-muted);
+      font-variant-numeric: tabular-nums lining-nums;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      column-gap: 8px;
+      row-gap: 2px;
+      align-items: baseline;
+    }
+    .kpi-formula .op { text-align: center; width: 1ch; }
+    .kpi-formula .amt { text-align: right; }
     .color-neutral  { color: var(--on-surface); }
     /* Table */
     .table-wrapper {
@@ -229,6 +243,15 @@
       font-weight: 500;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+    }
+    .amount-calc {
+      display: block;
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--on-surface-muted);
+      font-style: italic;
+      margin-top: 2px;
+      letter-spacing: 0.02em;
     }
     tfoot tr { background: white !important; }
     tfoot td {
@@ -751,6 +774,14 @@
     .pdf-modal-header { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid #e2e8f0; font-size:.875rem; font-weight:600; color:#1e293b; }
     .pdf-modal-header span:first-child { flex:1; word-break:break-all; overflow-wrap:break-word; }
     .cell-filename { max-width:200px; word-break:break-all; overflow-wrap:break-word; }
+    .btn-filename {
+      background: none; border: none; padding: 0;
+      font: inherit; color: inherit; text-align: left;
+      cursor: pointer;
+      word-break: break-all; overflow-wrap: break-word;
+    }
+    .btn-filename:hover { text-decoration: underline; color: var(--primary); }
+    .btn-filename:focus { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
     .pdf-modal-close { background:none; border:none; cursor:pointer; font-size:1.2rem; color:#94a3b8; padding:0 4px; flex-shrink:0; }
     .pdf-modal-close:hover { color:#334155; }
     #pdf-modal-frame { display:block; width:100%; height:80vh; border:none; }
@@ -863,42 +894,22 @@
     <main id="main-content">
 
       {# ── Bloc 1 : Synthèse fiscale ─────────────────────────────────────── #}
+      {% set resultat_brut = summary.ca_ht - summary.total_charges %}
       <section aria-label="Synthèse fiscale {{ year }}">
         <h2 class="section-label">Synthèse fiscale</h2>
         <div class="kpi-grid">
 
           <div class="kpi-card">
-            <div class="kpi-value color-positive">{{ summary.ca_ht | fr_currency }}</div>
-            <div class="kpi-label">
-              CA HT
-              <span class="kpi-tooltip-wrap">
-                <button class="kpi-tooltip-trigger" aria-describedby="tip-ca-ht" tabindex="0">ⓘ</button>
-                <span class="kpi-tooltip-box" role="tooltip" id="tip-ca-ht">Chiffre d'affaires hors taxes : total des montants HT de toutes les factures émises sur l'exercice.</span>
-              </span>
+            <div class="kpi-value {% if resultat_brut > 0 %}color-positive{% elif resultat_brut < 0 %}color-negative{% else %}color-neutral{% endif %}">
+              {{ resultat_brut | fr_currency }}
             </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-value {% if summary.tva_collectee > 0 %}color-positive{% else %}color-neutral{% endif %}">
-              {{ summary.tva_collectee | fr_currency }}
-            </div>
-            <div class="kpi-label">
-              TVA collectée
-              <span class="kpi-tooltip-wrap">
-                <button class="kpi-tooltip-trigger" aria-describedby="tip-tva-collectee" tabindex="0">ⓘ</button>
-                <span class="kpi-tooltip-box" role="tooltip" id="tip-tva-collectee">TVA facturée à vos clients sur vos ventes. Vous la collectez pour le compte de l'État et devez la lui reverser.</span>
-              </span>
-            </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-value color-neutral">{{ summary.tva_deductible | fr_currency }}</div>
-            <div class="kpi-label">
-              TVA déductible
-              <span class="kpi-tooltip-wrap">
-                <button class="kpi-tooltip-trigger" aria-describedby="tip-tva-deductible" tabindex="0">ⓘ</button>
-                <span class="kpi-tooltip-box" role="tooltip" id="tip-tva-deductible">TVA payée sur vos achats fournisseurs. Vous pouvez la déduire de la TVA collectée, ce qui réduit votre dette fiscale.</span>
-              </span>
+            <div class="kpi-label">Résultat brut</div>
+            <div class="kpi-formula">
+              <span class="op">+</span><span>CA HT</span><span class="amt">{{ summary.ca_ht | fr_currency }}</span>
+              <span class="op">−</span><span>Charges</span><span class="amt">{{ summary.total_charges | fr_currency }}</span>
+              {% if summary.nb_charges_revision > 0 %}
+              <span class="op"></span><span class="kpi-pending" style="grid-column: 2 / 4;">+ {{ summary.nb_charges_revision }} à réviser (~{{ summary.total_charges_revision | fr_currency }})</span>
+              {% endif %}
             </div>
           </div>
 
@@ -906,27 +917,14 @@
             <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
               {{ summary.tva_a_reverser | fr_currency }}
             </div>
-            <div class="kpi-label">
-              TVA à reverser
-              <span class="kpi-tooltip-wrap">
-                <button class="kpi-tooltip-trigger" aria-describedby="tip-tva-reverser" tabindex="0">ⓘ</button>
-                <span class="kpi-tooltip-box" role="tooltip" id="tip-tva-reverser">TVA collectée − TVA déductible. Montant net dû à l'État. Si négatif, c'est un crédit de TVA remboursable.</span>
-              </span>
+            <div class="kpi-label">TVA à reverser</div>
+            <div class="kpi-formula">
+              <span class="op">+</span><span>Collectée</span><span class="amt">{{ summary.tva_collectee | fr_currency }}</span>
+              <span class="op">−</span><span>Déductible</span><span class="amt">{{ summary.tva_deductible | fr_currency }}</span>
+              {% if summary.nb_tva_revision > 0 %}
+              <span class="op"></span><span class="kpi-pending" style="grid-column: 2 / 4;">+ {{ summary.nb_tva_revision }} à réviser (~{{ summary.tva_revision_a_reverser | fr_currency }})</span>
+              {% endif %}
             </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-value color-negative">{{ summary.total_charges | fr_currency }}</div>
-            <div class="kpi-label">
-              Total charges
-              <span class="kpi-tooltip-wrap">
-                <button class="kpi-tooltip-trigger" aria-describedby="tip-charges" tabindex="0">ⓘ</button>
-                <span class="kpi-tooltip-box" role="tooltip" id="tip-charges">Somme des montants HT de toutes les factures fournisseurs déductibles sur l'exercice (hors factures supprimées).</span>
-              </span>
-            </div>
-            {% if summary.nb_charges_revision > 0 %}
-            <div class="kpi-pending">+ {{ summary.nb_charges_revision }} à réviser (~{{ summary.total_charges_revision | fr_currency }})</div>
-            {% endif %}
           </div>
 
         </div>
@@ -940,13 +938,16 @@
           <form method="post" action="/pipeline/lancer" id="run-form" style="display:contents">
             <input type="hidden" name="year" value="{{ year }}">
             <button type="submit" class="health-card health-card-action" id="run-btn"
-                    aria-label="Lancer le pipeline — {{ health.pending_files }} fichier{{ 's' if health.pending_files != 1 }} en attente">
+                    {% if health.pending_files == 0 %}disabled aria-disabled="true"{% endif %}
+                    aria-label="{% if health.pending_files == 0 %}Aucun fichier en attente — pipeline inactif{% else %}Lancer le pipeline — {{ health.pending_files }} fichier{{ 's' if health.pending_files != 1 }} en attente{% endif %}">
               <div class="health-dot {{ 'dot-error' if health.pending_files > 0 else 'dot-ok' }}"
                    aria-hidden="true"></div>
               <div class="health-info">
                 <div class="health-count">{{ health.pending_files }}</div>
                 <div class="health-label">Fichier{{ 's' if health.pending_files != 1 }} en attente</div>
-                <div class="{{ 'health-sublabel-error' if health.pending_files > 0 else 'health-sublabel-ok' }}">↻ Mettre à jour</div>
+                <div class="{{ 'health-sublabel-error' if health.pending_files > 0 else 'health-sublabel-ok' }}">
+                  {{ '↻ Mettre à jour' if health.pending_files > 0 else 'Tout est à jour' }}
+                </div>
               </div>
             </button>
           </form>
@@ -1047,15 +1048,31 @@
                     {%- endif -%}
                   </td>
                   <td>{{ row.date_document or '—' }}</td>
-                  {% set amt = row.montant_ht or row.montant_ttc %}
-                  <td class="text-right amount{% if is_expense and amt %} color-negative{% endif %}">
-                    {%- if is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
+                  {% set ht_e, tva_e, ttc_e, derived = derive_amounts(row.montant_ht, row.montant_tva, row.montant_ttc) %}
+                  <td class="text-right amount{% if is_expense and ht_e is not none %} color-negative{% endif %}">
+                    {% if is_expense and ht_e is not none %}
+                      {{ ht_e | fr_currency }}
+                      {% if 'ht' in derived %}<span class="amount-calc" title="HT calculé : TTC − TVA">calculé</span>{% endif %}
+                    {% else %}—{% endif %}
                   </td>
-                  <td class="text-right amount{% if not is_expense and amt %} color-positive{% endif %}">
-                    {%- if not is_expense and amt -%}{{ amt | fr_currency }}{%- else -%}—{%- endif -%}
+                  <td class="text-right amount{% if not is_expense and ht_e is not none %} color-positive{% endif %}">
+                    {% if not is_expense and ht_e is not none %}
+                      {{ ht_e | fr_currency }}
+                      {% if 'ht' in derived %}<span class="amount-calc" title="HT calculé : TTC − TVA">calculé</span>{% endif %}
+                    {% else %}—{% endif %}
                   </td>
-                  <td class="text-right amount">{{ (row.montant_tva or 0) | fr_currency }}</td>
-                  <td class="text-right amount">{{ (row.montant_ttc or 0) | fr_currency }}</td>
+                  <td class="text-right amount">
+                    {% if tva_e is not none %}
+                      {{ tva_e | fr_currency }}
+                      {% if 'tva' in derived %}<span class="amount-calc" title="TVA calculée : TTC − HT">calculé</span>{% endif %}
+                    {% else %}—{% endif %}
+                  </td>
+                  <td class="text-right amount">
+                    {% if ttc_e is not none %}
+                      {{ ttc_e | fr_currency }}
+                      {% if 'ttc' in derived %}<span class="amount-calc" title="TTC calculé : HT + TVA">calculé</span>{% endif %}
+                    {% else %}—{% endif %}
+                  </td>
                   <td class="text-center" style="white-space:nowrap">
                     {% set s = row.statut_révision %}
                     {% if s == 'validé' %}
@@ -1194,8 +1211,13 @@
               <tfoot>
                 <tr>
                   <td colspan="2"><strong>Total {{ year }}</strong></td>
+                  {% if ledger.total_count == 0 %}
+                  <td class="text-right amount"><strong>—</strong></td>
+                  <td class="text-right amount"><strong>—</strong></td>
+                  {% else %}
                   <td class="text-right amount color-negative"><strong>{{ ledger.total_debit | fr_currency }}</strong></td>
                   <td class="text-right amount color-positive"><strong>{{ ledger.total_credit | fr_currency }}</strong></td>
+                  {% endif %}
                   <td colspan="5"></td>
                 </tr>
               </tfoot>
@@ -1377,7 +1399,14 @@
               <tbody>
                 {% for item in corbeille_list %}
                 <tr>
-                  <td class="text-muted cell-filename">{{ item.fichier_source|basename if item.fichier_source else '—' }}</td>
+                  <td class="text-muted cell-filename">
+                    {% if item.fichier_source %}
+                      {% set _name = item.fichier_source|basename %}
+                      <button type="button" class="btn-filename"
+                              onclick="openPdfPreview('/apercu/{{ _name }}', '{{ _name }}')"
+                              aria-label="Prévisualiser {{ _name }}">{{ _name }}</button>
+                    {% else %}—{% endif %}
+                  </td>
                   <td>{{ item.émetteur_nom or '—' }}</td>
                   <td class="text-right amount">{{ item.montant_ttc | fr_currency if item.montant_ttc is not none else '—' }}</td>
                   <td class="text-muted">{{ item.type_document or '—' }}</td>
@@ -1416,7 +1445,11 @@
               <tbody>
                 {% for f in errors_list %}
                 <tr>
-                  <td class="cell-filename">{{ f.name }}</td>
+                  <td class="cell-filename">
+                  <button type="button" class="btn-filename"
+                          onclick="openPdfPreview('/apercu/{{ f.name }}', '{{ f.name }}')"
+                          aria-label="Prévisualiser {{ f.name }}">{{ f.name }}</button>
+                </td>
                   <td class="text-right text-muted" style="font-size:12px">{{ f.size_kb }} Ko</td>
                   <td class="text-muted" style="font-size:12px">{{ f.mtime }}</td>
                   <td>

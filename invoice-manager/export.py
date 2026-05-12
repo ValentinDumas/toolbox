@@ -184,11 +184,11 @@ def _write_declaration(wb, rows: list[dict], year: int | None, statut: str | Non
     _style_header(ws, ws.max_row, 2)
 
     for cat, total in sorted(by_cat.items()):
-        ws.append([cat, round(total, 2)])
+        ws.append([cat, total])
         ws.cell(row=ws.max_row, column=2).number_format = '#,##0.00 €'
 
     ws.append(["", ""])
-    ws.append(["TOTAL CHARGES DÉDUCTIBLES", round(sum(by_cat.values()), 2)])
+    ws.append(["TOTAL CHARGES DÉDUCTIBLES", sum(by_cat.values())])
     ws.cell(row=ws.max_row, column=2).number_format = '#,##0.00 €'
     ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
     ws.cell(row=ws.max_row, column=2).font = Font(bold=True)
@@ -273,7 +273,7 @@ def _compute_deadlines(rows: list[dict], cadence: str, statut: str | None) -> li
             year = int(key)
             dl = _deadline_annuelle(year)
 
-        result.append((label, round(period["ca"], 2), round(period["charges"], 2), dl.strftime("%d/%m/%Y")))
+        result.append((label, period["ca"], period["charges"], dl.strftime("%d/%m/%Y")))
 
     return result
 
@@ -339,8 +339,8 @@ def _write_stats(wb, rows: list[dict], year: int | None, statut: str | None, cad
 
     for key in sorted(monthly_amounts):
         ma = monthly_amounts[key]
-        balance = round(ma["ca"] - ma["charges"], 2)
-        row_data = [key, round(ma["charges"], 2), round(ma["ca"], 2), balance]
+        balance = ma["ca"] - ma["charges"]
+        row_data = [key, ma["charges"], ma["ca"], balance]
         ws.append(row_data)
         for col in range(2, 5):
             ws.cell(row=ws.max_row, column=col).number_format = '#,##0.00 €'

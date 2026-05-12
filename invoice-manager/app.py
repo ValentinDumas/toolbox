@@ -21,6 +21,7 @@ from queries import (
     query_corbeille, query_error_files, query_fiscal_summary,
     query_health, query_items_a_reviser, query_ledger,
 )
+from services.montants import derive_amounts
 
 HERE = Path(__file__).resolve().parent
 
@@ -60,6 +61,7 @@ def create_app() -> Flask:
     app.jinja_env.filters["fr_currency"] = _fr_currency
     app.jinja_env.filters["basename"] = lambda p: os.path.basename(p) if p else ""
     app.jinja_env.filters["truncate_filename"] = _truncate_filename
+    app.jinja_env.globals["derive_amounts"] = derive_amounts
 
     from blueprints.factures import bp_factures
     from blueprints.parametres import bp_parametres

@@ -74,6 +74,38 @@ class TestParseAmount:
         assert ex._parse_amount("Total TTC 1 234,56", ["TTC"]) == 1234.56
 
 
+class TestParseAmounts:
+    def test_ticket_sans_ventilation_laisse_ht_et_tva_a_none(self):
+        # Ticket sans ventilation HT/TVA : on consigne NULL pour distinguer
+        # « absent du document » de « zéro réel ». La dérivation se fera à
+        # l'affichage seulement si deux valeurs sont connues.
+        ht, tva, ttc, taux = ex._parse_amounts("Boulanger\nTotal à payer 44,99 EUR")
+        assert ttc == 44.99
+        assert ht is None
+        assert tva is None
+        assert taux is None
+
+    def test_ventilation_complete_inchangee(self):
+        ht, tva, ttc, taux = ex._parse_amounts(
+            "Total HT 100,00\nTVA 20,00\nTotal TTC 120,00"
+        )
+        assert ht == 100.0
+        assert tva == 20.0
+        assert ttc == 120.0
+        assert taux == 20.0
+
+    def test_pas_de_derivation_a_l_extraction(self):
+        # Avant : HT + TTC suffisaient à dériver TVA. Maintenant : extraction
+        # stricte — TVA reste None tant qu'elle n'est pas écrite sur le document.
+        ht, tva, ttc, taux = ex._parse_amounts(
+            "Total HT 100,00\nTotal TTC 120,00"
+        )
+        assert ht == 100.0
+        assert ttc == 120.0
+        assert tva is None
+        assert taux is None
+
+
 # ── _parse_siren / _parse_siret / _parse_tva_intracom ─────────────────────────
 
 class TestParseFiscal:
@@ -147,6 +179,8 @@ class TestParseInvoice:
         row = ex.parse_invoice(MINIMAL_TEXT, "min.pdf", "SASU")
         assert row["date_document"] == "2025-06-15"
         assert row["montant_ttc"] == 50.0
+        assert row["montant_ht"] is None
+        assert row["montant_tva"] is None
         assert row["statut_fiscal_profil"] == "SASU"
 
     def test_empty_text_low_confidence(self):

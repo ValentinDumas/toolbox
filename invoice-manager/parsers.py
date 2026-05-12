@@ -115,13 +115,6 @@ def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None,
     if not ht:
         ht = _parse_amount(text, ["HT"])
 
-    if ttc and ht and not tva:
-        tva = round(ttc - ht, 2)
-    elif ttc and tva and not ht:
-        ht = round(ttc - tva, 2)
-    elif ht and tva and not ttc:
-        ttc = round(ht + tva, 2)
-
     if not ttc and not ht:
         bare = re.findall(r"[€$£]\s*(\d[\d\s]*[\.,]\d{2})", text)
         if bare:
