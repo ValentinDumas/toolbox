@@ -57,8 +57,11 @@ emit_signal() {
 }
 
 if [ "${1:-}" = "--hook" ]; then
-  # Claude Code Stop hook: stdin is JSON; we don't strictly need it.
-  cat >/dev/null 2>&1 || true
+  # Claude Code Stop hook pipes JSON on stdin; drain it only when stdin is
+  # NOT a TTY (otherwise this blocks forever when run manually).
+  if [ ! -t 0 ]; then
+    cat >/dev/null 2>&1 || true
+  fi
   emit_signal "waiting" 2>/dev/null || true
   publish "Claude Code" "Waiting for input" "high" "robot"
   exit 0

@@ -7,7 +7,7 @@ struct SetupView: View {
     @State private var host: String = ""
     @State private var token: String = ""
     @State private var validating: Bool = false
-    @State private var error: APIError?
+    @State private var validationError: APIError?
 
     var body: some View {
         NavigationStack {
@@ -27,8 +27,8 @@ struct SetupView: View {
                         .textContentType(.password)
                 }
 
-                if let error {
-                    Section { ErrorBannerView(error: error) }
+                if let validationError {
+                    Section { ErrorBannerView(error: validationError) }
                 }
 
                 Section {
@@ -51,7 +51,7 @@ struct SetupView: View {
         let h = host.trimmingCharacters(in: .whitespaces)
         let t = token.trimmingCharacters(in: .whitespaces)
         validating = true
-        error = nil
+        validationError = nil
         Task {
             defer { validating = false }
             let client = AgentClient(host: h, token: t)
@@ -59,14 +59,13 @@ struct SetupView: View {
                 _ = try await client.healthz()
                 _ = try await client.listConsoles()
                 try state.save(host: h, token: t)
-                // Best-effort: clear the pasteboard if it still holds the token.
                 if UIPasteboard.general.string == t {
                     UIPasteboard.general.string = ""
                 }
             } catch let err as APIError {
-                error = err
+                validationError = err
             } catch {
-                error = .unreachable
+                validationError = .unreachable
             }
         }
     }
