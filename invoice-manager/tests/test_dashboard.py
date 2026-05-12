@@ -2099,6 +2099,45 @@ class TestComplétionMontantsÀLaSauvegarde:
         assert row["montant_tva"] == 15.00
         assert row["montant_ttc"] == 120.00
 
+    def test_édition_avec_mismatch_et_confiance_basse_démote_pour_motif_confiance(
+        self, mem_db, tmp_path, monkeypatch
+    ):
+        # Given une facture validée pauvre en métadonnées (pas de numéro,
+        # pas de SIREN) — la confiance recalculée tombera sous le seuil
+        _insert_invoice(
+            mem_db, id="mix", statut_révision="validé",
+            montant_ht=100.0, montant_tva=20.0, montant_ttc=120.0,
+            exercice_fiscal=2025,
+        )
+        app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+
+        # When l'humain saisit en même temps un mismatch ET ne complète pas
+        # les champs manquants (numéro / SIREN restent absents)
+        with app.test_client() as client:
+            resp = client.patch("/factures/mix", data={
+                "type_document": "facture_reçue",
+                "montant_ht":  "100.00",
+                "montant_tva": "15.00",
+                "montant_ttc": "120.00",
+                "date_document": "2025-04-01",
+                "émetteur_nom": "Fournisseur SAS",
+            })
+
+        # Then la confiance pilote la démotion (statut → à réviser) et le
+        # message affiché mentionne la confiance, pas le mismatch — la
+        # priorité du display_warning est demotion_warning d'abord.
+        data = resp.get_json()
+        assert data["ok"] is True
+        assert "Confiance" in (data.get("warning") or "")
+        assert "TVA incohérente" not in (data.get("warning") or "")
+
+        check = sqlite3.connect(str(db_path)); check.row_factory = sqlite3.Row
+        row = check.execute(
+            "SELECT statut_révision FROM invoices WHERE id='mix'"
+        ).fetchone()
+        check.close()
+        assert row["statut_révision"] == "à_réviser"
+
     def test_taux_hors_intervalle_est_rejeté(self, mem_db, tmp_path, monkeypatch):
         # Given une facture à réviser
         _insert_invoice(mem_db, id="bad-rate", statut_révision="à_réviser",
