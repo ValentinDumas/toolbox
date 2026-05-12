@@ -2060,7 +2060,7 @@
       status.textContent = erreurs
         ? 'Terminé avec ' + erreurs + ' erreur(s). Voir le détail ci-dessus.'
         : 'Terminé. Tableau de bord mis à jour.';
-      if (!erreurs) setTimeout(closeUploadModal, 1200);
+      if (!erreurs) setTimeout(function () { window.location.reload(); }, 1200);
     } catch (err) {
       if (err.name === 'AbortError') return; // Fermeture explicite — pas une erreur.
       status.textContent = 'Erreur : ' + err.message;
