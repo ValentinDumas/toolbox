@@ -18,6 +18,52 @@ from constants import (
 )
 
 
+def query_ca_encaisse(
+    conn: sqlite3.Connection, period_start: str, period_end: str,
+) -> dict:
+    """Retourne le CA encaissé d'un auto-entrepreneur sur une période.
+
+    Règle métier AUTO_ENTREPRENEUR_RULES.md §4.2 + §8 : l'agrégat URSSAF
+    s'appuie sur la **date d'encaissement** (= `date_paiement` d'une pièce
+    émise), pas la date d'émission. Les pièces à réviser sont exclues — le
+    montant n'est pas encore fiable. Les avoirs émis sont déduits (ils
+    annulent un encaissement antérieur, art. 271 CGI).
+
+    Arguments :
+        period_start / period_end : bornes ISO YYYY-MM-DD incluses.
+
+    Retour : {
+        "ca_ttc": float,          # CA total encaissé sur la période (= HT en franchise)
+        "count": int,             # nombre de pièces dans l'agrégat
+        "facture_ids": list[str], # ids contributifs (pour audit / export)
+    }
+    """
+    ph_valid = ",".join("?" * len(VALIDATED_STATUSES))
+    rows = conn.execute(
+        f"SELECT id, type_document, montant_ttc FROM invoices "
+        f"WHERE type_document IN (?, ?) "
+        f"AND date_paiement IS NOT NULL "
+        f"AND date_paiement BETWEEN ? AND ? "
+        f"AND statut_révision IN ({ph_valid}) "
+        f"AND deleted_at IS NULL",
+        ("facture_émise", "avoir_émis", period_start, period_end, *VALIDATED_STATUSES),
+    ).fetchall()
+
+    ca_ttc = 0.0
+    for row in rows:
+        montant = row["montant_ttc"] or 0.0
+        if row["type_document"] == "avoir_émis":
+            ca_ttc -= montant
+        else:
+            ca_ttc += montant
+
+    return {
+        "ca_ttc": round(ca_ttc, 2),
+        "count": len(rows),
+        "facture_ids": [row["id"] for row in rows],
+    }
+
+
 def query_fiscal_summary(conn: sqlite3.Connection, year: int, tva_visible: bool = True) -> dict:
     """Retourne les KPI fiscaux pour une année.
 
