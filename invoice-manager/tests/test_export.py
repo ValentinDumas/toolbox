@@ -144,8 +144,11 @@ class TestXLSXExport:
         out = self._make_xlsx(tmp_project, n=3)
         wb = openpyxl.load_workbook(out)
         ws = wb["Journal"]
-        # Row 1 = header, rows 2+ = data
-        data_rows = [r for r in ws.iter_rows(min_row=2, values_only=True) if any(v for v in r)]
+        # Row 1 = header, rows 2..N = pièces, dernière ligne = TOTAUX (livre-journal PCG).
+        data_rows = [
+            r for r in ws.iter_rows(min_row=2, values_only=True)
+            if any(v for v in r) and r[5] != "TOTAUX"
+        ]
         assert len(data_rows) == 3
 
     def test_recap_total_ttc(self, tmp_project, monkeypatch):
@@ -272,3 +275,158 @@ class TestStatsSheet:
         from export import _deadline_annuelle
         from datetime import date
         assert _deadline_annuelle(2025) == date(2026, 5, 31)
+
+
+# ── Journal Débit/Crédit (livre-journal PCG) ─────────────────────────────────
+
+class TestJournalDebitCredit:
+    def _build_xlsx(self, tmp_project, rows_overrides):
+        db_path = tmp_project / "data" / "invoices.db"
+        conn = ex.open_db(db_path)
+        for i, ov in enumerate(rows_overrides):
+            _insert(conn, {"hash_fichier": f"hdc{i}", "exercice_fiscal": 2026, **ov})
+        conn.close()
+        conn2 = exp.open_db(db_path)
+        rows = exp.fetch_rows(conn2, year=2026, statut=None)
+        conn2.close()
+        out = tmp_project / "output" / "ledger-2026.xlsx"
+        exp.write_xlsx(rows, out, 2026, "auto-entrepreneur")
+        return openpyxl.load_workbook(out)["Journal"]
+
+    @staticmethod
+    def _headers(ws):
+        return [ws.cell(row=1, column=c).value for c in range(1, ws.max_column + 1)]
+
+    @staticmethod
+    def _data_rows(ws):
+        # Toutes les lignes hors header et hors ligne TOTAUX.
+        rows = []
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            if not any(v for v in r):
+                continue
+            if r[5] == "TOTAUX":
+                continue
+            rows.append(r)
+        return rows
+
+    def test_journal_a_les_colonnes_debit_credit_attendues(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [{"type_document": "facture_reçue"}])
+        headers = self._headers(ws)
+        for col in ("Débit HT", "Crédit HT", "Débit TVA", "Crédit TVA", "Débit TTC", "Crédit TTC"):
+            assert col in headers
+
+    def test_facture_recue_apparait_au_debit(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [{"type_document": "facture_reçue"}])
+        headers = self._headers(ws)
+        idx_debit_ht  = headers.index("Débit HT")
+        idx_credit_ht = headers.index("Crédit HT")
+        row = self._data_rows(ws)[0]
+        assert row[idx_debit_ht] is not None
+        assert row[idx_credit_ht] is None
+
+    def test_facture_emise_apparait_au_credit(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [{
+            "type_document": "facture_émise",
+            "montant_ht": 1000.0, "montant_tva": 200.0, "montant_ttc": 1200.0,
+        }])
+        headers = self._headers(ws)
+        idx_debit_ht  = headers.index("Débit HT")
+        idx_credit_ht = headers.index("Crédit HT")
+        row = self._data_rows(ws)[0]
+        assert row[idx_debit_ht] is None
+        assert row[idx_credit_ht] == 1000.0
+
+    def test_avoir_recu_contre_passe_au_credit(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [{"type_document": "avoir_reçu"}])
+        headers = self._headers(ws)
+        row = self._data_rows(ws)[0]
+        assert row[headers.index("Crédit HT")] is not None
+        assert row[headers.index("Débit HT")] is None
+
+    def test_avoir_emis_contre_passe_au_debit(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [{"type_document": "avoir_émis"}])
+        headers = self._headers(ws)
+        row = self._data_rows(ws)[0]
+        assert row[headers.index("Débit HT")] is not None
+        assert row[headers.index("Crédit HT")] is None
+
+    def test_releve_bancaire_exclu_du_journal(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [
+            {"type_document": "facture_reçue"},
+            {"type_document": "relevé_bancaire"},
+        ])
+        # Seule la facture reçue doit apparaître.
+        assert len(self._data_rows(ws)) == 1
+
+    def test_totaux_journal_equilibres_pour_cycle_clos(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        # 1 facture émise + 1 facture reçue de même montant HT → équilibre.
+        ws = self._build_xlsx(tmp_project, [
+            {"type_document": "facture_reçue", "montant_ht": 500.0, "montant_tva": 100.0, "montant_ttc": 600.0},
+            {"type_document": "facture_émise", "montant_ht": 500.0, "montant_tva": 100.0, "montant_ttc": 600.0},
+        ])
+        headers = self._headers(ws)
+        # Trouver la ligne TOTAUX
+        total_row = None
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            if r[5] == "TOTAUX":
+                total_row = r
+                break
+        assert total_row is not None
+        assert total_row[headers.index("Débit HT")] == pytest.approx(500.0)
+        assert total_row[headers.index("Crédit HT")] == pytest.approx(500.0)
+
+    def test_montant_none_donne_cellule_vide(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        ws = self._build_xlsx(tmp_project, [{
+            "type_document": "facture_reçue",
+            "montant_ht": 100.0, "montant_tva": None, "montant_ttc": None,
+        }])
+        headers = self._headers(ws)
+        row = self._data_rows(ws)[0]
+        assert row[headers.index("Débit HT")] == 100.0
+        # TVA et TTC absents → cellule vide, pas un zéro parasite.
+        assert row[headers.index("Débit TVA")] is None
+        assert row[headers.index("Débit TTC")] is None
+
+
+class TestCSVSensComptable:
+    def _csv_rows(self, tmp_project, rows_overrides):
+        db_path = tmp_project / "data" / "invoices.db"
+        conn = ex.open_db(db_path)
+        for i, ov in enumerate(rows_overrides):
+            _insert(conn, {"hash_fichier": f"hsens{i}", **ov})
+        conn.close()
+        conn2 = exp.open_db(db_path)
+        rows = exp.fetch_rows(conn2, year=None, statut=None)
+        conn2.close()
+        out = tmp_project / "output" / "ledger.csv"
+        exp.write_csv(rows, out)
+        return list(csv.DictReader(open(out)))
+
+    def test_csv_inclut_colonne_sens_comptable(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        rows = self._csv_rows(tmp_project, [{"type_document": "facture_reçue"}])
+        assert "sens_comptable" in rows[0]
+
+    def test_facture_recue_sens_debit_dans_csv(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        rows = self._csv_rows(tmp_project, [{"type_document": "facture_reçue"}])
+        assert rows[0]["sens_comptable"] == "débit"
+
+    def test_facture_emise_sens_credit_dans_csv(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        rows = self._csv_rows(tmp_project, [{"type_document": "facture_émise"}])
+        assert rows[0]["sens_comptable"] == "crédit"
+
+    def test_releve_bancaire_sens_vide_dans_csv(self, tmp_project, monkeypatch):
+        monkeypatch.chdir(tmp_project)
+        rows = self._csv_rows(tmp_project, [{"type_document": "relevé_bancaire"}])
+        # Ligne présente (CSV = registre plat) mais sens vide.
+        assert rows[0]["sens_comptable"] == ""

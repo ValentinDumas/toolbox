@@ -17,6 +17,7 @@ from pathlib import Path
 from config import CADENCE_DEFAULTS
 from constants import FISCAL_RULES, MONTHS_FR_SHORT, STATUT_A_REVISER
 from db import get_user_profile, open_db
+from services.comptabilite import is_off_ledger, sens_comptable, to_journal_row
 
 try:
     import openpyxl
@@ -51,14 +52,34 @@ CSV_COLS = [
     "mode_paiement", "statut_paiement",
     "exercice_fiscal", "trimestre", "statut_fiscal_profil",
     "confiance", "fichier_source",
+    "sens_comptable",
 ]
 
 def write_csv(rows: list[dict], path: Path) -> None:
+    # `taux_tva` est stocké en fraction (0..1). L'export humain (CSV remis
+    # au comptable, XLSX) affiche un pourcentage — multiplier par 100 ici
+    # garde la couche métier propre.
+    rows_display = [_to_display_row(r) for r in rows]
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_COLS, extrasaction="ignore")
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(rows_display)
     print(f"  CSV → {path}")
+
+
+def _to_display_row(row: dict) -> dict:
+    """Enrichit la ligne pour l'export : taux en %, sens comptable étiqueté.
+
+    - `taux_tva` est stocké en fraction (0..1) ; pour le CSV remis au comptable,
+      on affiche un pourcentage.
+    - `sens_comptable` est dérivé de `type_document` (charge → débit, produit →
+      crédit, off-ledger → ""). Étiquette, pas duplication des montants.
+    """
+    display = dict(row)
+    if row.get("taux_tva") is not None:
+        display["taux_tva"] = round(row["taux_tva"] * 100, 2)
+    display["sens_comptable"] = sens_comptable(row.get("type_document"))
+    return display
 
 # ── XLSX ──────────────────────────────────────────────────────────────────────
 
@@ -88,36 +109,68 @@ def _autofit_columns(ws) -> None:
         ws.column_dimensions[get_column_letter(col[0].column)].width = min(width + 4, 40)
 
 def _write_journal(wb, rows: list[dict]) -> None:
+    """Feuille « Journal » au format livre-journal (Débit / Crédit, PCG).
+
+    Filtre les pièces off-ledger (relevé bancaire, devis). Une ligne de
+    totaux est ajoutée en bas pour permettre une vérification rapide
+    d'équilibre par un comptable.
+    """
     ws = wb.active
     ws.title = "Journal"
-    headers = ["Date", "Type", "N° Facture", "Émetteur", "SIREN", "Montant HT",
-               "TVA %", "TVA €", "Montant TTC", "Devise", "Catégorie",
-               "Déductible", "Taux déd.", "Mode paiement", "Statut", "Fichier source"]
+    headers = [
+        "Date", "N° Pièce", "Émetteur", "SIREN", "Type", "Libellé",
+        "Débit HT", "Crédit HT", "Débit TVA", "Crédit TVA", "Débit TTC", "Crédit TTC",
+        "Catégorie", "Statut", "Fichier",
+    ]
     ws.append(headers)
     _style_header(ws, 1, len(headers))
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
 
-    for i, r in enumerate(rows, start=2):
+    journal_rows = [to_journal_row(r) for r in rows if not is_off_ledger(r.get("type_document"))]
+    money_cols = (7, 8, 9, 10, 11, 12)  # 6 colonnes Débit/Crédit
+    totaux = {k: 0.0 for k in (
+        "débit_ht", "crédit_ht", "débit_tva", "crédit_tva", "débit_ttc", "crédit_ttc",
+    )}
+
+    for i, jr in enumerate(journal_rows, start=2):
         row_data = [
-            r.get("date_document"), r.get("type_document"), r.get("numéro_facture"),
-            r.get("émetteur_nom"), r.get("émetteur_siren"),
-            r.get("montant_ht"), r.get("taux_tva"), r.get("montant_tva"), r.get("montant_ttc"),
-            r.get("devise", "EUR"), r.get("catégorie"),
-            "Oui" if r.get("déductible") else "Non",
-            f"{int((r.get('taux_déductibilité') or 0) * 100)}%",
-            r.get("mode_paiement"), r.get("statut_paiement"),
-            r.get("fichier_source"),
+            jr["date_document"], jr["numéro_facture"], jr["émetteur_nom"],
+            jr["émetteur_siren"], jr["type_document"], jr["libellé"],
+            jr["débit_ht"], jr["crédit_ht"],
+            jr["débit_tva"], jr["crédit_tva"],
+            jr["débit_ttc"], jr["crédit_ttc"],
+            jr["catégorie"], jr["statut_paiement"], jr["fichier_source"],
         ]
         ws.append(row_data)
+        for k in totaux:
+            totaux[k] += jr[k] or 0.0
         fill = _ALT_FILL if i % 2 == 0 else PatternFill()
         for col in range(1, len(headers) + 1):
             cell = ws.cell(row=i, column=col)
             cell.border = _THIN
             if fill:
                 cell.fill = fill
-            if col == 12:
-                cell.fill = _GREEN_FILL if r.get("déductible") else _RED_FILL
+            if col in money_cols:
+                cell.number_format = '#,##0.00 €'
+                cell.alignment = Alignment(horizontal="right")
+
+    # Ligne de totaux
+    total_row = ["", "", "", "", "", "TOTAUX",
+                 totaux["débit_ht"], totaux["crédit_ht"],
+                 totaux["débit_tva"], totaux["crédit_tva"],
+                 totaux["débit_ttc"], totaux["crédit_ttc"],
+                 "", "", ""]
+    ws.append(total_row)
+    total_row_idx = ws.max_row
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=total_row_idx, column=col)
+        cell.font = Font(bold=True, color="1E293B")
+        cell.fill = PatternFill("solid", fgColor="E2E8F0")
+        cell.border = _THIN
+        if col in money_cols:
+            cell.number_format = '#,##0.00 €'
+            cell.alignment = Alignment(horizontal="right")
 
     _autofit_columns(ws)
 

@@ -25,6 +25,12 @@ from services.montants import derive_amounts
 
 HERE = Path(__file__).resolve().parent
 
+# Plage d'exercices fiscaux acceptée par l'URL ?year=YYYY. Toute valeur hors
+# de cette plage est considérée comme invalide et déclenche une redirection
+# vers l'année par défaut (#120).
+YEAR_MIN = 2000
+YEAR_MAX = 2100
+
 _PROFILE_EXEMPT = {
     "static",
     "favicon",
@@ -125,6 +131,11 @@ def create_app() -> Flask:
         page = request.args.get("page", 1, type=int)
         run_error = request.args.get("run_error")
         review_error = request.args.get("review_error")
+        # Anti-corruption layer (cf. VISION.md > Security) : on valide la plage
+        # avant tout accès SQL. ?year=abc → requested_year=None ; ?year=99999 →
+        # hors plage. Dans les deux cas, on retombe sur le défaut métier.
+        if requested_year is not None and not (YEAR_MIN <= requested_year <= YEAR_MAX):
+            requested_year = None
         try:
             paths = active_paths()
             conn = open_db(active_db())
@@ -136,8 +147,9 @@ def create_app() -> Flask:
             ).fetchall()] or [datetime.now().year]
             # Si l'année demandée n'existe pas dans les choix, on retombe sur la plus récente.
             year = requested_year if requested_year in years else years[0]
-            # URL ≡ contenu : si on a redressé silencieusement (année inconnue ou
-            # paramètre non entier), redirige pour aligner l'URL.
+            # URL ≡ contenu : si un ?year= a été fourni mais ne correspond pas à
+            # l'année rendue (non entier, hors plage, ou absente en base),
+            # on redirige en 302 pour aligner l'URL avec le contenu affiché (#120).
             url_year_mismatch = raw_year is not None and str(year) != raw_year
             if url_year_mismatch:
                 conn.close()

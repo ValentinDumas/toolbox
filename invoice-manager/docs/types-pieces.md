@@ -8,16 +8,20 @@ Référentiel métier — types de documents supportés, règles par statut, et 
 
 ## Types de documents et sens comptable
 
-| `type_document`   | Sens comptable                      | Statuts concernés      | Signal de détection                               |
-|-------------------|-------------------------------------|------------------------|---------------------------------------------------|
-| `facture_reçue`   | Charge fournisseur                  | Tous                   | Défaut (aucun autre signal)                        |
-| `facture_émise`   | Produit / recette client            | AE, SASU, SARL         | Ton SIREN dans le corps du document                |
-| `avoir_reçu`      | Remboursement fournisseur (−charge) | Tous                   | "avoir", "credit note", "note de crédit"           |
-| `avoir_émis`      | Remboursement client (−CA)          | AE, SASU, SARL         | "avoir" + ton SIREN émetteur                       |
-| `reçu`            | Charge sans facture formelle        | Tous                   | Pas de numéro de facture + montant TTC < 200 €     |
-| `note_de_frais`   | Frais pro remboursés                | Salarié, SASU, SARL    | "note de frais", "remboursement de frais"          |
-| `relevé_bancaire` | Réconciliation (hors ledger actif)  | SASU, SARL             | "relevé de compte", "extrait de compte"            |
-| `devis`           | Hors mouvement financier            | Tous                   | "devis", "cotation", "quote"                       |
+| `type_document`   | Sens comptable (PCG) | Nature métier                       | Statuts concernés      | Signal de détection                               |
+|-------------------|----------------------|-------------------------------------|------------------------|---------------------------------------------------|
+| `facture_reçue`   | **Débit**            | Charge fournisseur                  | Tous                   | Défaut (aucun autre signal)                        |
+| `facture_émise`   | **Crédit**           | Produit / recette client            | AE, SASU, SARL         | Ton SIREN dans le corps du document                |
+| `avoir_reçu`      | **Crédit** (contre-passation) | Remboursement fournisseur  | Tous                   | "avoir", "credit note", "note de crédit"           |
+| `avoir_émis`      | **Débit** (contre-passation) | Remboursement client        | AE, SASU, SARL         | "avoir" + ton SIREN émetteur                       |
+| `reçu`            | **Débit**            | Charge sans facture formelle        | Tous                   | Pas de numéro de facture + montant TTC < 200 €     |
+| `note_de_frais`   | **Débit**            | Frais pro remboursés                | Salarié, SASU, SARL    | "note de frais", "remboursement de frais"          |
+| `relevé_bancaire` | _Hors livre-journal_ | Réconciliation                      | SASU, SARL             | "relevé de compte", "extrait de compte"            |
+| `devis`           | _Hors livre-journal_ | Hors mouvement financier            | Tous                   | "devis", "cotation", "quote"                       |
+
+> **Convention PCG** : charges au débit (classe 6), produits au crédit (classe 7).
+> Un avoir est une **contre-passation** : il prend le sens inverse de la pièce qu'il annule.
+> Source de vérité : `services/comptabilite.py::sens_comptable`.
 
 **Priorité de détection** (ordre appliqué dans `_guess_doc_type()`) :
 1. avoir (`avoir_reçu` ou `avoir_émis` selon SIREN)
