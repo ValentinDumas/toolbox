@@ -7,6 +7,7 @@ import Observation
 final class AppState {
     enum Phase: Equatable {
         case needsSetup           // no host/token or user explicitly wiped them
+        case locked               // configured but waiting for the FaceID gate
         case configured           // ready to fetch
     }
 
@@ -16,17 +17,40 @@ final class AppState {
     var isRefreshing: Bool = false
     var panes: [Pane] = []
 
+    /// Mirror of `UserDefaults.consoleshub.biometric.enabled`. Defaults to true
+    /// when missing (spec §3 "default on at first successful Setup"). Setter
+    /// writes through to UserDefaults and unlocks the app if the user turns
+    /// the gate off while currently locked — otherwise they'd be stuck.
+    var biometricEnabled: Bool {
+        didSet {
+            defaults.set(biometricEnabled, forKey: biometricKey)
+            if !biometricEnabled, phase == .locked {
+                phase = .configured
+            }
+        }
+    }
+
     private(set) var token: String?
 
     private let defaults = UserDefaults.standard
     private let hostKey = "consoleshub.host"
+    private let biometricKey = "consoleshub.biometric.enabled"
 
     init() {
         let storedHost = UserDefaults.standard.string(forKey: "consoleshub.host") ?? ""
         let storedToken = Keychain.loadToken()
+        let storedBiometric = (UserDefaults.standard.object(forKey: "consoleshub.biometric.enabled") as? Bool) ?? true
         self.host = storedHost
         self.token = storedToken
-        self.phase = (storedHost.isEmpty || storedToken == nil) ? .needsSetup : .configured
+        self.biometricEnabled = storedBiometric
+
+        if storedHost.isEmpty || storedToken == nil {
+            self.phase = .needsSetup
+        } else if storedBiometric {
+            self.phase = .locked
+        } else {
+            self.phase = .configured
+        }
     }
 
     /// Called by SetupView after the two REST probes succeed.
@@ -46,6 +70,19 @@ final class AppState {
         token = nil
         panes = []
         phase = .needsSetup
+    }
+
+    /// Lock the app — backgrounding hook + Settings "Lock now". Idempotent.
+    /// No-op when not yet configured: an un-set app cannot be locked.
+    func lock() {
+        guard phase == .configured else { return }
+        phase = .locked
+    }
+
+    /// Flip the gate open. Called from `LockedView` on a successful biometric.
+    func unlock() {
+        guard phase == .locked else { return }
+        phase = .configured
     }
 
     /// Best-effort client builder. Returns nil if not configured.

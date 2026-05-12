@@ -13,6 +13,7 @@ enum APIError: Error, Equatable {
     case decoding                   // body didn't match Pane
     case disconnected               // WS close 1006 / lost stream
     case badFrame                   // WS close 1008 — agent rejected our frame
+    case biometricFailed            // FaceID / passcode unlock did not succeed
 
     var title: String {
         switch self {
@@ -26,6 +27,7 @@ enum APIError: Error, Equatable {
         case .decoding:         return "Bad response"
         case .disconnected:     return "Disconnected"
         case .badFrame:         return "Bad frame"
+        case .biometricFailed:  return "Locked"
         }
     }
 
@@ -51,6 +53,8 @@ enum APIError: Error, Equatable {
             return "Lost the live connection."
         case .badFrame:
             return "The app sent the agent a frame it rejected. This is a bug — please file."
+        case .biometricFailed:
+            return "Authenticate to unlock consoles-hub."
         }
     }
 }

@@ -1,9 +1,10 @@
 # consoles-hub iOS app (mobile/)
 
-SwiftUI client for the consoles-hub agent. Slices A and B of v1 — Setup,
-sectioned Pane list, and a live WebSocket-backed detail view with text
-input. Named-key row + biometric gate + settings polish (slice C) and
-icon / TestFlight prep (slice D) come later.
+SwiftUI client for the consoles-hub agent. Slices A, B, and C of v1 —
+Setup, sectioned Pane list, a live WebSocket-backed detail view with
+text input + named-key row, a FaceID gate on foreground, and a
+rotate-token affordance in Settings. Icon + Dynamic Type / VoiceOver
+polish + TestFlight prep (slice D) come later.
 
 See [`docs/specs/2026-05-12-mobile-ui-design.md`](../docs/specs/2026-05-12-mobile-ui-design.md)
 for the full design.
@@ -43,8 +44,8 @@ mobile/
 │       ├── ConsolesHubApp.swift
 │       ├── State/AppState.swift
 │       ├── Models/{Pane,APIError,StreamMessage}.swift
-│       ├── Services/{Keychain,AgentClient,PaneStream}.swift
-│       └── Views/{Root,Setup,PaneList,PaneRow,PaneDetail,ErrorBanner}.swift
+│       ├── Services/{Keychain,AgentClient,PaneStream,BiometricGate}.swift
+│       └── Views/{Root,Setup,PaneList,PaneRow,PaneDetail,NamedKeyBar,Locked,ErrorBanner}.swift
 └── README.md (this file)
 ```
 
@@ -74,12 +75,50 @@ What slice B intentionally does **not** ship: the named-key row (Enter /
 Tab / Esc / Ctrl-C / arrows) lands in slice C, alongside the biometric
 gate and the token-rotation flow.
 
+## Lock + named keys + token rotation (slice C)
+
+**Named-key row.** A horizontal strip below the input bar fires one
+WebSocket frame per tap. Bytes match what the agent feeds to
+`tmux send-keys -l`:
+
+| Button | Bytes sent | `enter` |
+|---|---|---|
+| `↵`   | `""`           | true |
+| `Tab` | `\t`           | false |
+| `Esc` | `\u{1B}`       | false |
+| `^C`  | `\u{03}`       | false |
+| `↑`   | `\u{1B}[A`     | false |
+| `↓`   | `\u{1B}[B`     | false |
+| `←`   | `\u{1B}[D`     | false |
+| `→`   | `\u{1B}[C`     | false |
+
+Buttons are disabled when the stream isn't connected.
+
+**Biometric gate.** On every foreground, `LockedView` calls
+`LAContext.evaluatePolicy(.deviceOwnerAuthentication, …)` which
+chains FaceID → device passcode automatically. On failure the
+app stays on the lock screen with a Retry button (no auto-wipe —
+the token is only cleared via Settings → "Forget agent"). Toggled
+in Settings → Security → "Lock with FaceID"; defaults to **on**.
+`scenePhase == .background` re-locks the app; `.inactive` is
+ignored so keyboard / app-switcher peeks don't trigger the gate.
+
+**Token rotation.** Settings → Token → "Rotate token" presents
+SetupView in a sheet with the host pre-filled and read-only. Run
+`./install.sh rotate-token` on the Mac first to mint a new token,
+paste it in, Validate. The Keychain entry is overwritten in place;
+no plaintext copy is held.
+
 ## Testing
 
 There is no XCTest target yet — the verification path is the simulator.
 Build for the booted iPhone simulator and exercise the spec §5.3 / §6 / §7
 flows by hand (tap a pane, run a command on the Mac, send input from the
 phone, watch the reconnect behavior when the agent is stopped).
+
+For the biometric gate in the simulator, use Features → Face ID →
+Enrolled, then Matching Face / Non-Matching Face to drive the unlock
+and failure paths.
 
 ## Notes
 

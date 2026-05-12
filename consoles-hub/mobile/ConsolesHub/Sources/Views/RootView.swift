@@ -7,6 +7,8 @@ struct RootView: View {
         switch state.phase {
         case .needsSetup:
             SetupView()
+        case .locked:
+            LockedView()
         case .configured:
             PaneListView()
         }

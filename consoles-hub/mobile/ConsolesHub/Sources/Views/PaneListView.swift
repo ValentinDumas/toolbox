@@ -52,17 +52,37 @@ struct PaneListView: View {
     }
 }
 
-/// Slice A placeholder. Slice C replaces this with rotate-token, FaceID
-/// toggle, and the rest of mobile-UI spec §5.4.
 private struct SettingsSheet: View {
     @Environment(AppState.self) private var state
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showingRotateToken = false
+
     var body: some View {
+        @Bindable var state = state
         NavigationStack {
             Form {
                 Section("Agent") {
                     LabeledContent("Host", value: state.host)
+                }
+                Section {
+                    Toggle("Lock with FaceID", isOn: $state.biometricEnabled)
+                    Button("Lock now") {
+                        state.lock()
+                        dismiss()
+                    }
+                    .disabled(!state.biometricEnabled)
+                } header: {
+                    Text("Security")
+                } footer: {
+                    Text("Defaults to on. Required to keep the bearer token out of reach if the phone is unlocked by someone else.")
+                }
+                Section {
+                    Button("Rotate token") { showingRotateToken = true }
+                } header: {
+                    Text("Token")
+                } footer: {
+                    Text("Replaces the stored bearer token while keeping the host. Run `./install.sh rotate-token` on the Mac first to mint a new one.")
                 }
                 Section {
                     Button(role: .destructive) {
@@ -80,6 +100,10 @@ private struct SettingsSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showingRotateToken) {
+                SetupView(mode: .tokenOnly)
+                    .environment(state)
             }
         }
     }

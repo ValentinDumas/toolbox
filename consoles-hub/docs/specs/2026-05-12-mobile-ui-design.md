@@ -84,14 +84,21 @@ account. If the user uninstalls the app, the token is gone with it.
 ### Biometric gate
 
 - On app foreground (cold or warm), `LocalAuthentication` requests
-  FaceID/TouchID with reason "Unlock consoles-hub".
-- Failure-modes: user cancels → app shows the Setup view's "Validate"
-  step with the existing token kept in Keychain (no re-paste); five
-  failed biometrics → fall back to device passcode; passcode failure
-  → token wiped from Keychain (rare, deliberate; user re-pastes).
+  FaceID/TouchID with reason "Unlock consoles-hub". `LAPolicy
+  .deviceOwnerAuthentication` chains biometric → device passcode
+  automatically, so the app does not track failed attempts itself.
+- **Failure path (slice C, softened from earlier draft):** any
+  failure — cancel, wrong face, wrong passcode — keeps the user on
+  the `LockedView` with a Retry button. The token is **not** wiped
+  on biometric or passcode failure. Token wipe is reserved for the
+  explicit Settings → "Forget agent" path, since a single bad-day
+  passcode entry should not destroy a valid setup.
 - The gate is **opt-in**, set in Settings, defaulted **on** at first
   successful Setup. Reasoning: with the gate off, a child grabbing the
   phone can drive the laptop. The default must be the safer one.
+- Disabling the toggle while the app is currently locked unlocks
+  immediately (`AppState.biometricEnabled`'s `didSet`), otherwise the
+  user would be trapped on the lock screen with no gate left to clear.
 
 ### Token rotation
 

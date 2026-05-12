@@ -44,6 +44,9 @@ struct PaneDetailView: View {
 
             Divider()
             inputBar
+            NamedKeyBar(isEnabled: isConnected) { text, enter in
+                await stream?.send(text: text, enter: enter)
+            }
         }
         .navigationTitle(pane.label)
         .navigationBarTitleDisplayMode(.inline)
@@ -201,8 +204,12 @@ struct PaneDetailView: View {
     }
 
     private var canSend: Bool {
+        isConnected && !inputText.isEmpty
+    }
+
+    private var isConnected: Bool {
         guard let stream, case .connected = stream.status else { return false }
-        return !inputText.isEmpty
+        return true
     }
 
     private func fireSend(enter: Bool) {
