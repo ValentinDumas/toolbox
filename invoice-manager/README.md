@@ -397,6 +397,16 @@ Chaque document produit jusqu'à 39 champs : numéro de facture, date, type de d
 
 À la sauvegarde dans le dashboard, `services.montants.complete_amounts` complète automatiquement le 3ᵉ montant quand 2 de (HT, TVA, TTC) sont connus, ou les deux autres montants quand un seul + le taux sont fournis. Une incohérence `HT + TVA ≠ TTC` (> 1 c) rétrograde la pièce en *à réviser*. L'extraction OCR reste strictement passive (aucune dérivation arithmétique) : seul ce qui est lu sur le document entre en DB.
 
+### Règle des tickets simplifiés — TTC ≥ 150 € sans taux TVA
+
+L'article 242 nonies A annexe II du CGI exige une mention explicite du taux et du montant de TVA sur toute facture au-dessus de **150 € TTC** pour ouvrir droit à déduction. Le dashboard applique cette règle automatiquement :
+
+- **Profils `SASU` / `SARL`** : sauvegarder une facture validée à ≥ 150 € TTC sans `taux_tva` renseigné la rétrograde en *à réviser* avec un warning explicite. L'utilisateur choisit alors entre réclamer une facture conforme au fournisseur, ou accepter la non-déduction.
+- **Profils `auto-entrepreneur` (franchise en base) / `salarié`** : la TVA n'est pas déductible de toute façon. La règle ne s'applique pas et le champ taux est masqué dans l'UI, remplacé par la mention *« TVA non applicable pour ce régime »*.
+- **Tickets simplifiés (< 150 € TTC)** : aucune démotion automatique, conformément à la règle légale ; la mention TVA reste optionnelle sur le document.
+
+Le seuil est défini par `SEUIL_TVA_SIMPLIFIEE_EUR` dans `constants.py`. Sous chaque champ taux, une mention rappelle à l'utilisateur que sans taux renseigné, la TVA ne sera pas considérée comme déductible — aucune valeur (notamment 20 %) n'est jamais assumée silencieusement par le système.
+
 ## Output XLSX — 4 onglets
 
 | Onglet | Contenu |

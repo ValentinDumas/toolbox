@@ -701,6 +701,54 @@ def test_post_review_save_validated_low_confidence_demotes(mem_db, tmp_path, mon
     assert row["confiance"] < 0.8
 
 
+def test_post_review_save_facture_validée_sasu_au_dessus_150_sans_taux_est_rétrogradée(
+    mem_db, tmp_path, monkeypatch,
+):
+    """Given une facture validée à 200 € TTC sans taux TVA, sur un profil SASU,
+    When un humain sauvegarde sans renseigner le taux,
+    Then la facture repasse en « à réviser » avec un warning citant le seuil."""
+    # Given : profil SASU + facture validée à 200 € TTC, taux et HT/TVA NULL
+    # pour qu'aucune inférence ne reconstruise un taux à partir des montants.
+    # On garde un SIREN émetteur pour que la confiance reste ≥ 0.8 (4/5
+    # champs : date, ttc, num, fiscal_id) et que la démotion observée soit
+    # bien attribuable à la règle "TTC ≥ 150 € sans taux", pas à la confiance.
+    _insert_invoice(mem_db, id="taux-dem", statut_révision="validé",
+                    exercice_fiscal=2025, date_document="2025-03-01",
+                    émetteur_nom="ACME", émetteur_siren="123456789",
+                    numéro_facture="F001",
+                    montant_ht=None, montant_ttc=200.0, montant_tva=None,
+                    taux_tva=None)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db_path))
+    conn.execute("UPDATE user_profile SET fiscal_profile='SASU' WHERE id=1")
+    conn.commit()
+    conn.close()
+
+    # When : on sauvegarde sans renseigner taux_tva (ni HT ni TVA)
+    with app.test_client() as client:
+        resp = client.patch("/factures/taux-dem", data={
+            "date_document": "2025-03-01",
+            "montant_ttc": "200.0",
+            "numéro_facture": "F001",
+            "émetteur_nom": "ACME",
+            # taux_tva, montant_ht, montant_tva absents du form
+        })
+
+    # Then : démotion + warning explicite sur le seuil
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["warning"] is not None
+    assert "150" in data["warning"]
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute(
+        "SELECT statut_révision FROM invoices WHERE id='taux-dem'"
+    ).fetchone()
+    check.close()
+    assert row["statut_révision"] == "à_réviser"
+
+
 def test_post_review_save_corrections_log_appended_on_post_validation_edit(mem_db, tmp_path, monkeypatch):
     """Editing an already-validated item appends a diff entry to corrections_log."""
     import json as _json
@@ -1232,6 +1280,72 @@ def test_build_corrections_log_warning_demotes():
                "montant_ht": 100.0, "montant_ttc": None}
     fields = {}
     result = _build_corrections_log(fields, current, "2025-03-01T10:00:00+00:00", "Confiance basse")
+    assert result["statut_révision"] == "à_réviser"
+
+
+# ── Règle fiscale art. 242 nonies A : TTC ≥ 150 € sans taux TVA ───────────────
+
+def test_facture_sasu_au_dessus_150_sans_taux_génère_un_warning():
+    """Given une facture SASU à 200 € TTC sans taux TVA,
+    When on applique la règle des tickets simplifiés,
+    Then un warning est retourné pour rétrograder la facture."""
+    from services.revision import _check_taux_manquant_si_grand_montant
+    # Given
+    fields = {"montant_ttc": 200.0}
+    current = {"taux_tva": None, "montant_ttc": None}
+    # When
+    warning = _check_taux_manquant_si_grand_montant(fields, current, "SASU")
+    # Then
+    assert warning is not None
+    assert "150" in warning
+
+
+def test_facture_sasu_en_dessous_150_sans_taux_reste_sans_warning():
+    """Ticket simplifié (TTC < 150 €) : la mention TVA n'est pas légalement
+    requise, donc pas de démotion automatique même sans taux renseigné."""
+    from services.revision import _check_taux_manquant_si_grand_montant
+    fields = {"montant_ttc": 100.0}
+    current = {"taux_tva": None, "montant_ttc": None}
+    assert _check_taux_manquant_si_grand_montant(fields, current, "SASU") is None
+
+
+def test_facture_auto_entrepreneur_au_dessus_150_sans_taux_reste_sans_warning():
+    """Le profil auto-entrepreneur (franchise en base) ne déduit pas la TVA :
+    la règle ne s'applique pas, peu importe le montant."""
+    from services.revision import _check_taux_manquant_si_grand_montant
+    fields = {"montant_ttc": 500.0}
+    current = {"taux_tva": None, "montant_ttc": None}
+    assert _check_taux_manquant_si_grand_montant(
+        fields, current, "auto-entrepreneur"
+    ) is None
+
+
+def test_facture_sasu_au_dessus_150_avec_taux_renseigné_ne_génère_pas_de_warning():
+    """Si le taux est renseigné, la facture est fiscalement saine."""
+    from services.revision import _check_taux_manquant_si_grand_montant
+    fields = {"montant_ttc": 200.0, "taux_tva": 0.20}
+    current = {"taux_tva": None, "montant_ttc": None}
+    assert _check_taux_manquant_si_grand_montant(fields, current, "SASU") is None
+
+
+def test_warning_démotion_taux_manquant_est_loggué_dans_corrections_log():
+    """La démotion motivée par un taux manquant doit laisser une trace
+    auditable dans corrections_log via le mécanisme _build_corrections_log."""
+    import json as _json
+    current = {
+        "statut_révision": "validé",
+        "corrections_log": "[]",
+        "montant_ttc": 200.0,
+        "taux_tva": None,
+    }
+    fields = {}
+    warning = (
+        "TTC ≥ 150 € sans taux TVA — TVA non déductible sans mention explicite, "
+        "item retourné en « À réviser »."
+    )
+    result = _build_corrections_log(
+        fields, current, "2025-03-01T10:00:00+00:00", warning,
+    )
     assert result["statut_révision"] == "à_réviser"
 
 

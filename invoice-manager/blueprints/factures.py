@@ -13,10 +13,11 @@ from pathlib import Path
 from flask import Blueprint, flash, jsonify, redirect, request
 
 from constants import STATUT_A_REVISER, STATUT_VALIDE
-from context_helpers import active_db, active_paths
+from context_helpers import active_db, active_paths, get_profile
 from db import open_db
 from services.revision import (
     _build_corrections_log,
+    _check_taux_manquant_si_grand_montant,
     _complete_montants,
     _parse_review_fields,
     _persist_invoice,
@@ -70,9 +71,17 @@ def facture_save(item_id):
 
         confidence, confidence_warning = _recompute_confidence(fields, current)
         fields["confiance"] = confidence
-        # Une incohérence HT/TVA/TTC déclasse la facture en « à réviser »,
-        # exactement comme une baisse de confiance après édition.
-        warning = mismatch_warning or confidence_warning
+        # Règle fiscale art. 242 nonies A : au-dessus du seuil simplifié, la
+        # TVA doit être détaillée pour être déductible. Pas applicable aux
+        # profils non assujettis à la déduction (auto-entrepreneur, salarié).
+        profil_fiscal = (get_profile() or {}).get("fiscal_profile")
+        taux_warning = _check_taux_manquant_si_grand_montant(
+            fields, current, profil_fiscal,
+        )
+        # Une incohérence HT/TVA/TTC ou un taux manquant au-dessus du seuil
+        # déclasse la facture en « à réviser », exactement comme une baisse
+        # de confiance après édition.
+        warning = mismatch_warning or confidence_warning or taux_warning
         fields = _build_corrections_log(fields, current, now, warning)
         _persist_invoice(conn, item_id, fields)
         conn.close()

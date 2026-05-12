@@ -6,7 +6,13 @@ Pure domaine : pas de Flask. Utilisé par le blueprint factures.
 import json
 from datetime import date
 
-from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
+from constants import (
+    CONFIDENCE_THRESHOLD,
+    FISCAL_RULES,
+    SEUIL_TVA_SIMPLIFIEE_EUR,
+    STATUT_A_REVISER,
+    STATUT_VALIDE,
+)
 from services.montants import WARN_TVA_MISMATCH, complete_amounts
 
 
@@ -107,6 +113,35 @@ def _complete_montants(fields: dict, current: dict) -> str | None:
     if WARN_TVA_MISMATCH in result.warnings:
         return "TVA incohérente avec HT/TTC — item retourné en « À réviser »."
     return None
+
+
+def _check_taux_manquant_si_grand_montant(
+    fields: dict, current: dict, profil_fiscal: str | None,
+) -> str | None:
+    """Retourne un warning si TTC ≥ seuil simplifié et taux TVA absent.
+
+    Règle fiscale : au-dessus de 150 € TTC, l'art. 242 nonies A ann. II du
+    CGI exige une mention explicite du taux et du montant de TVA pour
+    ouvrir droit à déduction. Une facture validée dans ce cas sans taux
+    renseigné est donc rétrogradée en « à réviser » — l'utilisateur doit
+    décider : réclamer une facture conforme ou accepter la non-déduction.
+
+    Court-circuité pour les profils qui ne déduisent pas la TVA de toute
+    façon (auto-entrepreneur en franchise, salarié), la règle n'apporte
+    rien et bruiterait le workflow.
+    """
+    if not FISCAL_RULES.get(profil_fiscal, {}).get("tva_déductible", False):
+        return None
+    ttc = fields.get("montant_ttc", current.get("montant_ttc"))
+    taux = fields.get("taux_tva", current.get("taux_tva"))
+    if ttc is None or taux is not None:
+        return None
+    if ttc < SEUIL_TVA_SIMPLIFIEE_EUR:
+        return None
+    return (
+        f"TTC ≥ {SEUIL_TVA_SIMPLIFIEE_EUR:.0f} € sans taux TVA — "
+        "TVA non déductible sans mention explicite, item retourné en « À réviser »."
+    )
 
 
 def _validate_review_fields(fields: dict, current: dict, conn, item_id) -> dict:

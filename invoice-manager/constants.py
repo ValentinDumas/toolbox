@@ -62,6 +62,12 @@ LEGAL_RATES = (0.0, 0.021, 0.055, 0.10, 0.20)
 # sans confondre 5,5 % et 7 %.
 RATE_SNAP_TOLERANCE = 0.002
 
+# Seuil légal des « tickets simplifiés » (art. 242 nonies A ann. II CGI).
+# Au-dessus de 150 € TTC, la TVA doit être détaillée (taux + montant) sur la
+# facture pour être déductible. Une facture validée au-dessus du seuil sans
+# taux renseigné est donc fiscalement suspecte et retournée en « à réviser ».
+SEUIL_TVA_SIMPLIFIEE_EUR = 150.0
+
 # ── Encodage fichiers de révision ─────────────────────────────────────────────
 
 REVIEW_ENCODING = "utf-8-sig"

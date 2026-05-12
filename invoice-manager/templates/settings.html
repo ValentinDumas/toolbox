@@ -409,7 +409,8 @@
               </div>
               <div class="field">
                 <label for="taux-tva-input">Taux (fraction 0..1)</label>
-                <input type="number" id="taux-tva-input" name="taux_tva" placeholder="0.20" autocomplete="off" min="0" max="1" step="0.0001">
+                <input type="number" id="taux-tva-input" name="taux_tva" autocomplete="off" min="0" max="1" step="0.0001" aria-describedby="taux-tva-input-hint">
+                <small id="taux-tva-input-hint" class="field-hint">Ex. <code>0.20</code> pour 20 %, <code>0.10</code> pour 10 %, <code>0.055</code> pour 5,5 %.</small>
               </div>
               <button type="submit" class="btn btn-primary">Ajouter / Mettre à jour</button>
             </form>

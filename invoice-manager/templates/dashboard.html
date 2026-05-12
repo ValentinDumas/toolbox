@@ -457,6 +457,13 @@
     .field-error.visible { display: block; }
     .field-error[role="alert"] { display: block; min-height: 1em; }
     .review-input.input-error, .review-select.input-error { border-color: var(--negative); }
+    .review-hint {
+      color: var(--on-surface-muted);
+      font-size: 11px;
+      line-height: 1.4;
+      margin: 3px 0 0;
+    }
+    .review-hint small { font-size: inherit; }
     #save-warning-banner {
       display: none;
       position: fixed;
@@ -1076,8 +1083,13 @@
                           </div>
                           <div>
                             <label class="review-label" for="taux-v-{{ row.id }}">Taux</label>
+                            {% if profile.fiscal_profile == "auto-entrepreneur" %}
+                            <p class="review-hint" id="hint-taux-v-{{ row.id }}">
+                              <small>TVA non applicable pour ce régime (franchise en base).</small>
+                            </p>
+                            {% else %}
                             <select class="review-input" id="taux-v-{{ row.id }}" name="taux_tva"
-                                    aria-describedby="err-taux-v-{{ row.id }}">
+                                    aria-describedby="err-taux-v-{{ row.id }} hint-taux-v-{{ row.id }}">
                               <option value="" {% if row.taux_tva is none %}selected{% endif %}>—</option>
                               <option value="0"     {% if row.taux_tva == 0    %}selected{% endif %}>0 %</option>
                               <option value="0.021" {% if row.taux_tva == 0.021 %}selected{% endif %}>2,1 %</option>
@@ -1085,6 +1097,10 @@
                               <option value="0.10"  {% if row.taux_tva == 0.10 %}selected{% endif %}>10 %</option>
                               <option value="0.20"  {% if row.taux_tva == 0.20 %}selected{% endif %}>20 %</option>
                             </select>
+                            <p class="review-hint" id="hint-taux-v-{{ row.id }}">
+                              <small>Vide : TVA non considérée comme déductible. Demandez une facture conforme pour la récupérer.</small>
+                            </p>
+                            {% endif %}
                             <p class="field-error" role="alert" id="err-taux-v-{{ row.id }}" data-field="taux_tva"></p>
                           </div>
                           <div>
@@ -1265,8 +1281,13 @@
                 </div>
                 <div>
                   <label class="review-label" for="taux-{{ item.id }}">Taux</label>
+                  {% if profile.fiscal_profile == "auto-entrepreneur" %}
+                  <p class="review-hint" id="hint-taux-{{ item.id }}">
+                    <small>TVA non applicable pour ce régime (franchise en base).</small>
+                  </p>
+                  {% else %}
                   <select class="review-input" id="taux-{{ item.id }}" name="taux_tva"
-                          aria-describedby="err-taux-{{ item.id }}">
+                          aria-describedby="err-taux-{{ item.id }} hint-taux-{{ item.id }}">
                     <option value="" {% if item.taux_tva is none %}selected{% endif %}>—</option>
                     <option value="0"     {% if item.taux_tva == 0    %}selected{% endif %}>0 %</option>
                     <option value="0.021" {% if item.taux_tva == 0.021 %}selected{% endif %}>2,1 %</option>
@@ -1274,6 +1295,10 @@
                     <option value="0.10"  {% if item.taux_tva == 0.10 %}selected{% endif %}>10 %</option>
                     <option value="0.20"  {% if item.taux_tva == 0.20 %}selected{% endif %}>20 %</option>
                   </select>
+                  <p class="review-hint" id="hint-taux-{{ item.id }}">
+                    <small>Vide : TVA non considérée comme déductible. Demandez une facture conforme pour la récupérer.</small>
+                  </p>
+                  {% endif %}
                   <p class="field-error" role="alert" id="err-taux-{{ item.id }}" data-field="taux_tva"></p>
                 </div>
                 <div>
