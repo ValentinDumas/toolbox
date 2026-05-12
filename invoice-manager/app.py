@@ -146,7 +146,13 @@ def create_app() -> Flask:
         except sqlite3.DatabaseError as exc:
             return render_template("error.html", message=str(exc), hint="python run.py"), 500
 
-        profile_incomplete = not (profile.get("nom") and profile.get("tva_intracom"))
+        # Profil complet = nom + SIREN renseignés. La TVA intracom est optionnelle
+        # (auto-entrepreneurs en franchise en base n'en ont pas — cf. settings.html
+        # "Laisser vide si non assujetti"). Issue #107.
+        profile_incomplete = not (
+            (profile.get("nom") or "").strip()
+            and (profile.get("siren") or "").strip()
+        )
 
         return render_template(
             "dashboard.html",
