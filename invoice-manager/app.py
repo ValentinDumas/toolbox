@@ -120,6 +120,7 @@ def create_app() -> Flask:
 
     @app.route("/")
     def index():
+        raw_year = request.args.get("year")
         requested_year = request.args.get("year", type=int)
         page = request.args.get("page", 1, type=int)
         run_error = request.args.get("run_error")
@@ -135,6 +136,12 @@ def create_app() -> Flask:
             ).fetchall()] or [datetime.now().year]
             # Si l'année demandée n'existe pas dans les choix, on retombe sur la plus récente.
             year = requested_year if requested_year in years else years[0]
+            # URL ≡ contenu : si on a redressé silencieusement (année inconnue ou
+            # paramètre non entier), redirige pour aligner l'URL.
+            url_year_mismatch = raw_year is not None and str(year) != raw_year
+            if url_year_mismatch:
+                conn.close()
+                return redirect(url_for("index", year=year, page=page))
             summary = query_fiscal_summary(conn, year)
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, paths)

@@ -202,7 +202,7 @@
 
     <div class="settings-layout">
       <nav class="settings-sidebar" aria-label="Navigation paramètres">
-        <div class="sidebar-title">Paramètres</div>
+        <h1 class="sidebar-title">Paramètres</h1>
         <ul class="sidebar-nav">
           <li><a href="/parametres?section=profil" class="{{ 'active' if section == 'profil' else '' }}">Mon profil</a></li>
           <li><a href="/parametres?section=enseignes" class="{{ 'active' if section == 'enseignes' else '' }}">Enseignes connues</a></li>
@@ -214,7 +214,7 @@
 
         {# ── Profil ─────────────────────────────────────────────────────────── #}
         <div class="settings-section {{ 'active' if section == 'profil' else '' }}">
-          <h1>Mon profil</h1>
+          <h2>Mon profil</h2>
           <form method="post" action="/parametres/profil" enctype="multipart/form-data">
             <div class="card">
               <div class="card-title">Identité</div>
@@ -312,7 +312,7 @@
 
         {# ── Enseignes connues ──────────────────────────────────────────────── #}
         <div class="settings-section {{ 'active' if section == 'enseignes' else '' }}">
-          <h1>Enseignes connues</h1>
+          <h2>Enseignes connues</h2>
           <div class="card">
             <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1.25rem;line-height:1.5;">
               Associe un mot-clé (cherché partout dans le texte OCR) à un nom d'enseigne. Utile quand l'en-tête d'un ticket est illisible.
@@ -361,7 +361,7 @@
 
         {# ── Application ────────────────────────────────────────────────────── #}
         <div class="settings-section {{ 'active' if section == 'app' else '' }}">
-          <h1>Application</h1>
+          <h2>Application</h2>
           <form method="post" action="/parametres/ocr">
             <div class="card">
               <div class="card-title-row">

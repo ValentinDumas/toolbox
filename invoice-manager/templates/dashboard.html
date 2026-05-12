@@ -1720,6 +1720,14 @@
       });
     });
 
+    // Échap ferme l'édition inline (cohérence avec les modales : delete, upload,
+    // pdf-preview qui répondent toutes à Échap)
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var cancel = document.querySelector('tr.editing + tr.edit-row .btn-cancel-edit');
+      if (cancel) { e.preventDefault(); cancel.click(); }
+    });
+
     // Afficher le warning après rechargement
     var pendingWarning = sessionStorage.getItem('save_warning');
     if (pendingWarning) {

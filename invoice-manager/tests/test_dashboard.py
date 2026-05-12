@@ -855,7 +855,7 @@ def test_errors_list_in_template(mem_db, tmp_path, monkeypatch):
     (profile_dir / "errors" / "broken.pdf").write_bytes(b"x")
 
     with app.test_client() as client:
-        resp = client.get("/?year=2025")
+        resp = client.get("/?year=2025", follow_redirects=True)
 
     assert b"broken.pdf" in resp.data
     assert "Erreurs (1)".encode() in resp.data
