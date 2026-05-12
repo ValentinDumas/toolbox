@@ -112,9 +112,13 @@ def create_app() -> Flask:
         year = request.args.get("year", datetime.now().year, type=int)
         conn = open_db(active_db())
         summary = query_fiscal_summary(conn, year)
+        # Profil requis par le template pour décider de l'affichage des
+        # cartes TVA (cf. tva_visible_pour) : un AE en franchise n'a pas
+        # de TVA à reverser.
+        profile = get_user_profile(conn) or {}
         conn.close()
         return render_template("fragments/synthese_fiscale.html",
-                               summary=summary, year=year)
+                               summary=summary, year=year, profile=profile)
 
     @app.route("/fragments/sante")
     def fragment_sante():

@@ -1,6 +1,10 @@
 {% set resultat_brut = summary.ca_ht - summary.total_charges %}
+{% set tva_visible = tva_visible_pour(profile) %}
 <section aria-label="Synthèse fiscale {{ year }}">
   <h2 class="section-label">Synthèse fiscale</h2>
+  {% if not tva_visible %}
+  <p class="review-hint" role="note">TVA non applicable — franchise en base (art. 293 B CGI)</p>
+  {% endif %}
   <div class="kpi-grid">
 
     <div class="kpi-card">
@@ -17,6 +21,7 @@
       </div>
     </div>
 
+    {% if tva_visible %}
     <div class="kpi-card">
       <div class="kpi-value {% if summary.tva_a_reverser > 0 %}color-positive{% elif summary.tva_a_reverser < 0 %}color-negative{% else %}color-neutral{% endif %}">
         {{ summary.tva_a_reverser | fr_currency }}
@@ -30,6 +35,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
   </div>
 </section>
