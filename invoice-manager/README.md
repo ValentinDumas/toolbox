@@ -138,7 +138,8 @@ invoice-manager/
 │
 ├── services/               ← logique métier (couche domaine)
 │   ├── __init__.py
-│   └── revision.py         ← workflow révision : _parse, _validate, _recompute_confidence, _build_log, _persist
+│   └── revision.py         ← workflow révision : _parse (ACL stricte : `date_document` ISO YYYY-MM-DD obligatoire),
+│                              _validate, _recompute_confidence, _build_log, _persist
 │
 ├── blueprints/             ← contextes bornés (DDD), un blueprint = un agrégat / un domaine
 │   ├── __init__.py

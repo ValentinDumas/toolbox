@@ -503,6 +503,35 @@ def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
     assert resp.get_json()["ok"] is False
 
 
+def test_post_review_save_rejects_non_iso_date(mem_db, tmp_path, monkeypatch):
+    """PATCH /factures/<id> doit refuser une date qui n'est pas au format YYYY-MM-DD
+    pour préserver l'invariant 'exercice_fiscal = date_document[:4]' (issue #122)."""
+    _insert_invoice(mem_db, id="rev-date", statut_révision="à_réviser",
+                    date_document="2025-03-01", émetteur_nom="ACME",
+                    montant_ttc=100.0, exercice_fiscal=2025)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.patch("/factures/rev-date", data={
+            "montant_ttc": "99.99",
+            "date_document": "BAD_DATE_FORMAT",
+        })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "date_document" in data["errors"]
+    assert "YYYY-MM-DD" in data["errors"]["date_document"]
+    # La DB ne doit PAS contenir la date corrompue.
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute(
+        "SELECT date_document, statut_révision FROM invoices WHERE id='rev-date'"
+    ).fetchone()
+    check.close()
+    assert row["date_document"] == "2025-03-01"
+    assert row["statut_révision"] == "à_réviser"
+
+
 def test_delete_unknown_id_returns_404(mem_db, tmp_path, monkeypatch):
     """DELETE /factures/<id> on unknown id must return 404, not silent 200."""
     app, _ = _make_app(mem_db, tmp_path, monkeypatch)

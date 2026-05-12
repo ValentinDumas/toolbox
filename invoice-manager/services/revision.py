@@ -4,6 +4,7 @@ services/revision.py — Logique métier du workflow de révision.
 Pure domaine : pas de Flask. Utilisé par le blueprint factures.
 """
 import json
+from datetime import date
 
 from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
 
@@ -11,13 +12,28 @@ from constants import CONFIDENCE_THRESHOLD, STATUT_A_REVISER, STATUT_VALIDE
 def _parse_review_fields(form) -> tuple[dict, dict]:
     """Parse and coerce form fields; return (fields, errors)."""
     fields = {}
+    errors = {}
+
     for field in ("type_document", "émetteur_nom", "numéro_facture",
-                  "catégorie", "date_document", "notes_correction"):
+                  "catégorie", "notes_correction"):
         val = form.get(field, "").strip()
         if val:
             fields[field] = val
 
-    errors = {}
+    # Date : ACL stricte. L'input HTML5 type="date" produit YYYY-MM-DD ;
+    # on n'accepte rien d'autre pour préserver l'invariant "exercice_fiscal
+    # déductible de date_document[:4]" et éviter qu'une saisie corrompue
+    # remonte dans le ledger / export.
+    date_val = form.get("date_document", "").strip()
+    if date_val:
+        try:
+            date.fromisoformat(date_val)
+            fields["date_document"] = date_val
+        except ValueError:
+            errors["date_document"] = (
+                f"Date invalide — format YYYY-MM-DD attendu (reçu : {date_val})"
+            )
+
     for field in ("montant_ht", "montant_tva", "montant_ttc"):
         val = form.get(field, "").strip()
         if val:
