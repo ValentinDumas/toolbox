@@ -79,15 +79,33 @@ def pipeline_depot():
     if not files or all(not f.filename for f in files):
         return jsonify({"ok": False, "error": "Aucun fichier reçu"}), 400
 
-    saved = []
+    saved: list[str] = []
+    failed: list[dict] = []
     for f in files:
-        if f.filename:
-            dest = input_dir / Path(f.filename).name
+        if not f.filename:
+            continue
+        dest = input_dir / Path(f.filename).name
+        try:
             f.save(dest)
-            saved.append(f.filename)
+        except OSError as exc:
+            failed.append({"name": f.filename, "error": str(exc)})
+            continue
+        saved.append(f.filename)
+
+    if not saved:
+        return jsonify({
+            "ok": False,
+            "error": "Aucun fichier n'a pu être enregistré.",
+            "failed": failed,
+        }), 500
 
     _trigger_pipeline(slug)
-    return jsonify({"ok": True, "files": saved, "count": len(saved)})
+    return jsonify({
+        "ok": True,
+        "files": saved,
+        "count": len(saved),
+        "failed": failed,
+    })
 
 
 @bp_pipeline.route("/pipeline/erreurs/<filename>/reessayer", methods=["POST"])

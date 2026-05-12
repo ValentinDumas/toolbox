@@ -1942,20 +1942,43 @@
     status.textContent = 'Envoi de ' + files.length + ' fichier(s)…';
     document.getElementById('upload-submit').disabled = true;
 
+    function renderFailures(failed) {
+      if (!failed || !failed.length) return '';
+      var items = failed.map(function (f) {
+        return '<li><strong>' + f.name + '</strong> — ' + (f.error || 'échec') + '</li>';
+      }).join('');
+      return '<div role="alert" aria-live="assertive" class="upload-errors" ' +
+             'style="margin-top:12px;padding:10px 12px;border:1px solid #FCA5A5;' +
+             'background:#FEE2E2;color:#991B1B;border-radius:6px;font-size:13px">' +
+             '<strong>Fichier(s) non enregistré(s) :</strong>' +
+             '<ul style="margin:6px 0 0 18px">' + items + '</ul></div>';
+    }
+
     try {
       var resp = await fetch('/pipeline/depot', { method: 'POST', body: fd });
-      var data = await resp.json();
-      if (!data.ok) throw new Error(data.error || 'Erreur serveur');
+      var data;
+      try { data = await resp.json(); }
+      catch (_) {
+        throw new Error('Réponse serveur invalide (HTTP ' + resp.status + ').');
+      }
+      if (!data.ok) {
+        status.innerHTML = 'Erreur : ' + (data.error || 'serveur') + renderFailures(data.failed);
+        bar.style.background = 'var(--negative)';
+        document.getElementById('upload-submit').disabled = false;
+        return;
+      }
       bar.style.width = '70%';
-      status.textContent = 'Extraction en cours pour ' + data.count + ' fichier(s)…';
+      var msg = 'Extraction en cours pour ' + data.count + ' fichier(s)…';
+      status.innerHTML = msg + renderFailures(data.failed);
       setTimeout(function() {
         bar.style.width = '100%';
-        status.textContent = 'Terminé. Rechargement du tableau de bord…';
-        setTimeout(function() { closeUploadModal(); window.location.reload(); }, 800);
+        status.innerHTML = 'Terminé. Rechargement du tableau de bord…' + renderFailures(data.failed);
+        setTimeout(function() { closeUploadModal(); window.location.reload(); }, data.failed && data.failed.length ? 2500 : 800);
       }, 2500);
     } catch(err) {
       status.textContent = 'Erreur : ' + err.message;
       bar.style.background = 'var(--negative)';
+      document.getElementById('upload-submit').disabled = false;
     }
   }
   </script>
