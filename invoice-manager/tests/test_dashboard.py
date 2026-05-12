@@ -374,6 +374,35 @@ def test_query_items_a_reviser_populated(mem_db):
     assert "done1" not in ids
 
 
+def test_query_items_a_reviser_includes_null_exercice(mem_db):
+    """Les items à réviser sans exercice_fiscal (date non extraite) doivent
+    rester visibles — c'est précisément ce que l'utilisateur doit revoir."""
+    from queries import query_items_a_reviser
+    _insert_invoice(mem_db, id="rev_null", statut_révision="à_réviser",
+                    exercice_fiscal=None, date_document=None)
+    _insert_invoice(mem_db, id="rev_2025", statut_révision="à_réviser",
+                    exercice_fiscal=2025)
+    items = query_items_a_reviser(mem_db, 2026)
+    ids = [i["id"] for i in items]
+    assert "rev_null" in ids
+    assert "rev_2025" in ids
+
+
+def test_index_year_choices_exclude_null_exercice(mem_db, tmp_path, monkeypatch):
+    """La liste déroulante des années ne doit jamais contenir 'None'."""
+    _insert_invoice(mem_db, id="dated", statut_révision="validé", exercice_fiscal=2025)
+    _insert_invoice(mem_db, id="undated", statut_révision="à_réviser",
+                    exercice_fiscal=None, date_document=None)
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    # Le <select name="year"> ne doit pas exposer d'option "None".
+    assert '<option value="None"' not in body
+    assert ">None<" not in body or "Aucune facture" in body  # sanité minimale
+
+
 def test_post_review_save_validates_item(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="rev1", statut_révision="à_réviser", exercice_fiscal=2025)
     app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
@@ -434,8 +463,71 @@ def test_post_review_save_unknown_id(mem_db, tmp_path, monkeypatch):
             "montant_tva": "2", "date_document": "", "émetteur_nom": "",
             "numéro_facture": "", "catégorie": "", "notes_correction": "",
         })
-    assert resp.status_code == 200
+    assert resp.status_code == 404
     assert resp.get_json()["ok"] is False
+
+
+def test_delete_unknown_id_returns_404(mem_db, tmp_path, monkeypatch):
+    """DELETE /factures/<id> on unknown id must return 404, not silent 200."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.delete("/factures/nonexistent")
+    assert resp.status_code == 404
+    data = resp.get_json()
+    assert data["ok"] is False
+    assert "introuvable" in data["error"].lower()
+
+
+def test_supprimer_form_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/supprimer on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/supprimer", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
+
+
+def test_valider_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/valider on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/valider", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
+
+
+def test_restaurer_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/restaurer on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/restaurer", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
+
+
+def test_restaurer_on_active_facture_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/restaurer on a non-deleted row must flash and redirect."""
+    _insert_invoice(mem_db, id="alive-rest", statut_révision="validé", exercice_fiscal=2025)
+    app, db_path = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/alive-rest/restaurer", data={"year": "2025"})
+    assert resp.status_code == 302
+    # Row must remain validé (untouched)
+    import sqlite3 as _sq
+    check = _sq.connect(str(db_path))
+    check.row_factory = _sq.Row
+    row = check.execute("SELECT statut_révision FROM invoices WHERE id='alive-rest'").fetchone()
+    check.close()
+    assert row["statut_révision"] == "validé"
+
+
+def test_reinitialiser_unknown_id_redirects_with_flash(mem_db, tmp_path, monkeypatch):
+    """POST /factures/<id>/reinitialiser on unknown id flashes error and redirects."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post("/factures/nonexistent/reinitialiser", data={"year": "2025"})
+    assert resp.status_code == 302
+    assert "/?year=2025" in resp.headers["Location"]
 
 
 def test_post_review_save_invalid_amount_returns_errors(mem_db, tmp_path, monkeypatch):
@@ -937,7 +1029,7 @@ def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkey
     with app.test_client() as client:
         resp = client.post(
             "/pipeline/depot",
-            data={"files": (__import__("io").BytesIO(b"fake-pdf"), "test.pdf")},
+            data={"files": (__import__("io").BytesIO(b"%PDF-1.4\n%fake pdf body"), "test.pdf")},
             content_type="multipart/form-data",
         )
     body = resp.get_json()
@@ -953,3 +1045,48 @@ def test_depot_renvoie_job_id_et_seme_lignes_en_attente(mem_db, tmp_path, monkey
     ).fetchone()
     conn.close()
     assert row == ("test.pdf", "en_attente")
+
+
+def test_depot_rejette_exe_via_magic_bytes(mem_db, tmp_path, monkeypatch):
+    """Un .exe (header MZ) doit être rejeté avant écriture disque."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(b"MZ\x90\x00" + b"\x00" * 60), "evil.exe")},
+            content_type="multipart/form-data",
+        )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["failed"], "le tableau failed doit contenir le fichier rejeté"
+    assert body["failed"][0]["filename"] == "evil.exe"
+    assert body["failed"][0]["reason"] == "type non supporté"
+
+    # Le fichier ne doit PAS atterrir dans input/.
+    input_dir = _bp.resolve_paths("test-profile")["input"]
+    assert not (input_dir / "evil.exe").exists()
+
+
+def test_depot_accepte_pdf_valide(mem_db, tmp_path, monkeypatch):
+    """Un PDF avec magic bytes %PDF- est accepté et atterrit dans input/."""
+    import blueprints.pipeline as _bp
+    monkeypatch.setattr(_bp, "_trigger_pipeline", lambda slug, job_id=None: None)
+
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.post(
+            "/pipeline/depot",
+            data={"files": (__import__("io").BytesIO(b"%PDF-1.7\n%body"), "real.pdf")},
+            content_type="multipart/form-data",
+        )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert body["files"] == ["real.pdf"]
+    assert body["failed"] == []
+
+    input_dir = _bp.resolve_paths("test-profile")["input"]
+    assert (input_dir / "real.pdf").exists()

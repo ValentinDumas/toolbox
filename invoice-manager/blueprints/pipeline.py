@@ -34,6 +34,35 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 bp_pipeline = Blueprint("pipeline", __name__)
 
 
+def _sniff_supported_type(header: bytes) -> bool:
+    """Détecte un format pris en charge à partir des 32 premiers octets.
+
+    Couvre PDF, JPEG, PNG, TIFF, BMP, WEBP, HEIC/HEIF (conteneur ISO-BMFF).
+    Ces vérifications protègent contre l'upload de binaires hostiles
+    (cf. VISION.md §3 — magic bytes obligatoires avant écriture disque).
+    """
+    if len(header) < 12:
+        return False
+    if header[:5] == b"%PDF-":
+        return True
+    if header[:3] == b"\xff\xd8\xff":
+        return True
+    if header[:8] == b"\x89PNG\r\n\x1a\n":
+        return True
+    if header[:4] in (b"II*\x00", b"MM\x00*"):
+        return True
+    if header[:2] == b"BM":
+        return True
+    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return True
+    # ISO-BMFF (HEIC/HEIF) : `ftyp` en octets 4-8, marque connue en 8-12.
+    if header[4:8] == b"ftyp" and header[8:12] in (
+        b"heic", b"heix", b"mif1", b"msf1", b"hevc", b"hevx", b"heis",
+    ):
+        return True
+    return False
+
+
 def _trigger_pipeline(slug: str, job_id: str | None = None) -> None:
     """Lance le pipeline d'extraction en arrière-plan pour un profil donné.
     Si job_id est fourni, extract.py mettra à jour import_jobs ligne par ligne."""
@@ -162,6 +191,12 @@ def pipeline_depot():
         if not f.filename:
             continue
         basename = Path(f.filename).name
+        # Anti-corruption : sniff magic bytes avant toute écriture disque.
+        header = f.stream.read(32)
+        f.stream.seek(0)
+        if not _sniff_supported_type(header):
+            failed.append({"filename": f.filename, "reason": "type non supporté"})
+            continue
         try:
             f.save(input_dir / basename)
         except OSError as exc:
@@ -170,6 +205,17 @@ def pipeline_depot():
         saved.append(basename)
 
     if not saved:
+        # Aucun fichier accepté — soit tous rejetés (type non supporté),
+        # soit erreurs disque. On reste en 200 si le rejet est métier
+        # (failed peuplé), 500 sinon.
+        if failed:
+            return jsonify({
+                "ok": False,
+                "error": "Aucun fichier n'a pu être enregistré.",
+                "files": [],
+                "count": 0,
+                "failed": failed,
+            }), 200
         return jsonify({
             "ok": False,
             "error": "Aucun fichier n'a pu être enregistré.",

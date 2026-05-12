@@ -514,6 +514,15 @@
       setTimeout(function() { t.classList.remove('show'); }, 3000);
     })();
     {% endif %}
+    {% if error_message %}
+    (function() {
+      var t = document.getElementById('toast');
+      t.textContent = {{ error_message|tojson }};
+      t.style.background = '#DC2626';
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 4000);
+    })();
+    {% endif %}
 
     // Enseigne delete modal
     var _pendingDeleteForm = null;

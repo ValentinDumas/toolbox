@@ -10,9 +10,41 @@ from flask import (
 from constants import FISCAL_RULES
 from context_helpers import active_db
 from db import open_db
+import re
+
 from profiles import create_profile, get_profile_meta, load_profiles
 
 bp_profils = Blueprint("profils", __name__)
+
+# Bornes du nom d'entité légale : assez pour des raisons sociales longues,
+# sans permettre d'inputs abusifs.
+NOM_ENTITE_MIN = 1
+NOM_ENTITE_MAX = 80
+
+
+def _valider_nom_entite(raw: str) -> tuple[str | None, str | None]:
+    """ACL : convertit un nom HTTP brut en nom domaine validé.
+
+    Retourne (nom, erreur) — exactement un des deux est None.
+    """
+    if raw is None:
+        return None, "Le nom de l'entité est obligatoire."
+    name = raw.strip()
+    if not name:
+        return None, "Le nom de l'entité est obligatoire."
+    if len(name) > NOM_ENTITE_MAX:
+        return None, f"Le nom ne doit pas dépasser {NOM_ENTITE_MAX} caractères."
+    # Caractères de contrôle (y compris \n, \r, \t, \0…) — refusés.
+    if any(ord(c) < 32 or ord(c) == 127 for c in name):
+        return None, "Le nom contient des caractères non imprimables."
+    # Séparateurs de chemin et traversée — refusés pour préserver le sandbox profil.
+    if "/" in name or "\\" in name or ".." in name:
+        return None, "Le nom ne peut pas contenir / \\ ou .."
+    # Le slugify de profiles.py retombe sur "profil" par défaut ; on veut
+    # s'assurer qu'on a au moins un caractère alphanumérique dans le nom brut.
+    if not re.search(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]", name):
+        return None, "Le nom doit contenir au moins une lettre ou un chiffre."
+    return name, None
 
 
 @bp_profils.route("/profils")
@@ -29,9 +61,11 @@ def profils_liste():
 @bp_profils.route("/profils", methods=["POST"])
 def profils_creer():
     """POST /profils — Crée un nouveau profil et persiste le nom d'entité."""
-    name = request.form.get("name", "").strip()
-    if not name:
-        return redirect(url_for("profils.profils_liste"))
+    name, error = _valider_nom_entite(request.form.get("name", ""))
+    if error:
+        # Re-render plutôt que redirect : un redirect vers /profils
+        # rebondit en boucle quand aucun profil n'existe encore (#93).
+        return render_template("profils/premiere_page.html", error=error), 200
     entry = create_profile(name)
     session["active_profile"] = entry["slug"]
     # Le registre profiles.json garde le `name` pour le sélecteur de profils,

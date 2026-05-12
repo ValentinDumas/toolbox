@@ -10,7 +10,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Blueprint, jsonify, redirect, request
+from flask import Blueprint, flash, jsonify, redirect, request
 
 from constants import STATUT_A_REVISER, STATUT_PRET, STATUT_VALIDE
 from context_helpers import active_db, active_paths
@@ -26,6 +26,19 @@ from services.revision import (
 bp_factures = Blueprint("factures", __name__)
 
 
+def _facture_exists(conn, item_id: str, *, deleted: bool = False) -> bool:
+    """Vérifie qu'une facture existe dans le scope demandé.
+
+    `deleted=False` → la facture doit être active (non supprimée).
+    `deleted=True`  → la facture doit être dans la corbeille (soft-deleted).
+    """
+    if deleted:
+        sql = "SELECT 1 FROM invoices WHERE id=? AND deleted_at IS NOT NULL"
+    else:
+        sql = "SELECT 1 FROM invoices WHERE id=? AND deleted_at IS NULL"
+    return conn.execute(sql, (item_id,)).fetchone() is not None
+
+
 @bp_factures.route("/factures/<item_id>", methods=["PATCH"])
 def facture_save(item_id):
     """PATCH /factures/<id> — Met à jour une facture après révision."""
@@ -33,10 +46,13 @@ def facture_save(item_id):
     warning = None
     try:
         conn = open_db(active_db())
-        row = conn.execute("SELECT * FROM invoices WHERE id=?", (item_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM invoices WHERE id=? AND deleted_at IS NULL",
+            (item_id,),
+        ).fetchone()
         if not row:
             conn.close()
-            return jsonify({"ok": False, "errors": {"_base": "Item introuvable."}})
+            return jsonify({"ok": False, "error": "Facture introuvable"}), 404
 
         current = dict(row)
         fields, errors = _parse_review_fields(request.form)
@@ -76,6 +92,11 @@ def _soft_delete_invoice(item_id: str) -> None:
 @bp_factures.route("/factures/<item_id>", methods=["DELETE"])
 def facture_supprimer(item_id):
     """DELETE /factures/<id> — Soft-delete (API JSON)."""
+    conn = open_db(active_db())
+    exists = _facture_exists(conn, item_id, deleted=False)
+    conn.close()
+    if not exists:
+        return jsonify({"ok": False, "error": "Facture introuvable"}), 404
     _soft_delete_invoice(item_id)
     return jsonify({"ok": True})
 
@@ -88,6 +109,12 @@ def facture_supprimer_form(item_id):
     un submit POST mal acheminé soft-supprimait silencieusement la facture.
     """
     year = request.form.get("year", datetime.now().year)
+    conn = open_db(active_db())
+    exists = _facture_exists(conn, item_id, deleted=False)
+    conn.close()
+    if not exists:
+        flash("Facture introuvable", "error")
+        return redirect(f"/?year={year}")
     _soft_delete_invoice(item_id)
     return redirect(f"/?year={year}")
 
@@ -99,6 +126,10 @@ def facture_valider(item_id):
     year = request.form.get("year", datetime.now().year)
     try:
         conn = open_db(active_db())
+        if not _facture_exists(conn, item_id, deleted=False):
+            conn.close()
+            flash("Facture introuvable", "error")
+            return redirect(f"/?year={year}")
         conn.execute(
             "UPDATE invoices SET statut_révision=?, révisé_par='user', "
             "date_révision=?, validé_le=? WHERE id=? AND statut_révision IN (?, ?)",
@@ -117,6 +148,10 @@ def facture_restaurer(item_id):
     year = request.form.get("year", datetime.now().year)
     try:
         conn = open_db(active_db())
+        if not _facture_exists(conn, item_id, deleted=True):
+            conn.close()
+            flash("Facture introuvable", "error")
+            return redirect(f"/?year={year}")
         conn.execute(
             "UPDATE invoices SET deleted_at=NULL, deleted_by=NULL, "
             "statut_révision=?, révisé_par=NULL, "
@@ -135,6 +170,10 @@ def facture_reinitialiser(item_id):
     """POST /factures/<id>/reinitialiser — Repasse une facture en « à réviser »."""
     year = request.form.get("year", datetime.now().year)
     conn = open_db(active_db())
+    if not _facture_exists(conn, item_id, deleted=False):
+        conn.close()
+        flash("Facture introuvable", "error")
+        return redirect(f"/?year={year}")
     conn.execute(
         "UPDATE invoices SET statut_révision=?, révisé_par=NULL, "
         "date_révision=NULL, validé_le=NULL "

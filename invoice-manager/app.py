@@ -120,22 +120,27 @@ def create_app() -> Flask:
 
     @app.route("/")
     def index():
-        year = request.args.get("year", datetime.now().year, type=int)
+        requested_year = request.args.get("year", type=int)
         page = request.args.get("page", 1, type=int)
         run_error = request.args.get("run_error")
         review_error = request.args.get("review_error")
         try:
             paths = active_paths()
             conn = open_db(active_db())
+            # Choix de l'année : on exclut les exercices NULL (items pas encore datés).
+            years = [r[0] for r in conn.execute(
+                "SELECT DISTINCT exercice_fiscal FROM invoices "
+                "WHERE exercice_fiscal IS NOT NULL "
+                "ORDER BY exercice_fiscal DESC"
+            ).fetchall()] or [datetime.now().year]
+            # Si l'année demandée n'existe pas dans les choix, on retombe sur la plus récente.
+            year = requested_year if requested_year in years else years[0]
             summary = query_fiscal_summary(conn, year)
             ledger = query_ledger(conn, year, page=page)
             health = query_health(conn, paths)
             items_a_reviser_list = query_items_a_reviser(conn, year)
             corbeille_list = query_corbeille(conn, year)
             errors_list = query_error_files(paths)
-            years = [r[0] for r in conn.execute(
-                "SELECT DISTINCT exercice_fiscal FROM invoices ORDER BY exercice_fiscal DESC"
-            ).fetchall()] or [datetime.now().year]
             profile = get_user_profile(conn) or {}
             conn.close()
         except sqlite3.DatabaseError as exc:

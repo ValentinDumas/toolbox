@@ -5,16 +5,91 @@ Routes RESTful : /parametres pour l'index, sous-ressources pour profil/enseignes
 """
 import base64
 import io
+import re
 import sqlite3
 
 from flask import (
     Blueprint, jsonify, redirect, render_template, request, url_for,
 )
 
+from config import CADENCE_OPTIONS
+from constants import FISCAL_RULES
 from context_helpers import active_db
 from db import get_extraction_cfg, get_user_profile, open_db
 
 bp_parametres = Blueprint("parametres", __name__)
+
+# ── Anti-corruption layer : validation des champs profil ──────────────────────
+
+# Profils fiscaux acceptés : clés de FISCAL_RULES (source de vérité métier).
+FISCAL_PROFILES_VALIDES = frozenset(FISCAL_RULES.keys())
+# Cadences acceptées : union des cadences valides tous profils confondus.
+CADENCES_VALIDES = frozenset(c for opts in CADENCE_OPTIONS.values() for c in opts)
+
+# SIREN : 9 chiffres exactement (espaces tolérés à l'entrée).
+_SIREN_REGEX = re.compile(r"^\d{9}$")
+# TVA intracom : 2 lettres pays + 2 à 12 caractères alphanumériques (loose EU pattern).
+_TVA_INTRACOM_REGEX = re.compile(r"^[A-Z]{2}[0-9A-Z]{2,12}$")
+
+# Limites de longueur pour les enseignes connues (issue #99).
+ENSEIGNE_KEYWORD_MAX = 64
+ENSEIGNE_NOM_MAX = 120
+
+# Messages d'erreur en français — affichés via la query-string `error=<code>`.
+_ERROR_MESSAGES: dict[str, str] = {
+    "siren_invalide": "SIREN invalide : 9 chiffres attendus.",
+    "fiscal_profile_invalide": "Profil fiscal invalide.",
+    "tva_intracom_invalide": "Numéro de TVA intracommunautaire invalide.",
+    "cadence_invalide": "Cadence de déclaration invalide.",
+    "enseigne_keyword_trop_long": (
+        f"Le mot-clé d'enseigne dépasse {ENSEIGNE_KEYWORD_MAX} caractères."
+    ),
+    "enseigne_nom_trop_long": (
+        f"Le nom d'enseigne dépasse {ENSEIGNE_NOM_MAX} caractères."
+    ),
+}
+
+
+def _valider_profil(form) -> tuple[dict, str | None]:
+    """Convertit le formulaire HTTP en champs domaine et valide chaque champ.
+
+    Retourne (champs_propres, code_erreur). Le code d'erreur est un slug
+    court repris dans l'URL de redirection — voir settings.html pour
+    l'affichage côté UI.
+    """
+    nom = form.get("nom", "").strip()
+    siren = form.get("siren", "").strip().replace(" ", "")
+    tva_intracom = form.get("tva_intracom", "").strip().upper().replace(" ", "")
+    fiscal_profile = form.get("fiscal_profile", "").strip()
+    cadence = form.get("cadence", "").strip()
+
+    if siren and not _SIREN_REGEX.match(siren):
+        return {}, "siren_invalide"
+    if fiscal_profile and fiscal_profile not in FISCAL_PROFILES_VALIDES:
+        return {}, "fiscal_profile_invalide"
+    if tva_intracom and not _TVA_INTRACOM_REGEX.match(tva_intracom):
+        return {}, "tva_intracom_invalide"
+    if cadence and cadence not in CADENCES_VALIDES:
+        return {}, "cadence_invalide"
+
+    return {
+        "nom": nom,
+        "siren": siren,
+        "tva_intracom": tva_intracom,
+        "fiscal_profile": fiscal_profile,
+        "cadence": cadence,
+    }, None
+
+
+def _valider_enseigne(form) -> tuple[dict, str | None]:
+    """Valide les champs d'une enseigne connue (issue #99 : cap de longueur)."""
+    keyword = form.get("keyword", "").strip()
+    nom = form.get("nom", "").strip()
+    if len(keyword) > ENSEIGNE_KEYWORD_MAX:
+        return {}, "enseigne_keyword_trop_long"
+    if len(nom) > ENSEIGNE_NOM_MAX:
+        return {}, "enseigne_nom_trop_long"
+    return {"keyword": keyword, "nom": nom}, None
 
 
 @bp_parametres.route("/parametres")
@@ -27,6 +102,7 @@ def parametres_index():
     conn.close()
     section = request.args.get("section", "profil")
     saved = request.args.get("saved") == "1"
+    error = request.args.get("error") or None
     from config import CADENCE_DEFAULTS, CADENCE_OPTIONS
     return render_template(
         "settings.html",
@@ -34,6 +110,8 @@ def parametres_index():
         emitters=emitters,
         section=section,
         saved=saved,
+        error=error,
+        error_message=_ERROR_MESSAGES.get(error) if error else None,
         cadence_defaults=CADENCE_DEFAULTS,
         cadence_options=CADENCE_OPTIONS,
         extraction_cfg=extraction_cfg,
@@ -43,13 +121,11 @@ def parametres_index():
 @bp_parametres.route("/parametres/profil", methods=["POST"])
 def parametres_profil_sauver():
     """POST /parametres/profil — Sauvegarde le profil utilisateur (nom, SIREN, TVA, fiscal, cadence)."""
-    data = {
-        "nom":            request.form.get("nom", "").strip(),
-        "siren":          request.form.get("siren", "").strip().replace(" ", ""),
-        "tva_intracom":   request.form.get("tva_intracom", "").strip(),
-        "fiscal_profile": request.form.get("fiscal_profile", "").strip(),
-        "cadence":        request.form.get("cadence", "").strip(),
-    }
+    data, error = _valider_profil(request.form)
+    if error:
+        return redirect(url_for(
+            "parametres.parametres_index", section="profil", error=error,
+        ))
     conn = open_db(active_db())
     conn.execute(
         "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, setup_complete) "
@@ -78,8 +154,12 @@ def parametres_profil_sauver():
 @bp_parametres.route("/parametres/enseignes", methods=["POST"])
 def parametres_enseignes_ajouter():
     """POST /parametres/enseignes — Ajoute une enseigne connue."""
-    keyword = request.form.get("keyword", "").strip()
-    nom = request.form.get("nom", "").strip()
+    fields, error = _valider_enseigne(request.form)
+    if error:
+        return redirect(url_for(
+            "parametres.parametres_index", section="enseignes", error=error,
+        ))
+    keyword, nom = fields["keyword"], fields["nom"]
     if keyword and nom:
         conn = open_db(active_db())
         try:
