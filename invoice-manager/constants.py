@@ -85,3 +85,20 @@ FISCAL_RULES = {
     "SARL":              {"tva_déductible": True,  "regime": "réel"},
     "salarié":           {"tva_déductible": False, "regime": "frais_pro"},
 }
+
+# ── Taux URSSAF auto-entrepreneur (en vigueur au 01/01/2026) ─────────────────
+#
+# Source : AUTO_ENTREPRENEUR_RULES.md §4.1. À revérifier chaque 1er janvier.
+# Stockés en fractions (0..1). `taux_cotisations` couvre les cotisations
+# sociales (maladie, retraite, CSG/CRDS) ; `taux_cfp` couvre la contribution
+# à la formation professionnelle prélevée en même temps. Les contributions
+# CCI / CMA (variables et minimes) ne sont pas modélisées ici.
+TAUX_URSSAF_AE_2026 = {
+    "vente":                  {"taux_cotisations": 0.123, "taux_cfp": 0.001},
+    "service_bic":            {"taux_cotisations": 0.212, "taux_cfp": 0.003},
+    "service_bnc_ssi":        {"taux_cotisations": 0.256, "taux_cfp": 0.002},
+    "service_bnc_cipav":      {"taux_cotisations": 0.232, "taux_cfp": 0.002},
+    "meuble_tourisme_classe": {"taux_cotisations": 0.060, "taux_cfp": 0.001},
+}
+
+ACTIVITES_AE = tuple(TAUX_URSSAF_AE_2026.keys())
