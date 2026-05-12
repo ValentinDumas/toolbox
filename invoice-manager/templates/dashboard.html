@@ -806,8 +806,8 @@
 
     <header>
       <div>
-        <a href="/" class="brand-link" aria-label="Accueil ProLedger"
-           onclick="if (location.pathname === '/') { event.preventDefault(); window.scrollTo({top:0,behavior:'smooth'}); }">
+        <a href="/" class="brand-link" aria-label="Accueil ProLedger — onglet Ledger"
+           onclick="if (location.pathname === '/') { event.preventDefault(); if (window.activateTab) window.activateTab('ledger'); window.scrollTo({top:0,behavior:'smooth'}); }">
           <h1>ProLedger</h1>
         </a>
         <form method="get" action="/" class="year-form" aria-label="Filtre par année">
@@ -1005,7 +1005,7 @@
                     {% set s = row.statut_révision %}
                     {% if s == 'validé' %}
                       {% set has_corrections = row.corrections_log and row.corrections_log != '[]' %}
-                      <span class="badge badge-paid">Validé {{ '✎' if has_corrections else '✓' }}</span>
+                      <span class="badge badge-paid"{% if has_corrections %} title="Validé après corrections manuelles"{% endif %}>Validé ✓</span>
                       <button type="button" class="btn-edit-item"
                               aria-expanded="false" aria-controls="edit-row-{{ row.id }}"
                               aria-label="Modifier — {{ party or '—' }} — {{ row.date_document or '—' }}">✎</button>
