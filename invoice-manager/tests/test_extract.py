@@ -105,6 +105,35 @@ class TestParseAmounts:
         assert tva is None
         assert taux is None
 
+    # ── Issue #112 : symbole € après le montant (convention française) ────────
+    def test_euro_apres_montant_est_detecte(self):
+        # Avant : le regex bare exigeait `€ 12,34`. La convention FR place
+        # pourtant le symbole APRÈS — d'où des tickets parfaits poussés en
+        # « à réviser ».
+        ht, tva, ttc, taux = ex._parse_amounts(
+            "Boulangerie\nCroissants x2\nTOTAL  12,34 €\n01/05/2026"
+        )
+        assert ttc == 12.34
+
+    def test_eur_suffixe_sans_label_est_detecte(self):
+        ht, tva, ttc, taux = ex._parse_amounts(
+            "Achat divers\n9,90 EUR\n2026-05-01"
+        )
+        assert ttc == 9.90
+
+    def test_symbole_avant_montant_toujours_supporte(self):
+        # Régression : l'ancien comportement (symbole avant) doit rester OK.
+        ht, tva, ttc, taux = ex._parse_amounts("Reçu\n€ 42,00")
+        assert ttc == 42.00
+
+    def test_bare_n_ecrase_pas_ttc_trouve_par_label(self):
+        # Si TTC est déjà identifié par un label, le secours bare ne doit pas
+        # écraser le résultat (sinon une ligne d'article € polluerait le total).
+        ht, tva, ttc, taux = ex._parse_amounts(
+            "Total TTC 100,00 EUR\nArticle annexe 5,00 €"
+        )
+        assert ttc == 100.0
+
 
 # ── _parse_siren / _parse_siret / _parse_tva_intracom ─────────────────────────
 

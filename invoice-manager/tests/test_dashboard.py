@@ -667,6 +667,9 @@ def test_post_review_delete(mem_db, tmp_path, monkeypatch):
     with app.test_client() as client:
         resp = client.post("/factures/del1/supprimer")
     assert resp.status_code == 302
+    # Issues #110 #111 : on revient sur l'onglet Corbeille pour confirmer
+    # visuellement où l'item a atterri — pas sur Ledger (défaut sans fragment).
+    assert resp.headers["Location"].endswith("#corbeille")
     import sqlite3 as _sq
     check = _sq.connect(str(db_path))
     check.row_factory = _sq.Row

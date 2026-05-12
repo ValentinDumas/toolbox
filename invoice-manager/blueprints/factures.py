@@ -116,7 +116,10 @@ def facture_supprimer_form(item_id):
         flash("Facture introuvable", "error")
         return redirect(f"/?year={year}")
     _soft_delete_invoice(item_id)
-    return redirect(f"/?year={year}")
+    # Bascule sur l'onglet Corbeille pour que l'utilisateur voie où l'item a
+    # atterri (issues #110 #111 : sans fragment, la page rechargeait sur
+    # Ledger et l'item « semblait disparaître »).
+    return redirect(f"/?year={year}#corbeille")
 
 
 @bp_factures.route("/factures/<item_id>/valider", methods=["POST"])

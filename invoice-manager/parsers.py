@@ -121,7 +121,16 @@ def _parse_amounts(text: str) -> tuple[float | None, float | None, float | None,
         ht = _parse_amount(text, ["HT"])
 
     if not ttc and not ht:
-        bare = re.findall(r"[€$£]\s*(\d[\d\s]*[\.,]\d{2})", text)
+        # Le symbole monétaire peut précéder OU suivre le montant. En France,
+        # la convention est « 12,34 € » (symbole après) — l'omettre faisait
+        # passer en « à réviser » des tickets parfaitement lisibles (issue #112).
+        # `EUR` est également toléré comme suffixe textuel.
+        pattern = (
+            r"(?:[€$£]|\bEUR\b)\s*(\d[\d\s]*[\.,]\d{2})"
+            r"|"
+            r"(\d[\d\s]*[\.,]\d{2})\s*(?:[€$£]|\bEUR\b)"
+        )
+        bare = [m for pair in re.findall(pattern, text, re.I) for m in pair if m]
         if bare:
             ttc = max(float(a.replace(" ", "").replace(",", ".")) for a in bare)
 
