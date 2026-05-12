@@ -52,14 +52,14 @@ Référentiel métier — types de documents supportés, règles par statut, et 
 
 ## Statuts fiscaux et cadences de déclaration
 
-| Statut             | Régime TVA            | Déclaration revenus          | Cadence défaut | Assujetti TVA |
-|--------------------|-----------------------|------------------------------|----------------|---------------|
-| `auto-entrepreneur`| Franchise en base     | CA mensuel ou trimestriel (URSSAF) | trimestrielle | Non           |
-| `SASU`             | Réel normal           | IS annuel (liasse fiscale)   | mensuelle      | Oui           |
-| `SARL`             | Réel normal           | IS annuel (liasse fiscale)   | mensuelle      | Oui           |
-| `salarié`          | N/A                   | IR annuel (DGFiP)            | annuelle       | Non           |
+| Statut             | Régime TVA            | Déclaration revenus          | Cadence défaut | Cadences proposées           | Assujetti TVA |
+|--------------------|-----------------------|------------------------------|----------------|------------------------------|---------------|
+| `auto-entrepreneur`| Franchise en base     | CA mensuel ou trimestriel (URSSAF) | trimestrielle | `mensuelle` · `trimestrielle` | Non           |
+| `SASU`             | Réel normal           | IS annuel (liasse fiscale)   | mensuelle      | `mensuelle` · `trimestrielle` | Oui           |
+| `SARL`             | Réel normal           | IS annuel (liasse fiscale)   | mensuelle      | `mensuelle` · `trimestrielle` | Oui           |
+| `salarié`          | N/A                   | IR annuel (DGFiP)            | annuelle       | `annuelle`                   | Non           |
 
-La cadence peut être surchargée via `config.toml` → `[fiscal] cadence_déclaration`.
+La cadence peut être surchargée depuis **Paramètres → Fiscalité** ; les options proposées sont filtrées selon le statut fiscal sélectionné (`CADENCE_OPTIONS` dans `config.py`).
 
 ---
 
