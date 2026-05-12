@@ -8,6 +8,7 @@ struct LockedView: View {
     @State private var attempting: Bool = false
     @State private var lastFailure: BiometricGate.Failure?
     @State private var gate = BiometricGate()
+    @AccessibilityFocusState private var focusUnlock: Bool
 
     var body: some View {
         VStack(spacing: 20) {
@@ -41,12 +42,21 @@ struct LockedView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(attempting)
+            .accessibilityFocused($focusUnlock)
+            .accessibilityHint("Authenticate with Face ID or device passcode.")
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(uiColor: .systemBackground))
-        .onAppear { tryUnlock() }
+        .onAppear {
+            tryUnlock()
+            // System unlock prompt steals focus; nudge VoiceOver back to
+            // the Unlock button after the prompt resolves either way.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                focusUnlock = true
+            }
+        }
     }
 
     private func tryUnlock() {

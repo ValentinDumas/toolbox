@@ -118,6 +118,7 @@ struct PaneDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(stream?.buffer ?? "")
                     .font(.system(.body, design: .monospaced))
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
@@ -127,6 +128,8 @@ struct PaneDetailView: View {
             }
         }
         .background(Color(uiColor: .systemBackground))
+        .accessibilityLabel("Pane output")
+        .accessibilityHint("Monospaced terminal buffer. Swipe up to read history.")
         // `.scrollPosition(id:)` doesn't fire reliably on user-initiated
         // scrolls in iOS 17+. Detect manual scrolling via a simultaneous
         // DragGesture: any drag past 8 pts breaks the auto-scroll lock.

@@ -23,10 +23,27 @@ struct PaneRowView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color.accentColor.opacity(0.20), in: Capsule())
-                    .accessibilityLabel("Pane \(pane.label) is waiting for you")
             }
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+        .accessibilityAddTraits(pane.waitingForInput ? [.isButton, .updatesFrequently] : .isButton)
+    }
+
+    /// VoiceOver description: pane label, running command, cwd, waiting state.
+    /// Example: "Pane main:0.1, running zsh, in tmux-agnostic-setup, waiting for you".
+    private var accessibilityDescription: String {
+        var parts: [String] = ["Pane \(pane.label)"]
+        if let cmd = pane.cmd, !cmd.isEmpty {
+            parts.append("running \(cmd)")
+        }
+        if !pane.displayCwdLeaf.isEmpty {
+            parts.append("in \(pane.displayCwdLeaf)")
+        }
+        if pane.waitingForInput {
+            parts.append("waiting for you")
+        }
+        return parts.joined(separator: ", ")
     }
 }

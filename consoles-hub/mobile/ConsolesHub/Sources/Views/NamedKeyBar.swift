@@ -17,7 +17,9 @@ struct NamedKeyBar: View {
                     Button { fire(key) } label: {
                         Text(key.glyph)
                             .font(.system(.callout, design: .monospaced).weight(.semibold))
-                            .frame(minWidth: 44, minHeight: 32)
+                            .minimumScaleFactor(0.8)
+                            .lineLimit(1)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)

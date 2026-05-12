@@ -67,11 +67,13 @@ private struct SettingsSheet: View {
                 }
                 Section {
                     Toggle("Lock with FaceID", isOn: $state.biometricEnabled)
+                        .accessibilityHint("Requires Face ID or passcode every time the app foregrounds.")
                     Button("Lock now") {
                         state.lock()
                         dismiss()
                     }
                     .disabled(!state.biometricEnabled)
+                    .accessibilityHint("Returns the app to the locked screen.")
                 } header: {
                     Text("Security")
                 } footer: {
@@ -79,6 +81,7 @@ private struct SettingsSheet: View {
                 }
                 Section {
                     Button("Rotate token") { showingRotateToken = true }
+                        .accessibilityHint("Replaces the stored bearer token while keeping the host.")
                 } header: {
                     Text("Token")
                 } footer: {
@@ -91,6 +94,7 @@ private struct SettingsSheet: View {
                     } label: {
                         Text("Forget agent").frame(maxWidth: .infinity)
                     }
+                    .accessibilityHint("Wipes the saved token and host. Returns to Setup.")
                 } footer: {
                     Text("Wipes the saved token and host. You'll be sent back to Setup.")
                 }

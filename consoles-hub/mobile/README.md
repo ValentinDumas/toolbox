@@ -1,10 +1,10 @@
 # consoles-hub iOS app (mobile/)
 
-SwiftUI client for the consoles-hub agent. Slices A, B, and C of v1 —
+SwiftUI client for the consoles-hub agent. v1 slices A–D shipped —
 Setup, sectioned Pane list, a live WebSocket-backed detail view with
-text input + named-key row, a FaceID gate on foreground, and a
-rotate-token affordance in Settings. Icon + Dynamic Type / VoiceOver
-polish + TestFlight prep (slice D) come later.
+text input + named-key row, FaceID gate on foreground, rotate-token
+affordance, placeholder app icon, accessibility polish, and TestFlight
+upload notes (see `TESTFLIGHT.md`).
 
 See [`docs/specs/2026-05-12-mobile-ui-design.md`](../docs/specs/2026-05-12-mobile-ui-design.md)
 for the full design.
