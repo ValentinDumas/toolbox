@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# ping-me — send a push notification to your iOS phone via ntfy.
+#
+# Usage:
+#   ping-me "message"               send a notification
+#   ping-me -- cmd arg1 arg2 ...    run a command, notify on exit
+#   ping-me --hook                  Claude Code Stop hook (reads JSON on stdin)
+#
+# Config: ~/.config/ping-me/config (NTFY_URL, NTFY_TOPIC, NTFY_TOKEN optional).
+
+set -euo pipefail
+
+CONFIG="${PING_ME_CONFIG:-$HOME/.config/ping-me/config}"
+NTFY_URL="https://ntfy.sh"
+NTFY_TOPIC=""
+NTFY_TOKEN=""
+
+if [ -f "$CONFIG" ]; then
+  # shellcheck disable=SC1090
+  . "$CONFIG"
+fi
+
+die() { echo "ping-me: $*" >&2; exit 1; }
+
+[ -n "$NTFY_TOPIC" ] || die "NTFY_TOPIC not set. Run install.sh or edit $CONFIG."
+command -v curl >/dev/null || die "curl is required."
+
+# publish "title" "message" [priority] [tags]
+publish() {
+  local title="$1" message="$2" priority="${3:-default}" tags="${4:-}"
+  local -a args=( -sS --max-time 10
+                  -H "Title: $title"
+                  -H "Priority: $priority"
+                  -d "$message" )
+  [ -n "$tags" ]       && args+=( -H "Tags: $tags" )
+  [ -n "$NTFY_TOKEN" ] && args+=( -H "Authorization: Bearer $NTFY_TOKEN" )
+  curl "${args[@]}" "$NTFY_URL/$NTFY_TOPIC" >/dev/null
+}
+
+if [ "${1:-}" = "--hook" ]; then
+  # Claude Code Stop hook: stdin is JSON; we don't strictly need it.
+  cat >/dev/null 2>&1 || true
+  publish "Claude Code" "Waiting for input" "high" "robot"
+  exit 0
+fi
+
+if [ "${1:-}" = "--" ]; then
+  shift
+  [ $# -gt 0 ] || die "no command given after --"
+  cmd_label="$*"
+  start=$SECONDS
+  set +e
+  "$@"
+  rc=$?
+  set -e
+  dur=$(( SECONDS - start ))
+  if [ $rc -eq 0 ]; then
+    publish "✓ done (${dur}s)" "$cmd_label" "default" "white_check_mark"
+  else
+    publish "✗ failed (exit $rc, ${dur}s)" "$cmd_label" "high" "x"
+  fi
+  exit $rc
+fi
+
+[ $# -gt 0 ] || die "usage: ping-me \"message\" | ping-me -- cmd ... | ping-me --hook"
+publish "ping-me" "$*"

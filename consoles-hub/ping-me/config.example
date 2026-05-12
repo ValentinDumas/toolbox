@@ -1,0 +1,13 @@
+# ping-me config — copied to ~/.config/ping-me/config by install.sh
+# All values are shell-sourced; no quoting tricks needed.
+
+# ntfy server. Default ntfy.sh is free and requires no account.
+# Swap for your self-hosted server later: NTFY_URL="https://ntfy.example.com"
+NTFY_URL="https://ntfy.sh"
+
+# Topic name. MUST be long and unguessable on the public ntfy.sh server —
+# anyone who knows the topic can read your messages.
+NTFY_TOPIC=""
+
+# Optional bearer token (self-hosted ntfy with auth).
+NTFY_TOKEN=""
