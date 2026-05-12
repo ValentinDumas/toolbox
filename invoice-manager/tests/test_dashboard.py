@@ -304,6 +304,42 @@ def test_get_root_populated(mem_db, tmp_path, monkeypatch):
     assert b"1" in resp.data
 
 
+def test_profile_complete_without_tva_intracom_hides_banner(mem_db, tmp_path, monkeypatch):
+    """Issue #107 — un profil avec nom + SIREN renseignés est complet,
+    même sans numéro de TVA intracommunautaire (cas auto-entrepreneur
+    en franchise en base : la TVA intracom est explicitement optionnelle)."""
+    import sqlite3 as _sq
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    conn = _sq.connect(str(db_file))
+    conn.execute(
+        "UPDATE user_profile SET nom=?, siren=?, tva_intracom=? WHERE id=1",
+        ("Valentin Dumas", "123456789", ""),
+    )
+    conn.commit()
+    conn.close()
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    assert "Profil incomplet" not in resp.data.decode()
+
+
+def test_profile_missing_siren_shows_banner(mem_db, tmp_path, monkeypatch):
+    """Issue #107 — le bandeau apparaît bien quand un champ requis manque."""
+    import sqlite3 as _sq
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    conn = _sq.connect(str(db_file))
+    conn.execute(
+        "UPDATE user_profile SET nom=?, siren=? WHERE id=1",
+        ("Valentin Dumas", ""),
+    )
+    conn.commit()
+    conn.close()
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    assert "Profil incomplet" in resp.data.decode()
+
+
 def test_year_filter(mem_db, tmp_path, monkeypatch):
     _insert_invoice(mem_db, id="e2025", type_document="facture_émise",
                     montant_ht=500.0, montant_tva=100.0, exercice_fiscal=2025)
