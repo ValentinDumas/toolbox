@@ -267,6 +267,12 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
+    # Migrations additionnelles versionnées (#146) — toute évolution future
+    # du schéma se fait via un fichier `migrations/NNNN_*.sql` avec NNNN >
+    # SCHEMA_VERSION. Le runner ne touche à rien si le dossier est vide.
+    from migrations.runner import apply_pending
+    apply_pending(conn, HERE / "migrations")
+
 
 def open_db(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -276,6 +282,11 @@ def open_db(path: Path) -> sqlite3.Connection:
     current_version = conn.execute("PRAGMA user_version").fetchone()[0]
     if current_version < SCHEMA_VERSION:
         _run_migrations(conn)
+    else:
+        # DB déjà à la version inline — applique uniquement les migrations
+        # fichier-par-version postérieures (cf. #146).
+        from migrations.runner import apply_pending
+        apply_pending(conn, HERE / "migrations")
 
     return conn
 
