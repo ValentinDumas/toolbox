@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Phase 1 context gathered (Activation — Bien, Locataire, Bail)
+last_updated: "2026-05-13T20:28:20.293Z"
+last_activity: 2026-05-13 — Roadmap created (7 phases, 26/26 REQs mapped)
+progress:
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
@@ -19,6 +35,7 @@ Progress: [░░░░░░░░░░] 0%
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
@@ -30,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 | — | — | — | — |
 
 **Recent Trend:**
+
 - Last 5 plans: —
 - Trend: —
 
@@ -68,6 +86,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-13
-Stopped at: Roadmap initialisée — 7 phases, 26/26 REQs couverts.
-Resume file: None
+Last session: 2026-05-13T20:28:20.287Z
+Stopped at: Phase 1 context gathered (Activation — Bien, Locataire, Bail)
+Resume file: .planning/phases/01-activation-bien-locataire-bail/01-CONTEXT.md
