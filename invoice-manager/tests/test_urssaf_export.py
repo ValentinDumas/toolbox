@@ -92,6 +92,47 @@ def test_export_avec_ca_nul_signale_la_declaration_obligatoire(mem_db, tmp_path)
     assert any("§4.4" in r[1] for r in rows if len(r) > 1)
 
 
+def test_export_inclut_la_base_ir_quand_profil_ae_sans_vfl(mem_db, tmp_path):
+    """§3.1 : pour un AE sans VFL, le récap doit afficher l'abattement
+    forfaitaire et le bénéfice imposable IR (assiette 2042-C-PRO)."""
+    # Given un AE service BIC sans VFL, 10 000 € encaissés sur la période
+    _insert(mem_db, id="a", montant_ttc=10000.0, date_paiement="2026-03-10")
+    period = generate_periods(2026, CADENCE_MENSUELLE)[2]
+    profile = {"nom": "Test", "siren": "123456789",
+               "activite_principale": "service_bic", "versement_liberatoire": 0}
+
+    # When on exporte le récap
+    path = export_declaration_csv(mem_db, profile, period, tmp_path)
+    rows = _read(path)
+
+    # Then la section base IR est présente avec abattement = bénéfice = 5000,00
+    assert any(r and "Base IR — 2042-C-PRO" in r[0] for r in rows)
+    assert any(
+        len(r) >= 2 and "Abattement forfaitaire" in r[0] and r[1] == "5000,00"
+        for r in rows
+    )
+    assert any(
+        len(r) >= 2 and r[0] == "Bénéfice imposable IR" and r[1] == "5000,00"
+        for r in rows
+    )
+
+
+def test_export_omet_la_base_ir_quand_profil_ae_avec_vfl(mem_db, tmp_path):
+    """§3.2 : avec le VFL, l'IR est libéré à la source — la base 2042-C-PRO
+    ne doit pas apparaître dans le récap pour éviter une double imposition
+    affichée."""
+    _insert(mem_db, id="a", montant_ttc=10000.0, date_paiement="2026-03-10")
+    period = generate_periods(2026, CADENCE_MENSUELLE)[2]
+    profile = {"nom": "Test", "siren": "123456789",
+               "activite_principale": "service_bic", "versement_liberatoire": 1}
+
+    path = export_declaration_csv(mem_db, profile, period, tmp_path)
+    rows = _read(path)
+
+    assert not any(r and "Base IR — 2042-C-PRO" in r[0] for r in rows)
+    assert not any(r and "Bénéfice imposable IR" in r[0] for r in rows)
+
+
 def test_export_omet_cotisations_si_activite_non_renseignee(mem_db, tmp_path):
     """Tant que l'AE n'a pas choisi son activité, on ne peut pas calculer
     les cotisations — on l'invite à compléter le profil au lieu de

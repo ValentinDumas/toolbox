@@ -15,7 +15,12 @@ import calendar
 import sqlite3
 from datetime import date, datetime
 
-from constants import TAUX_URSSAF_AE_2026, TAUX_VFL_AE_2026
+from constants import (
+    ABATTEMENT_AE_2026,
+    ABATTEMENT_MINIMUM_EUR,
+    TAUX_URSSAF_AE_2026,
+    TAUX_VFL_AE_2026,
+)
 
 # Cadences URSSAF supportées (cf. AUTO_ENTREPRENEUR_RULES.md §4.2).
 CADENCE_MENSUELLE     = "mensuelle"
@@ -199,6 +204,24 @@ def acre_factor_for(profile: dict, period_end: str) -> float:
     # Création = date_fin − 12 mois (approx année calendaire).
     creation_avant_juillet_2026 = fin <= date(2027, 6, 30)
     return 0.5 if creation_avant_juillet_2026 else 0.75
+
+
+def compute_beneficie_imposable(ca: float, activite: str) -> dict:
+    """Calcule la base IR d'un AE sans VFL (§3.1).
+
+    Bénéfice = max(CA × (1 − abattement), CA − 305 €). Le min forfaitaire
+    plafonne l'abattement quand le CA est très faible.
+
+    Retour : {abattement_taux, abattement_montant, beneficie_imposable}.
+    """
+    taux = ABATTEMENT_AE_2026[activite]
+    abattement_theorique = ca * taux
+    abattement_applique = min(abattement_theorique, max(ca - ABATTEMENT_MINIMUM_EUR, 0.0))
+    return {
+        "abattement_taux": taux,
+        "abattement_montant": round(abattement_applique, 2),
+        "beneficie_imposable": round(ca - abattement_applique, 2),
+    }
 
 
 def compute_vfl(ca: float, activite: str) -> dict:

@@ -20,7 +20,7 @@ import sqlite3
 from pathlib import Path
 
 from queries import query_ca_encaisse
-from services.urssaf import compute_cotisations, compute_vfl
+from services.urssaf import compute_beneficie_imposable, compute_cotisations, compute_vfl
 
 
 def export_declaration_csv(
@@ -96,6 +96,16 @@ def export_declaration_csv(
                         "Renseignez « Activité principale » dans Paramètres."])
         if acre_factor != 1.0:
             w.writerow(["ACRE appliqué (facteur)", f"{acre_factor:.2f}".replace(".", ",")])
+        # §3.1 : base imposable IR sur 2042-C-PRO, uniquement hors VFL.
+        if activite and not profile.get("versement_liberatoire"):
+            benef = compute_beneficie_imposable(ca["ca_ttc"], activite)
+            w.writerow([])
+            w.writerow(["Base IR — 2042-C-PRO (sans VFL)"])
+            w.writerow([
+                f"Abattement forfaitaire (taux {benef['abattement_taux']*100:.0f} %)",
+                f"{benef['abattement_montant']:.2f}".replace(".", ","),
+            ])
+            w.writerow(["Bénéfice imposable IR", f"{benef['beneficie_imposable']:.2f}".replace(".", ",")])
         # §4.4 : déclaration obligatoire même si CA = 0 € — la trace reste utile.
         if ca["ca_ttc"] == 0:
             w.writerow(["Note", "CA nul — déclaration obligatoire (§4.4)."])

@@ -113,6 +113,19 @@ TAUX_VFL_AE_2026 = {
     "meuble_tourisme_classe": 0.010,
 }
 
+# Abattements forfaitaires pour le calcul du bénéfice imposable IR (§3.1).
+# Appliqués uniquement si l'AE n'a PAS opté pour le versement libératoire.
+# Minimum forfaitaire : 305 € (l'abattement ne peut pas réduire l'assiette
+# en dessous de CA - 305 €).
+ABATTEMENT_AE_2026 = {
+    "vente":                  0.71,
+    "service_bic":            0.50,
+    "service_bnc_ssi":        0.34,
+    "service_bnc_cipav":      0.34,
+    "meuble_tourisme_classe": 0.71,
+}
+ABATTEMENT_MINIMUM_EUR = 305.0
+
 # ── Plafonds CA micro-entreprise 2026 (€ HT encaissés) ───────────────────────
 #
 # Revalorisés au 01/01/2026. Cf. AUTO_ENTREPRENEUR_RULES.md §2. À revérifier
