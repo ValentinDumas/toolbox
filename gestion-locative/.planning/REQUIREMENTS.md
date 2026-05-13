@@ -122,42 +122,54 @@ Exclus explicitement pour prévenir le scope creep. Référence : [CLAUDE.md](..
 
 ## Traceability
 
-Quelles phases couvrent quels REQs. **Rempli par `gsd-roadmapper`** lors de la création du ROADMAP.
+Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création du ROADMAP — chaque REQ map vers **exactement une** phase.
 
 | Requirement | Phase | Status |
 |---|---|---|
-| PAT-01 | — | Pending |
-| PAT-02 | — | Pending |
-| PAT-03 | — | Pending |
-| LOC-01 | — | Pending |
-| LOC-02 | — | Pending |
-| LOC-03 | — | Pending |
-| LOC-04 | — | Pending |
-| LOC-05 | — | Pending |
-| LOC-06 | — | Pending |
-| ENC-01 | — | Pending |
-| ENC-02 | — | Pending |
-| ENC-03 | — | Pending |
-| ENC-04 | — | Pending |
-| ENC-05 | — | Pending |
-| FIS-01 | — | Pending |
-| FIS-02 | — | Pending |
-| FIS-03 | — | Pending |
-| FIS-04 | — | Pending |
-| FIS-05 | — | Pending |
-| FIS-06 | — | Pending |
-| DOC-01 | — | Pending |
-| DOC-02 | — | Pending |
-| DOC-03 | — | Pending |
-| DAS-01 | — | Pending |
-| DAS-02 | — | Pending |
-| INC-01 | — | Pending |
+| PAT-01 | Phase 1 | Pending |
+| PAT-02 | Phase 1 | Pending |
+| PAT-03 | Phase 3 | Pending |
+| LOC-01 | Phase 1 | Pending |
+| LOC-02 | Phase 1 | Pending |
+| LOC-03 | Phase 3 | Pending |
+| LOC-04 | Phase 3 | Pending |
+| LOC-05 | Phase 3 | Pending |
+| LOC-06 | Phase 3 | Pending |
+| ENC-01 | Phase 2 | Pending |
+| ENC-02 | Phase 2 | Pending |
+| ENC-03 | Phase 2 | Pending |
+| ENC-04 | Phase 2 | Pending |
+| ENC-05 | Phase 2 | Pending |
+| FIS-01 | Phase 5 | Pending |
+| FIS-02 | Phase 5 | Pending |
+| FIS-03 | Phase 5 | Pending |
+| FIS-04 | Phase 5 | Pending |
+| FIS-05 | Phase 6 | Pending |
+| FIS-06 | Phase 6 | Pending |
+| DOC-01 | Phase 4 | Pending |
+| DOC-02 | Phase 4 | Pending |
+| DOC-03 | Phase 4 | Pending |
+| DAS-01 | Phase 7 | Pending |
+| DAS-02 | Phase 7 | Pending |
+| INC-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
-- Mapped to phases: 0 (en attente du roadmapper)
-- Unmapped: 26 ⚠️ (sera résolu par `gsd-roadmapper`)
+- Mapped to phases: 26 ✓
+- Unmapped: 0
+
+**Coverage par phase :**
+
+| Phase | REQs | Count |
+|---|---|---|
+| 1. Activation — Bien, Locataire, Bail | PAT-01, PAT-02, LOC-01, LOC-02 | 4 |
+| 2. Quittancement — Échéances, Encaissements, Relances | ENC-01, ENC-02, ENC-03, ENC-04, ENC-05 | 5 |
+| 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | PAT-03, LOC-03, LOC-04, LOC-05, LOC-06 | 5 |
+| 4. Coffre documentaire & Travaux | DOC-01, DOC-02, DOC-03, INC-01 | 4 |
+| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | FIS-01, FIS-02, FIS-03, FIS-04 | 4 |
+| 6. Liasse 2031 & CFE | FIS-05, FIS-06 | 2 |
+| 7. Dashboard & Notifications d'échéances | DAS-01, DAS-02 | 2 |
 
 ---
 *Requirements defined: 2026-05-13*
-*Last updated: 2026-05-13 after initial definition*
+*Last updated: 2026-05-13 after roadmap creation (traceability filled by `gsd-roadmapper`)*
