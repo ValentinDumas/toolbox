@@ -168,6 +168,39 @@ def compute_cotisations(
     }
 
 
+def acre_factor_for(profile: dict, period_end: str) -> float:
+    """Retourne le facteur ACRE applicable à une période (§4.3).
+
+    Règles 2026 :
+    - profil sans ACRE actif         → 1.0 (taux normal)
+    - période *après* acre_date_fin  → 1.0
+    - sinon : 0.5 si l'ACRE a démarré avant le 01/07/2026, 0.75 sinon.
+
+    On déduit la date de création de l'AE depuis `acre_date_fin` : la
+    période d'exonération est de 12 mois civils (§4.3), donc création =
+    date_fin − 12 mois (approximation suffisante pour décider du palier).
+
+    `period_end` : borne ISO de la période évaluée (YYYY-MM-DD). Si la
+    période chevauche acre_date_fin, on coupe au mois — ACRE s'applique
+    aux périodes qui s'achèvent **au plus tard** à acre_date_fin.
+    """
+    if not profile.get("acre_actif"):
+        return 1.0
+    date_fin = profile.get("acre_date_fin")
+    if not date_fin:
+        return 1.0
+    try:
+        fin = date.fromisoformat(date_fin)
+        end = date.fromisoformat(period_end)
+    except ValueError:
+        return 1.0
+    if end > fin:
+        return 1.0
+    # Création = date_fin − 12 mois (approx année calendaire).
+    creation_avant_juillet_2026 = fin <= date(2027, 6, 30)
+    return 0.5 if creation_avant_juillet_2026 else 0.75
+
+
 def compute_vfl(ca: float, activite: str) -> dict:
     """Calcule le versement libératoire de l'IR sur le CA encaissé (§3.2).
 

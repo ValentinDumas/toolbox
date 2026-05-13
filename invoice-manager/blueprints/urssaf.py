@@ -22,6 +22,7 @@ from services.urssaf import (
     CADENCE_TRIMESTRIELLE,
     STATUT_PERIODE_A_DECLARER,
     STATUT_PERIODE_DECLAREE,
+    acre_factor_for,
     compute_cotisations,
     generate_periods,
     get_declared_periods,
@@ -65,8 +66,10 @@ def urssaf_agenda():
         # Tant que l'activité n'est pas renseignée, on n'affiche que le CA brut.
         # Les calculs cotisations sont activés dès que `activite_principale`
         # est saisie en paramètres (cf. #137 / #138).
+        acre = acre_factor_for(profile, p["end"])
         cotisations = (
-            compute_cotisations(ca["ca_ttc"], activite) if activite else None
+            compute_cotisations(ca["ca_ttc"], activite, acre_factor=acre)
+            if activite else None
         )
         rows.append({
             **p,
@@ -125,7 +128,10 @@ def urssaf_exporter_declaration(period_key: str):
         abort(404, "Période URSSAF introuvable")
 
     output_dir = active_paths()["output"] / "urssaf"
-    path = export_declaration_csv(conn, profile, period, output_dir)
+    path = export_declaration_csv(
+        conn, profile, period, output_dir,
+        acre_factor=acre_factor_for(profile, period["end"]),
+    )
     conn.close()
     return send_file(path, as_attachment=True, download_name=path.name,
                      mimetype="text/csv")
