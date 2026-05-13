@@ -84,7 +84,7 @@ A feature that fails any of the above does not enter `writing-plans` — it goes
 ### 2. Design phase
 
 - **Least privilege per layer.** Blueprints cannot reach the filesystem directly outside `pipeline.py`. `queries.py` is read-only. Write paths converge on `services/`.
-- **No secrets in code, no secrets in git.** `config.toml` is gitignored. The `.env.example` documents required variables; the real `.env` never lands in the repo.
+- **No secrets in code, no secrets in git.** Les données utilisateur (identité, SIREN, profil fiscal, OCR, enseignes) vivent dans `data/profiles/<slug>/invoices.db` — `data/` est gitignored, jamais commité. Le `.env.example` documente les variables d'environnement requises ; le vrai `.env` n'entre jamais dans le repo.
 - **Path traversal hardening.** Every route that serves a file (`GET /fichiers/<path>`, `GET /apercu/<path>`) must resolve the path through the active profile's sandbox and reject anything escaping it.
 - **No SQL string interpolation.** All queries use parameter binding. Reviewer must reject any `f"... {var} ..."` in SQL.
 - **CSRF / same-origin.** The dashboard is local but still binds a TCP port. Mutating routes must require POST/PATCH/DELETE and reject GET. Future remote access must add CSRF tokens before being merged.
