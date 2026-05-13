@@ -83,7 +83,7 @@ python3 export.py --profile mon-ent --year 2025 --statut SASU  # export avec pro
 
 ### Paramètres utilisateur — Dashboard (`/parametres`)
 
-Toutes les données utilisateur sont stockées dans la base SQLite et gérées depuis **Paramètres** dans le dashboard :
+Architecture **100 % SQLite** : aucun fichier de configuration externe (`config.toml`, `profiles.json`…) n'existe — l'identité, le profil fiscal, les paramètres OCR, les enseignes connues et les factures vivent tous dans `data/profiles/<slug>/invoices.db`. La liste des profils est dérivée du scan de `data/profiles/*/`. Toutes les données utilisateur sont gérées depuis **Paramètres** dans le dashboard :
 
 | Donnée | Section | Description |
 |---|---|---|
@@ -160,7 +160,7 @@ invoice-manager/
 │
 ├── ── Domaine partagé ──────────────────────────────────────────────────
 ├── db.py                   ← schéma SQLite, migrations, helpers profil/OCR/enseignes
-├── profiles.py             ← résolution des chemins par profil + migration legacy
+├── profiles.py             ← résolution des chemins par profil (scan `data/profiles/*/`)
 ├── parsers.py              ← regex et heuristiques d'extraction (dates, montants, SIREN, doc_type)
 ├── config.py               ← CADENCE_DEFAULTS + CADENCE_OPTIONS par statut fiscal
 ├── constants.py            ← constantes partagées (statuts, seuils, types de documents)
@@ -178,7 +178,7 @@ invoice-manager/
 ├── data/
 │   └── profiles/
 │       ├── entreprise-principale/
-│       │   ├── invoices.db ← DB migrée automatiquement depuis data/invoices.db (legacy)
+│       │   ├── invoices.db ← source de vérité unique (identité, fiscalité, OCR, factures)
 │       │   ├── input/       ← déposer les fichiers ici
 │       │   ├── processed/   ← fichiers traités avec succès
 │       │   ├── errors/      ← fichiers non reconnus
@@ -486,7 +486,7 @@ python3 -m pytest tests/ -v
 | Fichier | Ce qui est testé |
 |---|---|
 | `test_config.py` | `CADENCE_DEFAULTS` — valeurs par statut fiscal |
-| `test_db.py` | Garde-fou des migrations, PRAGMA `user_version`, migration legacy DB |
+| `test_db.py` | Garde-fou des migrations, PRAGMA `user_version`, runner fichier-par-version |
 | `test_extract.py` | `_parse_date`, `_parse_amount`, SIREN/SIRET/TVA, catégories, `_guess_doc_type`, pipeline complet, magic bytes, dédoublonnage, EasyOCR fallback |
 | `test_review.py` | Export batch, import garder/corriger/supprimer, reclassify export/import/auto, cas limite (DB/CSV absents) |
 | `test_export.py` | Filtres année/statut, colonnes CSV, 4 onglets XLSX, calculs récapitulatif, sheet Statistiques, deadlines |
