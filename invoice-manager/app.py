@@ -21,6 +21,7 @@ from queries import (
     query_corbeille, query_error_files, query_fiscal_summary,
     query_health, query_items_a_reviser, query_ledger,
 )
+from services.cfe import should_show_cfe_banner
 from services.montants import derive_amounts
 from services.profil import tva_visible_pour
 
@@ -72,11 +73,13 @@ def create_app() -> Flask:
     app.jinja_env.globals["tva_visible_pour"] = tva_visible_pour
 
     from blueprints.factures import bp_factures
+    from blueprints.notifications import bp_notifications
     from blueprints.parametres import bp_parametres
     from blueprints.pipeline import bp_pipeline
     from blueprints.profils import bp_profils
     from blueprints.urssaf import bp_urssaf
     app.register_blueprint(bp_factures)
+    app.register_blueprint(bp_notifications)
     app.register_blueprint(bp_parametres)
     app.register_blueprint(bp_pipeline)
     app.register_blueprint(bp_profils)
@@ -202,6 +205,7 @@ def create_app() -> Flask:
             categories_tva=categories_tva,
             profile=profile,
             profile_incomplete=profile_incomplete,
+            show_cfe_banner=should_show_cfe_banner(profile),
         )
 
     return app

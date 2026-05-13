@@ -162,6 +162,10 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         "ALTER TABLE user_profile ADD COLUMN versement_liberatoire INTEGER DEFAULT 0",
         "ALTER TABLE user_profile ADD COLUMN acre_actif INTEGER DEFAULT 0",
         "ALTER TABLE user_profile ADD COLUMN acre_date_fin TEXT",
+        # Année (entière) pour laquelle l'utilisateur a masqué la bannière
+        # de rappel CFE (#139). NULL = jamais masquée. La bannière réapparaît
+        # automatiquement chaque novembre nouvelle année.
+        "ALTER TABLE user_profile ADD COLUMN cfe_dismissed_year INTEGER",
     ]:
         try:
             conn.execute(sql)
