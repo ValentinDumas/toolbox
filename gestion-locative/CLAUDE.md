@@ -35,6 +35,15 @@ Tout ce qui sort de ce périmètre — location nue, SCI à l'IS, meublé de tou
 | [SOFTWARE_CRAFTSMANSHIP.md](SOFTWARE_CRAFTSMANSHIP.md) | Discipline d'ingénierie : SOLID, Clean Code, refactoring, code review, mesures qualité (CI gates). |
 | [DDD.md](DDD.md) | Domain-Driven Design : ubiquitous language, bounded contexts, agrégats, hexagonal architecture. |
 | [BDD_PRACTICES.md](BDD_PRACTICES.md) | **Testing top priority** : Given/When/Then, pyramide, 100 % couverture logique fiscale, cas obligatoires. |
+| [BEHAVIOR.md](BEHAVIOR.md) | Code of conduct par session : posture sceptique, speed levers (parallel calls, cache discipline, tight prompts). |
+
+### Pratiques UI / UX / Accessibilité (opposables)
+
+| Document | Rôle |
+|---|---|
+| [UI_DESIGN.md](UI_DESIGN.md) | Gestalt, hiérarchie visuelle, color, typography, spacing system (8 px), feedback states, data tables. |
+| [UX_DESIGN.md](UX_DESIGN.md) | Hick / Fitts / Miller / Jakob / Doherty laws, flow & nav, forms, error handling, empty states, affordance, cognitive load, trust. |
+| [ACCESSIBILITY.md](ACCESSIBILITY.md) | WCAG 2.1 AA : POUR principles, contraste, keyboard nav, semantic HTML, ARIA, forms, tables, motion, testing checklist. |
 
 ## Principes directeurs
 
