@@ -15,7 +15,7 @@ import calendar
 import sqlite3
 from datetime import date, datetime
 
-from constants import TAUX_URSSAF_AE_2026
+from constants import TAUX_URSSAF_AE_2026, TAUX_VFL_AE_2026
 
 # Cadences URSSAF supportées (cf. AUTO_ENTREPRENEUR_RULES.md §4.2).
 CADENCE_MENSUELLE     = "mensuelle"
@@ -166,3 +166,15 @@ def compute_cotisations(
         "taux_cotisations_applique": taux_cot,
         "taux_cfp_applique": taux_cfp,
     }
+
+
+def compute_vfl(ca: float, activite: str) -> dict:
+    """Calcule le versement libératoire de l'IR sur le CA encaissé (§3.2).
+
+    Option à n'appliquer que si le profil a `versement_liberatoire=1`.
+    Le VFL est prélevé en même temps que les cotisations URSSAF.
+
+    Retour : {"vfl": float, "taux_applique": float}.
+    """
+    taux = TAUX_VFL_AE_2026[activite]
+    return {"vfl": round(ca * taux, 2), "taux_applique": taux}

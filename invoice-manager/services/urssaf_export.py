@@ -20,7 +20,7 @@ import sqlite3
 from pathlib import Path
 
 from queries import query_ca_encaisse
-from services.urssaf import compute_cotisations
+from services.urssaf import compute_cotisations, compute_vfl
 
 
 def export_declaration_csv(
@@ -47,6 +47,10 @@ def export_declaration_csv(
     ca = query_ca_encaisse(conn, period["start"], period["end"])
     activite = (profile.get("activite_principale") or "").strip()
     cot = compute_cotisations(ca["ca_ttc"], activite, acre_factor=acre_factor) if activite else None
+    vfl = (
+        compute_vfl(ca["ca_ttc"], activite)
+        if activite and profile.get("versement_liberatoire") else None
+    )
 
     # Récupère la liste des pièces sources pour traçabilité (cf. VISION.md §
     # Sécurité — toute valeur du déclaratif doit être traçable au fichier source).
@@ -80,7 +84,13 @@ def export_declaration_csv(
                 f"CFP (taux {cot['taux_cfp_applique']*100:.2f} %)",
                 f"{cot['cfp']:.2f}".replace(".", ","),
             ])
-            w.writerow(["Total à payer URSSAF", f"{cot['total']:.2f}".replace(".", ",")])
+            total_du = cot["total"] + (vfl["vfl"] if vfl else 0.0)
+            if vfl:
+                w.writerow([
+                    f"Versement libératoire IR (taux {vfl['taux_applique']*100:.2f} %)",
+                    f"{vfl['vfl']:.2f}".replace(".", ","),
+                ])
+            w.writerow(["Total à payer URSSAF", f"{total_du:.2f}".replace(".", ",")])
         else:
             w.writerow(["Cotisations — non calculées",
                         "Renseignez « Activité principale » dans Paramètres."])

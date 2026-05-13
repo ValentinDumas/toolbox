@@ -289,6 +289,49 @@
                   <span class="field-hint">Options filtrées selon le statut fiscal.</span>
                 </div>
               </div>
+
+              {# ── Bloc auto-entrepreneur : activité, VFL, ACRE ── #}
+              {% if profile.fiscal_profile == 'auto-entrepreneur' or not profile.fiscal_profile %}
+              <fieldset class="form-fieldset" id="ae-options">
+                <legend>Auto-entrepreneur — calculs URSSAF</legend>
+                <div class="form-row">
+                  <div class="form-field">
+                    <label for="activite_principale">Activité principale</label>
+                    <select id="activite_principale" name="activite_principale">
+                      <option value="" {{ 'selected' if not profile.activite_principale else '' }}>— non renseignée —</option>
+                      {% for a in activites_ae %}
+                      <option value="{{ a }}" {{ 'selected' if profile.activite_principale == a else '' }}>{{ a }}</option>
+                      {% endfor %}
+                    </select>
+                    <span class="field-hint">Détermine les taux URSSAF (cf. AUTO_ENTREPRENEUR_RULES.md §4.1).</span>
+                  </div>
+                  <div class="form-field">
+                    <label>
+                      <input type="checkbox" name="versement_liberatoire" value="1"
+                             {{ 'checked' if profile.versement_liberatoire else '' }}>
+                      Versement libératoire de l'IR
+                    </label>
+                    <span class="field-hint">Option §3.2 — exerçable si RFR N-2 sous plafond.</span>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field">
+                    <label>
+                      <input type="checkbox" name="acre_actif" value="1"
+                             {{ 'checked' if profile.acre_actif else '' }}>
+                      ACRE active
+                    </label>
+                    <span class="field-hint">Allègement des cotisations sociales pendant les 12 premiers mois (§4.3).</span>
+                  </div>
+                  <div class="form-field">
+                    <label for="acre_date_fin">Fin de l'ACRE</label>
+                    <input type="date" id="acre_date_fin" name="acre_date_fin"
+                           value="{{ profile.acre_date_fin or '' }}">
+                    <span class="field-hint">Au-delà de cette date, les taux normaux s'appliquent.</span>
+                  </div>
+                </div>
+              </fieldset>
+              {% endif %}
             </div>
             <script>
               (function () {

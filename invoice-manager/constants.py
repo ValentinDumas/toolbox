@@ -103,6 +103,16 @@ TAUX_URSSAF_AE_2026 = {
 
 ACTIVITES_AE = tuple(TAUX_URSSAF_AE_2026.keys())
 
+# Taux du versement libératoire de l'IR (§3.2) — option ouverte si RFR N-2
+# sous plafond. Payés à l'URSSAF en même temps que les cotisations sociales.
+TAUX_VFL_AE_2026 = {
+    "vente":                  0.010,
+    "service_bic":            0.017,
+    "service_bnc_ssi":        0.022,
+    "service_bnc_cipav":      0.022,
+    "meuble_tourisme_classe": 0.010,
+}
+
 # ── Plafonds CA micro-entreprise 2026 (€ HT encaissés) ───────────────────────
 #
 # Revalorisés au 01/01/2026. Cf. AUTO_ENTREPRENEUR_RULES.md §2. À revérifier

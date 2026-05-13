@@ -12,8 +12,10 @@ from flask import (
     Blueprint, jsonify, redirect, render_template, request, url_for,
 )
 
+from datetime import date as _date
+
 from config import CADENCE_OPTIONS
-from constants import FISCAL_RULES
+from constants import ACTIVITES_AE, FISCAL_RULES
 from context_helpers import active_db
 from db import get_extraction_cfg, get_user_profile, open_db
 
@@ -25,6 +27,8 @@ bp_parametres = Blueprint("parametres", __name__)
 FISCAL_PROFILES_VALIDES = frozenset(FISCAL_RULES.keys())
 # Cadences acceptées : union des cadences valides tous profils confondus.
 CADENCES_VALIDES = frozenset(c for opts in CADENCE_OPTIONS.values() for c in opts)
+# Activités AE acceptées (cf. AUTO_ENTREPRENEUR_RULES.md §4.1).
+ACTIVITES_AE_VALIDES = frozenset(ACTIVITES_AE)
 
 # SIREN : 9 chiffres exactement (espaces tolérés à l'entrée).
 _SIREN_REGEX = re.compile(r"^\d{9}$")
@@ -45,6 +49,8 @@ _ERROR_MESSAGES: dict[str, str] = {
     "fiscal_profile_invalide": "Profil fiscal invalide.",
     "tva_intracom_invalide": "Numéro de TVA intracommunautaire invalide.",
     "cadence_invalide": "Cadence de déclaration invalide.",
+    "activite_invalide": "Activité principale invalide.",
+    "acre_date_fin_invalide": "Date de fin ACRE invalide (format YYYY-MM-DD).",
     "enseigne_keyword_trop_long": (
         f"Le mot-clé d'enseigne dépasse {ENSEIGNE_KEYWORD_MAX} caractères."
     ),
@@ -73,6 +79,10 @@ def _valider_profil(form) -> tuple[dict, str | None]:
     tva_intracom = form.get("tva_intracom", "").strip().upper().replace(" ", "")
     fiscal_profile = form.get("fiscal_profile", "").strip()
     cadence = form.get("cadence", "").strip()
+    activite_principale = form.get("activite_principale", "").strip()
+    versement_liberatoire = 1 if form.get("versement_liberatoire") else 0
+    acre_actif = 1 if form.get("acre_actif") else 0
+    acre_date_fin = form.get("acre_date_fin", "").strip() or None
 
     if siren and not _SIREN_REGEX.match(siren):
         return {}, "siren_invalide"
@@ -82,6 +92,13 @@ def _valider_profil(form) -> tuple[dict, str | None]:
         return {}, "tva_intracom_invalide"
     if cadence and cadence not in CADENCES_VALIDES:
         return {}, "cadence_invalide"
+    if activite_principale and activite_principale not in ACTIVITES_AE_VALIDES:
+        return {}, "activite_invalide"
+    if acre_date_fin:
+        try:
+            _date.fromisoformat(acre_date_fin)
+        except ValueError:
+            return {}, "acre_date_fin_invalide"
 
     return {
         "nom": nom,
@@ -89,6 +106,10 @@ def _valider_profil(form) -> tuple[dict, str | None]:
         "tva_intracom": tva_intracom,
         "fiscal_profile": fiscal_profile,
         "cadence": cadence,
+        "activite_principale": activite_principale or None,
+        "versement_liberatoire": versement_liberatoire,
+        "acre_actif": acre_actif,
+        "acre_date_fin": acre_date_fin,
     }, None
 
 
@@ -148,6 +169,7 @@ def parametres_index():
         error_message=_ERROR_MESSAGES.get(error) if error else None,
         cadence_defaults=CADENCE_DEFAULTS,
         cadence_options=CADENCE_OPTIONS,
+        activites_ae=ACTIVITES_AE,
         extraction_cfg=extraction_cfg,
     )
 
@@ -162,11 +184,16 @@ def parametres_profil_sauver():
         ))
     conn = open_db(active_db())
     conn.execute(
-        "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, setup_complete) "
-        "VALUES (1, :nom, :siren, :tva_intracom, :fiscal_profile, :cadence, 1) "
+        "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, "
+        "activite_principale, versement_liberatoire, acre_actif, acre_date_fin, setup_complete) "
+        "VALUES (1, :nom, :siren, :tva_intracom, :fiscal_profile, :cadence, "
+        ":activite_principale, :versement_liberatoire, :acre_actif, :acre_date_fin, 1) "
         "ON CONFLICT(id) DO UPDATE SET "
         "nom=excluded.nom, siren=excluded.siren, tva_intracom=excluded.tva_intracom, "
-        "fiscal_profile=excluded.fiscal_profile, cadence=excluded.cadence",
+        "fiscal_profile=excluded.fiscal_profile, cadence=excluded.cadence, "
+        "activite_principale=excluded.activite_principale, "
+        "versement_liberatoire=excluded.versement_liberatoire, "
+        "acre_actif=excluded.acre_actif, acre_date_fin=excluded.acre_date_fin",
         data,
     )
     avatar_file = request.files.get("avatar")
