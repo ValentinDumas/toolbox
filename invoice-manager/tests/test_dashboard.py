@@ -378,6 +378,33 @@ def test_get_root_populated(mem_db, tmp_path, monkeypatch):
     assert b"1" in resp.data
 
 
+def test_dashboard_header_ae_expose_liens_urssaf_et_nouvelle_facture(mem_db, tmp_path, monkeypatch):
+    """#147 — pour un profil auto-entrepreneur, l'en-tête du dashboard
+    expose les raccourcis vers l'agenda URSSAF et la création de facture."""
+    app, _ = _make_app(mem_db, tmp_path, monkeypatch)
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    assert b'href="/urssaf/agenda"' in resp.data
+    assert b'href="/facturation/nouvelle"' in resp.data
+
+
+def test_dashboard_header_sasu_masque_liens_ae(mem_db, tmp_path, monkeypatch):
+    """#147 — pour un profil SASU, les raccourcis URSSAF / Nouvelle facture
+    (réservés à l'auto-entrepreneur) ne sont pas exposés dans l'en-tête."""
+    import sqlite3 as _sq
+    app, db_file = _make_app(mem_db, tmp_path, monkeypatch)
+    conn = _sq.connect(str(db_file))
+    conn.execute("UPDATE user_profile SET fiscal_profile = 'SASU' WHERE id = 1")
+    conn.commit()
+    conn.close()
+    with app.test_client() as client:
+        resp = client.get("/")
+    assert resp.status_code == 200
+    assert b'href="/urssaf/agenda"' not in resp.data
+    assert b'href="/facturation/nouvelle"' not in resp.data
+
+
 def test_profile_complete_without_tva_intracom_hides_banner(mem_db, tmp_path, monkeypatch):
     """Issue #107 — un profil avec nom + SIREN renseignés est complet,
     même sans numéro de TVA intracommunautaire (cas auto-entrepreneur

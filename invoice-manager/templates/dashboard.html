@@ -606,6 +606,16 @@
     .profile-menu-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
     .profile-menu-action { color: var(--primary); }
     .profile-menu-settings { color: var(--on-surface-muted); }
+    /* Header nav links (AE quick access) */
+    .header-nav-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; border-radius: var(--radius);
+      color: var(--on-surface); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface);
+    }
+    .header-nav-link:hover { background: var(--surface-variant); }
+    .header-nav-link:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
     /* Upload button */
     .btn-upload {
       display: flex; align-items: center; gap: 6px;
@@ -834,6 +844,14 @@
         {% set _display_name = (profile.nom if profile and profile.nom else (_active.name if _active else '')) %}
         {% set nom_defini = _display_name and _display_name != '' %}
         {% set profile_nom = _display_name %}
+
+        {% if profile and profile.fiscal_profile == 'auto-entrepreneur' %}
+        {# ── Liens rapides AE ── #}
+        <nav class="header-nav" aria-label="Navigation auto-entrepreneur">
+          <a href="{{ url_for('urssaf.urssaf_agenda') }}" class="header-nav-link">URSSAF</a>
+          <a href="{{ url_for('facturation_emise.nouvelle_facture') }}" class="header-nav-link">Nouvelle facture</a>
+        </nav>
+        {% endif %}
 
         {# ── Sélecteur de profil ── #}
         <div class="profile-switcher">
