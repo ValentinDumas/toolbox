@@ -2,7 +2,6 @@
 
 import sqlite3
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -46,19 +45,9 @@ DEFAULT_CONFIG = {
 
 @pytest.fixture
 def tmp_project(tmp_path):
-    """Isolated project directory with all subdirs and config.toml."""
+    """Isolated project directory with all subdirs."""
     for d in ("input", "processed", "errors", "data", "output", "review"):
         (tmp_path / d).mkdir()
-    cfg_text = """
-[paths]
-input = "input/"
-processed = "processed/"
-errors = "errors/"
-db = "data/invoices.db"
-output = "output/"
-review = "review/"
-"""
-    (tmp_path / "config.toml").write_text(cfg_text.strip())
 
     # Pre-populate user profile so CLI scripts don't exit on missing profile
     from db import open_db

@@ -218,31 +218,6 @@ def setup_profile(name: str) -> Path:
     for d in ("input", "processed", "errors", "data", "output", "review"):
         (profile_dir / d).mkdir(parents=True, exist_ok=True)
 
-    cfg = CONFIGS[name]
-    config_toml = f"""[identity]
-nom          = "Test {name.upper()}"
-siren        = "{cfg['siren']}"
-tva_intracom = ""
-
-[extraction]
-backend = "local"
-confidence_threshold = 0.7
-ocr_lang = "fra+eng"
-ocr_dpi = 300
-
-[fiscal]
-default_profile = "{cfg['profile']}"
-
-[paths]
-input     = "input/"
-processed = "processed/"
-errors    = "errors/"
-db        = "data/invoices.db"
-output    = "output/"
-review    = "review/"
-"""
-    (profile_dir / "config.toml").write_text(config_toml)
-
     # Generate PDFs
     for filename, lines in INVOICES[name]:
         (profile_dir / "input" / filename).write_bytes(_pdf(lines))
@@ -332,7 +307,7 @@ def main():
         print(f"  Factures  : {len(INVOICES[name])} fichiers générés")
 
         # Extract
-        code, out = run([str(ROOT / "extract.py"), "--config", "config.toml"], profile_dir)
+        code, out = run([str(ROOT / "extract.py")], profile_dir)
         for line in out.strip().splitlines():
             print(f"  {line}")
         if code != 0:
@@ -341,7 +316,7 @@ def main():
             continue
 
         # Export -all years (--all avoids defaulting to current calendar year)
-        code, out = run([str(ROOT / "export.py"), "--all", "--config", "config.toml"], profile_dir)
+        code, out = run([str(ROOT / "export.py"), "--all"], profile_dir)
         for line in out.strip().splitlines():
             print(f"  {line}")
         if code != 0:

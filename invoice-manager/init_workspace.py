@@ -4,10 +4,6 @@ Usage: python3 init_workspace.py ~/Documents/compta-sasu
 """
 
 import argparse
-import platform
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -25,29 +21,13 @@ def main() -> None:
     for d in SUBDIRS:
         (target / d).mkdir(exist_ok=True)
 
-    config = target / "config.toml"
-    if not config.exists():
-        shutil.copy(HERE / "config.toml.example", config)
-        print(f"config.toml copié → {config}")
-        _open(config)
-    else:
-        print(f"config.toml déjà présent — non écrasé")
-
     run = HERE / "run.py"
-    print(f"\nDossier prêt : {target}")
-    print(f"\nPour mettre à jour le ledger :")
+    print(f"Dossier prêt : {target}")
+    print(f"\nLance le dashboard pour finaliser la configuration via le wizard :")
+    print(f"  python3 {HERE / 'dashboard.py'}")
+    print(f"\nOu, en CLI :")
     print(f"  cd {target}")
     print(f"  python3 {run}")
-
-
-def _open(path: Path) -> None:
-    if platform.system() == "Darwin":
-        subprocess.run(["open", str(path)])
-    elif platform.system() == "Windows":
-        import os; os.startfile(str(path))
-    else:
-        import os
-        subprocess.run([os.environ.get("EDITOR", "nano"), str(path)])
 
 
 if __name__ == "__main__":

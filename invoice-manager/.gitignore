@@ -1,5 +1,4 @@
 # ── Données sensibles ─────────────────────────────────────────────────────────
-config.toml
 input/
 processed/
 errors/

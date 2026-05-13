@@ -96,14 +96,14 @@ Data flow: `input/` → `extract.py` → `invoices.db` → `export.py` → `outp
 | `export.py` | Generates `ledger-YYYY.csv` + XLSX (4 sheets) from DB |
 | `review.py` | Batch validation: exports low-confidence items to CSV, imports corrections |
 | `dashboard.py` | Flask web UI — views ledger, inline editing, soft-delete |
-| `config.py` | Config loading with layered fallback: CLI > config.toml > DEFAULT_CONFIG |
+| `config.py` | Pure Python constants partagées (cadences de déclaration par profil fiscal) |
 
 **Key design rules:**
-- SQLite (`data/invoices.db`) is the single source of truth — never write to it outside of `extract.py`, `review.py`, or `dashboard.py` routes
+- SQLite (`data/profiles/<slug>/invoices.db`) is the single source of truth — never write to it outside of `extract.py`, `review.py`, ou les routes de `blueprints/*.py`
 - All deletes are soft (`deleted_at` / `deleted_by`) — no hard deletes from UI
 - All field edits are logged in `corrections_log` (JSON) with timestamp + user
 - Items with `confiance < 0.8` → `statut_révision = 'à_réviser'` for human review
-- Deductibility rules are applied at export time (not at extraction), based on `fiscal.default_profile`
+- Deductibility rules are applied at export time (not at extraction), based on `user_profile.fiscal_profile`
 
 ## Parsing (extract.py)
 
@@ -114,19 +114,18 @@ Extraction is **regex-only** — no ML. Key parsers:
 
 ## Config
 
-Copy `config.toml.example` → `config.toml`. Critical keys:
+Toutes les données utilisateur (identité, profil fiscal, OCR, enseignes,
+catégories TVA) vivent dans la DB SQLite du profil (`user_profile`,
+`known_emitters`, `category_tva_rates`). Configuration via le wizard de
+setup (`/configuration`) au premier lancement, puis via **Paramètres**
+(`/parametres`). Plus de fichier `config.toml`.
 
-```toml
-[identity]
-siren = "123456789"           # Used for doc type detection (facture_émise vs reçue)
+Critères-clés en DB :
 
-[extraction]
-backend = "local"             # "claude" enables Vision API
-confidence_threshold = 0.8    # Below this → à_réviser
-
-[fiscal]
-default_profile = "SASU"      # Affects deductibility rules at export
-```
+- `user_profile.siren` (9 chiffres) — détection facture_émise vs reçue
+- `user_profile.ocr_backend` — `local` (offline) | `claude` (Vision API)
+- `user_profile.ocr_confidence_threshold` — défaut `0.8`, sous lequel item → `à_réviser`
+- `user_profile.fiscal_profile` — `auto-entrepreneur` | `SASU` | `SARL` | `salarié`
 
 ## Tests
 

@@ -395,50 +395,12 @@ FIXTURES: dict[str, list[tuple[str, list]]] = {
     ],
 }
 
-CONFIGS: dict[str, dict] = {
-    "auto-entrepreneur": {"siren": "111111111", "profile": "auto-entrepreneur", "cadence": "trimestrielle"},
-    "sasu":              {"siren": "222222222", "profile": "SASU",              "cadence": "mensuelle"},
-    "sarl":              {"siren": "444444444", "profile": "SARL",              "cadence": "mensuelle"},
-    "salarie":           {"siren": "",          "profile": "salarié",           "cadence": "annuelle"},
-}
-
-
-def write_config(profile_dir: Path, name: str) -> None:
-    cfg = CONFIGS[name]
-    text = f"""[identity]
-nom          = "Test {name.upper()}"
-siren        = "{cfg['siren']}"
-tva_intracom = ""
-
-[extraction]
-backend              = "local"
-confidence_threshold = 0.7
-ocr_lang             = "fra+eng"
-ocr_dpi              = 300
-
-[fiscal]
-default_profile     = "{cfg['profile']}"
-cadence_déclaration = "{cfg['cadence']}"
-
-[paths]
-input     = "input/"
-processed = "processed/"
-errors    = "errors/"
-db        = "data/invoices.db"
-output    = "output/"
-review    = "review/"
-"""
-    (profile_dir / "config.toml").write_text(text, encoding="utf-8")
-
-
 def main() -> None:
     total = 0
     for name, fixtures in FIXTURES.items():
         profile_dir = TESTING2 / name
         input_dir = profile_dir / "input"
         input_dir.mkdir(parents=True, exist_ok=True)
-
-        write_config(profile_dir, name)
 
         for filename, blocks in fixtures:
             (input_dir / filename).write_bytes(pdf(blocks))

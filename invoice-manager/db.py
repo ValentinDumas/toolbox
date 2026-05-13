@@ -150,7 +150,7 @@ _DEFAULT_CATEGORY_TVA_RATES = {
 }
 
 
-def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -> None:
+def _run_migrations(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
 
     for sql in [
@@ -233,27 +233,6 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
             "VALUES (?, ?)",
             (cat, taux),
         )
-
-    # Migrate [known_emitters] from config.toml if present and not yet in DB
-    toml_path = config_path or HERE / "config.toml"
-    if toml_path.is_file():
-        try:
-            import tomllib  # Python 3.11+
-        except ImportError:
-            try:
-                import tomli as tomllib  # type: ignore[no-redef]
-            except ImportError:
-                tomllib = None  # type: ignore[assignment]
-        if tomllib is not None:
-            try:
-                data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
-                for keyword, nom in data.get("known_emitters", {}).items():
-                    conn.execute(
-                        "INSERT OR IGNORE INTO known_emitters (keyword, nom) VALUES (?, ?)",
-                        (str(keyword).lower(), str(nom)),
-                    )
-            except Exception:
-                pass
 
     # Index composés sur invoices (#143) — exécutés après les ALTER TABLE
     # pour que les colonnes référencées existent même sur DBs légataires.
