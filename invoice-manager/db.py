@@ -166,6 +166,11 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         # de rappel CFE (#139). NULL = jamais masquée. La bannière réapparaît
         # automatiquement chaque novembre nouvelle année.
         "ALTER TABLE user_profile ADD COLUMN cfe_dismissed_year INTEGER",
+        # Mentions obligatoires §7.2 sur les factures émises (#140) :
+        # code APE/NAF, adresse professionnelle, conditions de règlement.
+        "ALTER TABLE user_profile ADD COLUMN code_ape TEXT",
+        "ALTER TABLE user_profile ADD COLUMN adresse TEXT",
+        "ALTER TABLE user_profile ADD COLUMN conditions_reglement TEXT",
     ]:
         try:
             conn.execute(sql)

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Nouvelle facture émise</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="page-header">
+    <h1>Nouvelle facture émise</h1>
+    <p>
+      Génère une facture conforme aux mentions obligatoires
+      <em>AUTO_ENTREPRENEUR_RULES.md §7.2</em>{% if en_franchise %}, avec la mention « TVA non applicable, art. 293 B du CGI »{% endif %}.
+      Le HTML produit est imprimable en PDF depuis ton navigateur (Cmd-P).
+    </p>
+    <nav><a href="/">← Tableau de bord</a></nav>
+  </header>
+
+  <main>
+    <form method="post" action="{{ url_for('facturation_emise.creer_facture') }}" class="vertical-form">
+      <fieldset>
+        <legend>Client</legend>
+        <label>Nom <input type="text" name="client_nom" required></label>
+        <label>Adresse <textarea name="client_adresse" rows="3"></textarea></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Dates</legend>
+        <label>Date d'émission <input type="date" name="date_emission"></label>
+        <label>Date de prestation / livraison <input type="date" name="date_prestation"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Prestations</legend>
+        {% for i in range(5) %}
+        <div class="ligne-prestation">
+          <input type="text" name="designation_{{ i }}" placeholder="Désignation"
+                 aria-label="Désignation ligne {{ i + 1 }}">
+          <input type="number" name="quantite_{{ i }}" placeholder="Qté" step="0.01" min="0"
+                 aria-label="Quantité ligne {{ i + 1 }}">
+          <input type="number" name="pu_{{ i }}" placeholder="PU HT (€)" step="0.01" min="0"
+                 aria-label="Prix unitaire ligne {{ i + 1 }}">
+        </div>
+        {% endfor %}
+      </fieldset>
+
+      <fieldset>
+        <legend>Règlement</legend>
+        <label>Mode de paiement <input type="text" name="mode_paiement" placeholder="Virement, chèque, CB…"></label>
+        <label>Conditions <input type="text" name="conditions" placeholder="À réception, 30 jours, fin de mois…"></label>
+      </fieldset>
+
+      <div class="form-actions">
+        <a href="/" class="btn-ghost">Annuler</a>
+        <button type="submit" class="btn-primary">Émettre la facture</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>
