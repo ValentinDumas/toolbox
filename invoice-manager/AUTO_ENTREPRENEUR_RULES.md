@@ -368,6 +368,9 @@ Elles n'apparaissent qu'à titre de pilotage / preuve.
   pendant la période.
 - **CFE :** non calculée automatiquement (montant communal), mais à signaler
   à l'utilisateur en novembre comme rappel de déclaration / paiement.
+- **Abattement forfaitaire IR (§3.1) :** helper
+  `services.urssaf.compute_beneficie_imposable` calcule la base 2042-C-PRO
+  pour les profils sans VFL. Min forfaitaire 305 € respecté.
 
 ---
 
