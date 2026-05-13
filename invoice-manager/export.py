@@ -66,15 +66,22 @@ CSV_COLS = [
     "sens_comptable",
 ]
 
+def csv_text(rows: list[dict]) -> str:
+    """Sérialise les lignes du ledger en CSV (texte UTF-8). Pas d'I/O disque."""
+    import io as _io
+    rows_display = [_to_display_row(r) for r in rows]
+    buf = _io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=CSV_COLS, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows_display)
+    return buf.getvalue()
+
+
 def write_csv(rows: list[dict], path: Path) -> None:
     # `taux_tva` est stocké en fraction (0..1). L'export humain (CSV remis
     # au comptable, XLSX) affiche un pourcentage — multiplier par 100 ici
     # garde la couche métier propre.
-    rows_display = [_to_display_row(r) for r in rows]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_COLS, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows_display)
+    path.write_text(csv_text(rows), encoding="utf-8")
     print(f"  CSV → {path}")
 
 
@@ -446,10 +453,14 @@ def _write_stats(wb, rows: list[dict], year: int | None, statut: str | None, cad
     ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 22
 
-def write_xlsx(rows: list[dict], path: Path, year: int | None, statut: str | None, cadence: str = "trimestrielle") -> None:
+def xlsx_bytes(rows: list[dict], year: int | None, statut: str | None, cadence: str = "trimestrielle") -> bytes:
+    """Sérialise le ledger en XLSX (bytes). Bit-identique pour des entrées identiques.
+
+    Pré-condition : openpyxl installé (HAS_OPENPYXL). Sinon ValueError —
+    l'appelant doit choisir s'il dégrade (CLI : skip) ou s'il refuse (HTTP : 500).
+    """
     if not HAS_OPENPYXL:
-        print("  [SKIP XLSX] openpyxl non installé — pip install openpyxl")
-        return
+        raise RuntimeError("openpyxl non installé — pip install openpyxl")
     import io, zipfile as _zip
     wb = openpyxl.Workbook()
     _write_journal(wb, rows)
@@ -459,17 +470,24 @@ def write_xlsx(rows: list[dict], path: Path, year: int | None, statut: str | Non
     _epoch = datetime(2000, 1, 1)
     wb.properties.created = _epoch
     wb.properties.modified = _epoch
-    # Save to buffer then rewrite ZIP entries with fixed timestamps so
-    # consecutive runs produce bit-identical files (openpyxl uses wall-clock time)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     _FIXED_DATE = (2000, 1, 1, 0, 0, 0)
-    with _zip.ZipFile(path, "w", _zip.ZIP_DEFLATED) as zout:
+    out = io.BytesIO()
+    with _zip.ZipFile(out, "w", _zip.ZIP_DEFLATED) as zout:
         with _zip.ZipFile(buf) as zin:
             for entry in zin.infolist():
                 entry.date_time = _FIXED_DATE
                 zout.writestr(entry, zin.read(entry.filename))
+    return out.getvalue()
+
+
+def write_xlsx(rows: list[dict], path: Path, year: int | None, statut: str | None, cadence: str = "trimestrielle") -> None:
+    if not HAS_OPENPYXL:
+        print("  [SKIP XLSX] openpyxl non installé — pip install openpyxl")
+        return
+    path.write_bytes(xlsx_bytes(rows, year, statut, cadence))
     print(f"  XLSX → {path}")
 
 # ── Main ──────────────────────────────────────────────────────────────────────

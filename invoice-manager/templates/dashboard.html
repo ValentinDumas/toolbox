@@ -616,6 +616,62 @@
     }
     .header-nav-link:hover { background: var(--surface-variant); }
     .header-nav-link:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .header-nav-link.is-disabled {
+      opacity: .5; pointer-events: none; cursor: not-allowed;
+    }
+    /* Export ledger CTAs (XLSX / CSV) */
+    .header-export {
+      display: inline-flex; gap: 6px; align-items: center;
+    }
+    /* Egress indicator — OCR Claude actif (VISION §4) */
+    .ocr-egress-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: var(--radius);
+      background: #FEF3C7; color: #92400E;
+      border: 1px solid #FCD34D;
+      font-size: 12px; font-weight: 600;
+      text-decoration: none;
+    }
+    .ocr-egress-badge:hover { background: #FDE68A; }
+    .ocr-egress-badge:focus { outline: 2px solid #B45309; outline-offset: 2px; }
+    .ocr-egress-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #B45309;
+      animation: ocr-egress-pulse 2s ease-in-out infinite;
+    }
+    @keyframes ocr-egress-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .35; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ocr-egress-dot { animation: none; }
+    }
+    /* Historique des corrections (viewer audit) */
+    .corrections-history {
+      margin-top: 12px; padding: 8px 12px;
+      background: var(--surface-variant); border-radius: var(--radius);
+      font-size: 12px;
+    }
+    .corrections-history summary {
+      cursor: pointer; font-weight: 600; color: var(--on-surface-muted);
+      padding: 4px 0;
+    }
+    .corrections-history-list {
+      list-style: none; padding: 0; margin: 8px 0 0;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .corrections-history-entry {
+      display: grid;
+      grid-template-columns: 160px 120px 1fr auto 1fr;
+      gap: 8px; align-items: baseline;
+      padding: 4px 0; border-bottom: 1px solid var(--border);
+    }
+    .corrections-history-entry:last-child { border-bottom: none; }
+    .corrections-history-ts { color: var(--on-surface-muted); font-family: ui-monospace, monospace; }
+    .corrections-history-field { font-weight: 600; }
+    .corrections-history-before { color: #B91C1C; text-decoration: line-through; }
+    .corrections-history-after { color: #15803D; }
+    .corrections-history-arrow { color: var(--on-surface-muted); }
     /* Upload button */
     .btn-upload {
       display: flex; align-items: center; gap: 6px;
@@ -851,6 +907,30 @@
           <a href="{{ url_for('urssaf.urssaf_agenda') }}" class="header-nav-link">URSSAF</a>
           <a href="{{ url_for('facturation_emise.nouvelle_facture') }}" class="header-nav-link">Nouvelle facture</a>
         </nav>
+        {% endif %}
+
+        {# ── Téléchargement du ledger (XLSX + CSV) — alignement VISION ── #}
+        {% set _has_ledger = ledger and ledger.total_count and ledger.total_count > 0 %}
+        <div class="header-export" role="group" aria-label="Exporter le ledger">
+          <a href="{{ url_for('export.export_ledger_xlsx', year=year) }}"
+             class="header-nav-link{% if not _has_ledger %} is-disabled{% endif %}"
+             {% if not _has_ledger %}aria-disabled="true" tabindex="-1" title="Aucune facture validée pour {{ year }}"{% else %}title="Télécharger ledger-{{ year }}.xlsx"{% endif %}>
+            Exporter XLSX
+          </a>
+          <a href="{{ url_for('export.export_ledger_csv', year=year) }}"
+             class="header-nav-link{% if not _has_ledger %} is-disabled{% endif %}"
+             {% if not _has_ledger %}aria-disabled="true" tabindex="-1" title="Aucune facture validée pour {{ year }}"{% else %}title="Télécharger ledger-{{ year }}.csv"{% endif %}>
+            CSV
+          </a>
+        </div>
+
+        {# ── Egress indicator — VISION §4 : « clearly labeled in the UI » ── #}
+        {% if profile and profile.ocr_backend == 'claude' %}
+        <a href="/parametres?section=app#ocr" class="ocr-egress-badge" role="status"
+           aria-label="OCR cloud actif — données envoyées à l'API Claude. Cliquer pour ouvrir les paramètres OCR.">
+          <span class="ocr-egress-dot" aria-hidden="true"></span>
+          OCR cloud actif
+        </a>
         {% endif %}
 
         {# ── Sélecteur de profil ── #}

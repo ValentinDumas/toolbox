@@ -537,3 +537,130 @@ class TestCSVSensComptable:
         rows = self._csv_rows(tmp_project, [{"type_document": "relevé_bancaire"}])
         # Ligne présente (CSV = registre plat) mais sens vide.
         assert rows[0]["sens_comptable"] == ""
+
+
+# ── Téléchargement depuis le dashboard (alignement VISION) ─────────────────────
+
+class TestRouteExportLedger:
+    """Le dashboard doit permettre de télécharger ledger-YYYY.xlsx / .csv
+    sans retomber sur le CLI — c'est le critère de succès de VISION."""
+
+    def _seed_and_app(self, tmp_path, monkeypatch):
+        """Construit une app Flask isolée avec un profil AE + une facture validée."""
+        import sqlite3 as _sq
+        import app as _app
+        import context_helpers as _ctx
+        import blueprints.pipeline as _bp_pipeline
+        import blueprints.profils as _bp_profils
+        from db import open_db
+
+        slug = "test-profile"
+        profile_dir = tmp_path / "data" / "profiles" / slug
+        for d in ("input", "processed", "errors", "output", "review"):
+            (profile_dir / d).mkdir(parents=True, exist_ok=True)
+        db_file = profile_dir / "invoices.db"
+        conn = open_db(db_file)
+        conn.execute(
+            "INSERT OR REPLACE INTO user_profile "
+            "(id, nom, siren, fiscal_profile, cadence, setup_complete) "
+            "VALUES (1, 'Test', '123456789', 'auto-entrepreneur', 'trimestrielle', 1)"
+        )
+        conn.execute(
+            "INSERT INTO invoices (id, hash_fichier, type_document, "
+            "montant_ht, montant_tva, montant_ttc, exercice_fiscal, "
+            "statut_révision, émetteur_nom, date_document, statut_fiscal_profil) "
+            "VALUES ('ok-1', 'h1', 'facture_émise', 1000.0, 0.0, 1000.0, 2025, "
+            "'validé', 'Client SAS', '2025-03-01', 'auto-entrepreneur')"
+        )
+        # Facture à_réviser : doit être exclue de l'export
+        conn.execute(
+            "INSERT INTO invoices (id, hash_fichier, type_document, "
+            "montant_ht, montant_tva, montant_ttc, exercice_fiscal, "
+            "statut_révision, émetteur_nom, date_document, statut_fiscal_profil) "
+            "VALUES ('skip', 'h2', 'facture_reçue', 50.0, 10.0, 60.0, 2025, "
+            "'à_réviser', 'Brouillon', '2025-03-15', 'auto-entrepreneur')"
+        )
+        conn.commit()
+        conn.close()
+
+        test_profiles = [{"slug": slug, "name": "Test", "created_at": "2025-01-01T00:00:00+00:00"}]
+        test_paths = {
+            "db":        db_file,
+            "input":     profile_dir / "input",
+            "processed": profile_dir / "processed",
+            "errors":    profile_dir / "errors",
+            "output":    profile_dir / "output",
+            "review":    profile_dir / "review",
+        }
+        monkeypatch.setattr(_app, "load_profiles", lambda: test_profiles)
+        monkeypatch.setattr(_app, "get_profile_meta", lambda s: test_profiles[0] if s == slug else None)
+        monkeypatch.setattr(_ctx, "resolve_paths", lambda s: test_paths)
+        monkeypatch.setattr(_ctx, "get_profile_meta", lambda s: test_profiles[0] if s == slug else None)
+        monkeypatch.setattr(_bp_pipeline, "resolve_paths", lambda s: test_paths)
+        monkeypatch.setattr(_bp_profils, "get_profile_meta", lambda s: test_profiles[0] if s == slug else None)
+
+        from app import create_app
+        app = create_app()
+        app.config["TESTING"] = True
+
+        def _inject_session():
+            from flask import session
+            session["active_profile"] = slug
+        app.before_request_funcs.setdefault(None, []).insert(0, _inject_session)
+        return app
+
+    def test_export_ledger_xlsx_telecharge_le_fichier_pour_annee_active(self, tmp_path, monkeypatch):
+        # Given une app avec une facture validée en 2025
+        app = self._seed_and_app(tmp_path, monkeypatch)
+        # When on télécharge le ledger XLSX de 2025
+        with app.test_client() as client:
+            resp = client.get("/export/ledger.xlsx?year=2025")
+        # Then la réponse est un XLSX exploitable, nommé ledger-2025.xlsx
+        assert resp.status_code == 200
+        assert "spreadsheetml.sheet" in resp.headers["Content-Type"]
+        assert 'filename="ledger-2025.xlsx"' in resp.headers["Content-Disposition"]
+        assert resp.data[:2] == b"PK"  # signature ZIP/XLSX
+
+    def test_export_ledger_csv_telecharge_le_fichier(self, tmp_path, monkeypatch):
+        # Given la même app
+        app = self._seed_and_app(tmp_path, monkeypatch)
+        # When on télécharge le ledger CSV de 2025
+        with app.test_client() as client:
+            resp = client.get("/export/ledger.csv?year=2025")
+        # Then la réponse est un CSV avec l'en-tête attendu
+        assert resp.status_code == 200
+        assert "text/csv" in resp.headers["Content-Type"]
+        assert 'filename="ledger-2025.csv"' in resp.headers["Content-Disposition"]
+        body = resp.data.decode("utf-8")
+        assert "date_document" in body.splitlines()[0]
+
+    def test_export_ledger_exclut_les_factures_a_reviser(self, tmp_path, monkeypatch):
+        # Given une facture validée + une à_réviser
+        app = self._seed_and_app(tmp_path, monkeypatch)
+        # When on télécharge le CSV
+        with app.test_client() as client:
+            resp = client.get("/export/ledger.csv?year=2025")
+        body = resp.data.decode("utf-8")
+        # Then seule la facture validée apparaît
+        assert "Client SAS" in body
+        assert "Brouillon" not in body
+
+    def test_export_ledger_annee_invalide_renvoie_400(self, tmp_path, monkeypatch):
+        # Given une app fonctionnelle
+        app = self._seed_and_app(tmp_path, monkeypatch)
+        # When on demande une année hors plage ou non numérique
+        with app.test_client() as client:
+            assert client.get("/export/ledger.xlsx?year=abc").status_code == 400
+            assert client.get("/export/ledger.xlsx?year=1700").status_code == 400
+            assert client.get("/export/ledger.csv?year=").status_code == 400
+
+    def test_dashboard_expose_les_cta_de_telechargement(self, tmp_path, monkeypatch):
+        # Given une app avec données
+        app = self._seed_and_app(tmp_path, monkeypatch)
+        # When on charge le dashboard
+        with app.test_client() as client:
+            resp = client.get("/?year=2025")
+        # Then les liens de téléchargement XLSX/CSV apparaissent dans le header
+        html = resp.data.decode()
+        assert "/export/ledger.xlsx?year=2025" in html
+        assert "/export/ledger.csv?year=2025" in html

@@ -156,6 +156,23 @@
     <button type="button" class="btn-cancel-edit btn-secondary">Annuler</button>
     <p class="field-error" data-field="_base" style="flex:1 1 100%"></p>
   </div>
+  {% set _history = parse_corrections_history(item.corrections_log) %}
+  {% if _history %}
+  <details class="corrections-history" aria-label="Historique des corrections de cette pièce">
+    <summary>Historique des corrections ({{ _history|length }})</summary>
+    <ol class="corrections-history-list">
+      {% for entry in _history %}
+      <li class="corrections-history-entry">
+        <time datetime="{{ entry.ts }}" class="corrections-history-ts">{{ entry.ts }}</time>
+        <span class="corrections-history-field">{{ entry.champ }}</span>
+        <span class="corrections-history-before">{{ entry.avant if entry.avant is not none else '∅' }}</span>
+        <span class="corrections-history-arrow" aria-hidden="true">→</span>
+        <span class="corrections-history-after">{{ entry['après'] if entry['après'] is not none else '∅' }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </details>
+  {% endif %}
   {% endif %}
 </form>
 {% endmacro %}

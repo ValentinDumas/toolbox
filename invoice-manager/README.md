@@ -61,6 +61,12 @@ C'est tout. `run.py` enchaîne trois étapes automatiquement :
 
 Les items avec confiance < 80 % sont marqués `à_réviser` et accessibles via le bouton **Révision** du dashboard.
 
+**Téléchargement depuis le dashboard** — le header du dashboard expose deux liens **Exporter XLSX** et **CSV** qui génèrent le ledger de l'exercice actif sans repasser par le CLI. Le téléchargement est bit-identique à `python3 export.py` (mêmes règles fiscales, mêmes filtres `à_réviser`). Les liens sont désactivés s'il n'y a aucune facture validée pour l'année.
+
+**Historique des corrections** — sur une facture validée, le bouton ✎ déplie la zone d'édition. Si la pièce a déjà été corrigée, une section « Historique des corrections » liste chaque modification (timestamp · champ · avant → après), source `corrections_log` JSON append-only.
+
+**OCR cloud** — si tu actives le backend Claude Vision dans **Paramètres → Application**, un badge orange « OCR cloud actif » apparaît en permanence dans le header. C'est le marquage d'egress prévu par la note Sécurité (VISION §4) : tu sais à tout moment que les images sont envoyées hors machine.
+
 ```bash
 # Options
 python3 run.py --profile mon-ent             # cibler un profil spécifique (slug)

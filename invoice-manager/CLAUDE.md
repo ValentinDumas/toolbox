@@ -93,7 +93,8 @@ Data flow: `input/` → `extract.py` → `invoices.db` → `export.py` → `outp
 |------|------|
 | `run.py` | Orchestrator — chains dedup, extract, export |
 | `extract.py` | Reads files (PDF/image), OCR, regex parsing, inserts into DB |
-| `export.py` | Generates `ledger-YYYY.csv` + XLSX (4 sheets) from DB |
+| `export.py` | Generates `ledger-YYYY.csv` + XLSX (4 sheets) from DB. Helpers `csv_text()` / `xlsx_bytes()` exposent les mêmes données en flux mémoire pour le téléchargement depuis le dashboard (`blueprints/export.py`). |
+| `blueprints/export.py` | Routes GET `/export/ledger.xlsx` / `/export/ledger.csv` — téléchargement depuis le dashboard, en lecture seule, sans écriture disque. |
 | `review.py` | Batch validation: exports low-confidence items to CSV, imports corrections |
 | `dashboard.py` | Flask web UI — views ledger, inline editing, soft-delete |
 | `config.py` | Pure Python constants partagées (cadences de déclaration par profil fiscal) |

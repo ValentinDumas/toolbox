@@ -3,6 +3,7 @@ queries.py — Fonctions de lecture pures sur la base SQLite.
 
 Aucune dépendance Flask. Utilisable par tous les blueprints.
 """
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -269,3 +270,25 @@ def query_corbeille(conn: sqlite3.Connection, year: int) -> list:
         (year,),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def parse_corrections_history(log_json: str | None) -> list[dict]:
+    """Parse le JSON `corrections_log` d'une facture en liste triée du plus récent au plus ancien.
+
+    Source de vérité = chaîne JSON stockée par `services.revision._build_corrections_log`,
+    qui ajoute des entrées en append-only. Fonction pure (pas de DB) : la donnée est
+    déjà sur la ligne `invoices`, on évite une requête supplémentaire.
+
+    Retourne `[]` si le log est vide, absent, ou malformé — un journal corrompu
+    ne doit jamais casser le rendu du dashboard.
+    """
+    if not log_json:
+        return []
+    try:
+        entries = json.loads(log_json)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(entries, list):
+        return []
+    cleaned = [e for e in entries if isinstance(e, dict) and e.get("ts")]
+    return sorted(cleaned, key=lambda e: e.get("ts", ""), reverse=True)
