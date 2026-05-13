@@ -1,0 +1,15 @@
+{% if show_cfe_banner %}
+<div class="error-banner" role="status" aria-live="polite"
+     style="background:#DBEAFE;border-color:#1D4ED8;color:#1E3A8A;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+  <span>
+    <strong>Pensez à la CFE</strong> — Cotisation Foncière des Entreprises, échéance le 15 décembre.
+    Consultez votre avis sur
+    <a href="https://www.impots.gouv.fr/professionnel/cfe" target="_blank" rel="noopener"
+       style="color:#1E3A8A;font-weight:600;">impots.gouv.fr</a>.
+  </span>
+  <form method="post" action="{{ url_for('notifications.cfe_dismiss') }}" style="margin:0;">
+    <button type="submit" class="btn-secondary"
+            aria-label="Masquer le rappel CFE pour cette année">Masquer pour {{ year }}</button>
+  </form>
+</div>
+{% endif %}
