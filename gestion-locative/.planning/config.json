@@ -1,5 +1,5 @@
 {
-  "model_profile": "inherit",
+  "model_profile": "balanced",
   "commit_docs": true,
   "parallelization": true,
   "search_gitignored": false,
@@ -16,7 +16,7 @@
     "research": false,
     "plan_check": true,
     "verifier": true,
-    "nyquist_validation": false,
+    "nyquist_validation": true,
     "auto_advance": false,
     "node_repair": true,
     "node_repair_budget": 2,
@@ -37,5 +37,5 @@
   "agent_skills": {},
   "features": {},
   "mode": "interactive",
-  "granularity": "coarse"
+  "granularity": "standard"
 }
