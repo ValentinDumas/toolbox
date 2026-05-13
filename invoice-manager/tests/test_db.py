@@ -245,3 +245,47 @@ class TestGetCategoryTvaRates:
         assert isinstance(rates, dict)
         assert "transport" in rates
         assert isinstance(rates["transport"], float)
+
+
+# ── Migration v10 : index composés sur invoices (#143) ────────────────────────
+
+def test_les_index_composés_sont_crees_a_l_ouverture_de_la_db(tmp_path):
+    # Given une DB neuve ouverte via open_db
+    db_path = tmp_path / "indexes.db"
+    conn = open_db(db_path)
+
+    # When on liste les index de la table invoices
+    index_names = {
+        row[1] for row in conn.execute("PRAGMA index_list('invoices')")
+    }
+    conn.close()
+
+    # Then les 3 index composés du ticket #143 sont présents
+    assert "idx_invoices_year_statut_deleted" in index_names
+    assert "idx_invoices_date_paiement" in index_names
+    assert "idx_invoices_type_document" in index_names
+
+
+def test_explain_query_plan_query_ca_encaisse_utilise_idx_date_paiement(tmp_path):
+    # Given une DB avec une facture encaissée
+    db_path = tmp_path / "plan.db"
+    conn = open_db(db_path)
+    conn.execute(
+        "INSERT INTO invoices (id, date_paiement, exercice_fiscal, montant_ttc) "
+        "VALUES (?, ?, ?, ?)",
+        ("f1", "2025-03-15", 2025, 1200.0),
+    )
+    conn.commit()
+
+    # When on demande le plan d'exécution d'une requête filtrée par date_paiement
+    plan = conn.execute(
+        "EXPLAIN QUERY PLAN "
+        "SELECT id, montant_ttc FROM invoices "
+        "WHERE date_paiement BETWEEN ? AND ?",
+        ("2025-01-01", "2025-12-31"),
+    ).fetchall()
+    conn.close()
+
+    # Then le plan utilise l'index partiel idx_invoices_date_paiement
+    plan_text = " ".join(str(row[3]) for row in plan)
+    assert "idx_invoices_date_paiement" in plan_text

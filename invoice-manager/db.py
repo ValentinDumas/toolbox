@@ -115,7 +115,20 @@ CREATE TABLE IF NOT EXISTS urssaf_declarations (
 );
 """
 
-SCHEMA_VERSION = 9
+# Index composés sur invoices (#143) — créés en post-schéma car ils peuvent
+# référencer des colonnes ajoutées par ALTER TABLE sur des DBs légataires.
+# `IF NOT EXISTS` garantit l'idempotence ; le try/except tolère les schémas
+# minimaux de test où certaines colonnes n'existent pas encore.
+_INVOICES_INDEXES = [
+    """CREATE INDEX IF NOT EXISTS idx_invoices_year_statut_deleted
+       ON invoices(exercice_fiscal, statut_révision, deleted_at)""",
+    """CREATE INDEX IF NOT EXISTS idx_invoices_date_paiement
+       ON invoices(date_paiement) WHERE date_paiement IS NOT NULL""",
+    """CREATE INDEX IF NOT EXISTS idx_invoices_type_document
+       ON invoices(type_document, deleted_at)""",
+]
+
+SCHEMA_VERSION = 10
 
 # Catégories par défaut + taux de TVA. Seedées au premier lancement, modifiables
 # via le tab "Catégories TVA" des paramètres. Source : les clés de `_CATEGORIES`
@@ -241,6 +254,15 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
                     )
             except Exception:
                 pass
+
+    # Index composés sur invoices (#143) — exécutés après les ALTER TABLE
+    # pour que les colonnes référencées existent même sur DBs légataires.
+    for sql in _INVOICES_INDEXES:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError as e:
+            if "no such column" not in str(e):
+                raise
 
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
