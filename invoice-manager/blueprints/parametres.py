@@ -43,6 +43,13 @@ ENSEIGNE_NOM_MAX = 120
 CATEGORIE_MAX = 64
 _CATEGORIE_REGEX = re.compile(r"^[a-zàâäçéèêëîïôöùûüÿñæœ \-]{1,%d}$" % CATEGORIE_MAX)
 
+# Champs auto-entrepreneur — conformité mentions légales facture émise (§7.2).
+CODE_APE_MAX = 16
+ADRESSE_MAX = 500
+CONDITIONS_REGLEMENT_MAX = 200
+# Code APE/NAF : lettres, chiffres, point, espace (ex. "62.01Z", "62.01 Z").
+_CODE_APE_REGEX = re.compile(r"^[A-Za-z0-9. ]{1,%d}$" % CODE_APE_MAX)
+
 # Messages d'erreur en français — affichés via la query-string `error=<code>`.
 _ERROR_MESSAGES: dict[str, str] = {
     "siren_invalide": "SIREN invalide : 9 chiffres attendus.",
@@ -64,6 +71,19 @@ _ERROR_MESSAGES: dict[str, str] = {
     "taux_tva_invalide": (
         "Taux de TVA invalide : fraction entre 0 et 1 attendue (ex. 0.20 pour 20 %)."
     ),
+    "code_ape_invalide": (
+        "Code APE/NAF invalide : lettres, chiffres, point et espace uniquement "
+        f"(max {CODE_APE_MAX} caractères, ex. « 62.01Z »)."
+    ),
+    "code_ape_trop_long": (
+        f"Le code APE/NAF dépasse {CODE_APE_MAX} caractères."
+    ),
+    "adresse_trop_longue": (
+        f"L'adresse professionnelle dépasse {ADRESSE_MAX} caractères."
+    ),
+    "conditions_trop_longues": (
+        f"Les conditions de règlement dépassent {CONDITIONS_REGLEMENT_MAX} caractères."
+    ),
 }
 
 
@@ -83,6 +103,9 @@ def _valider_profil(form) -> tuple[dict, str | None]:
     versement_liberatoire = 1 if form.get("versement_liberatoire") else 0
     acre_actif = 1 if form.get("acre_actif") else 0
     acre_date_fin = form.get("acre_date_fin", "").strip() or None
+    code_ape = form.get("code_ape", "").strip()
+    adresse = form.get("adresse", "").strip()
+    conditions_reglement = form.get("conditions_reglement", "").strip()
 
     if siren and not _SIREN_REGEX.match(siren):
         return {}, "siren_invalide"
@@ -99,6 +122,14 @@ def _valider_profil(form) -> tuple[dict, str | None]:
             _date.fromisoformat(acre_date_fin)
         except ValueError:
             return {}, "acre_date_fin_invalide"
+    if len(code_ape) > CODE_APE_MAX:
+        return {}, "code_ape_trop_long"
+    if code_ape and not _CODE_APE_REGEX.match(code_ape):
+        return {}, "code_ape_invalide"
+    if len(adresse) > ADRESSE_MAX:
+        return {}, "adresse_trop_longue"
+    if len(conditions_reglement) > CONDITIONS_REGLEMENT_MAX:
+        return {}, "conditions_trop_longues"
 
     return {
         "nom": nom,
@@ -110,6 +141,9 @@ def _valider_profil(form) -> tuple[dict, str | None]:
         "versement_liberatoire": versement_liberatoire,
         "acre_actif": acre_actif,
         "acre_date_fin": acre_date_fin,
+        "code_ape": code_ape or None,
+        "adresse": adresse or None,
+        "conditions_reglement": conditions_reglement or None,
     }, None
 
 
@@ -185,15 +219,19 @@ def parametres_profil_sauver():
     conn = open_db(active_db())
     conn.execute(
         "INSERT INTO user_profile (id, nom, siren, tva_intracom, fiscal_profile, cadence, "
-        "activite_principale, versement_liberatoire, acre_actif, acre_date_fin, setup_complete) "
+        "activite_principale, versement_liberatoire, acre_actif, acre_date_fin, "
+        "code_ape, adresse, conditions_reglement, setup_complete) "
         "VALUES (1, :nom, :siren, :tva_intracom, :fiscal_profile, :cadence, "
-        ":activite_principale, :versement_liberatoire, :acre_actif, :acre_date_fin, 1) "
+        ":activite_principale, :versement_liberatoire, :acre_actif, :acre_date_fin, "
+        ":code_ape, :adresse, :conditions_reglement, 1) "
         "ON CONFLICT(id) DO UPDATE SET "
         "nom=excluded.nom, siren=excluded.siren, tva_intracom=excluded.tva_intracom, "
         "fiscal_profile=excluded.fiscal_profile, cadence=excluded.cadence, "
         "activite_principale=excluded.activite_principale, "
         "versement_liberatoire=excluded.versement_liberatoire, "
-        "acre_actif=excluded.acre_actif, acre_date_fin=excluded.acre_date_fin",
+        "acre_actif=excluded.acre_actif, acre_date_fin=excluded.acre_date_fin, "
+        "code_ape=excluded.code_ape, adresse=excluded.adresse, "
+        "conditions_reglement=excluded.conditions_reglement",
         data,
     )
     avatar_file = request.files.get("avatar")

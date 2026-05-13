@@ -330,6 +330,27 @@
                     <span class="field-hint">Au-delà de cette date, les taux normaux s'appliquent.</span>
                   </div>
                 </div>
+                <div class="form-row">
+                  <div class="form-field">
+                    <label for="code_ape">Code APE/NAF</label>
+                    <input type="text" id="code_ape" name="code_ape" maxlength="16"
+                           value="{{ profile.code_ape or '' }}">
+                    <span class="field-hint">Ex. : 62.01Z. Mention obligatoire sur les factures émises (§7.2).</span>
+                  </div>
+                  <div class="form-field">
+                    <label for="conditions_reglement">Conditions de règlement par défaut</label>
+                    <input type="text" id="conditions_reglement" name="conditions_reglement" maxlength="200"
+                           value="{{ profile.conditions_reglement or '' }}">
+                    <span class="field-hint">Ex. : « À réception », « 30 jours fin de mois ». Mention obligatoire §7.2.</span>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field" style="flex:1">
+                    <label for="adresse">Adresse professionnelle</label>
+                    <textarea id="adresse" name="adresse" rows="3" maxlength="500">{{ profile.adresse or '' }}</textarea>
+                    <span class="field-hint">Mention obligatoire §7.2 — figure sur l'en-tête des factures émises.</span>
+                  </div>
+                </div>
               </fieldset>
               {% endif %}
             </div>

@@ -11,6 +11,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from blueprints.parametres import (
+    ADRESSE_MAX,
+    CODE_APE_MAX,
+    CONDITIONS_REGLEMENT_MAX,
     ENSEIGNE_KEYWORD_MAX,
     ENSEIGNE_NOM_MAX,
     _valider_enseigne,
@@ -214,3 +217,84 @@ class TestValiderTauxCategorie:
     def test_taux_non_numerique_rejeté(self):
         _, err = _valider_taux_categorie({"catégorie": "transport", "taux_tva": "vingt"})
         assert err == "taux_tva_invalide"
+
+
+# ── Mentions légales facture émise §7.2 (issue #148) ──────────────────────────
+
+class TestCodeApe:
+    def test_code_ape_vide_accepte(self):
+        # Given un formulaire sans code APE renseigné
+        # When on valide le profil
+        fields, err = _valider_profil({"code_ape": ""})
+        # Then la validation passe et code_ape vaut None
+        assert err is None
+        assert fields["code_ape"] is None
+
+    def test_code_ape_valide_accepte(self):
+        # Given un code APE conforme au format INSEE (4 chiffres + 1 lettre)
+        # When on valide le profil
+        fields, err = _valider_profil({"code_ape": "62.01Z"})
+        # Then la validation passe et la valeur est conservée
+        assert err is None
+        assert fields["code_ape"] == "62.01Z"
+
+    def test_code_ape_trop_long_rejete(self):
+        # Given un code APE qui dépasse la longueur maximale autorisée
+        # When on valide le profil
+        _, err = _valider_profil({"code_ape": "X" * (CODE_APE_MAX + 1)})
+        # Then la validation échoue avec le code d'erreur explicite
+        assert err == "code_ape_trop_long"
+
+
+class TestAdresseProfessionnelle:
+    def test_adresse_vide_acceptee(self):
+        # Given un formulaire sans adresse professionnelle renseignée
+        # When on valide le profil
+        fields, err = _valider_profil({"adresse": ""})
+        # Then la validation passe et adresse vaut None
+        assert err is None
+        assert fields["adresse"] is None
+
+    def test_adresse_a_la_limite_acceptee(self):
+        # Given une adresse à la limite haute (500 caractères)
+        # When on valide le profil
+        fields, err = _valider_profil({"adresse": "a" * ADRESSE_MAX})
+        # Then la validation passe
+        assert err is None
+        assert fields["adresse"] == "a" * ADRESSE_MAX
+
+    def test_adresse_trop_longue_rejetee(self):
+        # Given une adresse qui dépasse la longueur maximale
+        # When on valide le profil
+        _, err = _valider_profil({"adresse": "a" * (ADRESSE_MAX + 1)})
+        # Then la validation échoue avec le code d'erreur explicite
+        assert err == "adresse_trop_longue"
+
+
+class TestConditionsReglement:
+    def test_conditions_vides_acceptees(self):
+        # Given un formulaire sans conditions de règlement renseignées
+        # When on valide le profil
+        fields, err = _valider_profil({"conditions_reglement": ""})
+        # Then la validation passe et conditions_reglement vaut None
+        assert err is None
+        assert fields["conditions_reglement"] is None
+
+    def test_conditions_valides_acceptees(self):
+        # Given des conditions de règlement standard
+        # When on valide le profil
+        fields, err = _valider_profil(
+            {"conditions_reglement": "30 jours fin de mois"}
+        )
+        # Then la validation passe et la valeur est conservée
+        assert err is None
+        assert fields["conditions_reglement"] == "30 jours fin de mois"
+
+    def test_conditions_trop_longues_rejetees(self):
+        # Given des conditions de règlement qui dépassent la longueur maximale
+        # When on valide le profil
+        _, err = _valider_profil(
+            {"conditions_reglement": "x" * (CONDITIONS_REGLEMENT_MAX + 1)}
+        )
+        # Then la validation échoue avec le code d'erreur explicite
+        assert err == "conditions_trop_longues"
