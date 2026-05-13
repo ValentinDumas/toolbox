@@ -14,8 +14,6 @@ def _make_empty_app(tmp_path, monkeypatch):
     # PROFILES_DIR pointé sur un répertoire vide → load_profiles() retourne []
     # naturellement, sans mock de fonction.
     monkeypatch.setattr(_profiles_mod, "PROFILES_DIR", tmp_path / "data" / "profiles")
-    monkeypatch.setattr(_profiles_mod, "LEGACY_REGISTRY",
-                        tmp_path / "data" / "profiles.json")
 
     # `create_profile` reste mocké : on ne veut pas créer de vrais dossiers/DB
     # pour des tests qui valident uniquement l'ACL sur le nom.

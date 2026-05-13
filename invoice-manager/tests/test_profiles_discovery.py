@@ -42,8 +42,6 @@ def test_load_profiles_découvre_les_profils_via_le_filesystem(
 
     import profiles as profiles_mod
     monkeypatch.setattr(profiles_mod, "PROFILES_DIR", profiles_dir)
-    monkeypatch.setattr(profiles_mod, "LEGACY_REGISTRY",
-                        tmp_path / "data" / "profiles.json")
 
     # When on liste les profils
     found = profiles_mod.load_profiles()
@@ -59,8 +57,6 @@ def test_load_profiles_sans_dossier_retourne_vide(tmp_path, monkeypatch):
     import profiles as profiles_mod
     monkeypatch.setattr(profiles_mod, "PROFILES_DIR",
                         tmp_path / "data" / "profiles")
-    monkeypatch.setattr(profiles_mod, "LEGACY_REGISTRY",
-                        tmp_path / "data" / "profiles.json")
 
     # When on liste les profils
     found = profiles_mod.load_profiles()
@@ -76,8 +72,6 @@ def test_profil_avec_db_sans_nom_retombe_sur_le_slug(tmp_path, monkeypatch):
 
     import profiles as profiles_mod
     monkeypatch.setattr(profiles_mod, "PROFILES_DIR", profiles_dir)
-    monkeypatch.setattr(profiles_mod, "LEGACY_REGISTRY",
-                        tmp_path / "data" / "profiles.json")
 
     # When on lit la métadonnée
     meta = profiles_mod.get_profile_meta("premier-profil")
@@ -94,8 +88,6 @@ def test_create_profile_persiste_nom_et_created_at_en_db(tmp_path, monkeypatch):
 
     import profiles as profiles_mod
     monkeypatch.setattr(profiles_mod, "PROFILES_DIR", profiles_dir)
-    monkeypatch.setattr(profiles_mod, "LEGACY_REGISTRY",
-                        tmp_path / "data" / "profiles.json")
 
     # When on crée un profil
     entry = profiles_mod.create_profile("SASU Dupont")
@@ -126,8 +118,6 @@ def test_create_profile_evite_les_collisions_de_slug(tmp_path, monkeypatch):
 
     import profiles as profiles_mod
     monkeypatch.setattr(profiles_mod, "PROFILES_DIR", profiles_dir)
-    monkeypatch.setattr(profiles_mod, "LEGACY_REGISTRY",
-                        tmp_path / "data" / "profiles.json")
 
     profiles_mod.create_profile("Acme")
 

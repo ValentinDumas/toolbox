@@ -5,12 +5,7 @@ Chaque profil = un répertoire autonome sous data/profiles/{slug}/ avec
 sa propre invoices.db. La liste des profils se déduit par scan du
 système de fichiers ; les métadonnées (`nom`, `created_at`) sont
 portées par la table `user_profile` de chaque DB.
-
-Le registre JSON `data/profiles.json` (jusqu'à 2026-05-13) est
-automatiquement migré vers les DB au boot via
-`migrate_legacy_profiles_json()`.
 """
-import json
 import re
 import shutil
 import sqlite3
@@ -20,7 +15,6 @@ from pathlib import Path
 HERE = Path(__file__).parent
 PROFILES_DIR = HERE / "data" / "profiles"
 LEGACY_DB = HERE / "data" / "invoices.db"
-LEGACY_REGISTRY = HERE / "data" / "profiles.json"
 
 
 def _slugify(name: str) -> str:
@@ -165,75 +159,6 @@ def maybe_migrate_legacy() -> str | None:
     migrate_legacy_files(entry["slug"])
     _invalidate_cache()
     return entry["slug"]
-
-
-def migrate_legacy_profiles_json() -> dict[str, str]:
-    """Migration unique de `data/profiles.json` vers `user_profile`.
-
-    Lit le JSON (s'il existe) et reporte `name` + `created_at` dans la DB
-    de chaque profil — uniquement quand la valeur correspondante en base
-    est vide (préserve toute saisie ultérieure dans Paramètres). Le
-    fichier JSON est ensuite renommé en `.bak` (pas de suppression dure).
-
-    Idempotente : un deuxième appel est un no-op si le fichier n'existe
-    plus. Retourne `{slug: name}` pour les profils effectivement mis à jour.
-    """
-    if not LEGACY_REGISTRY.is_file():
-        return {}
-    try:
-        entries = json.loads(LEGACY_REGISTRY.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-    from db import open_db
-
-    updated: dict[str, str] = {}
-    for entry in entries:
-        slug = entry.get("slug")
-        name = (entry.get("name") or "").strip()
-        created_at = entry.get("created_at") or ""
-        if not slug:
-            continue
-        db_path = PROFILES_DIR / slug / "invoices.db"
-        if not db_path.is_file():
-            # Profil orphelin (dossier disparu ou DB jamais initialisée) — skip.
-            continue
-        conn = open_db(db_path)
-        try:
-            row = conn.execute(
-                "SELECT nom, created_at FROM user_profile WHERE id=1"
-            ).fetchone()
-            current_nom = (row["nom"] if row and row["nom"] else "").strip()
-            current_created = (row["created_at"] if row and row["created_at"] else "")
-            new_nom = current_nom or name
-            new_created = current_created or created_at
-            # On écrit uniquement si quelque chose change pour rester idempotent
-            # et faciliter le test « second boot = no-op ».
-            if new_nom == current_nom and new_created == current_created:
-                continue
-            conn.execute(
-                "INSERT INTO user_profile (id, nom, created_at) VALUES (1, ?, ?) "
-                "ON CONFLICT(id) DO UPDATE SET "
-                "nom=excluded.nom, created_at=excluded.created_at",
-                (new_nom, new_created),
-            )
-            conn.commit()
-            if new_nom != current_nom:
-                updated[slug] = new_nom
-        finally:
-            conn.close()
-
-    # Renomme le JSON pour éviter de réappliquer la migration au prochain boot,
-    # sans suppression dure (rollback possible si bug).
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    backup = LEGACY_REGISTRY.with_name(f"profiles.json.migrated-{stamp}.bak")
-    try:
-        LEGACY_REGISTRY.rename(backup)
-    except OSError:
-        pass
-
-    _invalidate_cache()
-    return updated
 
 
 def resolve_paths(slug: str) -> dict[str, Path]:
