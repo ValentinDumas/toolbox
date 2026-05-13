@@ -102,3 +102,33 @@ TAUX_URSSAF_AE_2026 = {
 }
 
 ACTIVITES_AE = tuple(TAUX_URSSAF_AE_2026.keys())
+
+# ── Plafonds CA micro-entreprise 2026 (€ HT encaissés) ───────────────────────
+#
+# Revalorisés au 01/01/2026. Cf. AUTO_ENTREPRENEUR_RULES.md §2. À revérifier
+# au début de chaque période triennale (prochaine 2029).
+PLAFOND_CA_AE_2026 = {
+    "vente":                  203_100.0,
+    "service_bic":             83_600.0,
+    "service_bnc_ssi":         83_600.0,
+    "service_bnc_cipav":       83_600.0,
+    "meuble_tourisme_non_classe": 15_000.0,
+    # Activité mixte : `global` = plafond vente, `services` = sous-plafond services.
+    "mixte_global":           203_100.0,
+    "mixte_services":          83_600.0,
+}
+
+# Seuils d'alerte UI (fraction du plafond) — avant dépassement.
+SEUIL_ALERTE_CA = 0.80    # 80 % → avertir
+SEUIL_DEPASSEMENT_CA = 1.00  # ≥ 100 % → dépassement annoncé
+
+# ── Seuils franchise en base TVA 2026 (CGI art. 293 B) ───────────────────────
+#
+# Distincts des plafonds micro-entreprise §2 (statut fiscal) et concernent
+# uniquement l'assujettissement TVA. Cf. §5.2.
+SEUIL_FRANCHISE_TVA_2026 = {
+    "vente":       {"seuil": 85_000.0, "seuil_majore": 93_500.0},
+    "service_bic": {"seuil": 37_500.0, "seuil_majore": 41_250.0},
+    "service_bnc_ssi":   {"seuil": 37_500.0, "seuil_majore": 41_250.0},
+    "service_bnc_cipav": {"seuil": 37_500.0, "seuil_majore": 41_250.0},
+}
