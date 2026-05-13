@@ -1,5 +1,12 @@
 # Plan — Multi-profils & upload UI
 
+> **Note (2026-05-13)** : les sections mentionnant `data/profiles.json`
+> (registre JSON `PROFILES_FILE`, `save_profiles()`, etc.) sont **obsolètes**.
+> Le registre a été supprimé en faveur d'une lecture 100% SQLite : `nom` et
+> `created_at` vivent dans `user_profile` de chaque DB de profil, la liste
+> des profils est dérivée du scan de `data/profiles/*/`. Voir
+> `profiles.py:load_profiles` et `migrate_legacy_profiles_json`.
+
 ## Context
 
 L'app gère aujourd'hui une seule entité légale (SIREN unique, `user_profile WHERE id=1`, `data/invoices.db` fixe). L'utilisateur veut gérer N entités légales (SASU, micro-entreprise, etc.) depuis la même installation, avec isolation complète des données. L'ajout de documents se fait actuellement en déposant des fichiers dans `input/` puis en lançant `run.py` en CLI. L'objectif est de remplacer ce flux par un bouton upload dans le dashboard, multi-fichiers, déclenché par l'utilisateur actif.

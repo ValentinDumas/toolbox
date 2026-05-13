@@ -68,17 +68,8 @@ def profils_creer():
         return render_template("profils/premiere_page.html", error=error), 200
     entry = create_profile(name)
     session["active_profile"] = entry["slug"]
-    # Le registre profiles.json garde le `name` pour le sélecteur de profils,
-    # mais le header et Paramètres > Mon profil lisent user_profile.nom dans la DB.
-    # On y miroir le nom dès la création pour éviter "Entité non renseignée".
-    conn = open_db(active_db())
-    conn.execute(
-        "INSERT INTO user_profile (id, nom) VALUES (1, ?) "
-        "ON CONFLICT(id) DO UPDATE SET nom=excluded.nom",
-        (name,),
-    )
-    conn.commit()
-    conn.close()
+    # `create_profile` peuple déjà `user_profile.nom` + `created_at` dans la DB
+    # du profil. Plus besoin de double-écriture ici.
     return redirect(url_for("profils.configuration"))
 
 

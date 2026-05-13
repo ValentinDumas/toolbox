@@ -12,6 +12,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_profile (
     id                       INTEGER PRIMARY KEY CHECK (id = 1),
     nom                      TEXT    DEFAULT '',
+    created_at               TEXT,
     siren                    TEXT    DEFAULT '',
     tva_intracom             TEXT    DEFAULT '',
     fiscal_profile           TEXT    DEFAULT 'auto-entrepreneur',
@@ -114,7 +115,7 @@ CREATE TABLE IF NOT EXISTS urssaf_declarations (
 );
 """
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 # Catégories par défaut + taux de TVA. Seedées au premier lancement, modifiables
 # via le tab "Catégories TVA" des paramètres. Source : les clés de `_CATEGORIES`
@@ -171,6 +172,10 @@ def _run_migrations(conn: sqlite3.Connection, config_path: Path | None = None) -
         "ALTER TABLE user_profile ADD COLUMN code_ape TEXT",
         "ALTER TABLE user_profile ADD COLUMN adresse TEXT",
         "ALTER TABLE user_profile ADD COLUMN conditions_reglement TEXT",
+        # Date de création du profil — remplace l'entrée correspondante de
+        # `data/profiles.json` (registre supprimé en faveur d'une lecture
+        # 100% SQLite + scan filesystem pour la découverte des profils).
+        "ALTER TABLE user_profile ADD COLUMN created_at TEXT",
     ]:
         try:
             conn.execute(sql)

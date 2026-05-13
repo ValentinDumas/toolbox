@@ -2,8 +2,6 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -11,32 +9,24 @@ def _make_empty_app(tmp_path, monkeypatch):
     """App Flask sans profil existant — fait apparaître la page de bienvenue."""
     import app as _app
     import blueprints.profils as _bp_profils
+    import profiles as _profiles_mod
 
-    monkeypatch.setattr(_app, "load_profiles", lambda: [])
-    monkeypatch.setattr(_bp_profils, "load_profiles", lambda: [])
-    # Empêche la persistance réelle quand un nom valide est soumis.
-    created = {}
+    # PROFILES_DIR pointé sur un répertoire vide → load_profiles() retourne []
+    # naturellement, sans mock de fonction.
+    monkeypatch.setattr(_profiles_mod, "PROFILES_DIR", tmp_path / "data" / "profiles")
+    monkeypatch.setattr(_profiles_mod, "LEGACY_REGISTRY",
+                        tmp_path / "data" / "profiles.json")
+
+    # `create_profile` reste mocké : on ne veut pas créer de vrais dossiers/DB
+    # pour des tests qui valident uniquement l'ACL sur le nom.
+    created: dict = {}
 
     def _fake_create_profile(name):
         created["name"] = name
-        return {"slug": "fake-slug", "name": name, "created_at": "2026-01-01T00:00:00+00:00"}
+        return {"slug": "fake-slug", "name": name,
+                "created_at": "2026-01-01T00:00:00+00:00"}
 
     monkeypatch.setattr(_bp_profils, "create_profile", _fake_create_profile)
-    # Court-circuite la mise à jour DB qui suit create_profile dans le POST.
-    import sqlite3
-
-    def _fake_open_db(_path):
-        return sqlite3.connect(":memory:")
-
-    monkeypatch.setattr(_bp_profils, "open_db", _fake_open_db)
-    monkeypatch.setattr(_bp_profils, "active_db", lambda: ":memory:")
-    # La table user_profile n'existe pas dans la DB :memory: ; on patche execute.
-    # Plus simple : remplace l'appel INSERT par un no-op via une vraie DB éphémère.
-    db_file = tmp_path / "tmp.db"
-    from db import open_db as real_open_db
-    real_open_db(db_file).close()
-    monkeypatch.setattr(_bp_profils, "open_db", lambda _p: real_open_db(db_file))
-    monkeypatch.setattr(_bp_profils, "active_db", lambda: db_file)
 
     app = _app.create_app()
     app.config["TESTING"] = True

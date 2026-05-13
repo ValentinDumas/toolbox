@@ -2,18 +2,25 @@
 profiles.py — Registre multi-profils (entités légales distinctes).
 
 Chaque profil = un répertoire autonome sous data/profiles/{slug}/ avec
-sa propre invoices.db. Le registre est un fichier JSON léger.
+sa propre invoices.db. La liste des profils se déduit par scan du
+système de fichiers ; les métadonnées (`nom`, `created_at`) sont
+portées par la table `user_profile` de chaque DB.
+
+Le registre JSON `data/profiles.json` (jusqu'à 2026-05-13) est
+automatiquement migré vers les DB au boot via
+`migrate_legacy_profiles_json()`.
 """
 import json
 import re
 import shutil
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).parent
-PROFILES_FILE = HERE / "data" / "profiles.json"
 PROFILES_DIR = HERE / "data" / "profiles"
 LEGACY_DB = HERE / "data" / "invoices.db"
+LEGACY_REGISTRY = HERE / "data" / "profiles.json"
 
 
 def _slugify(name: str) -> str:
@@ -26,21 +33,72 @@ def _slugify(name: str) -> str:
     return slug or "profil"
 
 
-def load_profiles() -> list[dict]:
-    if not PROFILES_FILE.exists():
-        return []
+def _read_profile_meta(slug: str, db_path: Path) -> dict | None:
+    """Ouvre la DB d'un profil et lit (nom, created_at). Retourne None si
+    illisible. Tolère l'absence de la ligne `user_profile.id=1` (profil en
+    cours d'onboarding) en retombant sur le slug pour le nom."""
+    if not db_path.is_file():
+        return None
     try:
-        return json.loads(PROFILES_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        # Connexion read-only pour éviter de déclencher des migrations sur un
+        # simple scan de découverte. Si la DB est trop ancienne (colonne
+        # `created_at` absente), on retombe sur des valeurs par défaut.
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute(
+                "SELECT nom, created_at FROM user_profile WHERE id=1"
+            ).fetchone()
+        except sqlite3.OperationalError:
+            row = None
+        conn.close()
+    except sqlite3.DatabaseError:
+        return None
+    name = (row["nom"] if row and row["nom"] else "").strip() or slug
+    created_at = (row["created_at"] if row and "created_at" in row.keys() else None) or ""
+    return {"slug": slug, "name": name, "created_at": created_at}
+
+
+def _scan_profiles() -> list[dict]:
+    if not PROFILES_DIR.exists():
         return []
+    found: list[dict] = []
+    for entry in PROFILES_DIR.iterdir():
+        if not entry.is_dir():
+            continue
+        meta = _read_profile_meta(entry.name, entry / "invoices.db")
+        if meta is None:
+            continue
+        found.append(meta)
+    # Tri stable : created_at ASC (vides en queue), puis slug pour la stabilité.
+    found.sort(key=lambda p: (p["created_at"] == "", p["created_at"], p["slug"]))
+    return found
 
 
-def save_profiles(profiles: list[dict]) -> None:
-    PROFILES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    PROFILES_FILE.write_text(
-        json.dumps(profiles, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+def load_profiles() -> list[dict]:
+    """Découvre les profils via le filesystem. Cache par requête Flask si
+    un contexte est actif, lecture directe sinon (CLI)."""
+    try:
+        from flask import g, has_app_context
+    except ImportError:
+        return _scan_profiles()
+    if has_app_context():
+        cache = getattr(g, "_profiles_cache", None)
+        if cache is None:
+            cache = _scan_profiles()
+            g._profiles_cache = cache
+        return list(cache)
+    return _scan_profiles()
+
+
+def _invalidate_cache() -> None:
+    """À appeler après toute mutation (create_profile, migration)."""
+    try:
+        from flask import g, has_app_context
+        if has_app_context() and hasattr(g, "_profiles_cache"):
+            del g._profiles_cache
+    except ImportError:
+        pass
 
 
 def get_profile_meta(slug: str) -> dict | None:
@@ -48,13 +106,15 @@ def get_profile_meta(slug: str) -> dict | None:
 
 
 def create_profile(name: str) -> dict:
-    """Crée un nouveau profil : répertoire + sous-dossiers + entrée dans le registre."""
-    profiles = load_profiles()
+    """Crée un nouveau profil : répertoire + sous-dossiers + initialisation
+    de la DB avec `user_profile.nom` et `user_profile.created_at` peuplés."""
+    from db import open_db
+
+    existing = {p["slug"] for p in _scan_profiles()}
     base_slug = _slugify(name)
     slug = base_slug
-    existing = {p["slug"] for p in profiles}
     counter = 2
-    while slug in existing:
+    while slug in existing or (PROFILES_DIR / slug).exists():
         slug = f"{base_slug}-{counter}"
         counter += 1
 
@@ -62,14 +122,118 @@ def create_profile(name: str) -> dict:
     for subdir in ("input", "processed", "errors", "duplicates", "output", "review"):
         (profile_dir / subdir).mkdir(parents=True, exist_ok=True)
 
-    entry = {
-        "slug": slug,
-        "name": name,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    profiles.append(entry)
-    save_profiles(profiles)
-    return entry
+    created_at = datetime.now(timezone.utc).isoformat()
+    conn = open_db(profile_dir / "invoices.db")
+    conn.execute(
+        "INSERT INTO user_profile (id, nom, created_at) VALUES (1, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "nom=excluded.nom, created_at=excluded.created_at",
+        (name, created_at),
+    )
+    conn.commit()
+    conn.close()
+
+    _invalidate_cache()
+    return {"slug": slug, "name": name, "created_at": created_at}
+
+
+def maybe_migrate_legacy() -> str | None:
+    """Migre l'ancienne DB mono-profil `data/invoices.db` vers un profil
+    « Entreprise principale ». No-op si aucun héritage à migrer."""
+    if not LEGACY_DB.exists():
+        return None
+    if PROFILES_DIR.exists() and any(PROFILES_DIR.iterdir()):
+        return None
+    entry = create_profile("Entreprise principale")
+    dest = PROFILES_DIR / entry["slug"] / "invoices.db"
+    # Le `create_profile` a déjà créé une DB vide ; on remplace par la legacy.
+    dest.unlink(missing_ok=True)
+    shutil.move(str(LEGACY_DB), str(dest))
+    # Réinjecte le nom + created_at dans la DB déplacée (la legacy n'a pas
+    # encore ces métadonnées).
+    from db import open_db
+    conn = open_db(dest)
+    conn.execute(
+        "INSERT INTO user_profile (id, nom, created_at) VALUES (1, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "nom=COALESCE(NULLIF(user_profile.nom,''), excluded.nom), "
+        "created_at=COALESCE(user_profile.created_at, excluded.created_at)",
+        (entry["name"], entry["created_at"]),
+    )
+    conn.commit()
+    conn.close()
+    migrate_legacy_files(entry["slug"])
+    _invalidate_cache()
+    return entry["slug"]
+
+
+def migrate_legacy_profiles_json() -> dict[str, str]:
+    """Migration unique de `data/profiles.json` vers `user_profile`.
+
+    Lit le JSON (s'il existe) et reporte `name` + `created_at` dans la DB
+    de chaque profil — uniquement quand la valeur correspondante en base
+    est vide (préserve toute saisie ultérieure dans Paramètres). Le
+    fichier JSON est ensuite renommé en `.bak` (pas de suppression dure).
+
+    Idempotente : un deuxième appel est un no-op si le fichier n'existe
+    plus. Retourne `{slug: name}` pour les profils effectivement mis à jour.
+    """
+    if not LEGACY_REGISTRY.is_file():
+        return {}
+    try:
+        entries = json.loads(LEGACY_REGISTRY.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    from db import open_db
+
+    updated: dict[str, str] = {}
+    for entry in entries:
+        slug = entry.get("slug")
+        name = (entry.get("name") or "").strip()
+        created_at = entry.get("created_at") or ""
+        if not slug:
+            continue
+        db_path = PROFILES_DIR / slug / "invoices.db"
+        if not db_path.is_file():
+            # Profil orphelin (dossier disparu ou DB jamais initialisée) — skip.
+            continue
+        conn = open_db(db_path)
+        try:
+            row = conn.execute(
+                "SELECT nom, created_at FROM user_profile WHERE id=1"
+            ).fetchone()
+            current_nom = (row["nom"] if row and row["nom"] else "").strip()
+            current_created = (row["created_at"] if row and row["created_at"] else "")
+            new_nom = current_nom or name
+            new_created = current_created or created_at
+            # On écrit uniquement si quelque chose change pour rester idempotent
+            # et faciliter le test « second boot = no-op ».
+            if new_nom == current_nom and new_created == current_created:
+                continue
+            conn.execute(
+                "INSERT INTO user_profile (id, nom, created_at) VALUES (1, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET "
+                "nom=excluded.nom, created_at=excluded.created_at",
+                (new_nom, new_created),
+            )
+            conn.commit()
+            if new_nom != current_nom:
+                updated[slug] = new_nom
+        finally:
+            conn.close()
+
+    # Renomme le JSON pour éviter de réappliquer la migration au prochain boot,
+    # sans suppression dure (rollback possible si bug).
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    backup = LEGACY_REGISTRY.with_name(f"profiles.json.migrated-{stamp}.bak")
+    try:
+        LEGACY_REGISTRY.rename(backup)
+    except OSError:
+        pass
+
+    _invalidate_cache()
+    return updated
 
 
 def resolve_paths(slug: str) -> dict[str, Path]:
@@ -84,62 +248,6 @@ def resolve_paths(slug: str) -> dict[str, Path]:
         "output":     base / "output",
         "review":     base / "review",
     }
-
-
-def maybe_migrate_legacy() -> str | None:
-    """
-    Si data/invoices.db existe et aucun profil n'est créé, migre automatiquement
-    vers un profil 'Entreprise principale'. Retourne le slug créé, ou None.
-    """
-    if PROFILES_FILE.exists() or not LEGACY_DB.exists():
-        return None
-    entry = create_profile("Entreprise principale")
-    dest = PROFILES_DIR / entry["slug"] / "invoices.db"
-    shutil.move(str(LEGACY_DB), str(dest))
-    migrate_legacy_files(entry["slug"])
-    return entry["slug"]
-
-
-def backfill_profile_names_from_registry() -> dict[str, str]:
-    """
-    Restaure le nom d'entité dans `user_profile.nom` pour les profils créés
-    avant b072529 (#63), où la DB du profil restait avec un nom vide bien
-    que le registre `data/profiles.json` portait la bonne valeur.
-
-    Idempotent : ne réécrit jamais un nom déjà présent dans la DB. Un nom
-    saisi manuellement par l'utilisateur dans Paramètres > Mon profil est
-    donc préservé.
-
-    Retourne {slug: nom_appliqué} pour les profils effectivement mis à jour.
-    """
-    # Import local pour éviter une dépendance circulaire au chargement du module.
-    from db import open_db
-
-    updated: dict[str, str] = {}
-    for entry in load_profiles():
-        slug = entry.get("slug")
-        registry_name = (entry.get("name") or "").strip()
-        if not slug or not registry_name:
-            continue
-        db_path = PROFILES_DIR / slug / "invoices.db"
-        if not db_path.exists():
-            continue
-        conn = open_db(db_path)
-        try:
-            row = conn.execute("SELECT nom FROM user_profile WHERE id=1").fetchone()
-            current_nom = (row["nom"] if row and row["nom"] is not None else "").strip()
-            if current_nom:
-                continue
-            conn.execute(
-                "INSERT INTO user_profile (id, nom) VALUES (1, ?) "
-                "ON CONFLICT(id) DO UPDATE SET nom=excluded.nom",
-                (registry_name,),
-            )
-            conn.commit()
-            updated[slug] = registry_name
-        finally:
-            conn.close()
-    return updated
 
 
 def migrate_legacy_files(slug: str) -> dict[str, int]:
