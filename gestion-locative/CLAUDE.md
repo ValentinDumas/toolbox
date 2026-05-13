@@ -23,7 +23,8 @@ Tout ce qui sort de ce périmètre — location nue, SCI à l'IS, meublé de tou
 | Document | Rôle |
 |---|---|
 | [VISION.md](VISION.md) | Vision produit (le « pourquoi »). |
-| [LOGICIEL_GESTION_LOCATIVE.md](LOGICIEL_GESTION_LOCATIVE.md) | PRD (cible, MVP, KPIs, roadmap). |
+| [LOGICIEL_GESTION_LOCATIVE.md](LOGICIEL_GESTION_LOCATIVE.md) | PRD (cible, MVP, KPIs, roadmap, périmètre étendu V1.1/V2). |
+| [RISKS.md](RISKS.md) | Registre des risques (fiscal, juridique, technique, UX, maintenance) avec mitigations et cibles. |
 | [LMNP.md](LMNP.md) | Base de connaissances fiscales LMNP (CGI, BOFIP, seuils 2026, plus-value LF 2025). |
 | [LOCATION_MEUBLEE_REGLES.md](LOCATION_MEUBLEE_REGLES.md) | Règles juridiques de la location meublée (loi 89, décret mobilier, bail, EDL). |
 

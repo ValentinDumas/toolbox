@@ -89,10 +89,43 @@ Bon signal produit : retour **mensuel** pour le suivi loyers et échéances, san
 2. **Sprint 2** — Quittances et avis d'échéance : PDF, modèles, envoi.
 3. **Sprint 3** — Suivi des loyers : encaissements, retards, rapprochement.
 4. **Sprint 4** — Documents : upload, OCR factures/tickets, tagging.
-5. **Sprint 5** — Tableau de bord + notifications.
-6. **Sprint 6** — Préparation fiscale LMNP : agrégation, tableau d'amortissement, export vers liasse 2031.
+5. **Sprint 5** — Tableau de bord + notifications + sanity checks pré-export.
+6. **Sprint 6** — Préparation fiscale LMNP : agrégation, tableau d'amortissement historisé, export vers liasse 2031, snapshot annuel immuable.
 
-## 10. Références d'inspiration
+## 10. Périmètre étendu post-MVP
+
+Acte ce qui est **reporté sciemment** au-delà du MVP. Issus du registre des risques ([RISKS.md](RISKS.md)).
+
+### V1.1 — Premier trimestre post-MVP
+
+- **Assistant de classification entretien / amélioration / immobilisation** (R1.4).
+- **Simulateur micro vs réel** sur les données saisies (R1.7).
+- **Simulateur de plus-value à la cession** (R1.2) — anticipation LF 2025.
+- **Alerte de bascule LMNP → LMP** + simulation comparative (R1.6).
+- **Import historique** : 5 ans de quittances et amortissements (R4.1).
+- **Reporting comparatif** de fin d'exercice (R4.2).
+- **Backup planifié + restauration testée** (R3.1).
+- **Chiffrement de la DB au repos** (SQLCipher ou équivalent) (R3.4).
+- **Politique RGPD formalisée** (info locataire, effacement, registre) (R3.3).
+- **Intégration INSEE** pour les loyers de référence en zone tendue (R2.4).
+
+### V2 — Différé, à acter avant ouverture
+
+- **Cas non standards** : indivision, démembrement (usufruit/NP), colocation avec solidarité, bien mixte personnel/loué (R2.3).
+- **Multi-bailleur** : support SCI familiale, plusieurs profils bailleurs.
+- **Bail mobilité / étudiant** comme types first-class (V1 = bail classique uniquement).
+- **Meublé de tourisme** (régime différent — seuils 15 000 €, encadrement loi Le Meur).
+- **Export EDI-TDFC** vers les portails officiels (R4.4).
+- **Mode « accompagné par expert-comptable »** : double signature, traçabilité partagée (R5.3).
+
+### Hors produit (jamais)
+
+- Mise en location (annonces, sélection de dossier).
+- Contentieux et procédures juridiques.
+- Multi-utilisateur, mode agence.
+- Prise en charge humaine des urgences.
+
+## 11. Références d'inspiration
 
 - [Manda](https://www.manda.fr/gestion-locative/en-ligne) — gestion en ligne avec délégation humaine.
 - [Rentila](https://www.rentila.com/blog/2025/12/meilleur-logiciel-de-gestion-locative/) — logiciel de gestion pour bailleurs.
