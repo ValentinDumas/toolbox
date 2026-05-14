@@ -27,7 +27,15 @@ export function buildMailto(params: MailtoParams): string {
   if (bodyEnc.length > LIMITE_CORPS) {
     const mentionEnc = encodeURIComponent(MENTION_TRONQUEE).replaceAll('%0A', '%0D%0A');
     // Tronquer de façon à laisser de la place pour la mention
-    const limite = LIMITE_CORPS - mentionEnc.length;
+    let limite = LIMITE_CORPS - mentionEnc.length;
+    // WR-04 : reculer si on coupe au milieu d'une séquence %XX
+    // (sinon decodeURIComponent côté client jettera).
+    while (
+      limite > 0 &&
+      (bodyEnc[limite - 1] === '%' || (limite >= 2 && bodyEnc[limite - 2] === '%'))
+    ) {
+      limite--;
+    }
     bodyFinal = bodyEnc.substring(0, limite) + mentionEnc;
   } else {
     bodyFinal = bodyEnc;
