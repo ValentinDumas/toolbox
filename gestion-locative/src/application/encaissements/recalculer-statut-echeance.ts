@@ -37,6 +37,15 @@ export async function recalculerStatutEcheance(
     throw new Error(`Échéance introuvable : ${echeanceId}`);
   }
 
+  // CR-05 : préserver le statut 'annulee'. Un recalcul ne doit JAMAIS
+  // ressusciter une échéance annulée — l'état 'annulee' est terminal
+  // (D-60 audit-friendly). Cela évite aussi qu'un TOCTOU entre
+  // creer-encaissement.ts et l'annulation ne fasse basculer 'annulee'
+  // → 'en_attente'.
+  if (echeance.statut === 'annulee') {
+    return { statut: 'annulee', sommePaiee, surPaiement: null };
+  }
+
   const total = echeance.total;
 
   let statut: StatutEcheanceLoyer;
