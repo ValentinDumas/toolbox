@@ -63,8 +63,16 @@
           <% if (e.statut !== 'annulee' && e.statut !== 'payee') { %>
             <a href="/encaissements/nouveau?echeance=<%= e.id %>">Saisir un encaissement</a>
           <% } %>
-          <% if (e.statut === 'payee') { %>
-            <a href="/quittances/nouveau?echeance=<%= e.id %>">Générer quittance</a>
+          <% if (e.statut === 'payee' && !(e.quittanceActive)) { %>
+            <form method="POST" action="/quittances" style="display:inline;">
+              <input type="hidden" name="echeanceId" value="<%= e.id %>" />
+              <button type="submit">Générer la quittance</button>
+            </form>
+          <% } %>
+          <% if (e.quittanceActive) { %>
+            <a href="/quittances/<%= e.quittanceActive.id %>">Voir la quittance <%= e.quittanceActive.numero %></a>
+            &nbsp;
+            <a href="/quittances/<%= e.quittanceActive.id %>/pdf">Télécharger PDF</a>
           <% } %>
         </td>
       </tr>

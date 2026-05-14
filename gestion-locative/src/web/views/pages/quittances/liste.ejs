@@ -1,0 +1,71 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Quittances',
+  breadcrumbs: [{ label: 'Quittances' }],
+  navActive: 'quittances'
+}) %>
+
+<%- include('../../partials/banniere-success', { message: locals.banniereSuccess }) %>
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
+<h1>Quittances de loyer</h1>
+
+<% if (quittancesEnrichies.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucune quittance émise',
+    body: 'Les quittances apparaîtront ici après émission depuis la page Échéances.',
+    ctaLabel: null,
+    ctaUrl: null
+  }) %>
+<% } else { %>
+<div role="region" aria-label="Tableau des quittances">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Numéro</th>
+        <th scope="col">Période</th>
+        <th scope="col">Locataire</th>
+        <th scope="col">Date d'émission</th>
+        <th scope="col">Statut</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% quittancesEnrichies.forEach(function(item) { %>
+      <% const q = item.quittance; const e = item.echeance; const loc = item.locataire; %>
+      <tr<%= q.annuleeLe ? ' style="opacity:0.65;"' : '' %>>
+        <td style="font-variant-numeric: tabular-nums;"><%= q.numero %></td>
+        <td>
+          <% if (e) { %>
+            <%= locals.formatDate ? locals.formatDate(e.periodeDebut) : e.periodeDebut.toString() %>
+          <% } else { %>
+            —
+          <% } %>
+        </td>
+        <td>
+          <% if (loc) { %>
+            <%= loc.prenom %> <%= loc.nom %>
+          <% } else { %>
+            —
+          <% } %>
+        </td>
+        <td><%= locals.formatDate ? locals.formatDate(q.emiseLe) : q.emiseLe.toString() %></td>
+        <td>
+          <% if (q.annuleeLe) { %>
+            <span>Annulée le <%= locals.formatDate ? locals.formatDate(q.annuleeLe) : q.annuleeLe.toString() %></span>
+          <% } else { %>
+            <span style="color: var(--pico-ins-color, green);">Valide</span>
+          <% } %>
+        </td>
+        <td>
+          <a href="/quittances/<%= q.id %>">Voir</a>
+          &nbsp;
+          <a href="/quittances/<%= q.id %>/pdf">Télécharger PDF</a>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>
