@@ -86,10 +86,10 @@ describe('RelanceRepositorySqlite', () => {
 
     const relances = await relanceRepo.listerParEcheance(echeanceId);
     expect(relances).toHaveLength(1);
-    expect(relances[0].niveau).toBe(1);
-    expect(relances[0].canal).toBe('email');
-    expect(relances[0].envoyeeLe.toString()).toBe('2026-05-15');
-    expect(relances[0].annuleLe).toBeNull();
+    expect(relances[0]!.niveau).toBe(1);
+    expect(relances[0]!.canal).toBe('email');
+    expect(relances[0]!.envoyeeLe.toString()).toBe('2026-05-15');
+    expect(relances[0]!.annuleLe).toBeNull();
   });
 
   it('listerParEcheance filtre annule_le IS NULL par défaut', async () => {
@@ -115,7 +115,7 @@ describe('RelanceRepositorySqlite', () => {
     // Par défaut → filtre annule_le IS NULL
     const actives = await relanceRepo.listerParEcheance(echeanceId);
     expect(actives).toHaveLength(1);
-    expect(actives[0].id).toBe(relanceActive.id);
+    expect(actives[0]!.id).toBe(relanceActive.id);
 
     // Avec inclureAnnulees → toutes
     const toutes = await relanceRepo.listerParEcheance(echeanceId, { inclureAnnulees: true });

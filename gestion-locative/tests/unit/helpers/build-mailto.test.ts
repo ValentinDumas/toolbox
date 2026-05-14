@@ -36,7 +36,7 @@ describe('buildMailto', () => {
     // Extraire la partie body de l'URI
     const bodyMatch = uri.match(/&body=(.+)$/);
     expect(bodyMatch).toBeTruthy();
-    const bodyEncoded = bodyMatch![1];
+    const bodyEncoded = bodyMatch?.[1] ?? '';
     // Body doit être <= 1900 chars encodés
     expect(bodyEncoded.length).toBeLessThanOrEqual(1900);
     // Doit contenir la mention de troncature (décodée)

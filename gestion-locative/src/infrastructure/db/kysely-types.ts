@@ -125,6 +125,17 @@ export interface QuittanceTable {
   cree_le: Generated<string>;
 }
 
+export interface RelanceTable {
+  id: string;
+  echeance_id: string;
+  niveau: 1 | 2 | 3;
+  canal: 'email' | 'pdf';
+  envoyee_le: string;
+  contenu_snapshot: string;
+  annule_le: string | null;
+  cree_le: Generated<string>;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -136,4 +147,5 @@ export interface DB {
   echeance_loyer: EcheanceLoyerTable;
   encaissement: EncaissementTable;
   quittance: QuittanceTable;
+  relance: RelanceTable;
 }

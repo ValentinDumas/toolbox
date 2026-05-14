@@ -310,7 +310,7 @@ Given(
 // ─── When Steps ───────────────────────────────────────────────────────────────
 
 When(
-  'le bailleur navigue vers GET /impayes',
+  /^le bailleur navigue vers GET \/impayes$/,
   async function (this: MondeRelance) {
     assert.ok(this.app, 'App non initialisée');
     const response = await this.app.inject({
@@ -325,7 +325,7 @@ When(
 );
 
 When(
-  'le bailleur soumet POST /relances avec niveau 1',
+  /^le bailleur soumet POST \/relances avec niveau 1$/,
   async function (this: MondeRelance) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.derniereEcheanceId, 'EcheanceId non défini');
@@ -347,7 +347,7 @@ When(
 );
 
 When(
-  'le bailleur soumet POST /relances avec niveau 3',
+  /^le bailleur soumet POST \/relances avec niveau 3$/,
   async function (this: MondeRelance) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.derniereEcheanceId, 'EcheanceId non défini');
@@ -370,7 +370,7 @@ When(
 );
 
 When(
-  'le bailleur navigue vers GET /relances',
+  /^le bailleur navigue vers GET \/relances$/,
   async function (this: MondeRelance) {
     assert.ok(this.app, 'App non initialisée');
     const response = await this.app.inject({
@@ -385,7 +385,7 @@ When(
 );
 
 When(
-  'le bailleur navigue vers GET /relances/:id/pdf',
+  /^le bailleur navigue vers GET \/relances\/:id\/pdf$/,
   async function (this: MondeRelance) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.derniereRelanceId, 'RelanceId non défini');

@@ -67,3 +67,19 @@ export class FichierIntrouvable extends Error {
     this.name = 'FichierIntrouvable';
   }
 }
+
+export class RelanceIntrouvable extends Error {
+  constructor(id: string) {
+    super(`Relance introuvable : ${id}`);
+    this.name = 'RelanceIntrouvable';
+  }
+}
+
+export class RelanceNiveauNonDisponible extends Error {
+  constructor(niveauDemande: number, niveauDisponible: number | null) {
+    super(
+      `Le niveau ${niveauDemande} n'est pas disponible (chaînage strict ou seuil non atteint). Disponible : ${niveauDisponible ?? 'aucun'}.`,
+    );
+    this.name = 'RelanceNiveauNonDisponible';
+  }
+}

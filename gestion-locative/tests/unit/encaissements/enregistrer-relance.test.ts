@@ -45,7 +45,7 @@ const locataireStub = {
   prenom: 'Marie',
   nom: 'Martin',
   email: 'marie.martin@example.fr',
-  adresse: { rue: '10 rue test', codePostal: '75010', ville: 'Paris' },
+  adresseActuelle: { rue: '10 rue test', codePostal: '75010', ville: 'Paris' },
 };
 
 const bienStub = {
@@ -75,7 +75,8 @@ const pdfRendererStub = {
   genererBuffer: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4 test')),
 };
 
-function creerRepos(opts: { relances?: unknown[] } = {}) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function creerRepos(opts: { relances?: unknown[] } = {}): any {
   const relances = opts.relances ?? [];
   return {
     relanceRepo: {

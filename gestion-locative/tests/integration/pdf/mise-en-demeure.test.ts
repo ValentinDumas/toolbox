@@ -53,9 +53,10 @@ const today = Temporal.PlainDate.from('2026-07-05');
 const montantTotalDu = Money.fromEuros(700);
 
 describe('construireMiseEnDemeure + PdfRendererPdfmake', () => {
-  it('T22 : buffer commence par %PDF-, contient mentions essentielles Code civil art. 1344', async () => {
+  it('T22 : docDef contient mentions essentielles Code civil art. 1344 + buffer commence par %PDF-', async () => {
     const renderer = new PdfRendererPdfmake();
 
+    // Vérifier le docDef avant que pdfmake le mutate
     const docDef = construireMiseEnDemeure(
       echeance,
       [],
@@ -68,16 +69,18 @@ describe('construireMiseEnDemeure + PdfRendererPdfmake', () => {
       today,
     );
 
+    // Sérialiser AVANT le rendu pdfmake (pdfmake mute le docDef en place)
+    const json = JSON.stringify(docDef);
+    expect(json).toContain('MISE EN DEMEURE');
+    expect(json).toContain('8 (huit) jours');
+    expect(json).toContain('voies de droit');
+    expect(json).toContain('recommand');
+    expect(json).toContain('Marie Martin');
+    expect(json).toContain('Jean Dupont');
+
+    // Génération PDF
     const buffer = await renderer.genererBuffer(docDef);
-
-    // Commence par %PDF-
-    expect(buffer.slice(0, 5).toString()).toBe('%PDF-');
-
-    // Contient les mentions essentielles
-    const contenu = buffer.toString('latin1');
-    expect(contenu).toContain('MISE EN DEMEURE');
-    expect(contenu).toContain('8');
-    expect(contenu).toContain('recommand');
-    expect(contenu).toContain('droit');
+    expect(buffer.slice(0, 5).toString('binary')).toBe('%PDF-');
+    expect(buffer.length).toBeGreaterThan(1000);
   });
 });
