@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-project-init-PLAN.md — Scaffolding TS/pnpm/Vitest/Cucumber/ESLint/dependency-cruiser/Mise (wave 0)
 - [x] 01-02-walking-skeleton-PLAN.md — Walking Skeleton bout-en-bout : Fastify + SQLite + 1 Bien + 1 Lot via formulaire minimal (wave 1, PAT-01)
-- [ ] 01-03-patrimoine-crud-PLAN.md — CRUD Bien + N-Lots (PAT-01, PAT-02) (wave 2)
+- [x] 01-03-patrimoine-crud-PLAN.md — CRUD Bien + N-Lots (PAT-01, PAT-02) (wave 2)
 - [ ] 01-04-locataire-crud-PLAN.md — CRUD Locataire (LOC-01) (wave 3)
 - [ ] 01-05-bail-classique-PLAN.md — Bail meublé classique + VOs Money/IRL/Cautionnement (LOC-02) (wave 4)
 - [ ] 01-06-activation-wizard-PLAN.md — Wizard 3 étapes premier lancement + session (wave 5)

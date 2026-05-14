@@ -12,7 +12,7 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 ### Patrimoine
 
 - [x] **PAT-01** : L'utilisateur peut créer, éditer, supprimer un `Bien` (adresse, surface, type, année construction).
-- [ ] **PAT-02** : L'utilisateur peut gérer plusieurs `Lot`s dans un `Bien` (appartement, parking, cave).
+- [x] **PAT-02** : L'utilisateur peut gérer plusieurs `Lot`s dans un `Bien` (appartement, parking, cave).
 - [ ] **PAT-03** : L'utilisateur peut stocker des `Diagnostic`s (DPE, gaz, élec, ERP) avec date d'émission et date d'expiration calculée selon la durée légale.
 
 ### Locatif
@@ -127,7 +127,7 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 | Requirement | Phase | Status |
 |---|---|---|
 | PAT-01 | Phase 1 | Complete |
-| PAT-02 | Phase 1 | Pending |
+| PAT-02 | Phase 1 | Complete |
 | PAT-03 | Phase 3 | Pending |
 | LOC-01 | Phase 1 | Pending |
 | LOC-02 | Phase 1 | Pending |
