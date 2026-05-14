@@ -161,8 +161,15 @@ export async function genererQuittance(
         clock.aujourdhui(),
       );
       await repos.quittanceRepo.enregistrer(quittanceAnnulee);
-    } catch {
-      // L'annulation échoue — on laisse l'erreur initiale remonter (best-effort).
+    } catch (compErr) {
+      // CRITIQUE : double erreur. L'invariant audit
+      // "quittance active ⇒ PDF présent" est violé. Action manuelle requise.
+      console.error(
+        `[CRITICAL] generer-quittance compensation failed for quittance ${quittance!.id} (${quittance!.numero}). ` +
+          `Original error: ${err instanceof Error ? err.message : String(err)}. ` +
+          `Compensation error: ${compErr instanceof Error ? compErr.message : String(compErr)}. ` +
+          `Manual cleanup required: UPDATE quittance SET annulee_le = '${clock.aujourdhui().toString()}' WHERE id = '${quittance!.id}'`,
+      );
     }
     throw err;
   }
