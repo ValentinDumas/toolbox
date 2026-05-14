@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. KPI Activation : un utilisateur ouvrant l'app pour la première fois peut, en une session unique, aboutir à 1 Bien + 1 Locataire + 1 Bail visibles dans une liste persistée.
 **Plans:** 7 plans
 Plans:
-- [ ] 01-01-project-init-PLAN.md — Scaffolding TS/pnpm/Vitest/Cucumber/ESLint/dependency-cruiser/Mise (wave 0)
+- [x] 01-01-project-init-PLAN.md — Scaffolding TS/pnpm/Vitest/Cucumber/ESLint/dependency-cruiser/Mise (wave 0)
 - [ ] 01-02-walking-skeleton-PLAN.md — Walking Skeleton bout-en-bout : Fastify + SQLite + 1 Bien + 1 Lot via formulaire minimal (wave 1, PAT-01)
 - [ ] 01-03-patrimoine-crud-PLAN.md — CRUD Bien + N-Lots (PAT-01, PAT-02) (wave 2)
 - [ ] 01-04-locataire-crud-PLAN.md — CRUD Locataire (LOC-01) (wave 3)

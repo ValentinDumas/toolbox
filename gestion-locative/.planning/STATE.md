@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_execute
+status: executing
 stopped_at: Phase 01 plans complete (7 plans + SKELETON, plan-checker PASS)
-last_updated: "2026-05-14T09:15:00.000Z"
-last_activity: 2026-05-14 — Phase 01 planned (7 plans, all 4 REQs covered)
+last_updated: "2026-05-14T09:23:13.803Z"
+last_activity: 2026-05-14 -- Phase 01 execution started
 progress:
   total_phases: 7
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13)
 
 **Core value:** Centraliser factures, quittances, baux et échéances pour simplifier les obligations fiscales LMNP (liasse 2031, 2042 C PRO, CFE, amortissements, plus-value LF 2025) — sans cloud, sans délégation.
-**Current focus:** Phase 1 — Activation — Bien, Locataire, Bail
+**Current focus:** Phase 01 — activation-bien-locataire-bail
 
 ## Current Position
 
-Phase: 1 of 7 (Activation — Bien, Locataire, Bail)
-Plan: 0 of 7 in current phase
-Status: Ready to execute (`/gsd-execute-phase 1`)
-Last activity: 2026-05-14 — Phase 01 planned (7 plans, all 4 REQs covered, VERIFICATION PASSED)
+Phase: 01 (activation-bien-locataire-bail) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 01
+Last activity: 2026-05-14 -- Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
