@@ -1,5 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { EcheanceLoyerId, BailId, EncaissementId, QuittanceId } from '../../src/domain/_shared/identifiants.js';
+import type { EcheanceLoyerId, BailId, EncaissementId, QuittanceId, RelanceId } from '../../src/domain/_shared/identifiants.js';
 import { Money } from '../../src/domain/_shared/money.js';
 
 // EcheanceLoyer ne peut pas encore être importé (code non créé) — builder retourne un objet pur
@@ -129,5 +129,46 @@ export function uneQuittanceValide(overrides: OverridesQuittance & { echeanceId:
     emiseLe: overrides.emiseLe ?? Temporal.PlainDate.from('2026-05-31'),
     annuleeLe: overrides.annuleeLe !== undefined ? overrides.annuleeLe : null,
     raisonAnnulation: overrides.raisonAnnulation !== undefined ? overrides.raisonAnnulation : null,
+  };
+}
+
+// ─── Relance Builder ──────────────────────────────────────────────────────────
+
+export type NiveauRelance = 1 | 2 | 3;
+export type CanalRelance = 'email' | 'pdf';
+
+export interface RelanceProps {
+  id?: RelanceId;
+  echeanceId: EcheanceLoyerId;
+  niveau: NiveauRelance;
+  canal: CanalRelance;
+  envoyeeLe: Temporal.PlainDate;
+  contenuSnapshot: string;
+  annuleLe?: Temporal.PlainDate | null;
+}
+
+interface OverridesRelance {
+  id?: RelanceId;
+  echeanceId?: EcheanceLoyerId;
+  niveau?: NiveauRelance;
+  canal?: CanalRelance;
+  envoyeeLe?: Temporal.PlainDate;
+  contenuSnapshot?: string;
+  annuleLe?: Temporal.PlainDate | null;
+}
+
+/**
+ * Builder Relance valide — defaults cohérents.
+ * niveau 1, canal 'email', envoyeeLe 2026-05-15.
+ */
+export function uneRelanceValide(overrides: OverridesRelance & { echeanceId: EcheanceLoyerId }): RelanceProps {
+  return {
+    id: overrides.id,
+    echeanceId: overrides.echeanceId,
+    niveau: overrides.niveau ?? 1,
+    canal: overrides.canal ?? 'email',
+    envoyeeLe: overrides.envoyeeLe ?? Temporal.PlainDate.from('2026-05-15'),
+    contenuSnapshot: overrides.contenuSnapshot ?? '{"version":"v1","variables":{},"contenuRendu":"","mailtoUri":null}',
+    annuleLe: overrides.annuleLe !== undefined ? overrides.annuleLe : null,
   };
 }
