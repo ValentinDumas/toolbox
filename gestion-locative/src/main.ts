@@ -12,6 +12,7 @@ import { formatDate } from './helpers/format-date.js';
 import { formatMoney } from './helpers/format-money.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
+import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
 
 // Augmente FastifyReply pour supporter `reply.locals` (injection EJS via @fastify/view defaultContext workaround)
 declare module 'fastify' {
@@ -26,6 +27,7 @@ import { BienRepositorySqlite } from './infrastructure/repositories/bien-reposit
 import { LocataireRepositorySqlite } from './infrastructure/repositories/locataire-repository-sqlite.js';
 import { BailRepositorySqlite } from './infrastructure/repositories/bail-repository-sqlite.js';
 import { BailleurRepositorySqlite } from './infrastructure/repositories/bailleur-repository-sqlite.js';
+import { ActiviteBailDetectorSqlite } from './infrastructure/repositories/activite-bail-detector-sqlite.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
@@ -40,7 +42,10 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export async function creerApp(db: Kysely<DB>, opts: { clock?: Clock } = {}): Promise<ReturnType<typeof Fastify>> {
+export async function creerApp(
+  db: Kysely<DB>,
+  opts: { clock?: Clock; activiteBailDetector?: ActiviteBailDetector } = {},
+): Promise<ReturnType<typeof Fastify>> {
   const _clock = opts.clock ?? new ClockSysteme();
   const logLevel = process.env['LOG_LEVEL'] ?? 'silent';
 
@@ -87,6 +92,7 @@ export async function creerApp(db: Kysely<DB>, opts: { clock?: Clock } = {}): Pr
   const locataireRepo = new LocataireRepositorySqlite(db);
   const bailRepo = new BailRepositorySqlite(db);
   const bailleurRepo = new BailleurRepositorySqlite(db);
+  const activiteBailDetector = opts.activiteBailDetector ?? new ActiviteBailDetectorSqlite(db);
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
@@ -103,7 +109,7 @@ export async function creerApp(db: Kysely<DB>, opts: { clock?: Clock } = {}): Pr
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
-  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo });
+  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector });
   await app.register(bailleurPlugin, { bailleurRepo });
 
   return app;

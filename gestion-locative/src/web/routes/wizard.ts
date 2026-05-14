@@ -33,6 +33,7 @@ declare module 'fastify' {
   interface Session {
     wizard?: WizardSession;
     banniereSuccess?: string;
+    banniereWarning?: string;
   }
 }
 

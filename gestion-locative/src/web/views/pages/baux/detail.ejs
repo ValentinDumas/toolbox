@@ -6,6 +6,9 @@
 
 <h1>Bail de <%= locataire.prenom %> <%= locataire.nom %> au <%= bien.adresse.enLigne() %></h1>
 
+<%- include('../../partials/banniere-success', { message: locals.banniereSuccess }) %>
+<%- include('../../partials/banniere-warning', { message: locals.banniereWarning }) %>
+
 <h2>Locataire</h2>
 <dl>
   <dt>Nom</dt><dd><%= locataire.nom %></dd>
@@ -70,15 +73,36 @@
 <p>
   <a href="/baux/<%= bail.id %>/modifier" role="button">Modifier le bail</a>
   &nbsp;
-  <button type="button" class="destructif" data-open-dialog="dialog-supprimer-bail">Supprimer</button>
+  <% if (locals.aDeLActivite || bail.actifDepuis !== null) { %>
+    <% if (bail.actifDepuis !== null) { %>
+      <button type="button" data-open-dialog="dialog-desactiver-bail">Désactiver</button>
+    <% } %>
+    <% if (locals.aDeLActivite) { %>
+      <p><small>Ce bail a déjà de l'activité (échéances, encaissements ou quittances). Il ne peut plus être supprimé. Vous pouvez en revanche le désactiver.</small></p>
+    <% } %>
+  <% } else { %>
+    <button type="button" class="destructif" data-open-dialog="dialog-supprimer-bail">Supprimer</button>
+  <% } %>
 </p>
 
-<%- include('../../partials/confirm-dialog', {
-  id: 'dialog-supprimer-bail',
-  formAction: '/baux/' + bail.id + '/supprimer',
-  message: 'Supprimer ce bail ? Cette action est irréversible.',
-  confirmLabel: 'Supprimer définitivement',
-  cancelLabel: 'Annuler'
-}) %>
+<% if (bail.actifDepuis !== null) { %>
+  <%- include('../../partials/confirm-dialog', {
+    id: 'dialog-desactiver-bail',
+    formAction: '/baux/' + bail.id + '/desactiver',
+    message: "Désactiver ce bail ? Les échéances futures ne seront plus émises mais l'historique est préservé.",
+    confirmLabel: 'Désactiver le bail',
+    cancelLabel: 'Annuler'
+  }) %>
+<% } %>
+
+<% if (!locals.aDeLActivite && bail.actifDepuis === null) { %>
+  <%- include('../../partials/confirm-dialog', {
+    id: 'dialog-supprimer-bail',
+    formAction: '/baux/' + bail.id + '/supprimer',
+    message: 'Supprimer ce bail ? Cette action est irréversible.',
+    confirmLabel: 'Supprimer définitivement',
+    cancelLabel: 'Annuler'
+  }) %>
+<% } %>
 
 <%- include('../../partials/layout-fin') %>
