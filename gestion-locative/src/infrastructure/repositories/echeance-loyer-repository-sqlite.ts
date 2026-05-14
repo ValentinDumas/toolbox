@@ -93,6 +93,14 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
     return rows.map((r) => this.versDomaine(r as EcheanceLoyerRow));
   }
 
+  async supprimerLot(ids: EcheanceLoyerId[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db
+      .deleteFrom('echeance_loyer')
+      .where('id', 'in', ids)
+      .execute();
+  }
+
   async compterParBail(bailId: BailId): Promise<number> {
     const result = await this.db
       .selectFrom('echeance_loyer')

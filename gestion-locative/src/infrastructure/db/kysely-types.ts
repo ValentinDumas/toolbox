@@ -103,6 +103,17 @@ export interface EcheanceLoyerTable {
   annule_le: string | null;
 }
 
+export interface EncaissementTable {
+  id: string;
+  echeance_id: string;
+  montant_centimes: number;
+  date: string;
+  mode: 'virement' | 'cheque' | 'especes' | 'prelevement' | 'autre';
+  annule_le: string | null;
+  raison_annulation: string | null;
+  cree_le: Generated<string>;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -112,4 +123,5 @@ export interface DB {
   meta: MetaTable;
   bailleur: BailleurTable;
   echeance_loyer: EcheanceLoyerTable;
+  encaissement: EncaissementTable;
 }

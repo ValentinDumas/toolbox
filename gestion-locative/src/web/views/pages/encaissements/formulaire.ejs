@@ -1,0 +1,96 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Saisir un encaissement',
+  breadcrumbs: [
+    { url: '/encaissements', label: 'Encaissements' },
+    { label: 'Nouveau' }
+  ],
+  navActive: 'encaissements'
+}) %>
+
+<% if (echeancesOuvertes.length === 0 && !echeance) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucune échéance en attente — tous les loyers sont à jour',
+    body: "Aucun encaissement à enregistrer pour le moment. Reviens ici quand une nouvelle échéance arrivera à terme.",
+    ctaLabel: 'Retour aux encaissements',
+    ctaUrl: '/encaissements'
+  }) %>
+<% } else { %>
+  <h1>Saisir un encaissement</h1>
+
+  <% if (echeance) { %>
+    <article>
+      <strong>Échéance sélectionnée</strong>
+      <% if (locataire) { %><p>Locataire : <%= locataire.prenom %> <%= locataire.nom %></p><% } %>
+      <p>Période : <%= locals.formatDate ? locals.formatDate(echeance.periodeDebut) : echeance.periodeDebut %> → <%= locals.formatDate ? locals.formatDate(echeance.periodeFin) : echeance.periodeFin %></p>
+      <p>Total dû : <strong><%= locals.formatMoney ? locals.formatMoney(echeance.total) : echeance.total.enEuros() %></strong></p>
+    </article>
+  <% } %>
+
+  <% if (erreurs && erreurs._global) { %>
+    <div role="alert"><%= erreurs._global %></div>
+  <% } %>
+
+  <form method="POST" action="/encaissements">
+    <% if (echeance) { %>
+      <input type="hidden" name="echeanceId" value="<%= echeance.id %>" />
+    <% } else { %>
+      <label for="echeanceId">Échéance
+        <% if (erreurs && erreurs.echeanceId) { %><span class="error"><%= erreurs.echeanceId %></span><% } %>
+        <select id="echeanceId" name="echeanceId" required aria-describedby="<%= erreurs && erreurs.echeanceId ? 'err-echeanceId' : '' %>">
+          <option value="">Sélectionnez une échéance</option>
+          <% echeancesOuvertes.forEach(function(e) { %>
+            <option value="<%= e.id %>" <%= valeurs && valeurs.echeanceId === e.id ? 'selected' : '' %>>
+              Loyer <%= locals.formatMoney ? locals.formatMoney(e.total) : e.total.enEuros() %> — <%= locals.formatDate ? locals.formatDate(e.periodeDebut) : e.periodeDebut %>
+            </option>
+          <% }); %>
+        </select>
+      </label>
+    <% } %>
+
+    <label for="montantEuros">Montant (€)
+      <% if (erreurs && erreurs.montantEuros) { %><span class="error"><%= erreurs.montantEuros %></span><% } %>
+      <input
+        type="number"
+        id="montantEuros"
+        name="montantEuros"
+        step="0.01"
+        min="0.01"
+        required
+        value="<%= valeurs && valeurs.montantEuros !== undefined ? valeurs.montantEuros : '' %>"
+      />
+      <small>Saisir un montant positif (cocher la case ci-dessous pour un compensateur).</small>
+    </label>
+
+    <label>
+      <input type="checkbox" name="signe" value="compensateur" <%= valeurs && valeurs.signe === 'compensateur' ? 'checked' : '' %> />
+      Encaissement compensateur (correction d'un montant antérieur)
+    </label>
+
+    <label for="date">Date du paiement
+      <% if (erreurs && erreurs.date) { %><span class="error"><%= erreurs.date %></span><% } %>
+      <input
+        type="date"
+        id="date"
+        name="date"
+        required
+        value="<%= valeurs && valeurs.date !== undefined ? valeurs.date : dateParDefaut %>"
+      />
+    </label>
+
+    <label for="mode">Mode de paiement
+      <% if (erreurs && erreurs.mode) { %><span class="error"><%= erreurs.mode %></span><% } %>
+      <select id="mode" name="mode" required>
+        <option value="">Sélectionnez un mode</option>
+        <option value="virement" <%= valeurs && valeurs.mode === 'virement' ? 'selected' : '' %>>Virement</option>
+        <option value="cheque" <%= valeurs && valeurs.mode === 'cheque' ? 'selected' : '' %>>Chèque</option>
+        <option value="especes" <%= valeurs && valeurs.mode === 'especes' ? 'selected' : '' %>>Espèces</option>
+        <option value="prelevement" <%= valeurs && valeurs.mode === 'prelevement' ? 'selected' : '' %>>Prélèvement</option>
+        <option value="autre" <%= valeurs && valeurs.mode === 'autre' ? 'selected' : '' %>>Autre</option>
+      </select>
+    </label>
+
+    <button type="submit">Enregistrer l'encaissement</button>
+  </form>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

@@ -15,4 +15,3 @@ Feature: Quittancement et gestion des baux
     When le bailleur soumet POST desactiver sur ce bail
     Then le bail a actif_depuis null en base
     And la page affiche "Bail désactivé"
-

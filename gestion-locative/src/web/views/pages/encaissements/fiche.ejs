@@ -1,0 +1,87 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Encaissement',
+  breadcrumbs: [
+    { url: '/encaissements', label: 'Encaissements' },
+    { label: 'Fiche' }
+  ],
+  navActive: 'encaissements'
+}) %>
+
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
+<% if (encaissement.annuleLe) { %>
+  <%- include('../../partials/warning-live', {
+    warning: 'Encaissement annulé le ' + (locals.formatDate ? locals.formatDate(encaissement.annuleLe) : encaissement.annuleLe.toString()) + '. Raison : ' + encaissement.raisonAnnulation + '.'
+  }) %>
+<% } %>
+
+<h1<%= encaissement.annuleLe ? ' style="color: var(--pico-muted-color); text-decoration: line-through;"' : '' %>>
+  Encaissement du <%= locals.formatDate ? locals.formatDate(encaissement.date) : encaissement.date.toString() %>
+</h1>
+
+<dl>
+  <dt>Montant</dt>
+  <dd style="font-size: 1.5rem; font-weight: bold;">
+    <%= locals.formatMoney ? locals.formatMoney(encaissement.montant) : encaissement.montant.enEuros() %>
+    <% if (encaissement.estCompensateur()) { %>
+      <span class="badge-compensateur">Compensateur</span>
+    <% } %>
+  </dd>
+
+  <dt>Mode de paiement</dt>
+  <dd><%= encaissement.mode %></dd>
+
+  <dt>Échéance associée</dt>
+  <dd>
+    <% if (echeance) { %>
+      <a href="/baux/<%= echeance.bailId %>/echeances">Voir les échéances du bail</a>
+    <% } else { %>
+      Échéance introuvable
+    <% } %>
+  </dd>
+
+  <% if (erreurs && erreurs.raison) { %>
+    <div role="alert" class="error"><%= erreurs.raison %></div>
+  <% } %>
+</dl>
+
+<% if (!encaissement.annuleLe) { %>
+  <button type="button" class="destructif" data-open-dialog="dialog-annuler-encaissement">
+    Annuler cet encaissement
+  </button>
+
+  <dialog id="dialog-annuler-encaissement">
+    <article>
+      <h2>Annuler cet encaissement</h2>
+      <p>Indiquez la raison de l'annulation. Cette action est irréversible (soft-delete).</p>
+      <form method="POST" action="/encaissements/<%= encaissement.id %>/annuler">
+        <label for="raison">Raison de l'annulation (obligatoire)
+          <textarea id="raison" name="raison" required minlength="3" autofocus rows="3"></textarea>
+        </label>
+        <footer>
+          <div style="display:flex; gap:1rem; justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('dialog-annuler-encaissement').close()">
+              Fermer
+            </button>
+            <button type="submit" style="background:#dc2626; color:white; border-color:#dc2626;">
+              Confirmer l'annulation
+            </button>
+          </div>
+        </footer>
+      </form>
+    </article>
+  </dialog>
+
+  <script>
+  (function() {
+    document.querySelectorAll('[data-open-dialog="dialog-annuler-encaissement"]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('dialog-annuler-encaissement').showModal();
+      });
+    });
+  })();
+  </script>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

@@ -1,0 +1,59 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Encaissements',
+  breadcrumbs: [{ label: 'Encaissements' }],
+  navActive: 'encaissements'
+}) %>
+
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
+<% if (encaissements.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucun encaissement',
+    body: "Les encaissements apparaîtront ici dès que vous enregistrerez un paiement.",
+    ctaLabel: 'Saisir un encaissement',
+    ctaUrl: '/encaissements/nouveau'
+  }) %>
+<% } else { %>
+  <h1>Encaissements</h1>
+  <p><a href="/encaissements/nouveau" role="button">Saisir un encaissement</a></p>
+
+  <div role="region" aria-label="Tableau des encaissements">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Montant</th>
+          <th scope="col">Mode</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% encaissements.forEach(function(enc) { %>
+        <tr<%= enc.annuleLe ? ' class="encaissement-annule"' : '' %>>
+          <td><%= locals.formatDate ? locals.formatDate(enc.date) : enc.date.toString() %></td>
+          <td>
+            <%= locals.formatMoney ? locals.formatMoney(enc.montant) : enc.montant.enEuros() %>
+            <% if (enc.estCompensateur()) { %>
+              <span class="badge-compensateur">Compensateur</span>
+            <% } %>
+          </td>
+          <td><%= enc.mode %></td>
+          <td>
+            <% if (enc.annuleLe) { %>
+              <span>Annulé</span>
+            <% } else { %>
+              <span>Actif</span>
+            <% } %>
+          </td>
+          <td>
+            <a href="/encaissements/<%= enc.id %>">Voir</a>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

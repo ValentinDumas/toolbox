@@ -10,6 +10,16 @@
       <a href="/baux"<% if (locals.navActive === 'baux') { %> aria-current="page"<% } %>>Baux</a>
     </li>
     <li>
+      <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances') { %> open<% } %>>
+        <summary>Encaissements</summary>
+        <ul>
+          <li>
+            <a href="/encaissements"<% if (locals.navActive === 'encaissements') { %> aria-current="page"<% } %>>Encaissements</a>
+          </li>
+        </ul>
+      </details>
+    </li>
+    <li>
       <a href="/bailleur"<% if (locals.navActive === 'bailleur') { %> aria-current="page"<% } %>>Profil bailleur</a>
     </li>
   </ul>
