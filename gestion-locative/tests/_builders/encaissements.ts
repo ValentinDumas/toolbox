@@ -1,5 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { EcheanceLoyerId, BailId, EncaissementId } from '../../src/domain/_shared/identifiants.js';
+import type { EcheanceLoyerId, BailId, EncaissementId, QuittanceId } from '../../src/domain/_shared/identifiants.js';
 import { Money } from '../../src/domain/_shared/money.js';
 
 // EcheanceLoyer ne peut pas encore être importé (code non créé) — builder retourne un objet pur
@@ -90,6 +90,44 @@ export function unEncaissementValide(overrides: OverridesEncaissement & { echean
     date: overrides.date ?? Temporal.PlainDate.from('2026-05-05'),
     mode: overrides.mode ?? 'virement',
     annuleLe: overrides.annuleLe !== undefined ? overrides.annuleLe : null,
+    raisonAnnulation: overrides.raisonAnnulation !== undefined ? overrides.raisonAnnulation : null,
+  };
+}
+
+// ─── Quittance Builder ────────────────────────────────────────────────────────
+
+export interface QuittanceProps {
+  id?: QuittanceId;
+  echeanceId: EcheanceLoyerId;
+  numero: string;
+  cheminFichierRelatif: string;
+  emiseLe: Temporal.PlainDate;
+  annuleeLe?: Temporal.PlainDate | null;
+  raisonAnnulation?: string | null;
+}
+
+interface OverridesQuittance {
+  id?: QuittanceId;
+  echeanceId?: EcheanceLoyerId;
+  numero?: string;
+  cheminFichierRelatif?: string;
+  emiseLe?: Temporal.PlainDate;
+  annuleeLe?: Temporal.PlainDate | null;
+  raisonAnnulation?: string | null;
+}
+
+/**
+ * Builder Quittance valide — defaults cohérents.
+ * numero '2026-001', chemin standard, emiseLe 2026-05-31.
+ */
+export function uneQuittanceValide(overrides: OverridesQuittance & { echeanceId: EcheanceLoyerId }): QuittanceProps {
+  return {
+    id: overrides.id,
+    echeanceId: overrides.echeanceId,
+    numero: overrides.numero ?? '2026-001',
+    cheminFichierRelatif: overrides.cheminFichierRelatif ?? 'quittances/2026/quittance-2026-001-mai-2026-dupont.pdf',
+    emiseLe: overrides.emiseLe ?? Temporal.PlainDate.from('2026-05-31'),
+    annuleeLe: overrides.annuleeLe !== undefined ? overrides.annuleeLe : null,
     raisonAnnulation: overrides.raisonAnnulation !== undefined ? overrides.raisonAnnulation : null,
   };
 }
