@@ -9,6 +9,10 @@
 -- entre les deux), la base reste cohérente.
 -- DEFAULT 1 garantit que la contrainte CHECK passe pour toutes les
 -- rangées existantes (1 ∈ [1, 28]).
+-- IN-05 : `ALTER TABLE ... ADD COLUMN ... CHECK(...)` requiert SQLite
+-- ≥ 3.31 (release 2020-01-22). better-sqlite3 ^11 bundle SQLite ≥ 3.42
+-- — OK en pratique. Note pour quiconque substituerait un autre adapter
+-- (turso, libsql, sqlite3) : vérifier la version embarquée.
 BEGIN TRANSACTION;
 
 -- Extension de la table bail (D-51, D-53)
