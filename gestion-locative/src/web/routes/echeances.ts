@@ -203,8 +203,10 @@ export async function plugin(
     const docDef = construireAvisEcheance(echeance, bailleur, locataire, adresseBien, dateGeneration);
     const buffer = await opts.pdfRenderer.genererBuffer(docDef);
 
-    const periode = echeance.periodeDebut.toString().substring(0, 7).replace('-', '-');
-    const idCourt = id.substring(0, 8);
+    // WR-12 : nettoyer le slicing (le replace('-','-') était un no-op).
+    // Garantir aussi que idCourt n'est pas vide si l'id est < 8 chars.
+    const periode = echeance.periodeDebut.toString().substring(0, 7); // YYYY-MM
+    const idCourt = id.length >= 8 ? id.substring(0, 8) : id;
     const filename = `avis-echeance-${periode}-${idCourt}.pdf`;
 
     return reply
