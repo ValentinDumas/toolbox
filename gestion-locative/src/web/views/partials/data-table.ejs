@@ -1,0 +1,40 @@
+<%
+  const tableAriaLabel = locals.ariaLabel || 'Tableau';
+  const tableColonnes = locals.colonnes || [];
+  const tableLignes = locals.lignes || [];
+  const tableActions = locals.actions || null;
+%>
+<style>
+  .sticky-thead th { position: sticky; top: 0; background: var(--pico-background-color, #fff); z-index: 1; }
+  tbody tr:nth-child(odd) { background: var(--pico-table-row-stripped-background-color, #f3f4f6); }
+  .numeric { text-align: right; }
+  .row-actions { visibility: hidden; }
+  tr:hover .row-actions { visibility: visible; }
+  .row-actions a, .row-actions button { margin-left: 0.5rem; }
+  .row-actions button.destructif { background: none; border: none; color: #dc2626; cursor: pointer; padding: 0; font: inherit; }
+</style>
+<table aria-label="<%= tableAriaLabel %>" class="sticky-thead">
+  <caption class="sr-only"><%= tableAriaLabel %></caption>
+  <thead>
+    <tr>
+      <% tableColonnes.forEach(col => { %>
+        <th scope="col"<% if (col.numerique) { %> class="numeric"<% } %><% if (col.srOnly) { %> class="sr-only"<% } %>>
+          <%= col.titre %>
+        </th>
+      <% }); %>
+    </tr>
+  </thead>
+  <tbody>
+    <% tableLignes.forEach(function(ligne, i) { %>
+      <tr>
+        <% ligne.forEach(function(cellule, j) { %>
+          <% const col = tableColonnes[j]; %>
+          <td<% if (col && col.numerique) { %> class="numeric"<% } %>><%- cellule %></td>
+        <% }); %>
+        <% if (tableActions) { %>
+          <td class="row-actions"><%- tableActions(tableLignes[i], i) %></td>
+        <% } %>
+      </tr>
+    <% }); %>
+  </tbody>
+</table>

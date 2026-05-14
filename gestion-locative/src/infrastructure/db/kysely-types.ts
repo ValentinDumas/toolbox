@@ -1,4 +1,4 @@
-import type { Generated, ColumnType } from 'kysely';
+import type { Generated } from 'kysely';
 
 // Types Kysely alignés sur le schéma SQL migration 0001_init.sql
 // Money : INTEGER centimes — conversion bigint↔number à la frontière infra (V1 acceptable, loyers < 2^53)

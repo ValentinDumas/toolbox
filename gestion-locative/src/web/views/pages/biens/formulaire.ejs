@@ -1,0 +1,177 @@
+<%
+  const estCreation = locals.mode === 'creation';
+  const titrePage = estCreation ? 'Créer un bien' : 'Modifier le bien';
+  const formAction = estCreation ? '/biens' : '/biens/' + locals.bien.id + '/modifier';
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+  const lotsInitiaux = locals.lots || [{ designation: '', type: 'appartement', surface: '', etage: '' }];
+%>
+<%- include('../../partials/layout-debut', { titre: titrePage, banniereSuccess: null }) %>
+
+<nav aria-label="Fil d'Ariane">
+  <ul>
+    <li><a href="/">Accueil</a></li>
+    <li><a href="/biens">Biens</a></li>
+    <li><%= titrePage %></li>
+  </ul>
+</nav>
+
+<h1><%= titrePage %></h1>
+
+<form method="POST" action="<%= formAction %>" novalidate>
+
+  <fieldset>
+    <legend>Informations générales</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'rue', name: 'rue', label: 'Rue',
+      value: valeurs.rue || '',
+      erreur: erreurs.rue || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'codePostal', name: 'codePostal', label: 'Code postal',
+      value: valeurs.codePostal || '',
+      hint: 'Format : 5 chiffres (ex : 75001)',
+      erreur: erreurs.codePostal || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'ville', name: 'ville', label: 'Ville',
+      value: valeurs.ville || '',
+      erreur: erreurs.ville || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'surface', name: 'surface', label: 'Surface (m²)', type: 'number',
+      value: valeurs.surface || '',
+      hint: 'Surface totale du bien en m²',
+      erreur: erreurs.surface || null
+    }) %>
+
+    <div class="field">
+      <label for="type">Type de bien <span aria-hidden="true">*</span></label>
+      <select id="type" name="type" required aria-describedby="type-error">
+        <option value="appartement"<% if ((valeurs.type || 'appartement') === 'appartement') { %> selected<% } %>>Appartement</option>
+        <option value="maison"<% if (valeurs.type === 'maison') { %> selected<% } %>>Maison</option>
+        <option value="immeuble"<% if (valeurs.type === 'immeuble') { %> selected<% } %>>Immeuble</option>
+        <option value="local_commercial"<% if (valeurs.type === 'local_commercial') { %> selected<% } %>>Local commercial</option>
+      </select>
+      <span id="type-error" role="alert" class="error-msg" <% if (!erreurs.type) { %>hidden<% } %>><%= erreurs.type || '' %></span>
+    </div>
+
+    <%- include('../../partials/form-field', {
+      id: 'anneeConstruction', name: 'anneeConstruction', label: 'Année de construction', type: 'number',
+      value: valeurs.anneeConstruction || '',
+      erreur: erreurs.anneeConstruction || null
+    }) %>
+  </fieldset>
+
+  <fieldset id="section-lots">
+    <legend>Lots</legend>
+
+    <% if (erreurs.lots) { %>
+      <span role="alert" class="error-msg"><%= erreurs.lots %></span>
+    <% } %>
+
+    <% lotsInitiaux.forEach(function(lot, i) { %>
+      <fieldset id="lot-<%= i %>">
+        <legend>Lot <%= i + 1 %></legend>
+
+        <%- include('../../partials/form-field', {
+          id: 'lots-' + i + '-designation',
+          name: 'lots[' + i + '].designation',
+          label: 'Désignation',
+          value: lot.designation || '',
+          erreur: (erreurs['lots.' + i + '.designation'] || null)
+        }) %>
+
+        <div class="field">
+          <label for="lots-<%= i %>-type">Type de lot <span aria-hidden="true">*</span></label>
+          <select id="lots-<%= i %>-type" name="lots[<%= i %>].type" required aria-describedby="lots-<%= i %>-type-error">
+            <option value="appartement"<% if ((lot.type || 'appartement') === 'appartement') { %> selected<% } %>>Appartement</option>
+            <option value="parking"<% if (lot.type === 'parking') { %> selected<% } %>>Parking</option>
+            <option value="cave"<% if (lot.type === 'cave') { %> selected<% } %>>Cave</option>
+            <option value="local_commercial"<% if (lot.type === 'local_commercial') { %> selected<% } %>>Local commercial</option>
+            <option value="terrasse"<% if (lot.type === 'terrasse') { %> selected<% } %>>Terrasse</option>
+            <option value="autre"<% if (lot.type === 'autre') { %> selected<% } %>>Autre</option>
+          </select>
+          <span id="lots-<%= i %>-type-error" role="alert" class="error-msg" hidden></span>
+        </div>
+
+        <%- include('../../partials/form-field', {
+          id: 'lots-' + i + '-surface',
+          name: 'lots[' + i + '].surface',
+          label: 'Surface du lot (m²)',
+          type: 'number',
+          value: lot.surface !== null && lot.surface !== undefined ? lot.surface : '',
+          required: false,
+          hint: 'Obligatoire pour appartement ou local commercial',
+          erreur: (erreurs['lots.' + i + '.surface'] || null)
+        }) %>
+
+        <%- include('../../partials/form-field', {
+          id: 'lots-' + i + '-etage',
+          name: 'lots[' + i + '].etage',
+          label: 'Étage',
+          type: 'number',
+          value: lot.etage !== null && lot.etage !== undefined ? lot.etage : '',
+          required: false,
+          erreur: null
+        }) %>
+
+        <% if (!estCreation && lot.id) { %>
+          <%- include('../../partials/confirm-dialog', {
+            id: 'dialog-supprimer-lot-' + lot.id,
+            formAction: '/biens/' + locals.bien.id + '/lots/' + lot.id + '/supprimer',
+            message: 'Supprimer le lot ' + (lot.designation || 'ce lot') + ' ? Cette action est irréversible.',
+            confirmLabel: 'Supprimer définitivement',
+            cancelLabel: 'Annuler'
+          }) %>
+          <button type="button" class="destructif" data-open-dialog="dialog-supprimer-lot-<%= lot.id %>">Supprimer ce lot</button>
+        <% } %>
+      </fieldset>
+    <% }); %>
+
+    <p>
+      <a href="#" id="ajouter-lot">+ Ajouter un lot</a>
+    </p>
+  </fieldset>
+
+  <button type="submit">Enregistrer le bien</button>
+
+</form>
+
+<script>
+(function() {
+  // Clone the last lot fieldset when "Ajouter un lot" is clicked (progressive enhancement)
+  document.getElementById('ajouter-lot').addEventListener('click', function(e) {
+    e.preventDefault();
+    const section = document.getElementById('section-lots');
+    const fieldsets = section.querySelectorAll('fieldset[id^="lot-"]');
+    const dernierIndex = fieldsets.length - 1;
+    const nouveauIndex = fieldsets.length;
+    const clone = fieldsets[dernierIndex].cloneNode(true);
+    clone.id = 'lot-' + nouveauIndex;
+    // Update legend
+    clone.querySelector('legend').textContent = 'Lot ' + (nouveauIndex + 1);
+    // Update all ids, names, for attributes
+    clone.querySelectorAll('[id]').forEach(function(el) {
+      el.id = el.id.replace('-' + dernierIndex + '-', '-' + nouveauIndex + '-');
+    });
+    clone.querySelectorAll('[name]').forEach(function(el) {
+      el.name = el.name.replace('[' + dernierIndex + '].', '[' + nouveauIndex + '].').replace('[' + dernierIndex + ']', '[' + nouveauIndex + ']');
+    });
+    clone.querySelectorAll('[for]').forEach(function(el) {
+      el.htmlFor = el.htmlFor.replace('-' + dernierIndex + '-', '-' + nouveauIndex + '-');
+    });
+    clone.querySelectorAll('[aria-describedby]').forEach(function(el) {
+      el.setAttribute('aria-describedby', el.getAttribute('aria-describedby').replace('-' + dernierIndex + '-', '-' + nouveauIndex + '-'));
+    });
+    // Clear values in the cloned fieldset
+    clone.querySelectorAll('input').forEach(function(el) { el.value = ''; });
+    // Insert before the "Ajouter un lot" paragraph
+    const lienAjouter = document.getElementById('ajouter-lot').closest('p');
+    section.insertBefore(clone, lienAjouter);
+  });
+})();
+</script>
+
+<%- include('../../partials/layout-fin') %>

@@ -1,0 +1,37 @@
+<%
+  const dialogId = locals.id;
+  const dialogFormAction = locals.formAction;
+  const dialogMessage = locals.message;
+  const dialogConfirmLabel = locals.confirmLabel || 'Supprimer définitivement';
+  const dialogCancelLabel = locals.cancelLabel || 'Annuler';
+%>
+<dialog id="<%= dialogId %>">
+  <article>
+    <p><%= dialogMessage %></p>
+    <footer>
+      <form method="POST" action="<%= dialogFormAction %>">
+        <div style="display:flex; gap:1rem; justify-content:flex-end;">
+          <button
+            type="button"
+            autofocus
+            onclick="document.getElementById('<%= dialogId %>').close()"
+          ><%= dialogCancelLabel %></button>
+          <button
+            type="submit"
+            style="background:#dc2626; color:white; border-color:#dc2626;"
+          ><%= dialogConfirmLabel %></button>
+        </div>
+      </form>
+    </footer>
+  </article>
+</dialog>
+<script>
+(function() {
+  document.querySelectorAll('[data-open-dialog="<%= dialogId %>"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('<%= dialogId %>').showModal();
+    });
+  });
+})();
+</script>

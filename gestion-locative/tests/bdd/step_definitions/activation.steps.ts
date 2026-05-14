@@ -62,8 +62,11 @@ When(
       surface: String(surface),
       type,
       anneeConstruction: String(anneeConstruction),
-      lot1_designation: lotDesignation,
-      lot1_type: lotType,
+      'lots[0].designation': lotDesignation,
+      'lots[0].type': lotType,
+      // surface lot : appartement requiert surface > 0
+      'lots[0].surface': lotType === 'appartement' || lotType === 'local_commercial' ? String(surface) : '',
+      'lots[0].etage': '',
     }).toString();
 
     const reponse = await this.app.inject({

@@ -1,0 +1,114 @@
+<%- include('../../partials/layout-debut', { titre: bien.adresse.enLigne(), banniereSuccess: locals.banniereSuccess ?? null }) %>
+
+<nav aria-label="Fil d'Ariane">
+  <ul>
+    <li><a href="/">Accueil</a></li>
+    <li><a href="/biens">Biens</a></li>
+    <li><%= bien.adresse.enLigne() %></li>
+  </ul>
+</nav>
+
+<h1><%= bien.adresse.enLigne() %></h1>
+
+<dl>
+  <dt>Type</dt><dd><%= bien.type %></dd>
+  <dt>Surface</dt><dd><%= bien.surface %> m²</dd>
+  <dt>Année de construction</dt><dd><%= bien.anneeConstruction %></dd>
+</dl>
+
+<p>
+  <a href="/biens/<%= bien.id %>/modifier" role="button">Modifier le bien</a>
+  &nbsp;
+  <button type="button" data-open-dialog="dialog-supprimer-bien">Supprimer le bien</button>
+</p>
+
+<%- include('../../partials/confirm-dialog', {
+  id: 'dialog-supprimer-bien',
+  formAction: '/biens/' + bien.id + '/supprimer',
+  message: 'Supprimer ' + bien.adresse.enLigne() + ' ? Cette action est irréversible. Les lots associés seront également supprimés.',
+  confirmLabel: 'Supprimer définitivement',
+  cancelLabel: 'Annuler'
+}) %>
+
+<h2>Lots</h2>
+
+<% if (bien.lots.length === 0) { %>
+  <p>Aucun lot sur ce bien</p>
+  <p>Tout bien doit avoir au moins un lot. Ajoutez un appartement, un parking ou une cave.</p>
+  <p><a href="/biens/<%= bien.id %>/lots">Ajouter un lot</a></p>
+<% } else { %>
+  <%- include('../../partials/data-table', {
+    ariaLabel: 'Lots du bien',
+    colonnes: [
+      { titre: 'Désignation' },
+      { titre: 'Type' },
+      { titre: 'Surface', numerique: true },
+      { titre: 'Étage', numerique: true },
+      { titre: 'Actions', srOnly: true }
+    ],
+    lignes: bien.lots.map(function(l) {
+      return [
+        l.designation,
+        l.type,
+        l.surface !== null ? l.surface + ' m²' : '—',
+        l.etage !== null ? String(l.etage) : '—'
+      ];
+    }),
+    actions: function(ligne, i) {
+      const lot = bien.lots[i];
+      return '<button type="button" class="destructif" data-open-dialog="dialog-supprimer-lot-' + lot.id + '">Supprimer</button>';
+    }
+  }) %>
+
+  <% bien.lots.forEach(function(lot) { %>
+    <%- include('../../partials/confirm-dialog', {
+      id: 'dialog-supprimer-lot-' + lot.id,
+      formAction: '/biens/' + bien.id + '/lots/' + lot.id + '/supprimer',
+      message: 'Supprimer le lot ' + lot.designation + ' ? Cette action est irréversible.',
+      confirmLabel: 'Supprimer définitivement',
+      cancelLabel: 'Annuler'
+    }) %>
+  <% }); %>
+<% } %>
+
+<h2>Ajouter un lot</h2>
+<form method="POST" action="/biens/<%= bien.id %>/lots" novalidate>
+  <%- include('../../partials/form-field', {
+    id: 'ajout-lot-designation',
+    name: 'designation',
+    label: 'Désignation',
+    value: '',
+    erreur: locals.erreurAjoutLot || null
+  }) %>
+  <div class="field">
+    <label for="ajout-lot-type">Type de lot <span aria-hidden="true">*</span></label>
+    <select id="ajout-lot-type" name="type" required>
+      <option value="appartement">Appartement</option>
+      <option value="parking">Parking</option>
+      <option value="cave">Cave</option>
+      <option value="local_commercial">Local commercial</option>
+      <option value="terrasse">Terrasse</option>
+      <option value="autre">Autre</option>
+    </select>
+  </div>
+  <%- include('../../partials/form-field', {
+    id: 'ajout-lot-surface',
+    name: 'surface',
+    label: 'Surface (m²)',
+    type: 'number',
+    value: '',
+    required: false,
+    hint: 'Obligatoire pour appartement ou local commercial'
+  }) %>
+  <%- include('../../partials/form-field', {
+    id: 'ajout-lot-etage',
+    name: 'etage',
+    label: 'Étage',
+    type: 'number',
+    value: '',
+    required: false
+  }) %>
+  <button type="submit">Ajouter un lot</button>
+</form>
+
+<%- include('../../partials/layout-fin') %>

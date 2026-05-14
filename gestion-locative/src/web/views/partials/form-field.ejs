@@ -1,0 +1,32 @@
+<%
+  const fieldId = locals.id;
+  const fieldName = locals.name;
+  const fieldLabel = locals.label;
+  const fieldType = locals.type || 'text';
+  const fieldValue = locals.value !== undefined && locals.value !== null ? locals.value : '';
+  const fieldRequired = locals.required !== false;
+  const fieldErreur = locals.erreur || null;
+  const fieldHint = locals.hint || null;
+  const describedBy = [fieldErreur !== null || fieldErreur === '' ? '' : '', fieldHint ? fieldId + '-hint' : ''].filter(Boolean).join(' ') || (fieldId + '-error' + (fieldHint ? ' ' + fieldId + '-hint' : ''));
+%>
+<div class="field">
+  <label for="<%= fieldId %>"><%= fieldLabel %><% if (fieldRequired) { %> <span aria-hidden="true">*</span><% } %></label>
+  <input
+    id="<%= fieldId %>"
+    name="<%= fieldName %>"
+    type="<%= fieldType %>"
+    value="<%= fieldValue %>"
+    <% if (fieldRequired) { %>required<% } %>
+    aria-describedby="<%= fieldId %>-error<% if (fieldHint) { %> <%= fieldId %>-hint<% } %>"
+    <% if (fieldErreur) { %>aria-invalid="true"<% } %>
+  />
+  <% if (fieldHint) { %>
+    <small id="<%= fieldId %>-hint"><%= fieldHint %></small>
+  <% } %>
+  <span
+    id="<%= fieldId %>-error"
+    role="alert"
+    class="error-msg"
+    <% if (!fieldErreur) { %>hidden<% } %>
+  ><%= fieldErreur || '' %></span>
+</div>

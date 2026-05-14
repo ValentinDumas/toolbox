@@ -91,7 +91,7 @@ async function demarrer(): Promise<void> {
 
   ecrirePidfile(dossierDb);
 
-  const cleanup = async () => {
+  const cleanup = async (): Promise<void> => {
     supprimerPidfile(dossierDb);
     await app.close();
     await db.destroy();
