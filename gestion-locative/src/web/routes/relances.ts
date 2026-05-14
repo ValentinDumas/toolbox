@@ -19,6 +19,7 @@ import { TemplateRendererEjs } from '../../infrastructure/templates/template-ren
 import { construireMiseEnDemeure } from '../../infrastructure/pdf/mise-en-demeure-doc-def.js';
 import { Money } from '../../domain/_shared/money.js';
 import { RelanceNiveauNonDisponible } from '../../domain/encaissements/erreurs.js';
+import { relanceFormSchema } from '../schemas/relance-schemas.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.resolve(__dirname, '../../../templates/relances');
@@ -77,15 +78,14 @@ export async function plugin(
 
   // POST /relances — enregistrer une relance (niveaux 1-2 redirect vers /impayes, niveau 3 retourne PDF)
   app.post('/relances', async (req, reply) => {
-    const body = req.body as { echeanceId?: string; niveau?: string };
-    const echeanceId = body.echeanceId;
-    const niveauRaw = parseInt(body.niveau ?? '', 10);
-
-    if (!echeanceId || ![1, 2, 3].includes(niveauRaw)) {
+    // WR-10 : validation Zod (UUID + niveau strict).
+    const parsed = relanceFormSchema.safeParse(req.body);
+    if (!parsed.success) {
       return reply.code(400).send('Paramètres invalides.');
     }
 
-    const niveau = niveauRaw as NiveauRelance;
+    const { echeanceId } = parsed.data;
+    const niveau = parsed.data.niveau as NiveauRelance;
 
     try {
       const resultat = await enregistrerRelance(
