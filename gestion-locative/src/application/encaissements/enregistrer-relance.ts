@@ -20,6 +20,8 @@ import {
   RelanceNiveauNonDisponible,
 } from '../../domain/encaissements/erreurs.js';
 import { BailleurAbsent } from '../../domain/identite/erreurs.js';
+import { BailIntrouvable, LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
+import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import { formatPeriode } from '../../helpers/format-periode.js';
 import { formatDate } from '../../helpers/format-date.js';
 
@@ -83,19 +85,22 @@ export async function enregistrerRelance(
   }
 
   // 5. Lookup bail + locataire + bien
+  // CR-06 : utiliser les erreurs domaine dédiées (BailIntrouvable,
+  // LocataireIntrouvable, BienIntrouvable) au lieu d'EcheanceLoyerIntrouvable
+  // pour permettre au caller de distinguer la cause via instanceof.
   const bail = await repos.bailRepo.trouverParId(echeance.bailId);
   if (!bail) {
-    throw new EcheanceLoyerIntrouvable(`Bail introuvable pour l'échéance ${String(commande.echeanceId)}`);
+    throw new BailIntrouvable(echeance.bailId);
   }
 
   const locataire = await repos.locataireRepo.trouverParId(bail.locataireId);
   if (!locataire) {
-    throw new EcheanceLoyerIntrouvable(`Locataire introuvable pour le bail ${bail.id}`);
+    throw new LocataireIntrouvable(bail.locataireId);
   }
 
   const bien = await repos.bienRepo.trouverParId(bail.bienId);
   if (!bien) {
-    throw new EcheanceLoyerIntrouvable(`Bien introuvable pour le bail ${bail.id}`);
+    throw new BienIntrouvable(bail.bienId);
   }
 
   // 6. Calcul montant dû
