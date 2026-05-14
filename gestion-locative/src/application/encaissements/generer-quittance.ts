@@ -51,9 +51,12 @@ interface ResultatGenererQuittance {
  * 2. Pas de Quittance ACTIVE pour cette échéance (sinon QuittanceDejaEmise)
  * 3. Bailleur renseigné (sinon BailleurAbsent)
  *
- * Atomicité (T-02-04-01) :
+ * Atomicité (T-02-04-01, CR-02) :
  * - prochainNumero + INSERT quittance dans une seule transaction Kysely
- * - Écriture PDF hors transaction (compromis acceptable — voir spec)
+ * - Écriture PDF hors transaction MAIS avec compensation : si la génération
+ *   ou l'écriture disque échoue, la quittance est annulée (copy-on-write
+ *   `Quittance.annuler`) pour éviter une ligne BDD pointant vers un fichier
+ *   inexistant.
  */
 export async function genererQuittance(
   commande: { echeanceId: EcheanceLoyerId | string },
@@ -130,21 +133,39 @@ export async function genererQuittance(
     await repos.quittanceRepo.enregistrer(quittance, trx);
   });
 
-  // ─── Hors transaction : génération PDF + stockage ──────────────────────────
+  // ─── Hors transaction : génération PDF + stockage avec compensation (CR-02) ─
+  // Si une erreur survient pendant le rendu PDF ou l'écriture disque, on
+  // annule la quittance (copy-on-write) pour éviter de laisser une ligne BDD
+  // pointant vers un fichier inexistant. Le numéro déjà alloué est "brûlé"
+  // — c'est un compromis acceptable (audit > densité de numéros).
   const adresseBien = bien.adresse;
-  const docDef = construireQuittance(
-    echeance,
-    bailleur,
-    locataire,
-    adresseBien,
-    quittance!.numero,
-    clock.aujourdhui(),
-    bail.modeCharges,
-  );
+  try {
+    const docDef = construireQuittance(
+      echeance,
+      bailleur,
+      locataire,
+      adresseBien,
+      quittance!.numero,
+      clock.aujourdhui(),
+      bail.modeCharges,
+    );
 
-  const buffer = await pdfRenderer.genererBuffer(docDef);
-  const nomFichierFinal = path.basename(quittance!.cheminFichierRelatif);
-  await stockage.ecrireQuittance(annee!, nomFichierFinal, buffer);
+    const buffer = await pdfRenderer.genererBuffer(docDef);
+    const nomFichierFinal = path.basename(quittance!.cheminFichierRelatif);
+    await stockage.ecrireQuittance(annee!, nomFichierFinal, buffer);
+  } catch (err) {
+    // Compensation : marquer la quittance comme annulee_le pour cohérence audit.
+    try {
+      const quittanceAnnulee = quittance!.annuler(
+        `Erreur génération PDF: ${err instanceof Error ? err.message : String(err)}`,
+        clock.aujourdhui(),
+      );
+      await repos.quittanceRepo.enregistrer(quittanceAnnulee);
+    } catch {
+      // L'annulation échoue — on laisse l'erreur initiale remonter (best-effort).
+    }
+    throw err;
+  }
 
   return {
     quittanceId: quittance!.id,
