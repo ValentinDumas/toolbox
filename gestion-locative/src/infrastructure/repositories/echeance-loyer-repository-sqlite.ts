@@ -50,11 +50,16 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
   }
 
   async trouverParId(id: EcheanceLoyerId | string): Promise<EcheanceLoyer | null> {
+    // CR-04 : ne PAS filtrer annule_le ici. Le soft-delete préserve l'historique
+    // pour audit (D-60 / D-74). Les callers (route /quittances/:id,
+    // recalculer-statut-echeance, enregistrer-relance) doivent décider de la
+    // suite en consultant `echeance.statut === 'annulee'` ou `echeance.annuleLe`.
+    // Le filtrage des annulées reste légitime côté `listerParBail` et
+    // `listerNonPayees` (collections).
     const row = await this.db
       .selectFrom('echeance_loyer')
       .selectAll()
       .where('id', '=', id)
-      .where('annule_le', 'is', null)
       .executeTakeFirst();
 
     if (!row) return null;
