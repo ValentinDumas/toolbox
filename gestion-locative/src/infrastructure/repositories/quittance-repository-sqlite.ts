@@ -1,11 +1,14 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { Kysely } from 'kysely';
+import type { Kysely, Transaction } from 'kysely';
+import { sql } from 'kysely';
 
 import type { DB } from '../db/kysely-types.js';
 import type { QuittanceRepository } from '../../domain/encaissements/quittance-repository.js';
 import { Quittance } from '../../domain/encaissements/quittance.js';
 import { formatNumeroQuittance } from '../../helpers/format-numero-quittance.js';
 import type { EcheanceLoyerId, QuittanceId } from '../../domain/_shared/identifiants.js';
+
+type DbOrTrx = Kysely<DB> | Transaction<DB>;
 
 type QuittanceRow = {
   id: string;
@@ -21,8 +24,10 @@ export class QuittanceRepositorySqlite implements QuittanceRepository {
   constructor(private readonly db: Kysely<DB>) {}
 
   async enregistrer(quittance: Quittance, trxArg?: unknown): Promise<void> {
-    const db = (trxArg as Kysely<DB> | undefined) ?? this.db;
-    await (db as Kysely<DB>)
+    // CR-03 : utiliser trxArg s'il est fourni (Transaction<DB> extends Kysely<DB>)
+    // — sinon fallback explicite sur this.db.
+    const db = (trxArg as DbOrTrx | undefined) ?? this.db;
+    await db
       .insertInto('quittance')
       .values({
         id: quittance.id,
@@ -78,37 +83,30 @@ export class QuittanceRepositorySqlite implements QuittanceRepository {
 
   /**
    * Retourne le prochain numéro de quittance pour l'année donnée.
-   * Incrémente le compteur dans meta (UPSERT).
-   * Si trxArg fourni, utilise trxArg pour l'atomicité.
+   *
+   * CR-03 : opération atomique via UPSERT + RETURNING (SQLite >= 3.35).
+   * Élimine la race condition SELECT-puis-UPDATE entre deux processus
+   * concurrents qui auraient lu la même valeur et écrit le même numéro.
+   *
+   * Si trxArg fourni, utilise trxArg pour s'inscrire dans la transaction
+   * du use case appelant.
    */
   async prochainNumero(annee: number, trxArg?: unknown): Promise<string> {
-    const db = (trxArg as Kysely<DB> | undefined) ?? this.db;
+    const db = (trxArg as DbOrTrx | undefined) ?? this.db;
     const cle = `compteur_quittance_${annee}`;
 
-    const row = await (db as Kysely<DB>)
-      .selectFrom('meta')
-      .select('valeur')
-      .where('cle', '=', cle)
-      .executeTakeFirst();
+    const row = await db
+      .insertInto('meta')
+      .values({ cle, valeur: '1' })
+      .onConflict((oc) =>
+        oc.column('cle').doUpdateSet({
+          valeur: sql`CAST(CAST(meta.valeur AS INTEGER) + 1 AS TEXT)`,
+        }),
+      )
+      .returning('valeur')
+      .executeTakeFirstOrThrow();
 
-    let nextValue: number;
-
-    if (!row) {
-      nextValue = 1;
-      await (db as Kysely<DB>)
-        .insertInto('meta')
-        .values({ cle, valeur: '1' })
-        .execute();
-    } else {
-      nextValue = Number(row.valeur) + 1;
-      await (db as Kysely<DB>)
-        .updateTable('meta')
-        .set({ valeur: String(nextValue) })
-        .where('cle', '=', cle)
-        .execute();
-    }
-
-    return formatNumeroQuittance(annee, nextValue);
+    return formatNumeroQuittance(annee, Number(row.valeur));
   }
 
   private versDomaine(row: QuittanceRow): Quittance {
