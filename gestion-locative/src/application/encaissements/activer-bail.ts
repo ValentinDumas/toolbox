@@ -59,7 +59,7 @@ export async function activerBail(
   }
 
   // Générer les N échéances
-  const echeances = genererEcheances(bail, commande.actifDepuis, commande.jourEcheance);
+  const echeances = genererEcheancesPour(bail, commande.actifDepuis, commande.jourEcheance);
 
   await echeanceLoyerRepo.enregistrerBatch(echeances);
 
@@ -68,6 +68,7 @@ export async function activerBail(
 
 /**
  * Génère les N = dureeMois EcheanceLoyer pour un bail.
+ * Helper réutilisable par activerBail et modifierBailActif (D-73).
  *
  * Algorithme : itération mois par mois à partir de actifDepuis.
  *
@@ -89,7 +90,7 @@ export async function activerBail(
  * i=1..N-1 couvrent les mois 1..N-1. La "dernière" période (i=N-1) couvre alors
  * partiellement le mois N-1 (de actifDepuis) = mois actifDepuis.month + N - 1.
  */
-function genererEcheances(
+export function genererEcheancesPour(
   bail: { id: string; dureeMois: number; loyerHc: import('../../domain/_shared/money.js').Money; montantCharges: import('../../domain/_shared/money.js').Money; modeCharges: 'forfait' | 'provisions'; bienId: string; locataireId: string },
   actifDepuis: Temporal.PlainDate,
   jourEcheance: number,

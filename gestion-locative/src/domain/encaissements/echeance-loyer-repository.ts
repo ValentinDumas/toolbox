@@ -24,4 +24,7 @@ export interface EcheanceLoyerRepository {
 
   /** Compte les échéances existantes pour un bail (utilisé par ActiviteBailDetector D-74). */
   compterParBail(bailId: BailId): Promise<number>;
+
+  /** Supprime physiquement des échéances par IDs (D-73 — jamais encaissées, donc hard-delete OK). */
+  supprimerLot(ids: EcheanceLoyerId[]): Promise<void>;
 }

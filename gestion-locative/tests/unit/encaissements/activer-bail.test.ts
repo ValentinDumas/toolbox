@@ -31,6 +31,7 @@ function creerEcheanceLoyerRepoStub() {
     mettreAJourStatut: async () => {},
     listerNonPayees: async () => echeances.filter((e) => e.statut !== 'payee'),
     compterParBail: async (bailId: string) => echeances.filter((e) => e.bailId === bailId).length,
+    supprimerLot: async () => {},
   };
 }
 

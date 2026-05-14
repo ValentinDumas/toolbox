@@ -572,3 +572,119 @@ Then('l\'encaissement annulé a un annule_le non null en base', async function (
 
   assert.ok(row.annule_le !== null, 'annule_le doit être non null');
 });
+
+// ─── D-73 Before/After ────────────────────────────────────────────────────────
+
+Before({ tags: '@D-73' }, async function (this: MondeD74) {
+  process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
+  this.sqlite = new Database(':memory:');
+  this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: this.sqlite }) });
+  await appliquerToutesMigrations(this.db, this.sqlite, MIGRATIONS_DIR);
+  // ClockFixe au 2026-06-15 pour les tests D-73
+  const clock = ClockFixe.du('2026-06-15');
+  this.app = await creerApp(this.db, { clock });
+  this.dernierStatut = 0;
+  this.derniereUrl = '';
+  this.dernierCorps = '';
+  this.cookies = {};
+  this.dernierBailId = null;
+  this.derniereEcheanceId = null;
+  this.dernierEncaissementId = null;
+  this.premierEncaissementId = null;
+});
+
+After({ tags: '@D-73' }, async function (this: MondeD74) {
+  if (this.app) await this.app.close();
+  if (this.db) await this.db.destroy();
+});
+
+// ─── D-73 Steps ──────────────────────────────────────────────────────────────
+
+When(/^le bailleur navigue vers GET \/baux\/:bailId\/modifier-actif$/, async function (this: MondeD74) {
+  assert.ok(this.app, 'App doit être initialisée');
+  assert.ok(this.dernierBailId, 'BailId doit être défini');
+
+  const reponse = await this.app.inject({
+    method: 'GET',
+    url: `/baux/${this.dernierBailId}/modifier-actif`,
+    headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+  });
+  extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
+  this.dernierStatut = reponse.statusCode;
+  this.dernierCorps = reponse.body;
+});
+
+When(/^le bailleur confirme la modification avec loyer (\d+) euros via POST \/baux\/:bailId\/modifier-actif$/, async function (this: MondeD74, loyer: number) {
+  assert.ok(this.app, 'App doit être initialisée');
+  assert.ok(this.dernierBailId, 'BailId doit être défini');
+
+  // Get current bail values for required fields
+  assert.ok(this.db, 'DB doit être initialisée');
+  const bailRow = await this.db
+    .selectFrom('bail')
+    .selectAll()
+    .where('id', '=', this.dernierBailId)
+    .executeTakeFirstOrThrow();
+
+  const lotRow = await this.db
+    .selectFrom('bail_lots')
+    .select('lot_id')
+    .where('bail_id', '=', this.dernierBailId)
+    .executeTakeFirst();
+
+  const reponse = await this.app.inject({
+    method: 'POST',
+    url: `/baux/${this.dernierBailId}/modifier-actif`,
+    payload: {
+      bienId: bailRow.bien_id,
+      locataireId: bailRow.locataire_id,
+      lotIds: lotRow?.lot_id ?? '',
+      dateDebut: bailRow.date_debut,
+      dureeMois: String(bailRow.duree_mois),
+      loyerHcEuros: String(loyer),
+      modeCharges: bailRow.mode_charges,
+      montantChargesEuros: String(Number(bailRow.montant_charges) / 100),
+      depotGarantieEuros: String(Number(bailRow.depot_garantie) / 100),
+      irlTrimestre: bailRow.irl_trimestre,
+      irlValeur: bailRow.irl_valeur,
+      confirmation: 'oui',
+    },
+    headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+  });
+  extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
+  this.dernierStatut = reponse.statusCode;
+  this.derniereUrl = (reponse.headers['location'] as string) || '';
+
+  if (reponse.statusCode === 302 && this.derniereUrl) {
+    const suivi = await this.app.inject({
+      method: 'GET',
+      url: this.derniereUrl,
+      headers: { cookie: cookieHeader(this.cookies) },
+    });
+    extraireCookies(suivi.headers as Record<string, string | string[]>, this.cookies);
+    this.dernierCorps = suivi.body;
+  } else {
+    this.dernierCorps = reponse.body;
+  }
+});
+
+Then('la bannière indique la modification réussie', function (this: MondeD74) {
+  assert.ok(
+    this.dernierCorps.includes('Bail modifié'),
+    `La bannière doit indiquer "Bail modifié". Corps reçu: ${this.dernierCorps.substring(0, 500)}`,
+  );
+});
+
+Then('le bail a bien le nouveau loyer en base', async function (this: MondeD74) {
+  assert.ok(this.db, 'DB doit être initialisée');
+  assert.ok(this.dernierBailId, 'BailId doit être défini');
+
+  const row = await this.db
+    .selectFrom('bail')
+    .select('loyer_hc')
+    .where('id', '=', this.dernierBailId)
+    .executeTakeFirstOrThrow();
+
+  // loyer_hc est en centimes — 750€ = 75000 centimes
+  assert.ok(Number(row.loyer_hc) === 75000, `loyer_hc attendu 75000, reçu ${row.loyer_hc}`);
+});

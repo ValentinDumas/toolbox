@@ -154,11 +154,19 @@ export async function plugin(
       return reply.code(404).send('Locataire introuvable.');
     }
 
+    // Lire et vider les bannières de session (Phase 1 LESSON)
+    const banniereSuccess = req.session.banniereSuccess ?? null;
+    const banniereWarning = req.session.banniereWarning ?? null;
+    if (banniereSuccess) req.session.banniereSuccess = undefined;
+    if (banniereWarning) req.session.banniereWarning = undefined;
+
     return reply.view('pages/echeances/liste.ejs', {
       bail,
       locataire,
       echeances,
       navActive: 'baux',
+      banniereSuccess,
+      banniereWarning,
     });
   });
 

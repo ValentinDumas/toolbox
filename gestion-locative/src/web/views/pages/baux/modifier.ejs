@@ -1,0 +1,191 @@
+<%
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+  const preview = locals.preview || { aRegenererCount: 0, aPreserverCount: 0, aRegenererIds: [] };
+  const formAction = '/baux/' + locals.bail.id + '/modifier-actif';
+%>
+<%- include('../../partials/layout-debut', {
+  titre: 'Modifier le bail actif',
+  breadcrumbs: [
+    { url: '/baux', label: 'Baux' },
+    { url: '/baux/' + locals.bail.id, label: 'Bail' },
+    { label: 'Modifier' }
+  ],
+  navActive: 'baux'
+}) %>
+
+<h1>Modifier le bail actif</h1>
+
+<aside role="alert" class="warning-zone">
+  <span aria-hidden="true">⚠</span>
+  Ce bail est actif.
+  La modification va régénérer <strong><%= preview.aRegenererCount %></strong> échéances futures non payées
+  et préserver <strong><%= preview.aPreserverCount %></strong> échéances déjà encaissées ou échues.
+</aside>
+
+<% if (erreurs._global) { %>
+  <aside role="alert" class="error-msg"><%= erreurs._global %></aside>
+<% } %>
+
+<form id="form-modifier-actif" method="POST" action="<%= formAction %>" novalidate>
+
+  <fieldset>
+    <legend>Loyer et charges</legend>
+
+    <div class="field">
+      <label for="loyerHcEuros">Loyer hors charges (€) <span aria-hidden="true">*</span></label>
+      <input
+        type="number"
+        id="loyerHcEuros"
+        name="loyerHcEuros"
+        step="0.01"
+        min="0.01"
+        required
+        value="<%= valeurs.loyerHcEuros !== undefined ? valeurs.loyerHcEuros : (bail.loyerHc ? (Number(bail.loyerHc.toCentimes()) / 100) : '') %>"
+        aria-describedby="loyerHcEuros-error"
+      />
+      <% if (erreurs.loyerHcEuros) { %>
+        <span id="loyerHcEuros-error" role="alert" class="error-msg"><%= erreurs.loyerHcEuros %></span>
+      <% } else { %>
+        <span id="loyerHcEuros-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+
+    <div class="field">
+      <label for="modeCharges">Mode de charges <span aria-hidden="true">*</span></label>
+      <select id="modeCharges" name="modeCharges" required>
+        <option value="forfait"<% if ((valeurs.modeCharges || bail.modeCharges) === 'forfait') { %> selected<% } %>>Forfait</option>
+        <option value="provisions"<% if ((valeurs.modeCharges || bail.modeCharges) === 'provisions') { %> selected<% } %>>Provisions sur charges</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="montantChargesEuros">Montant des charges (€)</label>
+      <input
+        type="number"
+        id="montantChargesEuros"
+        name="montantChargesEuros"
+        step="0.01"
+        min="0"
+        value="<%= valeurs.montantChargesEuros !== undefined ? valeurs.montantChargesEuros : (bail.montantCharges ? (Number(bail.montantCharges.toCentimes()) / 100) : 0) %>"
+      />
+    </div>
+
+    <div class="field">
+      <label for="depotGarantieEuros">Dépôt de garantie (€)</label>
+      <input
+        type="number"
+        id="depotGarantieEuros"
+        name="depotGarantieEuros"
+        step="0.01"
+        min="0"
+        value="<%= valeurs.depotGarantieEuros !== undefined ? valeurs.depotGarantieEuros : (bail.depotGarantie ? (Number(bail.depotGarantie.toCentimes()) / 100) : 0) %>"
+      />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Révision IRL</legend>
+    <div class="field">
+      <label for="irlTrimestre">Trimestre IRL (ex : 2026-T1)</label>
+      <input
+        type="text"
+        id="irlTrimestre"
+        name="irlTrimestre"
+        value="<%= valeurs.irlTrimestre || bail.irlReference.trimestre %>"
+        pattern="\d{4}-T[1-4]"
+      />
+    </div>
+    <div class="field">
+      <label for="irlValeur">Valeur IRL (ex : 145.47)</label>
+      <input
+        type="text"
+        id="irlValeur"
+        name="irlValeur"
+        value="<%= valeurs.irlValeur || bail.irlReference.valeur %>"
+      />
+    </div>
+  </fieldset>
+
+  <%# Champs cachés pour les valeurs non modifiables %>
+  <input type="hidden" name="bienId" value="<%= bail.bienId %>" />
+  <input type="hidden" name="locataireId" value="<%= bail.locataireId %>" />
+  <% bail.lotIds.forEach(function(lotId) { %>
+    <input type="hidden" name="lotIds" value="<%= lotId %>" />
+  <% }); %>
+  <input type="hidden" name="dateDebut" value="<%= bail.dateDebut.toString() %>" />
+  <input type="hidden" name="dureeMois" value="<%= bail.dureeMois %>" />
+
+  <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+    <button type="submit">Prévisualiser l'impact</button>
+    <button
+      type="button"
+      class="secondary"
+      data-open-dialog="dialog-confirm-modifier-actif"
+    >
+      Confirmer et appliquer
+    </button>
+  </div>
+
+</form>
+
+<dialog id="dialog-confirm-modifier-actif">
+  <article>
+    <h2>Confirmer la modification</h2>
+    <p>Tu es sur le point de modifier ce bail actif. Cela va :</p>
+    <ul>
+      <li><strong><%= preview.aRegenererCount %> échéances futures non payées</strong> seront supprimées et régénérées avec les nouvelles valeurs.</li>
+      <li><strong><%= preview.aPreserverCount %> échéances</strong> seront préservées (déjà encaissées, payées, ou échues).</li>
+    </ul>
+    <form method="POST" action="<%= formAction %>" id="form-confirm-modifier">
+      <input type="hidden" name="confirmation" value="oui" />
+      <%# Copier toutes les valeurs du formulaire principal %>
+      <input type="hidden" name="bienId" value="<%= bail.bienId %>" />
+      <input type="hidden" name="locataireId" value="<%= bail.locataireId %>" />
+      <% bail.lotIds.forEach(function(lotId) { %>
+        <input type="hidden" name="lotIds" value="<%= lotId %>" />
+      <% }); %>
+      <input type="hidden" name="dateDebut" value="<%= bail.dateDebut.toString() %>" />
+      <input type="hidden" name="dureeMois" value="<%= bail.dureeMois %>" />
+      <input type="hidden" name="loyerHcEuros" id="confirm-loyerHcEuros" value="<%= valeurs.loyerHcEuros !== undefined ? valeurs.loyerHcEuros : (Number(bail.loyerHc.toCentimes()) / 100) %>" />
+      <input type="hidden" name="modeCharges" id="confirm-modeCharges" value="<%= valeurs.modeCharges || bail.modeCharges %>" />
+      <input type="hidden" name="montantChargesEuros" id="confirm-montantChargesEuros" value="<%= valeurs.montantChargesEuros !== undefined ? valeurs.montantChargesEuros : (Number(bail.montantCharges.toCentimes()) / 100) %>" />
+      <input type="hidden" name="depotGarantieEuros" id="confirm-depotGarantieEuros" value="<%= valeurs.depotGarantieEuros !== undefined ? valeurs.depotGarantieEuros : (Number(bail.depotGarantie.toCentimes()) / 100) %>" />
+      <input type="hidden" name="irlTrimestre" id="confirm-irlTrimestre" value="<%= valeurs.irlTrimestre || bail.irlReference.trimestre %>" />
+      <input type="hidden" name="irlValeur" id="confirm-irlValeur" value="<%= valeurs.irlValeur || bail.irlReference.valeur %>" />
+      <footer>
+        <div style="display:flex; gap:1rem; justify-content:flex-end;">
+          <button type="button" onclick="document.getElementById('dialog-confirm-modifier-actif').close()">
+            Annuler
+          </button>
+          <button type="submit" style="background:#dc2626; color:white; border-color:#dc2626;">
+            Confirmer la modification
+          </button>
+        </div>
+      </footer>
+    </form>
+  </article>
+</dialog>
+
+<script>
+(function() {
+  document.querySelectorAll('[data-open-dialog="dialog-confirm-modifier-actif"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Sync form values to dialog hidden inputs before showing
+      var mainForm = document.getElementById('form-modifier-actif');
+      if (mainForm) {
+        var fields = ['loyerHcEuros', 'modeCharges', 'montantChargesEuros', 'depotGarantieEuros', 'irlTrimestre', 'irlValeur'];
+        fields.forEach(function(f) {
+          var el = mainForm.elements[f];
+          var target = document.getElementById('confirm-' + f);
+          if (el && target) target.value = el.value;
+        });
+      }
+      document.getElementById('dialog-confirm-modifier-actif').showModal();
+    });
+  });
+})();
+</script>
+
+<%- include('../../partials/layout-fin') %>
