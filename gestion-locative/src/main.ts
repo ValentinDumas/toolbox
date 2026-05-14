@@ -11,6 +11,7 @@ import fastifySession from '@fastify/session';
 import type { Kysely } from 'kysely';
 import { formatDate } from './helpers/format-date.js';
 import { formatMoney } from './helpers/format-money.js';
+import { formatPeriode } from './helpers/format-periode.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
 import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
@@ -43,6 +44,7 @@ import { plugin as bailleurPlugin } from './web/routes/bailleur.js';
 import { plugin as echeancesPlugin } from './web/routes/echeances.js';
 import { plugin as encaissementsPlugin } from './web/routes/encaissements.js';
 import { plugin as quittancesPlugin } from './web/routes/quittances.js';
+import { plugin as impayesPlugin } from './web/routes/impayes.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -119,6 +121,7 @@ export async function creerApp(
       ...(reply.locals ?? {}),
       formatDate,
       formatMoney,
+      formatPeriode,
     };
   });
 
@@ -159,6 +162,14 @@ export async function creerApp(
     stockage,
     clock,
     db,
+  });
+
+  await app.register(impayesPlugin, {
+    echeanceLoyerRepo,
+    encaissementRepo,
+    bailRepo,
+    locataireRepo,
+    clock,
   });
 
   return app;

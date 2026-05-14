@@ -144,4 +144,51 @@ describe('EcheanceLoyerRepositorySqlite', () => {
     expect(await detector.aDeLActivite(bailId)).toBe(true);
     expect(await detector.aDeLActivite(bail2.id)).toBe(false);
   });
+
+  // T10: listerNonPayees — filtre statut ∈ {en_attente, partiellement_payee}, exclut payee + annulee
+  it('T10: listerNonPayees retourne uniquement les échéances en_attente et partiellement_payee, ordonnées par jour_echeance_attendue ASC', async () => {
+    // 4 échéances : 1 payee, 1 annulee, 1 en_attente, 1 partiellement_payee
+    const ePayee = creerEcheance({ periodeDebut: '2026-01-01', statut: 'payee' });
+    const eAnnulee = creerEcheance({ periodeDebut: '2026-02-01', statut: 'annulee' });
+
+    // en_attente — jour_echeance_attendue = periodeDebut.with({day:5})
+    const eEnAttente = EcheanceLoyer.creer({
+      bailId,
+      periodeDebut: Temporal.PlainDate.from('2026-04-01'),
+      periodeFin: Temporal.PlainDate.from('2026-04-30'),
+      jourEcheanceAttendue: Temporal.PlainDate.from('2026-04-05'),
+      loyerHc: Money.fromEuros(620),
+      montantCharges: Money.fromEuros(80),
+      modeCharges: 'forfait',
+      total: Money.fromEuros(700),
+      statut: 'en_attente',
+      annuleLe: null,
+    });
+
+    const ePartiellementPayee = EcheanceLoyer.creer({
+      bailId,
+      periodeDebut: Temporal.PlainDate.from('2026-03-01'),
+      periodeFin: Temporal.PlainDate.from('2026-03-31'),
+      jourEcheanceAttendue: Temporal.PlainDate.from('2026-03-05'),
+      loyerHc: Money.fromEuros(620),
+      montantCharges: Money.fromEuros(80),
+      modeCharges: 'forfait',
+      total: Money.fromEuros(700),
+      statut: 'partiellement_payee',
+      annuleLe: null,
+    });
+
+    await echeanceRepo.enregistrerBatch([ePayee, eAnnulee, eEnAttente, ePartiellementPayee]);
+
+    const nonPayees = await echeanceRepo.listerNonPayees();
+
+    expect(nonPayees).toHaveLength(2);
+    // Ordonnées par jour_echeance_attendue ASC : mars (2026-03-05) avant avril (2026-04-05)
+    expect(nonPayees[0]!.statut).toBe('partiellement_payee');
+    expect(nonPayees[1]!.statut).toBe('en_attente');
+    // Vérifier que payee et annulee sont exclus
+    const statuts = nonPayees.map((e) => e.statut);
+    expect(statuts).not.toContain('payee');
+    expect(statuts).not.toContain('annulee');
+  });
 });
