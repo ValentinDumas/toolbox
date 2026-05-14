@@ -1,5 +1,5 @@
 import { InvariantViolated } from '../_shared/erreurs.js';
-import { nouveauBienId, type BienId } from '../_shared/identifiants.js';
+import { nouveauBienId, type BienId, type LotId } from '../_shared/identifiants.js';
 import type { Adresse } from '../_shared/adresse.js';
 import type { Lot } from './lot.js';
 
@@ -12,6 +12,13 @@ interface BienProps {
   type: TypeBien;
   anneeConstruction: number;
   lots: Lot[];
+}
+
+export interface ModifierBienPatch {
+  adresse?: Adresse;
+  surface?: number;
+  type?: TypeBien;
+  anneeConstruction?: number;
 }
 
 export class Bien {
@@ -60,6 +67,17 @@ export class Bien {
     });
   }
 
+  modifier(patch: ModifierBienPatch): Bien {
+    return Bien.creer({
+      id: this.id,
+      adresse: patch.adresse ?? this.adresse,
+      surface: patch.surface ?? this.surface,
+      type: patch.type ?? this.type,
+      anneeConstruction: patch.anneeConstruction ?? this.anneeConstruction,
+      lots: [...this.lots],
+    });
+  }
+
   ajouterLot(lot: Lot): Bien {
     return Bien.creer({
       id: this.id,
@@ -68,6 +86,21 @@ export class Bien {
       type: this.type,
       anneeConstruction: this.anneeConstruction,
       lots: [...this.lots, lot],
+    });
+  }
+
+  supprimerLot(lotId: LotId): Bien {
+    const restants = this.lots.filter((l) => l.id !== lotId);
+    if (restants.length === 0) {
+      throw new InvariantViolated("Un Bien doit conserver au moins un Lot");
+    }
+    return Bien.creer({
+      id: this.id,
+      adresse: this.adresse,
+      surface: this.surface,
+      type: this.type,
+      anneeConstruction: this.anneeConstruction,
+      lots: restants,
     });
   }
 }

@@ -97,11 +97,21 @@ export class BienRepositorySqlite implements BienRepository {
   }
 
   async supprimer(id: BienId): Promise<void> {
-    await this.db
-      .updateTable('bien')
-      .set({ supprime_le: new Date().toISOString() })
-      .where('id', '=', id)
-      .execute();
+    const maintenant = new Date().toISOString();
+    await this.db.transaction().execute(async (trx) => {
+      await trx
+        .updateTable('bien')
+        .set({ supprime_le: maintenant })
+        .where('id', '=', id)
+        .execute();
+      // Cascade soft-delete sur les lots associés (D-29 — cohérence de l'agrégat)
+      await trx
+        .updateTable('lot')
+        .set({ supprime_le: maintenant })
+        .where('bien_id', '=', id)
+        .where('supprime_le', 'is', null)
+        .execute();
+    });
   }
 
   private versDomaine(
