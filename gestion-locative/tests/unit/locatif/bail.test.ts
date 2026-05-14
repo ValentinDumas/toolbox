@@ -7,6 +7,8 @@ import { InvariantViolated } from '../../../src/domain/_shared/erreurs.js';
 import { unBailValide, unMontantValide, unIrlValide } from '../../_builders/locatif.js';
 import { nouveauBienId, nouveauLotId, nouveauLocataireId } from '../../../src/domain/_shared/identifiants.js';
 
+// Tests Phase 2 — extension Bail.activer() (D-51, D-53)
+
 describe('Bail', () => {
   it('Bail.creer accepte un bail valide (12 mois, dépôt = loyer)', () => {
     expect(() => unBailValide()).not.toThrow();
@@ -85,5 +87,32 @@ describe('Bail', () => {
     expect(() =>
       bail.modifier({ depotGarantie: Money.fromEuros(2400) }), // 3 × 800
     ).toThrow('Le dépôt de garantie ne peut pas dépasser 2 mois de loyer hors charges');
+  });
+
+  // Phase 2 — Bail.activer() (D-51, D-53)
+  it('bail.activer(PlainDate, 5) retourne Bail activé avec actifDepuis et jourEcheance=5', () => {
+    const bail = unBailValide();
+    const date = Temporal.PlainDate.from('2026-06-01');
+    const bailActive = bail.activer(date, 5);
+    expect(bailActive.actifDepuis).not.toBeNull();
+    expect(Temporal.PlainDate.compare(bailActive.actifDepuis!, date)).toBe(0);
+    expect(bailActive.jourEcheance).toBe(5);
+    expect(bailActive).not.toBe(bail); // copy-on-write
+  });
+
+  it("bail.activer(date, 29) throw InvariantViolated (D-53)", () => {
+    const bail = unBailValide();
+    const date = Temporal.PlainDate.from('2026-06-01');
+    expect(() => bail.activer(date, 29)).toThrow(
+      "Le jour d'échéance doit être entre 1 et 28 (D-53)",
+    );
+  });
+
+  it("bail.activer(date, 0) throw InvariantViolated (D-53)", () => {
+    const bail = unBailValide();
+    const date = Temporal.PlainDate.from('2026-06-01');
+    expect(() => bail.activer(date, 0)).toThrow(
+      "Le jour d'échéance doit être entre 1 et 28 (D-53)",
+    );
   });
 });
