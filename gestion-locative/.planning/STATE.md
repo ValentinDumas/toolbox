@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-patrimoine-crud-PLAN.md
-last_updated: "2026-05-14T10:07:04.286Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-05-14T11:01:00.097Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
-  percent: 43
+  completed_plans: 4
+  percent: 57
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 ## Current Position
 
 Phase: 01 (activation-bien-locataire-bail) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-05-14
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [████░░░░░░] 43%
 *Updated after each plan completion*
 | Phase 01 P02 | 10 | 4 tasks | 23 files |
 | Phase 01 P03 | 25m | 3 tasks | 25 files |
+| Phase 01 P04 | 29 | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,10 @@ Recent decisions affecting current work:
 - Init: Tech stack applicative non figée — à trancher en `/gsd-discuss-phase 1`.
 - Init: Roadmap en Vertical MVP slices (PROJECT_MODE=mvp), Phase 1 = activation KPI sans fiscal.
 - [Phase ?]: layout-debut/fin split — contenu-string incompatible avec include EJS
+- [Phase ?]: LieuNaissance VO inline dans locataire.ts — V1 simplicité (D-32 YAGNI)
+- [Phase ?]: Regex email minimal côté domaine + z.string().email() côté HTTP — séparation responsabilité
+- [Phase ?]: Temporal.PlainDate.compare >= 0 → rejet date future
+- [Phase ?]: navActive locals + aria-current='page' sidebar nav active state
 
 ### Pending Todos
 
@@ -89,6 +94,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-14T10:07:04.282Z
-Stopped at: Completed 01-03-patrimoine-crud-PLAN.md
+Last session: 2026-05-14T11:01:00.093Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None

@@ -17,7 +17,7 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 
 ### Locatif
 
-- [ ] **LOC-01** : L'utilisateur peut créer une fiche `Locataire` (identité, contact, garant, pièces).
+- [x] **LOC-01** : L'utilisateur peut créer une fiche `Locataire` (identité, contact, garant, pièces).
 - [ ] **LOC-02** : L'utilisateur peut créer un `Bail` meublé classique (durée 1 an min, loyer hors charges, forfait ou provisions, dépôt ≤ 2 mois HC, clause IRL).
 - [ ] **LOC-03** : L'utilisateur peut enregistrer l'`EtatDesLieux` d'entrée et de sortie (contradictoire, `Inventaire` mobilier annexé).
 - [ ] **LOC-04** : Le système applique l'indexation IRL à la date anniversaire du bail (génère l'avenant signé).
@@ -129,7 +129,7 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 | PAT-01 | Phase 1 | Complete |
 | PAT-02 | Phase 1 | Complete |
 | PAT-03 | Phase 3 | Pending |
-| LOC-01 | Phase 1 | Pending |
+| LOC-01 | Phase 1 | Complete |
 | LOC-02 | Phase 1 | Pending |
 | LOC-03 | Phase 3 | Pending |
 | LOC-04 | Phase 3 | Pending |
