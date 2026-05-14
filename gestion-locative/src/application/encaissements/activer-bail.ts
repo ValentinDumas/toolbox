@@ -1,12 +1,14 @@
 import { Temporal } from '@js-temporal/polyfill';
 
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
+import type { Bail } from '../../domain/locatif/bail.js';
 import { BailIntrouvable } from '../../domain/locatif/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import { EcheanceLoyer } from '../../domain/encaissements/echeance-loyer.js';
 import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { BailId } from '../../domain/_shared/identifiants.js';
+import type { Money } from '../../domain/_shared/money.js';
 
 export interface ActiverBailCommande {
   bailId: BailId;
@@ -90,13 +92,20 @@ export async function activerBail(
  * i=1..N-1 couvrent les mois 1..N-1. La "dernière" période (i=N-1) couvre alors
  * partiellement le mois N-1 (de actifDepuis) = mois actifDepuis.month + N - 1.
  */
+// WR-06 : signature typée via Pick<Bail, ...> au lieu d'un objet duck-typé.
+// Garantit que tout caller passe un objet partageant le contrat du domaine Bail.
+export type ContratBailPourGeneration = Pick<
+  Bail,
+  'id' | 'dureeMois' | 'loyerHc' | 'montantCharges' | 'modeCharges' | 'bienId' | 'locataireId'
+>;
+
 export function genererEcheancesPour(
-  bail: { id: string; dureeMois: number; loyerHc: import('../../domain/_shared/money.js').Money; montantCharges: import('../../domain/_shared/money.js').Money; modeCharges: 'forfait' | 'provisions'; bienId: string; locataireId: string },
+  bail: ContratBailPourGeneration,
   actifDepuis: Temporal.PlainDate,
   jourEcheance: number,
 ): EcheanceLoyer[] {
   const { dureeMois, loyerHc, montantCharges, modeCharges } = bail;
-  const bailId = bail.id as import('../../domain/_shared/identifiants.js').BailId;
+  const bailId = bail.id;
 
   const echeances: EcheanceLoyer[] = [];
 
@@ -107,8 +116,8 @@ export function genererEcheancesPour(
   for (let i = 0; i < dureeMois; i++) {
     let periodeDebut: Temporal.PlainDate;
     let periodeFin: Temporal.PlainDate;
-    let loyerPeriode: import('../../domain/_shared/money.js').Money;
-    let chargesPeriode: import('../../domain/_shared/money.js').Money;
+    let loyerPeriode: Money;
+    let chargesPeriode: Money;
 
     if (i === 0) {
       // Première période : commence le actifDepuis
