@@ -54,6 +54,9 @@ importers:
       '@cucumber/cucumber':
         specifier: ^11.3.0
         version: 11.3.0
+      '@fast-check/vitest':
+        specifier: ^0.4.1
+        version: 0.4.1(vitest@3.2.4(@types/node@22.19.19)(tsx@4.21.0)(yaml@2.9.0))
       '@picocss/pico':
         specifier: ^2.1.1
         version: 2.1.1
@@ -392,6 +395,11 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fast-check/vitest@0.4.1':
+    resolution: {integrity: sha512-OX6TecB+ZzRfPc49jcPChcV1cf5aDu77CdDU8liecWVam7eD7mPvJNP50b9bBSTxVoGN5wzxrX9PIcCnqgC8bg==}
+    peerDependencies:
+      vitest: ^4.1.0
 
   '@fastify/accept-negotiator@2.0.1':
     resolution: {integrity: sha512-/c/TW2bO/v9JeEgoD/g1G5GxGeCF1Hafdf79WPmUlgYiBXummY0oX3VVq4yFkKKVBKDNlaDUYoab7g38RpPqCQ==}
@@ -2926,6 +2934,11 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fast-check/vitest@0.4.1(vitest@3.2.4(@types/node@22.19.19)(tsx@4.21.0)(yaml@2.9.0))':
+    dependencies:
+      fast-check: 4.8.0
+      vitest: 3.2.4(@types/node@22.19.19)(tsx@4.21.0)(yaml@2.9.0)
 
   '@fastify/accept-negotiator@2.0.1': {}
 
