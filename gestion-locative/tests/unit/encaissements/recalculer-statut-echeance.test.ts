@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Temporal } from '@js-temporal/polyfill';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { EcheanceLoyer } from '../../../src/domain/encaissements/echeance-loyer.js';
@@ -93,10 +93,47 @@ describe('recalculerStatutEcheance', () => {
     const echeance = creerEcheance(TOTAL);
     // Simule sommePaieeParEcheance = 800 + (-200) = 600
     const sommePaiee = Money.fromEuros(800).additionner(Money.compensateur(Money.fromEuros(200)));
-    // sommePaiee.toCentimes() = 60_000n (600€)
+    // sommePaiee.toCentimes() = 60_000n (60_000n / 60 000 centimes = 600 €)
     const { echeanceLoyerRepo, encaissementRepo } = creerRepos(echeance, sommePaiee);
     const result = await recalculerStatutEcheance(echeance.id, echeanceLoyerRepo as never, encaissementRepo as never);
     expect(result.statut).toBe('partiellement_payee');
     expect(result.surPaiement).toBeNull();
+  });
+
+  // CR-05 : statut 'annulee' est terminal — un recalcul ne doit JAMAIS
+  // ressusciter une échéance annulée (D-60 audit-friendly). Empêche aussi
+  // un TOCTOU entre creer-encaissement et l'annulation de faire basculer
+  // 'annulee' → 'en_attente'.
+  it('CR-05: échéance déjà annulée → préserve statut annulee, pas de mettreAJourStatut', async () => {
+    const echeance = creerEcheance(TOTAL);
+    // Stub repo qui retourne une échéance déjà annulée (statut 'annulee')
+    const echeanceAnnulee = { ...echeance, statut: 'annulee' as StatutEcheanceLoyer };
+    const mettreAJourSpy = vi.fn();
+    const echeanceLoyerRepo = {
+      trouverParId: async (_id: string): Promise<EcheanceLoyer> =>
+        echeanceAnnulee as EcheanceLoyer,
+      mettreAJourStatut: mettreAJourSpy,
+      enregistrer: async () => {},
+      enregistrerBatch: async () => {},
+      listerParBail: async () => [],
+      listerNonPayees: async () => [],
+      supprimerLot: async () => {},
+    };
+    const encaissementRepo = {
+      sommePaieeParEcheance: async (_id: string) => Money.fromEuros(700), // somme == total
+      enregistrer: async () => {},
+      trouverParId: async () => null,
+      listerParEcheance: async () => [],
+      listerTous: async () => [],
+    };
+    const result = await recalculerStatutEcheance(
+      echeance.id,
+      echeanceLoyerRepo as never,
+      encaissementRepo as never,
+    );
+    expect(result.statut).toBe('annulee');
+    expect(result.surPaiement).toBeNull();
+    // Invariant fort : aucune persistance de statut ne doit se produire
+    expect(mettreAJourSpy).not.toHaveBeenCalled();
   });
 });
