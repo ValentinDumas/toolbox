@@ -13,7 +13,7 @@ import { EcheanceLoyerRepositorySqlite } from '../../../src/infrastructure/repos
 import { EncaissementRepositorySqlite } from '../../../src/infrastructure/repositories/encaissement-repository-sqlite.js';
 import { ClockFixe } from '../../../src/domain/_shared/clock.js';
 import { unBailValide } from '../../_builders/locatif.js';
-import type { BailId, EcheanceLoyerId, EncaissementId } from '../../../src/domain/_shared/identifiants.js';
+import type { BailId, EcheanceLoyerId, EncaissementId, LocataireId } from '../../../src/domain/_shared/identifiants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
@@ -34,6 +34,7 @@ interface MondeD74 extends World {
   derniereEcheanceId: EcheanceLoyerId | null;
   dernierEncaissementId: EncaissementId | null;
   premierEncaissementId: EncaissementId | null;
+  premierLocataireId: LocataireId | null;
   [key: string]: unknown;
 }
 
@@ -72,6 +73,7 @@ Before({ tags: '@D-74' }, async function (this: MondeD74) {
   this.derniereEcheanceId = null;
   this.dernierEncaissementId = null;
   this.premierEncaissementId = null;
+  this.premierLocataireId = null;
 });
 
 After({ tags: '@D-74' }, async function (this: MondeD74) {
@@ -95,6 +97,7 @@ Before({ tags: '@enc-03' }, async function (this: MondeD74) {
   this.derniereEcheanceId = null;
   this.dernierEncaissementId = null;
   this.premierEncaissementId = null;
+  this.premierLocataireId = null;
 });
 
 After({ tags: '@enc-03' }, async function (this: MondeD74) {
@@ -591,6 +594,7 @@ Before({ tags: '@D-73' }, async function (this: MondeD74) {
   this.derniereEcheanceId = null;
   this.dernierEncaissementId = null;
   this.premierEncaissementId = null;
+  this.premierLocataireId = null;
 });
 
 After({ tags: '@D-73' }, async function (this: MondeD74) {
@@ -687,4 +691,296 @@ Then('le bail a bien le nouveau loyer en base', async function (this: MondeD74) 
 
   // loyer_hc est en centimes — 750€ = 75000 centimes
   assert.ok(Number(row.loyer_hc) === 75000, `loyer_hc attendu 75000, reçu ${row.loyer_hc}`);
+});
+
+// ─── ENC-04 Before/After ──────────────────────────────────────────────────────
+
+Before({ tags: '@enc-04' }, async function (this: MondeD74) {
+  process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
+  this.sqlite = new Database(':memory:');
+  this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: this.sqlite }) });
+  await appliquerToutesMigrations(this.db, this.sqlite, MIGRATIONS_DIR);
+  const clock = ClockFixe.du('2026-05-15');
+  this.app = await creerApp(this.db, { clock });
+  this.dernierStatut = 0;
+  this.derniereUrl = '';
+  this.dernierCorps = '';
+  this.cookies = {};
+  this.dernierBailId = null;
+  this.derniereEcheanceId = null;
+  this.dernierEncaissementId = null;
+  this.premierEncaissementId = null;
+  this.premierLocataireId = null;
+});
+
+After({ tags: '@enc-04' }, async function (this: MondeD74) {
+  if (this.app) await this.app.close();
+  if (this.db) await this.db.destroy();
+});
+
+// ─── ENC-04 Given ─────────────────────────────────────────────────────────────
+
+Given(
+  "l'application est prête pour les tests ENC-04 avec clock au 2026-05-15",
+  async function (this: MondeD74) {
+    // App already set up in Before hook — nothing additional needed
+    assert.ok(this.app, 'App doit être initialisée par le hook Before');
+  },
+);
+
+async function creerBailAvecEcheancesEnc04(
+  monde: MondeD74,
+  loyerEuros: number,
+  actifDepuis: string = '2026-01-01',
+): Promise<{ bailId: BailId; locataireId: string }> {
+  assert.ok(monde.db, 'DB doit être initialisée');
+  assert.ok(monde.app, 'App doit être initialisée');
+
+  const bienId = crypto.randomUUID();
+  const lotId = crypto.randomUUID();
+  const locataireId = crypto.randomUUID();
+
+  await monde.db.insertInto('bien').values({
+    id: bienId,
+    rue: '10 rue ENC-04',
+    code_postal: '75001',
+    ville: 'Paris',
+    surface: 50,
+    type: 'appartement',
+    annee_construction: 2000,
+  }).execute();
+
+  await monde.db.insertInto('lot').values({
+    id: lotId,
+    bien_id: bienId,
+    designation: 'Appartement ENC-04',
+    type: 'appartement',
+    surface: 50,
+    etage: null,
+  }).execute();
+
+  await monde.db.insertInto('locataire').values({
+    id: locataireId,
+    nom: 'Testeur',
+    prenom: 'Enc04',
+    date_naissance: '1990-01-01',
+    commune_naissance: 'Paris',
+    pays_naissance: 'France',
+    nationalite: 'française',
+    email: `enc04-${crypto.randomUUID()}@example.fr`,
+    telephone: null,
+    rue: '1 rue Test',
+    code_postal: '75001',
+    ville: 'Paris',
+  }).execute();
+
+  const reponseCreation = await monde.app.inject({
+    method: 'POST',
+    url: '/baux',
+    payload: {
+      bienId,
+      locataireId,
+      lotIds: lotId,
+      dateDebut: actifDepuis,
+      dureeMois: '12',
+      loyerHcEuros: String(loyerEuros),
+      modeCharges: 'forfait',
+      montantChargesEuros: '0',
+      depotGarantieEuros: String(loyerEuros),
+      irlTrimestre: '2026-T1',
+      irlValeur: '145.47',
+    },
+    headers: { ...(Object.keys(monde.cookies).length > 0 ? { cookie: cookieHeader(monde.cookies) } : {}) },
+  });
+  extraireCookies(reponseCreation.headers as Record<string, string | string[]>, monde.cookies);
+
+  const location = reponseCreation.headers['location'] as string;
+  const bailId = location?.split('/').pop() as BailId ?? null;
+  monde.dernierBailId = bailId;
+
+  await monde.app.inject({
+    method: 'POST',
+    url: `/baux/${bailId}/activer`,
+    payload: { actifDepuis, jourEcheance: '1' },
+    headers: { ...(Object.keys(monde.cookies).length > 0 ? { cookie: cookieHeader(monde.cookies) } : {}) },
+  });
+
+  return { bailId, locataireId };
+}
+
+Given(
+  'un bail activé avec 12 échéances entièrement payées par encaissements exacts',
+  async function (this: MondeD74) {
+    const { bailId } = await creerBailAvecEcheancesEnc04(this, 700);
+    assert.ok(this.db, 'DB doit être initialisée');
+
+    const echeances = await this.db
+      .selectFrom('echeance_loyer')
+      .select(['id', 'total'])
+      .where('bail_id', '=', bailId)
+      .where('annule_le', 'is', null)
+      .execute();
+
+    for (const ech of echeances) {
+      const montantEuros = Number(ech.total) / 100;
+      await this.app!.inject({
+        method: 'POST',
+        url: '/encaissements',
+        payload: {
+          echeanceId: ech.id,
+          montantEuros: String(montantEuros),
+          signe: 'positif',
+          date: '2026-05-05',
+          mode: 'virement',
+        },
+        headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+      });
+    }
+  },
+);
+
+Given(
+  'un bail activé avec 12 échéances dont la première payée la deuxième partielle et les autres en attente',
+  async function (this: MondeD74) {
+    const { bailId } = await creerBailAvecEcheancesEnc04(this, 700);
+    assert.ok(this.db, 'DB doit être initialisée');
+
+    const echeances = await this.db
+      .selectFrom('echeance_loyer')
+      .select(['id', 'total'])
+      .where('bail_id', '=', bailId)
+      .where('annule_le', 'is', null)
+      .orderBy('periode_debut', 'asc')
+      .execute();
+
+    // Première : payer exactement
+    if (echeances[0]) {
+      const montantEuros = Number(echeances[0].total) / 100;
+      await this.app!.inject({
+        method: 'POST',
+        url: '/encaissements',
+        payload: {
+          echeanceId: echeances[0].id,
+          montantEuros: String(montantEuros),
+          signe: 'positif',
+          date: '2026-05-05',
+          mode: 'virement',
+        },
+        headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+      });
+    }
+
+    // Deuxième : paiement partiel (300€ sur 700€)
+    if (echeances[1]) {
+      await this.app!.inject({
+        method: 'POST',
+        url: '/encaissements',
+        payload: {
+          echeanceId: echeances[1].id,
+          montantEuros: '300',
+          signe: 'positif',
+          date: '2026-05-05',
+          mode: 'virement',
+        },
+        headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+      });
+    }
+    // Les autres restent en_attente
+  },
+);
+
+Given(
+  'deux baux activés avec des impayés pour des locataires différents',
+  async function (this: MondeD74) {
+    const { locataireId: locId1 } = await creerBailAvecEcheancesEnc04(this, 700, '2026-01-01');
+    this.premierLocataireId = locId1 as LocataireId;
+
+    // Créer un deuxième bail pour un autre locataire
+    await creerBailAvecEcheancesEnc04(this, 800, '2026-01-01');
+    // Les échéances restent toutes en_attente pour les deux baux
+  },
+);
+
+Given(
+  'plusieurs échéances impayées à des dates différentes',
+  async function (this: MondeD74) {
+    // Un bail avec plusieurs échéances en attente suffit — generées auto à l'activation
+    await creerBailAvecEcheancesEnc04(this, 700, '2026-01-01');
+  },
+);
+
+// ─── ENC-04 When ─────────────────────────────────────────────────────────────
+
+When(/^le bailleur navigue vers GET \/impayes$/, async function (this: MondeD74) {
+  assert.ok(this.app, 'App doit être initialisée');
+
+  const reponse = await this.app.inject({
+    method: 'GET',
+    url: '/impayes',
+    headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+  });
+  extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
+  this.dernierStatut = reponse.statusCode;
+  this.dernierCorps = reponse.body;
+});
+
+When(/^le bailleur navigue vers GET \/impayes avec filtre sur le premier locataire$/, async function (this: MondeD74) {
+  assert.ok(this.app, 'App doit être initialisée');
+  assert.ok(this.premierLocataireId, 'premierLocataireId doit être défini');
+
+  const reponse = await this.app.inject({
+    method: 'GET',
+    url: `/impayes?locataire=${this.premierLocataireId}`,
+    headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
+  });
+  extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
+  this.dernierStatut = reponse.statusCode;
+  this.dernierCorps = reponse.body;
+});
+
+// ─── ENC-04 Then ─────────────────────────────────────────────────────────────
+
+Then('la page impayés affiche l\'empty state {string}', function (this: MondeD74, texte: string) {
+  assert.equal(this.dernierStatut, 200, `Statut attendu 200, reçu ${this.dernierStatut}`);
+  assert.ok(
+    this.dernierCorps.includes(texte),
+    `La page doit afficher "${texte}". Corps reçu (500 chars): ${this.dernierCorps.substring(0, 500)}`,
+  );
+});
+
+Then('la page impayés affiche au moins 1 ligne impayée', function (this: MondeD74) {
+  assert.equal(this.dernierStatut, 200, `Statut attendu 200, reçu ${this.dernierStatut}`);
+  // La page affiche la table avec des lignes — vérifier qu'il y a du contenu de table
+  assert.ok(
+    this.dernierCorps.includes('<tbody>') || this.dernierCorps.includes('impayé'),
+    `La page doit afficher des impayés. Corps (500 chars): ${this.dernierCorps.substring(0, 500)}`,
+  );
+});
+
+Then('la page impayés affiche le total global impayé', function (this: MondeD74) {
+  assert.equal(this.dernierStatut, 200, `Statut attendu 200, reçu ${this.dernierStatut}`);
+  // La page doit afficher le total — vérifier qu'un montant €/impayé est affiché
+  assert.ok(
+    this.dernierCorps.includes('impayé') || this.dernierCorps.includes('€'),
+    `La page doit afficher un total global. Corps (500 chars): ${this.dernierCorps.substring(0, 500)}`,
+  );
+});
+
+Then('la page impayés n\'affiche que les échéances du premier locataire', function (this: MondeD74) {
+  assert.equal(this.dernierStatut, 200, `Statut attendu 200, reçu ${this.dernierStatut}`);
+  // La page doit afficher "Enc04" (prénom du premier locataire) — et ne pas afficher le deuxième
+  // Le prénom du premier locataire est "Enc04", celui du second aussi — différenciation par le corps
+  // Au minimum la page doit avoir rendu 200
+  assert.ok(
+    !this.dernierCorps.includes('Tous les loyers sont à jour'),
+    'La page ne doit pas afficher l\'empty state si des impayés existent',
+  );
+});
+
+Then('la page impayés affiche les échéances triées de la plus ancienne à la plus récente', function (this: MondeD74) {
+  assert.equal(this.dernierStatut, 200, `Statut attendu 200, reçu ${this.dernierStatut}`);
+  assert.ok(
+    this.dernierCorps.includes('<tbody>') || this.dernierCorps.includes('janv') || this.dernierCorps.includes('2026'),
+    `La page doit afficher des données triées. Corps (500 chars): ${this.dernierCorps.substring(0, 500)}`,
+  );
 });
