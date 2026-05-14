@@ -52,4 +52,33 @@ describe('buildMailto', () => {
     });
     expect(uri).toContain('cc=cc%40example.fr');
   });
+
+  it("WR-04: troncature recule si elle tomberait au milieu d'une séquence %XX", () => {
+    // LIMITE_CORPS = 1900, MENTION_TRONQUEE encoded = 89 chars,
+    // donc la position naïve de coupure tombe à 1811.
+    // On positionne un "é" (encodé %C3%A9, 6 chars) à partir de l'offset
+    // encodé 1809 : positions 1809='%', 1810='C', 1811='3'.
+    // Sans protection, substring(0, 1811) laisserait "...%C" — invalide :
+    // decodeURIComponent jette "URI malformed". Avec protection (WR-04),
+    // limite recule à 1809 et le corps tronqué reste décodable.
+    // On a besoin que le corps encodé dépasse LIMITE_CORPS (1900) pour
+    // déclencher la troncature : 1809 + 20×6 = 1929 > 1900.
+    const padding = 'A'.repeat(1809);
+    const uri = buildMailto({
+      to: 'test@example.fr',
+      subject: 'Test',
+      body: padding + 'é'.repeat(20), // chaque "é" = %C3%A9 (6 chars encodés)
+    });
+
+    const bodyMatch = uri.match(/&body=(.+)$/);
+    expect(bodyMatch).toBeTruthy();
+    const bodyEncoded = bodyMatch![1];
+
+    // Le body tronqué doit toujours être décodable sans erreur — c'est la
+    // garantie qu'on n'a pas coupé au milieu d'un %XX.
+    expect(() => decodeURIComponent(bodyEncoded)).not.toThrow();
+
+    // Et il doit contenir la mention de troncature (le corps a été tronqué).
+    expect(decodeURIComponent(bodyEncoded)).toContain('[Message tronqué');
+  });
 });
