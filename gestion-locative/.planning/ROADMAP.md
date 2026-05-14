@@ -57,7 +57,14 @@ Plans:
   3. L'utilisateur peut générer une `Quittance` PDF uniquement pour une période entièrement payée.
   4. Le système calcule et affiche les impayés et retards par locataire et par période.
   5. L'utilisateur peut déclencher des `Relance`s escaladées (amiable → mise en demeure) avec templates email.
-**Plans**: TBD
+**Plans:** 6/6 plans planned
+Plans:
+- [ ] 02-01-PLAN.md — Walking enabler : Profil bailleur (D-67) + extension Bail (actif_depuis, jour_echeance) + Clock + migration 0002 (wave 1, enabler)
+- [ ] 02-02-PLAN.md — Avis d'échéance PDF (ENC-02) + génération EcheanceLoyer à l'activation + prorata 1ère/dernière (wave 2)
+- [ ] 02-03-PLAN.md — Saisie Encaissement + soft-delete + compensateur + warnings sur-paiement / date hors plage (ENC-03) (wave 3)
+- [ ] 02-04-PLAN.md — Émission Quittance PDF persistée + numérotation AAAA-NNN atomique + warning quittance invalidée (ENC-01) (wave 4)
+- [ ] 02-05-PLAN.md — Page Impayés + calcul dérivé (statut/jours retard) + filtre locataire (ENC-04) (wave 5)
+- [ ] 02-06-PLAN.md — Relances 3 niveaux escaladées (amiable / ferme / mise en demeure) + canal hybride mailto/PDF + chaînage strict (ENC-05) (wave 6)
 **UI hint:** yes
 
 ### Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier
@@ -135,7 +142,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Activation — Bien, Locataire, Bail | 6/7 | In Progress|  |
-| 2. Quittancement — Échéances, Encaissements, Relances | 0/TBD | Not started | - |
+| 2. Quittancement — Échéances, Encaissements, Relances | 0/6 | Not started | - |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/TBD | Not started | - |
 | 4. Coffre documentaire & Travaux | 0/TBD | Not started | - |
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 0/TBD | Not started | - |
