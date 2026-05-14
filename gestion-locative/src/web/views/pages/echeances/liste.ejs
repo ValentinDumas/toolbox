@@ -66,7 +66,7 @@
           <% if (e.statut === 'payee' && !(e.quittanceActive)) { %>
             <form method="POST" action="/quittances" style="display:inline;">
               <input type="hidden" name="echeanceId" value="<%= e.id %>" />
-              <button type="submit">Générer la quittance</button>
+              <button type="submit">Générer quittance</button>
             </form>
           <% } %>
           <% if (e.quittanceActive) { %>
