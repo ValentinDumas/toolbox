@@ -43,7 +43,7 @@ Plans:
 - [x] 01-04-locataire-crud-PLAN.md — CRUD Locataire (LOC-01) (wave 3)
 - [x] 01-05-bail-classique-PLAN.md — Bail meublé classique + VOs Money/IRL/Cautionnement (LOC-02) (wave 4)
 - [x] 01-06-activation-wizard-PLAN.md — Wizard 3 étapes premier lancement + session (wave 5)
-- [ ] 01-07-ui-polish-PLAN.md — Partials EJS + helpers format français + audit a11y (wave 6)
+- [x] 01-07-ui-polish-PLAN.md — Partials EJS + helpers format français + audit a11y (wave 6)
 **UI hint:** yes
 
 ### Phase 2: Quittancement — Échéances, Encaissements, Relances
