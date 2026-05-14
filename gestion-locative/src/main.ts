@@ -29,6 +29,7 @@ import { BailRepositorySqlite } from './infrastructure/repositories/bail-reposit
 import { BailleurRepositorySqlite } from './infrastructure/repositories/bailleur-repository-sqlite.js';
 import { ActiviteBailDetectorSqlite } from './infrastructure/repositories/activite-bail-detector-sqlite.js';
 import { EcheanceLoyerRepositorySqlite } from './infrastructure/repositories/echeance-loyer-repository-sqlite.js';
+import { EncaissementRepositorySqlite } from './infrastructure/repositories/encaissement-repository-sqlite.js';
 import { PdfRendererPdfmake } from './infrastructure/pdf/pdf-renderer-pdfmake.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
@@ -37,6 +38,7 @@ import { plugin as bauxPlugin } from './web/routes/baux.js';
 import { plugin as wizardPlugin } from './web/routes/wizard.js';
 import { plugin as bailleurPlugin } from './web/routes/bailleur.js';
 import { plugin as echeancesPlugin } from './web/routes/echeances.js';
+import { plugin as encaissementsPlugin } from './web/routes/encaissements.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -96,6 +98,7 @@ export async function creerApp(
   const bailRepo = new BailRepositorySqlite(db);
   const bailleurRepo = new BailleurRepositorySqlite(db);
   const echeanceLoyerRepo = new EcheanceLoyerRepositorySqlite(db);
+  const encaissementRepo = new EncaissementRepositorySqlite(db);
   const pdfRenderer = new PdfRendererPdfmake();
   const activiteBailDetector = opts.activiteBailDetector ?? new ActiviteBailDetectorSqlite(db);
 
@@ -123,6 +126,15 @@ export async function creerApp(
     echeanceLoyerRepo,
     bailleurRepo,
     pdfRenderer,
+    clock,
+  });
+
+  await app.register(encaissementsPlugin, {
+    encaissementRepo,
+    echeanceLoyerRepo,
+    bailRepo,
+    locataireRepo,
+    bienRepo: repo,
     clock,
   });
 

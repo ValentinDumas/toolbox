@@ -8,6 +8,8 @@
   navActive: 'baux'
 }) %>
 
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
 <h1>Échéances de loyer — <%= locataire.prenom %> <%= locataire.nom %></h1>
 
 <p>
@@ -57,6 +59,12 @@
         <td>
           <% if (e.statut !== 'annulee') { %>
             <a href="/echeances/<%= e.id %>/avis-pdf">PDF</a>
+          <% } %>
+          <% if (e.statut !== 'annulee' && e.statut !== 'payee') { %>
+            <a href="/encaissements/nouveau?echeance=<%= e.id %>">Saisir un encaissement</a>
+          <% } %>
+          <% if (e.statut === 'payee') { %>
+            <a href="/quittances/nouveau?echeance=<%= e.id %>">Générer quittance</a>
           <% } %>
         </td>
       </tr>

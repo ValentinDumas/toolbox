@@ -482,7 +482,7 @@ Given('le bailleur saisit un encaissement de {int} euros sur cette échéance', 
   }
 });
 
-When('le bailleur navigue vers GET /encaissements/nouveau', async function (this: MondeD74) {
+When(/^le bailleur navigue vers GET \/encaissements\/nouveau$/, async function (this: MondeD74) {
   assert.ok(this.app, 'App doit être initialisée');
 
   const reponse = await this.app.inject({
@@ -493,42 +493,6 @@ When('le bailleur navigue vers GET /encaissements/nouveau', async function (this
   extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
   this.dernierStatut = reponse.statusCode;
   this.dernierCorps = reponse.body;
-});
-
-When('le bailleur saisit un encaissement de {int} euros sur cette échéance', async function (this: MondeD74, montant: number) {
-  assert.ok(this.app, 'App doit être initialisée');
-  assert.ok(this.derniereEcheanceId, 'EcheanceId doit être défini');
-
-  const reponse = await this.app.inject({
-    method: 'POST',
-    url: '/encaissements',
-    payload: {
-      echeanceId: this.derniereEcheanceId,
-      montantEuros: String(montant),
-      signe: 'positif',
-      date: '2026-05-05',
-      mode: 'virement',
-    },
-    headers: { ...(Object.keys(this.cookies).length > 0 ? { cookie: cookieHeader(this.cookies) } : {}) },
-  });
-  extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
-
-  const location = reponse.headers['location'] as string;
-  const encId = location?.split('/').pop() as EncaissementId ?? null;
-  this.dernierEncaissementId = encId;
-
-  // Follow redirect
-  if (reponse.statusCode === 302 && location) {
-    const suivi = await this.app.inject({
-      method: 'GET',
-      url: location,
-      headers: { cookie: cookieHeader(this.cookies) },
-    });
-    extraireCookies(suivi.headers as Record<string, string | string[]>, this.cookies);
-    this.dernierCorps = suivi.body;
-  } else {
-    this.dernierCorps = reponse.body;
-  }
 });
 
 When('le bailleur annule le premier encaissement avec raison {string}', async function (this: MondeD74, raison: string) {
