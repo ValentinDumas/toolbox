@@ -123,13 +123,10 @@ export function genererEcheancesPour(
       // Première période : commence le actifDepuis
       periodeDebut = actifDepuis;
 
-      if (actifDepuis.day === 1 && i === dureeMois - 1) {
-        // Bail d'1 mois entier commençant le 1er
-        periodeFin = actifDepuis.with({ day: actifDepuis.daysInMonth });
-        loyerPeriode = loyerHc;
-        chargesPeriode = montantCharges;
-      } else if (actifDepuis.day === 1) {
-        // 1er du mois → mois plein (mais on vérifie si c'est aussi le dernier mois plus tard)
+      if (actifDepuis.day === 1) {
+        // 1er du mois → mois plein (Bail.creer impose dureeMois >= 12 (D-35),
+        // donc i === 0 && i === dureeMois - 1 est impossible — pas de
+        // branchement spécifique « bail d'un mois »).
         periodeFin = actifDepuis.with({ day: actifDepuis.daysInMonth });
         loyerPeriode = loyerHc;
         chargesPeriode = montantCharges;

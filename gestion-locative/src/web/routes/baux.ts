@@ -560,11 +560,6 @@ export async function plugin(
 
     // Confirmation=oui : exécuter la modification
     try {
-      const { Temporal: _T } = await import('@js-temporal/polyfill');
-      const { Money: _M } = await import('../../domain/_shared/money.js');
-      const { IRL: _IRL } = await import('../../domain/_shared/irl.js');
-      const { Adresse: _Addr } = await import('../../domain/_shared/adresse.js');
-
       const cautionnementCommande = data.cautionnementType && data.cautionnementDateSignature && data.cautionnementDureeMois
         ? {
             type: data.cautionnementType,
@@ -574,7 +569,7 @@ export async function plugin(
                   prenom: data.garantPrenom,
                   email: data.garantEmail,
                   telephone: data.garantTelephone ?? '',
-                  adresse: _Addr.creer({
+                  adresse: Adresse.creer({
                     rue: data.garantRue ?? '',
                     codePostal: data.garantCodePostal ?? '00000',
                     ville: data.garantVille ?? '',
@@ -582,9 +577,9 @@ export async function plugin(
                 }
               : null,
             montantGaranti: data.cautionnementMontantGarantiEuros
-              ? _M.fromEuros(data.cautionnementMontantGarantiEuros)
+              ? Money.fromEuros(data.cautionnementMontantGarantiEuros)
               : null,
-            dateSignature: _T.PlainDate.from(data.cautionnementDateSignature),
+            dateSignature: Temporal.PlainDate.from(data.cautionnementDateSignature),
             dureeEngagement: data.cautionnementDureeMois,
           }
         : null;
@@ -598,11 +593,11 @@ export async function plugin(
         {
           bailId: id as BailId,
           patch: {
-            loyerHc: _M.fromEuros(data.loyerHcEuros),
+            loyerHc: Money.fromEuros(data.loyerHcEuros),
             modeCharges: data.modeCharges,
-            montantCharges: _M.fromEuros(data.montantChargesEuros),
-            depotGarantie: _M.fromEuros(data.depotGarantieEuros),
-            irlReference: _IRL.creer({ trimestre: data.irlTrimestre, valeur: data.irlValeur }),
+            montantCharges: Money.fromEuros(data.montantChargesEuros),
+            depotGarantie: Money.fromEuros(data.depotGarantieEuros),
+            irlReference: IRL.creer({ trimestre: data.irlTrimestre, valeur: data.irlValeur }),
             ...(cautionnement !== undefined && { cautionnement }),
           },
           confirmation: 'oui',
