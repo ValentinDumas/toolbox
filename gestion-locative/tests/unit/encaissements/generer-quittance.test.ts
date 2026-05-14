@@ -128,7 +128,7 @@ describe('genererQuittance', () => {
     await expect(
       genererQuittance(
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-        repos as Parameters<typeof genererQuittance>[1],
+        repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
         fakeStockage,
         clock,
@@ -147,7 +147,7 @@ describe('genererQuittance', () => {
     await expect(
       genererQuittance(
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-        repos as Parameters<typeof genererQuittance>[1],
+        repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
         fakeStockage,
         clock,
@@ -168,7 +168,7 @@ describe('genererQuittance', () => {
     await expect(
       genererQuittance(
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-        repos as Parameters<typeof genererQuittance>[1],
+        repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
         fakeStockage,
         clock,
@@ -194,7 +194,7 @@ describe('genererQuittance', () => {
     await expect(
       genererQuittance(
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-        repos as Parameters<typeof genererQuittance>[1],
+        repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
         fakeStockage,
         clock,
@@ -243,7 +243,7 @@ describe('genererQuittance', () => {
 
     const resultat = await genererQuittance(
       { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-      repos as Parameters<typeof genererQuittance>[1],
+      repos as unknown as Parameters<typeof genererQuittance>[1],
       fakePdfRenderer,
       stockage as Parameters<typeof genererQuittance>[3],
       clock,
@@ -285,7 +285,7 @@ describe('genererQuittance', () => {
 
     const resultat = await genererQuittance(
       { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-      repos as Parameters<typeof genererQuittance>[1],
+      repos as unknown as Parameters<typeof genererQuittance>[1],
       fakePdfRenderer,
       fakeStockage as Parameters<typeof genererQuittance>[3],
       clock,
@@ -328,7 +328,7 @@ describe('genererQuittance', () => {
 
     const resultat = await genererQuittance(
       { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
-      repos as Parameters<typeof genererQuittance>[1],
+      repos as unknown as Parameters<typeof genererQuittance>[1],
       fakePdfRenderer,
       fakeStockage as Parameters<typeof genererQuittance>[3],
       clock2027,

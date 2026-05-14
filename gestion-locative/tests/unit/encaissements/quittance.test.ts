@@ -5,6 +5,7 @@ import type { EcheanceLoyerId, QuittanceId } from '../../../src/domain/_shared/i
 // NOTE: Ces imports n'existent pas encore — tests RED intentionnellement
 import { Quittance } from '../../../src/domain/encaissements/quittance.js';
 import { InvariantViolated } from '../../../src/domain/_shared/erreurs.js';
+import { QuittanceDejaAnnulee } from '../../../src/domain/encaissements/erreurs.js';
 
 const echeanceId = crypto.randomUUID() as EcheanceLoyerId;
 const emiseLe = Temporal.PlainDate.from('2026-05-31');
@@ -87,7 +88,7 @@ describe('Quittance.annuler', () => {
     expect(annulee.cheminFichierRelatif).toBe(quittance.cheminFichierRelatif);
   });
 
-  it('T7: throw InvariantViolated si la quittance est déjà annulée', () => {
+  it('T7: throw QuittanceDejaAnnulee si la quittance est déjà annulée', () => {
     const quittance = Quittance.creer({
       echeanceId,
       numero: '2026-001',
@@ -98,6 +99,6 @@ describe('Quittance.annuler', () => {
     });
     expect(() =>
       quittance.annuler('Deuxième annulation', Temporal.PlainDate.from('2026-06-02')),
-    ).toThrow(InvariantViolated);
+    ).toThrow(QuittanceDejaAnnulee);
   });
 });

@@ -114,6 +114,17 @@ export interface EncaissementTable {
   cree_le: Generated<string>;
 }
 
+export interface QuittanceTable {
+  id: string;
+  echeance_id: string;
+  numero: string;
+  chemin_fichier_relatif: string;
+  emise_le: string;
+  annulee_le: string | null;
+  raison_annulation: string | null;
+  cree_le: Generated<string>;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -124,4 +135,5 @@ export interface DB {
   bailleur: BailleurTable;
   echeance_loyer: EcheanceLoyerTable;
   encaissement: EncaissementTable;
+  quittance: QuittanceTable;
 }
