@@ -20,6 +20,10 @@ export class BailleurRepositorySqlite implements BailleurRepository {
   }
 
   async enregistrer(bailleur: Bailleur): Promise<void> {
+    // WR-07 : UPSERT idempotent sur singleton_marker pour gérer le TOCTOU
+    // entre trouver() et enregistrer() (utilisé par creer-ou-maj-bailleur).
+    // Sans ce ON CONFLICT, un INSERT concurrent lèverait SQLITE_CONSTRAINT_UNIQUE
+    // qui remonterait en 500 au lieu d'un upsert idempotent.
     await this.db
       .insertInto('bailleur')
       .values({
@@ -30,6 +34,15 @@ export class BailleurRepositorySqlite implements BailleurRepository {
         code_postal: bailleur.adresse.codePostal,
         ville: bailleur.adresse.ville,
       })
+      .onConflict((oc) =>
+        oc.column('singleton_marker').doUpdateSet({
+          nom_complet: bailleur.nomComplet,
+          rue: bailleur.adresse.rue,
+          code_postal: bailleur.adresse.codePostal,
+          ville: bailleur.adresse.ville,
+          modifie_le: new Date().toISOString(),
+        }),
+      )
       .execute();
   }
 
