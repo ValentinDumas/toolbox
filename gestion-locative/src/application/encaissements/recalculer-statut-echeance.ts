@@ -1,6 +1,7 @@
 import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
 import type { EncaissementRepository } from '../../domain/encaissements/encaissement-repository.js';
 import type { StatutEcheanceLoyer } from '../../domain/encaissements/echeance-loyer.js';
+import { EcheanceLoyerIntrouvable } from '../../domain/encaissements/erreurs.js';
 import { Money } from '../../domain/_shared/money.js';
 import type { EcheanceLoyerId } from '../../domain/_shared/identifiants.js';
 
@@ -34,7 +35,7 @@ export async function recalculerStatutEcheance(
   ]);
 
   if (!echeance) {
-    throw new Error(`Échéance introuvable : ${echeanceId}`);
+    throw new EcheanceLoyerIntrouvable(String(echeanceId));
   }
 
   // CR-05 : préserver le statut 'annulee'. Un recalcul ne doit JAMAIS
