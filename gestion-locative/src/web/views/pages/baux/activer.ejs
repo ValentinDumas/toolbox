@@ -1,0 +1,49 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Activer le bail — ' + locataire.prenom + ' ' + locataire.nom,
+  breadcrumbs: [
+    { url: '/baux', label: 'Baux' },
+    { url: '/baux/' + bail.id, label: 'Bail de ' + locataire.prenom + ' ' + locataire.nom },
+    { label: 'Activer' }
+  ],
+  navActive: 'baux'
+}) %>
+
+<h1>Activer le bail de <%= locataire.prenom %> <%= locataire.nom %></h1>
+
+<% if (locals.erreurs && locals.erreurs._global) { %>
+  <%- include('../../partials/banniere-warning', { message: locals.erreurs._global }) %>
+<% } %>
+
+<p>L'activation génère automatiquement les échéances de loyer pour les <%= bail.dureeMois %> mois du bail.</p>
+
+<form method="post" action="/baux/<%= bail.id %>/activer">
+  <%- include('../../partials/form-field', {
+    id: 'actifDepuis',
+    label: 'Actif depuis (date de début d\'occupation)',
+    name: 'actifDepuis',
+    type: 'date',
+    required: true,
+    value: locals.valeurs && locals.valeurs.actifDepuis ? locals.valeurs.actifDepuis : bail.dateDebut.toString(),
+    erreur: locals.erreurs && locals.erreurs.actifDepuis ? locals.erreurs.actifDepuis : null,
+    hint: 'Si différente du 1er du mois, la première et la dernière échéance sont calculées au prorata.'
+  }) %>
+
+  <%- include('../../partials/form-field', {
+    id: 'jourEcheance',
+    label: 'Jour d\'échéance mensuel (1–28)',
+    name: 'jourEcheance',
+    type: 'number',
+    required: true,
+    value: locals.valeurs && locals.valeurs.jourEcheance ? locals.valeurs.jourEcheance : '1',
+    erreur: locals.erreurs && locals.erreurs.jourEcheance ? locals.erreurs.jourEcheance : null,
+    hint: 'Jour du mois auquel le loyer est exigible (ex : 5). Plafonné à 28 pour la validité en février.'
+  }) %>
+
+  <div>
+    <button type="submit">Activer et générer les échéances</button>
+    &nbsp;
+    <a href="/baux/<%= bail.id %>">Annuler</a>
+  </div>
+</form>
+
+<%- include('../../partials/layout-fin') %>

@@ -71,8 +71,16 @@
 <% } %>
 
 <p>
+  <% if (bail.actifDepuis === null) { %>
+    <a href="/baux/<%= bail.id %>/activer" role="button">Activer le bail</a>
+    &nbsp;
+  <% } %>
   <a href="/baux/<%= bail.id %>/modifier" role="button">Modifier le bail</a>
   &nbsp;
+  <% if (bail.actifDepuis !== null) { %>
+    <a href="/baux/<%= bail.id %>/echeances">Voir les échéances</a>
+    &nbsp;
+  <% } %>
   <% if (locals.aDeLActivite || bail.actifDepuis !== null) { %>
     <% if (bail.actifDepuis !== null) { %>
       <button type="button" data-open-dialog="dialog-desactiver-bail">Désactiver</button>

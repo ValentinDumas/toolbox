@@ -18,10 +18,19 @@ import type { BailId } from '../../domain/_shared/identifiants.js';
 export class ActiviteBailDetectorSqlite implements ActiviteBailDetector {
   constructor(private readonly db: Kysely<DB>) {}
 
-  async aDeLActivite(_bailId: BailId): Promise<boolean> {
-    // 02-01 walking-enabler : aucune table d'activité ne contribue encore.
-    // Retour false = suppression autorisée par défaut.
-    // Plans 02-02 à 02-04 étendront cette méthode.
+  async aDeLActivite(bailId: BailId): Promise<boolean> {
+    // 02-02 : count(echeance_loyer WHERE bail_id = ? AND annule_le IS NULL)
+    const r = await this.db
+      .selectFrom('echeance_loyer')
+      .select((eb) => eb.fn.countAll<number>().as('n'))
+      .where('bail_id', '=', bailId)
+      .where('annule_le', 'is', null)
+      .executeTakeFirst();
+
+    const n = Number(r?.n ?? 0);
+    if (n > 0) return true;
+
+    // Plans 02-03 et 02-04 étendront avec encaissement + quittance.
     return false;
   }
 }

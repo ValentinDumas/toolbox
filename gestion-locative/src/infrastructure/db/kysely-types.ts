@@ -87,6 +87,22 @@ export interface MetaTable {
   valeur: string;
 }
 
+export interface EcheanceLoyerTable {
+  id: string;
+  bail_id: string;
+  periode_debut: string;
+  periode_fin: string;
+  jour_echeance_attendue: string;
+  loyer_hc: number;
+  montant_charges: number;
+  mode_charges: 'forfait' | 'provisions';
+  total: number;
+  statut: 'en_attente' | 'partiellement_payee' | 'payee' | 'annulee';
+  cree_le: Generated<string>;
+  modifie_le: Generated<string>;
+  annule_le: string | null;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -95,4 +111,5 @@ export interface DB {
   bail_lots: BailLotsTable;
   meta: MetaTable;
   bailleur: BailleurTable;
+  echeance_loyer: EcheanceLoyerTable;
 }
