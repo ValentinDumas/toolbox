@@ -92,6 +92,10 @@
           <a href="/encaissements/nouveau?echeance=<%= impaye.echeanceId %>">Saisir un encaissement</a>
           &nbsp;
           <a href="/echeances/<%= impaye.echeanceId %>">Voir l'échéance</a>
+          <% if (niveauxDisponibles && niveauxDisponibles[impaye.echeanceId] != null) { %>
+            &nbsp;
+            <%- include('../../partials/relance-action', { echeanceId: impaye.echeanceId, niveauDisponible: niveauxDisponibles[impaye.echeanceId] }) %>
+          <% } %>
         </td>
       </tr>
       <% }); %>

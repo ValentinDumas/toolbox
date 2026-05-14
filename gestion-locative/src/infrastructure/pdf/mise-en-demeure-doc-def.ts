@@ -76,6 +76,7 @@ export function construireMiseEnDemeure(
   return {
     pageSize: 'A4',
     pageMargins: [56, 56, 56, 80],
+    compress: false,
     defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.4 },
     styles: {
       titreSection: { fontSize: 14, bold: true },

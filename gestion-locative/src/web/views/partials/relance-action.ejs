@@ -1,0 +1,23 @@
+<%
+// Partial — bouton conditionnel relance selon niveauDisponible
+// Variables attendues : echeanceId (string), niveauDisponible (1|2|3|null)
+%>
+<% if (locals.niveauDisponible === 1) { %>
+<form method="POST" action="/relances" style="display:inline">
+  <input type="hidden" name="echeanceId" value="<%= locals.echeanceId %>">
+  <input type="hidden" name="niveau" value="1">
+  <button type="submit">Lancer la relance amiable</button>
+</form>
+<% } else if (locals.niveauDisponible === 2) { %>
+<form method="POST" action="/relances" style="display:inline">
+  <input type="hidden" name="echeanceId" value="<%= locals.echeanceId %>">
+  <input type="hidden" name="niveau" value="2">
+  <button type="submit">Lancer la relance ferme</button>
+</form>
+<% } else if (locals.niveauDisponible === 3) { %>
+<form method="POST" action="/relances" style="display:inline">
+  <input type="hidden" name="echeanceId" value="<%= locals.echeanceId %>">
+  <input type="hidden" name="niveau" value="3">
+  <button type="submit">Télécharger la mise en demeure PDF</button>
+</form>
+<% } %>

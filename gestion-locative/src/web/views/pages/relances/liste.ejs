@@ -1,0 +1,71 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Relances',
+  breadcrumbs: [
+    { label: 'Relances' }
+  ],
+  navActive: 'relances'
+}) %>
+
+<h1>Relances envoyées</h1>
+
+<% if (banniereSuccess) { %>
+  <%- include('../../partials/banniere-success', { message: banniereSuccess }) %>
+<% } %>
+
+<% if (lignes.length === 0) { %>
+  <section aria-label="État vide">
+    <h2>Aucune relance envoyée</h2>
+    <p>Vous n'avez encore envoyé aucune relance. Les relances apparaissent ici dès qu'elles sont enregistrées depuis la page <a href="/impayes">Impayés</a>.</p>
+  </section>
+<% } else { %>
+
+<div role="region" aria-label="Tableau des relances">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Locataire</th>
+        <th scope="col">Période</th>
+        <th scope="col">Niveau</th>
+        <th scope="col">Canal</th>
+        <th scope="col">Envoyée le</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% lignes.forEach(function(ligne) { %>
+      <tr>
+        <td><%= ligne.locataireNomComplet %></td>
+        <td><%= formatPeriode(ligne.echeance.periodeDebut) %></td>
+        <td>
+          <% if (ligne.relance.niveau === 1) { %>
+            Relance amiable (1)
+          <% } else if (ligne.relance.niveau === 2) { %>
+            Relance ferme (2)
+          <% } else { %>
+            Mise en demeure (3)
+          <% } %>
+        </td>
+        <td>
+          <% if (ligne.relance.canal === 'email') { %>
+            Email (mailto)
+          <% } else { %>
+            PDF postal
+          <% } %>
+        </td>
+        <td><%= formatDate(ligne.relance.envoyeeLe) %></td>
+        <td>
+          <% if (ligne.relance.canal === 'pdf') { %>
+            <a href="/relances/<%= ligne.relance.id %>/pdf">Télécharger la mise en demeure (PDF)</a>
+          <% } else { %>
+            —
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

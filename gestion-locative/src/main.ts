@@ -45,6 +45,8 @@ import { plugin as echeancesPlugin } from './web/routes/echeances.js';
 import { plugin as encaissementsPlugin } from './web/routes/encaissements.js';
 import { plugin as quittancesPlugin } from './web/routes/quittances.js';
 import { plugin as impayesPlugin } from './web/routes/impayes.js';
+import { plugin as relancesPlugin } from './web/routes/relances.js';
+import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -111,6 +113,7 @@ export async function creerApp(
       path.join(os.homedir(), 'Library', 'Application Support', 'gestion-locative', 'documents'),
   );
   const pdfRenderer = new PdfRendererPdfmake();
+  const relanceRepo = new RelanceRepositorySqlite(db);
   const activiteBailDetector = opts.activiteBailDetector ?? new ActiviteBailDetectorSqlite(db);
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
@@ -169,6 +172,18 @@ export async function creerApp(
     encaissementRepo,
     bailRepo,
     locataireRepo,
+    relanceRepo,
+    clock,
+  });
+
+  await app.register(relancesPlugin, {
+    relanceRepo,
+    echeanceLoyerRepo,
+    encaissementRepo,
+    bailRepo,
+    locataireRepo,
+    bienRepo: repo,
+    bailleurRepo,
     clock,
   });
 
