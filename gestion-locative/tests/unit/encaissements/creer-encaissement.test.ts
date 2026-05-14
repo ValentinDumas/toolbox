@@ -9,6 +9,8 @@ import type { EcheanceLoyerId, BailId, EncaissementId } from '../../../src/domai
 import { Encaissement } from '../../../src/domain/encaissements/encaissement.js';
 import { Money as MoneyType } from '../../../src/domain/_shared/money.js';
 import type { StatutEcheanceLoyer } from '../../../src/domain/encaissements/echeance-loyer.js';
+import { Bail } from '../../../src/domain/locatif/bail.js';
+import { unBailValide } from '../../_builders/locatif.js';
 
 const CLOCK = ClockFixe.du('2026-05-15');
 const TODAY = CLOCK.aujourdhui();
@@ -53,9 +55,14 @@ function creerStubEncaissementRepo(encaissements: Encaissement[] = []) {
   };
 }
 
-function creerStubBailRepo(bail: { id: string; dateDebut: Temporal.PlainDate; actifDepuis: Temporal.PlainDate | null }) {
+/**
+ * IN-06 : stub typé sur Bail réel via builder unBailValide().
+ * Auparavant le bail était un objet ad-hoc casté en `unknown`, ce qui
+ * privait le test de type-checking lors d'un refactor de l'agrégat.
+ */
+function creerStubBailRepo(bail: Bail) {
   return {
-    trouverParId: async (_id: string) => bail as unknown,
+    trouverParId: async (_id: string): Promise<Bail | null> => bail,
     enregistrer: async () => {},
     listerTous: async () => [],
   };
@@ -86,12 +93,16 @@ function creerEcheanceLoyer(opts: {
 describe('creerEncaissement', () => {
   const bailId = crypto.randomUUID() as BailId;
 
-  function creerBailActif() {
-    return {
+  /**
+   * IN-06 : Bail réel construit via builder + .activer(...).
+   * Le test type-check effectif l'API agrégat (e.g. si Bail.activer
+   * change de signature, le test devient rouge).
+   */
+  function creerBailActif(): Bail {
+    return unBailValide({
       id: bailId,
       dateDebut: Temporal.PlainDate.from('2026-01-01'),
-      actifDepuis: Temporal.PlainDate.from('2026-01-01'),
-    };
+    }).activer(Temporal.PlainDate.from('2026-01-01'), 1);
   }
 
   // T10 : paiement partiel (300€ < 700€) → partiellement_payee
@@ -175,11 +186,12 @@ describe('creerEncaissement', () => {
     const echeance = creerEcheanceLoyer({ bailId });
     const echeanceLoyerRepo = creerStubEcheanceLoyerRepo(echeance);
     const encaissementRepo = creerStubEncaissementRepo();
-    const bailRepo = creerStubBailRepo({
-      id: bailId,
-      dateDebut: Temporal.PlainDate.from('2026-05-01'),
-      actifDepuis: Temporal.PlainDate.from('2026-05-01'),
-    });
+    const bailRepo = creerStubBailRepo(
+      unBailValide({
+        id: bailId,
+        dateDebut: Temporal.PlainDate.from('2026-05-01'),
+      }).activer(Temporal.PlainDate.from('2026-05-01'), 1),
+    );
 
     const result = await creerEncaissement(
       {
@@ -253,11 +265,13 @@ describe('creerEncaissement', () => {
     const echeance = creerEcheanceLoyer({ bailId });
     const echeanceLoyerRepo = creerStubEcheanceLoyerRepo(echeance);
     const encaissementRepo = creerStubEncaissementRepo();
-    const bailRepo = creerStubBailRepo({
-      id: bailId,
-      dateDebut: Temporal.PlainDate.from('2026-01-01'),
-      actifDepuis: null,
-    });
+    // Bail valide mais jamais activé (actifDepuis === null par défaut)
+    const bailRepo = creerStubBailRepo(
+      unBailValide({
+        id: bailId,
+        dateDebut: Temporal.PlainDate.from('2026-01-01'),
+      }),
+    );
 
     await expect(
       creerEncaissement(
