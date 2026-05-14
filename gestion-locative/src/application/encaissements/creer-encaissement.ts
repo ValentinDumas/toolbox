@@ -59,7 +59,8 @@ export async function creerEncaissement(
   }
 
   // Vérifier que le bail est actif
-  if ((bail as { actifDepuis: unknown }).actifDepuis === null) {
+  // WR-01 : Bail expose déjà actifDepuis typé — pas de cast nécessaire.
+  if (bail.actifDepuis === null) {
     throw new BailNonActif(bail.id);
   }
 
@@ -70,7 +71,8 @@ export async function creerEncaissement(
   // Warnings D-61 (non-bloquants)
   const warnings: string[] = [];
   const today = clock.aujourdhui();
-  const bailDateDebut = (bail as { dateDebut: Temporal.PlainDate }).dateDebut;
+  // WR-01 : Bail expose déjà dateDebut typé — pas de cast nécessaire.
+  const bailDateDebut = bail.dateDebut;
 
   if (Temporal.PlainDate.compare(commande.date, bailDateDebut) < 0) {
     warnings.push('La date de paiement est antérieure à la date de début du bail');
