@@ -10,8 +10,10 @@ import type { Kysely } from 'kysely';
 import type { DB } from './infrastructure/db/kysely-types.js';
 import { ouvrirDb, cheminBaseParDefaut, appliquerMigrationsBrutes } from './infrastructure/db/database.js';
 import { BienRepositorySqlite } from './infrastructure/repositories/bien-repository-sqlite.js';
+import { LocataireRepositorySqlite } from './infrastructure/repositories/locataire-repository-sqlite.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
+import { plugin as locatairesPlugin } from './web/routes/locataires.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -51,9 +53,11 @@ export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastif
   });
 
   const repo = new BienRepositorySqlite(db);
+  const locataireRepo = new LocataireRepositorySqlite(db);
 
   await app.register(racinePlugin, { db });
   await app.register(biensPlugin, { repo });
+  await app.register(locatairesPlugin, { repo: locataireRepo });
 
   return app;
 }

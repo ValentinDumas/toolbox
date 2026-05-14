@@ -1,0 +1,47 @@
+<%- include('../../partials/layout-debut', { titre: locataire.prenom + ' ' + locataire.nom, banniereSuccess: locals.banniereSuccess ?? null, navActive: locals.navActive ?? null }) %>
+
+<nav aria-label="Fil d'Ariane">
+  <ul>
+    <li><a href="/">Accueil</a></li>
+    <li><a href="/locataires">Locataires</a></li>
+    <li><%= locataire.prenom %> <%= locataire.nom %></li>
+  </ul>
+</nav>
+
+<h1><%= locataire.prenom %> <%= locataire.nom %></h1>
+
+<h2>Identité</h2>
+<dl>
+  <dt>Nom</dt><dd><%= locataire.nom %></dd>
+  <dt>Prénom</dt><dd><%= locataire.prenom %></dd>
+  <dt>Date de naissance</dt><dd><%= formatDate(locataire.dateNaissance) %></dd>
+  <dt>Commune de naissance</dt><dd><%= locataire.lieuNaissance.commune %></dd>
+  <dt>Pays de naissance</dt><dd><%= locataire.lieuNaissance.pays %></dd>
+  <dt>Nationalité</dt><dd><%= locataire.nationalite %></dd>
+</dl>
+
+<h2>Contact</h2>
+<dl>
+  <dt>Email</dt><dd><a href="mailto:<%= locataire.email %>"><%= locataire.email %></a></dd>
+  <dt>Téléphone</dt><dd><%= locataire.telephone || '—' %></dd>
+  <dt>Adresse</dt><dd><%= locataire.adresseActuelle.enLigne() %></dd>
+</dl>
+
+<p>
+  <a href="/locataires/<%= locataire.id %>/modifier" role="button">Modifier le locataire</a>
+  &nbsp;
+  <button type="button" class="destructif" data-open-dialog="dialog-supprimer-locataire">Supprimer</button>
+</p>
+
+<%- include('../../partials/confirm-dialog', {
+  id: 'dialog-supprimer-locataire',
+  formAction: '/locataires/' + locataire.id + '/supprimer',
+  message: 'Supprimer ' + locataire.prenom + ' ' + locataire.nom + ' ? Cette action est irréversible.',
+  confirmLabel: 'Supprimer définitivement',
+  cancelLabel: 'Annuler'
+}) %>
+
+<h2>Baux associés</h2>
+<p>Aucun bail pour l'instant.</p>
+
+<%- include('../../partials/layout-fin') %>

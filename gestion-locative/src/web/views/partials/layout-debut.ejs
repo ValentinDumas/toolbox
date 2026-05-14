@@ -13,8 +13,8 @@
           <li><strong>Gestion locative</strong></li>
         </ul>
         <ul>
-          <li><a href="/biens">Biens</a></li>
-          <li><a href="#" aria-disabled="true">Locataires</a></li>
+          <li><a href="/biens"<% if (locals.navActive === 'biens') { %> aria-current="page"<% } %>>Biens</a></li>
+          <li><a href="/locataires"<% if (locals.navActive === 'locataires') { %> aria-current="page"<% } %>>Locataires</a></li>
           <li><a href="#" aria-disabled="true">Baux</a></li>
         </ul>
       </nav>
