@@ -72,7 +72,7 @@ describe('buildMailto', () => {
 
     const bodyMatch = uri.match(/&body=(.+)$/);
     expect(bodyMatch).toBeTruthy();
-    const bodyEncoded = bodyMatch![1];
+    const bodyEncoded = bodyMatch?.[1] ?? '';
 
     // Le body tronqué doit toujours être décodable sans erreur — c'est la
     // garantie qu'on n'a pas coupé au milieu d'un %XX.
