@@ -34,6 +34,18 @@ describe('Encaissement', () => {
     ).toThrow(InvariantViolated);
   });
 
+  // WR-08 : Encaissement de 0 € doit être refusé (cohérence inter-couches
+  // avec Zod côté web). Test régression pour prévenir un refactor qui
+  // retirerait silencieusement l'invariant.
+  it('WR-08: rejette montant = 0 €', () => {
+    expect(() =>
+      Encaissement.creer({ ...propsValide(), montant: Money.zero() }),
+    ).toThrow(InvariantViolated);
+    expect(() =>
+      Encaissement.creer({ ...propsValide(), montant: Money.zero() }),
+    ).toThrow('Un Encaissement ne peut pas être de 0 €');
+  });
+
   // T8 : annuler retourne nouveau Encaissement annulé
   it('T8: e.annuler("raison", PlainDate) retourne nouveau Encaissement annulé', () => {
     const e = Encaissement.creer(propsValide());
