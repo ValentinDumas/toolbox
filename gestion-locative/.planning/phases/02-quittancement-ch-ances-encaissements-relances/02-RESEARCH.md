@@ -1140,22 +1140,25 @@ pnpm add @fast-check/vitest --save-dev
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Police PDF pour les accents français**
+1. **RESOLVED — 02-02 :** **Police PDF pour les accents français**
    - Ce que l'on sait : Helvetica Standard-14 est ANSI uniquement — les accents français ne s'affichent pas.
    - Ce qui est flou : Le planner doit choisir la police TTF (Roboto recommandé) et décider comment la bundler (dans `src/infrastructure/pdf/fonts/` en binaire, ou chargée depuis `node_modules/fontsource-roboto`).
    - Recommandation : Roboto depuis `@fontsource/roboto` (npm) — dépendance claire, pas de binaire commité.
+   - **Décision plan 02-02 :** `@fontsource/roboto` adopté en dépendance npm. Chargement des TTF (`Roboto-Regular`, `Roboto-Medium`) au boot de l'adapter `PdfRendererPdfmake` via `fs.readFileSync` depuis `node_modules/@fontsource/roboto/files/`. Aucun binaire commité.
 
-2. **Money.negation pour les compensateurs**
+2. **RESOLVED — 02-03 :** **Money.negation pour les compensateurs**
    - Ce que l'on sait : `Money.fromCentimes` refuse les négatifs (Phase 1 design).
    - Ce qui est flou : Le planner doit trancher entre (a) `Money.compensateur(positif)` factory privée, (b) type `MoneySigné` distinct, (c) stocker le montant en valeur absolue + champ `type: 'credit'|'debit'`.
    - Recommandation : Option (a) — factory explicite nommée `Money.compensateur(positif: Money)` qui retourne un Money à centimes négatifs. Sémantiquement clair, pas de nouveau type.
+   - **Décision plan 02-03 :** Option (a) adoptée. `Money.compensateur(positif: Money): Money` factory statique utilise le constructeur privé pour bypasser `fromCentimes` (qui rejette les négatifs). Méthode d'instance `negation()` ajoutée comme alias d'ergonomie. Méthode `estNegatif()` pour les helpers de présentation. Tests : double négation idempotente (`compensateur(compensateur(x)) === x`).
 
-3. **Stockage path des PDF quittances**
+3. **RESOLVED — 02-04 :** **Stockage path des PDF quittances**
    - Ce que l'on sait : D-63 spécifie `~/Library/.../gestion-locative/documents/quittances/{annee}/`.
    - Ce qui est flou : La table `quittance` doit-elle stocker le chemin absolu ou relatif ? En cas de déplacement du dossier user, les liens se brisent.
    - Recommandation : Stocker le chemin relatif depuis `baseDir` (lui-même configurable via env var ou config) — le planner doit confirmer.
+   - **Décision plan 02-04 :** Chemin relatif depuis `baseDir` adopté. `baseDir` résolu via `process.env.GESTION_LOCATIVE_DATA_DIR ?? path.join(os.homedir(), 'Library/Application Support/gestion-locative/documents')`. Table `quittance.chemin_fichier_relatif` stocke `quittances/{annee}/{nomFichier}`. L'utilisateur peut déplacer le dossier sans casser les liens (env var mise à jour). `StockageFichierLocal.lireQuittance` vérifie `resolved.startsWith(baseDir)` contre path traversal.
 
 ---
 
