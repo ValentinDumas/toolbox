@@ -32,7 +32,7 @@ export class EncaissementRepositorySqlite implements EncaissementRepository {
       .values({
         id: encaissement.id,
         echeance_id: encaissement.echeanceId,
-        montant_centimes: Number(encaissement.montant.toCentimes()),
+        montant_centimes: encaissement.montant.toSqliteInteger(),
         date: encaissement.date.toString(),
         mode: encaissement.mode,
         annule_le: encaissement.annuleLe?.toString() ?? null,

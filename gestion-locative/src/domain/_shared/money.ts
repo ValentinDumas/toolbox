@@ -39,6 +39,22 @@ export class Money {
     return this.centimes;
   }
 
+  /**
+   * Retourne les centimes en number, avec garantie d'absence d'overflow JS-safe.
+   * Pour stockage SQLite INTEGER (≤ Number.MAX_SAFE_INTEGER).
+   *
+   * WR-05 : remplace l'idiome `Number(money.toCentimes())` qui perd la précision
+   * silencieusement pour des montants > 2^53.
+   */
+  toSqliteInteger(): number {
+    if (this.centimes > BigInt(Number.MAX_SAFE_INTEGER) || this.centimes < BigInt(Number.MIN_SAFE_INTEGER)) {
+      throw new InvariantViolated(
+        `Montant Money hors borne JS-safe : ${this.centimes} centimes. Stockage en TEXT requis pour cette plage.`,
+      );
+    }
+    return Number(this.centimes);
+  }
+
   additionner(other: Money): Money {
     return new Money(this.centimes + other.centimes);
   }
@@ -73,8 +89,19 @@ export class Money {
     return this.centimes > other.centimes;
   }
 
-  /** Sérialisation HTTP — retourne number (centimes) car bigint n'est pas JSON-sérialisable natif. */
+  /**
+   * Sérialisation HTTP — retourne number (centimes) car bigint n'est pas JSON-sérialisable natif.
+   *
+   * WR-05 : assert sur overflow MAX_SAFE_INTEGER (9×10^15 centimes = 90 milliards
+   * d'euros). Couvre positifs ET compensateurs négatifs. Hors borne, Number(bigint)
+   * arrondit silencieusement aux 2^53 voisins — corruption silencieuse en BDD.
+   */
   toJSON(): number {
+    if (this.centimes > BigInt(Number.MAX_SAFE_INTEGER) || this.centimes < BigInt(Number.MIN_SAFE_INTEGER)) {
+      throw new InvariantViolated(
+        `Montant Money hors borne JS-safe : ${this.centimes} centimes. Stockage en TEXT requis pour cette plage.`,
+      );
+    }
     return Number(this.centimes);
   }
 

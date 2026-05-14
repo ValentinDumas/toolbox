@@ -124,10 +124,10 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
       periode_debut: e.periodeDebut.toString(),
       periode_fin: e.periodeFin.toString(),
       jour_echeance_attendue: e.jourEcheanceAttendue.toString(),
-      loyer_hc: Number(e.loyerHc.toCentimes()),
-      montant_charges: Number(e.montantCharges.toCentimes()),
+      loyer_hc: e.loyerHc.toSqliteInteger(),
+      montant_charges: e.montantCharges.toSqliteInteger(),
       mode_charges: e.modeCharges,
-      total: Number(e.total.toCentimes()),
+      total: e.total.toSqliteInteger(),
       statut: e.statut,
       annule_le: e.annuleLe?.toString() ?? null,
     };
