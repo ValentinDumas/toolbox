@@ -59,7 +59,7 @@ Plans:
   5. L'utilisateur peut déclencher des `Relance`s escaladées (amiable → mise en demeure) avec templates email.
 **Plans:** 6/6 plans planned
 Plans:
-- [ ] 02-01-PLAN.md — Walking enabler : Profil bailleur (D-67) + extension Bail (actif_depuis, jour_echeance) + Clock + migration 0002 (wave 1, enabler)
+- [x] 02-01-PLAN.md — Walking enabler : Profil bailleur (D-67) + extension Bail (actif_depuis, jour_echeance) + Clock + migration 0002 (wave 1, enabler)
 - [ ] 02-02-PLAN.md — Avis d'échéance PDF (ENC-02) + génération EcheanceLoyer à l'activation + prorata 1ère/dernière (wave 2)
 - [ ] 02-03-PLAN.md — Saisie Encaissement + soft-delete + compensateur + warnings sur-paiement / date hors plage (ENC-03) (wave 3)
 - [ ] 02-04-PLAN.md — Émission Quittance PDF persistée + numérotation AAAA-NNN atomique + warning quittance invalidée (ENC-01) (wave 4)
