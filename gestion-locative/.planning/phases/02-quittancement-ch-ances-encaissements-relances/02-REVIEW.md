@@ -1,6 +1,6 @@
 ---
 phase: 02-quittancement-ch-ances-encaissements-relances
-reviewed: 2026-05-14T10:00:00Z
+reviewed: 2026-05-14T22:30:00Z
 depth: standard
 files_reviewed: 117
 files_reviewed_list:
@@ -75,6 +75,7 @@ files_reviewed_list:
   - src/web/schemas/bailleur-schemas.ts
   - src/web/schemas/encaissement-schemas.ts
   - src/web/schemas/quittance-schemas.ts
+  - src/web/schemas/relance-schemas.ts
   - src/web/views/pages/bailleur/profil.ejs
   - src/web/views/pages/baux/activer.ejs
   - src/web/views/pages/baux/detail.ejs
@@ -140,624 +141,245 @@ files_reviewed_list:
   - tests/unit/locatif/modifier-bail-actif.test.ts
   - tests/unit/locatif/supprimer-bail.test.ts
 findings:
-  critical: 7
-  warning: 13
+  critical: 1
+  warning: 4
   info: 6
-  total: 26
+  total: 11
 status: issues_found
 ---
 
-# Phase 2: Code Review Report
+# Phase 2: Code Review Report (Re-Review #2)
 
-**Reviewed:** 2026-05-14T10:00:00Z
+**Reviewed:** 2026-05-14T22:30:00Z
 **Depth:** standard
 **Files Reviewed:** 117
 **Status:** issues_found
 
 ## Summary
 
-Phase 2 livre l'activation des baux, la génération des échéances, les encaissements (avec compensateurs), les quittances PDF, le suivi des impayés et les relances escaladées. L'architecture hexagonale est globalement respectée et la couverture de tests est solide.
+Re-review après application des fixes (REVIEW-FIX iteration 1). **Excellente progression** : 19 sur 20 findings traités, dont l'intégralité des Critical (CR-01 à CR-07). Les fixes appliqués sont structurellement corrects et préservent l'architecture hexagonale.
 
-Cependant, l'examen a relevé **plusieurs défauts critiques** :
-- Une **incohérence majeure dans la régénération des échéances futures** (`modifier-bail-actif`) qui peut produire des doublons de périodes ou des trous.
-- Une **course condition / atomicité brisée** dans `genererQuittance` : la quittance est INSÉRÉE en transaction puis le PDF est écrit hors-transaction. En cas de crash, on a une ligne BDD pointant vers un fichier inexistant.
-- Une **transaction Kysely détournée** : `genererQuittance` passe le `trx` au repo mais le repo l'ignore et utilise `this.db` au lieu du `trx`. Toute la transactionnalité repose donc sur l'illusion.
-- **Sérialisation invalide de Money en HTTP-friendly** : `Money.toJSON()` retourne `Number(centimes)` qui silently overflows pour des montants > 2^53, mais retourne un negative number pour les compensateurs sans le documenter.
-- **Le clock fixe est ignoré pour les générations on-the-fly** : `bailRepo` typecasts perdent `actifDepuis` (cf CR-03).
-- **Le filtre sur `echeance.annule_le` côté `trouverParId` exclut silencieusement les échéances annulées**, ce qui contredit le besoin d'audit (D-60 / D-74).
-- **L'incrément du compteur de quittances n'est PAS atomique** (sélectionner-puis-update sans LOCK), ce qui peut produire des numéros dupliqués sous concurrence.
+**Confirmation des fixes propres :**
+- **CR-01** (`modifier-bail-actif`) : matching strict par `Set<periodeDebut.toString()>` + invariant check — robuste face aux gaps et au changement de `jourEcheance`.
+- **CR-02** (PDF transactionnel) : compensation via `Quittance.annuler` copy-on-write en cas d'erreur PDF/disque — la quittance est marquée annulée pour préserver l'invariant audit "row active ⇒ PDF présent".
+- **CR-03** (transaction Kysely + race compteur) : type `DbOrTrx = Kysely<DB> | Transaction<DB>` propre + UPSERT atomique `INSERT … ON CONFLICT DO UPDATE SET valeur = CAST(meta.valeur+1 AS TEXT) RETURNING valeur`.
+- **CR-04** (`trouverParId` soft-deletes) : filtrage retiré, conforme à D-60/D-74.
+- **CR-05** (recalcul statut annulée) : early return si `echeance.statut === 'annulee'`.
+- **CR-06** (erreurs typées) : `BailIntrouvable`, `LocataireIntrouvable`, `BienIntrouvable` dédiés.
+- **CR-07** (CSP) : headers `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy` ajoutés via hook `onSend`.
+- **WR-01 à WR-13** : duck-typing supprimé, `pdfRenderer` injecté en singleton, path traversal blindé via `fs.realpath`+null-byte, troncature mailto safe, `Money.toSqliteInteger()` avec assert, `Pick<Bail, …>`, UPSERT bailleur, Encaissement 0€ rejeté, Zod schema relances, 404 quittance, slicing filename safe, migration 0002 transactionnelle.
 
-Côté warnings, on note plusieurs duck-typing dangereux sur le `Bail` (`as { actifDepuis: unknown }`), une **double instanciation de `PdfRendererPdfmake`** (singleton pdfmake module-level state pollué), un **path traversal partiellement protégé** dans `stockage-fichier-local`, et plusieurs **EJS rendus avec `<%- %>` sur des données utilisateur** (XSS potentiel via les messages d'erreur).
+**Nouveaux findings ou résidus après fix :**
+
+1. **WR-05 partiellement appliqué (1 Critical résiduel)** : `bail-repository-sqlite.ts:48-51` utilise toujours `Number(bail.loyerHc.toCentimes())` dans la clause `doUpdateSet` du UPSERT. Le fix WR-05 a remplacé l'idiome dans `.values()` mais a oublié `.doUpdateSet()`. Conséquence : le chemin de mise à jour (utilisé par `modifierBailActif` qui appelle `bailRepo.enregistrer(bailModifie)`) **contourne** l'assert `MAX_SAFE_INTEGER`. Régression directe.
+
+2. **IN-01 / IN-02 non appliqués** : la branche morte dans `activer-bail.ts:126-130` (vue de l'algorithme : 2 branches identiques pour `actifDepuis.day === 1`) et les imports dynamiques inutiles dans `baux.ts:563-566` sont toujours présents.
+
+3. **`ActiviteBailDetectorSqlite` ne tient pas sa docstring** : la docstring stipule que l'extension 02-03/02-04 doit chaîner les checks sur `encaissement` et `quittance`. L'implémentation se limite au count `echeance_loyer WHERE annule_le IS NULL`. Risque concret : si toutes les échéances d'un bail sont soft-deleted, le détecteur retourne `false` même si encaissements/quittances persistent — la suppression hard-delete laisserait des orphelins (FK CASCADE inexistant).
+
+4. **Compensation CR-02 best-effort silencieuse** : si la génération PDF échoue ET que la compensation `quittance.annuler() + repo.enregistrer()` échoue aussi, l'erreur d'annulation est swallowed (`catch {}` ligne 164-166). La quittance reste alors active en BDD avec un PDF inexistant. Le commentaire reconnaît le compromis mais aucun log ni alerting — invisible pour l'opérateur.
+
+5. **Couverture de tests des nouveaux invariants** : WR-08 (Encaissement 0€), CR-05 (recalcul préservant `annulee`), WR-04 (troncature `%XX`) ne sont pas couverts par des tests dédiés.
+
+6. **Dead code** : `listerQuittances` use case exporté mais non importé ; `compterParBail` repo method non utilisée.
 
 ## Critical Issues
 
-### CR-01: `modifier-bail-actif` régénère mal les échéances futures — risque de doublons ou de trous
+### CR-01: `bail-repository-sqlite.enregistrer` — WR-05 fix incomplet, l'UPSERT du chemin de mise à jour ignore l'assert overflow
 
-**File:** `src/application/locatif/modifier-bail-actif.ts:101-119`
-**Issue:** L'algorithme régénère via `genererEcheancesPour(bailModifie, bailModifie.actifDepuis!, bailModifie.jourEcheance)` qui produit `dureeMois` échéances couvrant TOUT le bail depuis `actifDepuis`. Puis le code prend "les `aRegenererIds.length` dernières" via `slice(toutesLesEcheances.length - nbARegenerer)`.
-
-Ce raccourci suppose que :
-1. Les ids supprimés sont strictement les `N-aPreserverCount` dernières dans l'ordre de génération.
-2. La structure de génération est identique entre l'ancien et le nouveau bail (mêmes dates de début, durée, jourEcheance).
-
-Or :
-- Si `bail.actifDepuis` n'a PAS changé mais que `jourEcheance` change (D-53), `jour_echeance_attendue` doit être recalculé pour toutes les périodes, y compris celles préservées — ce que fait pas la logique : on préserve l'ancienne `jourEcheanceAttendue`.
-- Si une `partiellement_payee` du passé est préservée tandis que les périodes futures sont régénérées, l'index calculé par `slice(...)` peut être incorrect quand certaines périodes intermédiaires sont préservées (ex : 5 échéances futures non-payées mais une période 09 préservée car partiellement_payee avec encaissement → on supprime 4 ids, on régénère les 4 dernières → la période 09 a maintenant 2 versions).
-- En cas de gap (préservée non-contiguë), le slice ne correspond plus aux périodes supprimées.
-
-**Fix:**
-```typescript
-// Régénérer en faisant correspondre périodes exactement : régénérer toutes les périodes,
-// puis filtrer par dates aRegenerer (matching strict periodeDebut → periodeFin), pas par index.
-const toutesLesEcheances = genererEcheancesPour(bailModifie, bailModifie.actifDepuis!, bailModifie.jourEcheance);
-
-// Préserver le set des periodeDebut supprimées (collecté avant suppression)
-const periodesSupprimees = new Set(
-  echeances
-    .filter((e) => aRegenererIds.includes(e.id))
-    .map((e) => e.periodeDebut.toString()),
-);
-
-const nouvellesEcheances = toutesLesEcheances.filter((e) =>
-  periodesSupprimees.has(e.periodeDebut.toString()),
-);
-
-if (nouvellesEcheances.length !== aRegenererIds.length) {
-  throw new InvariantViolated('Mismatch entre périodes supprimées et régénérées');
-}
-```
-
----
-
-### CR-02: `generer-quittance` — PDF écrit hors transaction → corruption en cas de crash
-
-**File:** `src/application/encaissements/generer-quittance.ts:114-147`
-**Issue:** La transaction Kysely encadre uniquement `prochainNumero` + `quittanceRepo.enregistrer`. Le rendu PDF (`pdfRenderer.genererBuffer`) et l'écriture disque (`stockage.ecrireQuittance`) sont effectués HORS transaction (lignes 145-147).
-
-Conséquences :
-1. Si le PDF rendering échoue (mémoire, fonts) → la quittance est déjà en base avec `chemin_fichier_relatif` pointant vers un fichier inexistant.
-2. Si l'écriture disque échoue (disque plein, permissions) → idem.
-3. Le `/quittances/:id/pdf` retournera 404 alors que la quittance "existe" en base — le compteur numero a déjà été incrémenté.
-
-Le commentaire en ligne 56 ("Écriture PDF hors transaction (compromis acceptable — voir spec)") montre que c'est un choix conscient, mais sans compensation (suppression de la ligne BDD si l'écriture disque échoue) c'est un bug. La quittance "fantôme" reste comptée dans le compteur annuel.
-
-**Fix:** Rendre le PDF AVANT la transaction et l'écrire APRÈS (idempotent) avec rollback explicite en cas d'échec :
-```typescript
-// 1. Calculer le PDF avant la transaction
-const docDefPreview = construireQuittance(echeance, bailleur, locataire, adresseBien, '0000-000', clock.aujourdhui(), bail.modeCharges);
-// (preview docDef ne fixe pas le numero — qui sera connu seulement après prochainNumero)
-
-// 2. Transaction : alloc numero + insert quittance row
-await db.transaction().execute(async (trx) => {
-  numero = await repos.quittanceRepo.prochainNumero(annee, trx);
-  // ... build quittance ...
-  await repos.quittanceRepo.enregistrer(quittance, trx);
-});
-
-// 3. Génération PDF + écriture disque APRÈS commit
-try {
-  const docDef = construireQuittance(echeance, bailleur, locataire, adresseBien, quittance.numero, clock.aujourdhui(), bail.modeCharges);
-  const buffer = await pdfRenderer.genererBuffer(docDef);
-  await stockage.ecrireQuittance(annee, nomFichierFinal, buffer);
-} catch (err) {
-  // Compensation : marquer la quittance comme annulee_le (et le PDF orphelin)
-  await repos.quittanceRepo.enregistrer(
-    quittance.annuler('Erreur génération PDF', clock.aujourdhui()),
-  );
-  throw err;
-}
-```
-
----
-
-### CR-03: `generer-quittance.ts` — la transaction Kysely n'est PAS atomique : `quittanceRepo.enregistrer` ignore `trx`
-
-**File:** `src/infrastructure/repositories/quittance-repository-sqlite.ts:23-43`, `src/infrastructure/repositories/quittance-repository-sqlite.ts:84-112`, `src/application/encaissements/generer-quittance.ts:118-131`
-**Issue:** Le use case `generer-quittance.ts` ouvre une transaction et passe `trx` à `prochainNumero` et `enregistrer`. **Mais les deux méthodes du repository utilisent `(trxArg as Kysely<DB> | undefined) ?? this.db`** où `this.db` est l'instance globale, pas le `trx`.
-
-Pire : dans `prochainNumero` (ligne 88), si on utilise `trx` Kysely, on ne peut pas le typecaster en `Kysely<DB>` — un `Transaction<DB>` Kysely a une API similaire mais c'est un type différent. Le typecast hide le bug : en pratique, `trx` peut quand même fonctionner en runtime car les méthodes `selectFrom/insertInto` sont compatibles. Mais l'intention de coder un fallback safe est trompeuse — si `trx` est `undefined`, on utilise `this.db` SANS transaction, et il n'y a aucun warning.
-
-Cela rend la "transaction atomique" annoncée en commentaire (`Transaction atomique : incrément compteur + INSERT quittance`) **non-atomique en pratique** quand le repository tombe sur `this.db`.
-
-Test integration `T15b: prochainNumero(2026) quand meta.valeur=42 → "2026-043"` passe l'argument `trx=undefined`, donc utilise `this.db`. Sous concurrence (ou erreur entre SELECT et UPDATE), deux requêtes peuvent lire la même valeur et écrire le même numéro — la contrainte `UNIQUE(numero)` lèvera mais le compteur sera désynchronisé.
-
-**Fix:**
-1. Faire de `prochainNumero` une vraie opération atomique SQL : `INSERT ... ON CONFLICT DO UPDATE SET valeur = valeur + 1 RETURNING valeur` (PostgreSQL) ou pour SQLite : utiliser un UPSERT atomique avec `RETURNING`.
-2. Garantir que `trxArg` est utilisé dans le repo. Si l'API Kysely ne le permet pas (different types), repenser le pattern (passer un `dbOrTrx: Kysely<DB> | Transaction<DB>`).
+**File:** `src/infrastructure/repositories/bail-repository-sqlite.ts:48,50,51`
+**Issue:** Le fix WR-05 a remplacé `Number(bail.loyerHc.toCentimes())` par `bail.loyerHc.toSqliteInteger()` dans la clause `.values(...)` (lignes 32-35), mais **a oublié de remplacer aussi les 3 lignes équivalentes dans la clause `.doUpdateSet(...)`** :
 
 ```typescript
-// Atomic via UPSERT with RETURNING (better-sqlite3 supports RETURNING since SQLite 3.35)
-async prochainNumero(annee: number, trxArg?: Transaction<DB>): Promise<string> {
-  const db = trxArg ?? this.db;
-  const cle = `compteur_quittance_${annee}`;
-  
-  const row = await db
-    .insertInto('meta')
-    .values({ cle, valeur: '1' })
-    .onConflict((oc) =>
-      oc.column('cle').doUpdateSet({
-        valeur: sql`CAST(CAST(meta.valeur AS INTEGER) + 1 AS TEXT)`,
-      }),
-    )
-    .returning('valeur')
-    .executeTakeFirstOrThrow();
-  
-  return formatNumeroQuittance(annee, Number(row.valeur));
-}
-```
-
----
-
-### CR-04: `echeance-loyer-repository-sqlite.trouverParId` exclut silencieusement les échéances annulées
-
-**File:** `src/infrastructure/repositories/echeance-loyer-repository-sqlite.ts:52-62`
-**Issue:** `trouverParId` filtre par `annule_le IS NULL` :
-```typescript
-const row = await this.db
-  .selectFrom('echeance_loyer')
-  .selectAll()
-  .where('id', '=', id)
-  .where('annule_le', 'is', null)  // BUG : exclut les annulées
-  .executeTakeFirst();
-```
-
-Conséquences :
-- Côté `quittances.ts:200-213` (route GET `/quittances/:id`) : `echeanceLoyerRepo.trouverParId(quittance.echeanceId)` retourne `null` pour une échéance annulée, alors qu'on veut afficher la quittance + un warning "échéance annulée".
-- Côté `recalculer-statut-echeance.ts:30-39` : si une échéance est annulée et qu'un compensateur arrive, l'opération `Promise.all` retourne `echeance=null` → `throw new Error("Échéance introuvable")` au lieu d'un traitement gracieux.
-- Côté `enregistrerRelance` et `annulerEncaissement` : impossible de manipuler une échéance soft-deleted pour audit.
-
-**D-60 / D-74** stipulent que le soft-delete doit préserver l'historique pour l'audit. Le filtrage côté `trouverParId` est incorrect ; il devrait être côté `listerParBail` (où c'est légitime) mais pas côté lookup par id.
-
-**Fix:**
-```typescript
-async trouverParId(id: EcheanceLoyerId | string): Promise<EcheanceLoyer | null> {
-  const row = await this.db
-    .selectFrom('echeance_loyer')
-    .selectAll()
-    .where('id', '=', id)
-    // Pas de filtre annule_le — laissez le caller décider
-    .executeTakeFirst();
-  if (!row) return null;
-  return this.versDomaine(row as EcheanceLoyerRow);
-}
-```
-
-Et faire de même pour `Encaissement` et `Quittance` si applicable.
-
----
-
-### CR-05: `recalculer-statut-echeance` ne met PAS le statut à `payee` si echeance a déjà statut `annulee`
-
-**File:** `src/application/encaissements/recalculer-statut-echeance.ts:31-58`
-**Issue:** Le use case appelle systématiquement `mettreAJourStatut`, même quand l'échéance est `annulee`. La logique :
-```typescript
-if (sommePaiee.estNegatif() || sommePaiee.egale(Money.zero())) {
-  statut = 'en_attente';  // BUG : peut écraser 'annulee' → 'en_attente'
-} else if (...) {
-  statut = 'partiellement_payee';
-} ...
-
-await echeanceLoyerRepo.mettreAJourStatut(echeanceId, statut);
-```
-
-Conséquence : Si on annule un encaissement lié à une échéance déjà annulée (cas impossible en cas idéal, mais permis par le schéma), le statut de l'échéance bascule de `annulee` → `en_attente`. Idem si on encaisse un compensateur sur une échéance annulée — `creer-encaissement.ts` la rejette via `EcheanceAnnulee`, mais si l'annulation arrive entre le check et la persistence (TOCTOU), on peut atteindre cet état.
-
-**Fix:** Préserver le statut `annulee` dans `recalculer-statut-echeance` :
-```typescript
-if (echeance.statut === 'annulee') {
-  // Ne pas écraser le statut annulé — recalcul non pertinent
-  return { statut: 'annulee', sommePaiee, surPaiement: null };
-}
-```
-
----
-
-### CR-06: `enregistrer-relance.ts` lance des `EcheanceLoyerIntrouvable` pour bail/locataire/bien manquants — typage faux
-
-**File:** `src/application/encaissements/enregistrer-relance.ts:87-99`
-**Issue:**
-```typescript
-const bail = await repos.bailRepo.trouverParId(echeance.bailId);
-if (!bail) {
-  throw new EcheanceLoyerIntrouvable(`Bail introuvable pour l'échéance ${String(commande.echeanceId)}`);
-}
-
-const locataire = await repos.locataireRepo.trouverParId(bail.locataireId);
-if (!locataire) {
-  throw new EcheanceLoyerIntrouvable(`Locataire introuvable pour le bail ${bail.id}`);
-}
-
-const bien = await repos.bienRepo.trouverParId(bail.bienId);
-if (!bien) {
-  throw new EcheanceLoyerIntrouvable(`Bien introuvable pour le bail ${bail.id}`);
-}
-```
-
-Trois erreurs distinctes (bail, locataire, bien introuvables) sont mappées à la même exception `EcheanceLoyerIntrouvable`. Conséquence : impossible pour le caller de distinguer la cause via `instanceof`. La route `/relances` (relances.ts:114-119) ne catche que `RelanceNiveauNonDisponible`, les autres erreurs remontent en 500 — perte d'information utilisateur.
-
-Pire, le message d'erreur dans `enregistrer-relance.ts:88` est misleading : "Bail introuvable pour l'échéance" est lancé comme une `EcheanceLoyerIntrouvable`. Du point de vue HTTP/logs, c'est trompeur.
-
-**Fix:** Créer des erreurs domaines dédiées (`BailIntrouvable`, `LocataireIntrouvable`, `BienIntrouvable`) ou — si on veut un seul type, utiliser `InvariantViolated` avec un message clair, pas réutiliser le type d'une autre entité.
-
-```typescript
-import { BailIntrouvable } from '../../domain/locatif/erreurs.js';
-import { LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
-// ...
-if (!bail) throw new BailIntrouvable(echeance.bailId);
-if (!locataire) throw new LocataireIntrouvable(bail.locataireId);
-if (!bien) throw new BienIntrouvable(bail.bienId);
-```
-
----
-
-### CR-07: `EJS XSS` — `banniere-warning.ejs` rend `<%= message %>` mais des call sites le passent en HTML
-
-**File:** `src/web/views/partials/banniere-warning.ejs:3`, `src/web/views/pages/baux/detail.ejs:233`, `src/web/routes/baux.ts:233`
-**Issue:** Bien que la majorité des call sites utilisent `<%= %>` (escape), certains messages d'erreur sont construits par concaténation de chaînes contrôlées partiellement par l'utilisateur :
-
-```typescript
-// src/web/routes/baux.ts:233
-return reply.code(404).send('Ce bail n\'existe pas ou a été supprimé. <a href="/baux">Retour aux baux</a>');
-
-// src/web/routes/quittances.ts:128
-return reply.code(404).send('Quittance introuvable. <a href="/quittances">Retour</a>');
-
-// src/web/routes/echeances.ts:194
-return reply.code(400).send('Profil bailleur non renseigné. <a href="/bailleur">Renseigner le profil</a>');
-```
-
-Ces routes appellent `reply.send(string)` avec du HTML inline mais sans `reply.type('text/html')`. Fastify default content-type est `text/html` pour les strings → OK pour le rendu, mais ces réponses court-circuitent le système de view layouts et de sécurité (pas de CSP, pas d'encodage automatique). Si à terme on injecte une partie utilisateur dans ces messages, on a un vecteur XSS direct.
-
-Plus immédiat : dans `src/web/routes/echeances.ts:255-256` :
-```typescript
-if (query['avertissement']) {
-  banniereWarning = decodeURIComponent(query['avertissement']);
-}
-```
-
-Le warning vient d'un query param attaquant-contrôlable, puis est rendu via `<%= locals.banniereWarning %>` (line 19 de `warning-live.ejs` qui utilise `<%= %>`). Cela escape HTML → safe pour XSS direct. **Mais** : tout caller qui change `<%= %>` en `<%- %>` (ou inverse) sur ce partial introduit un XSS reflected via `?avertissement=<script>...`.
-
-**Fix:**
-1. Toujours utiliser `<%= %>` (escape) pour les chaînes utilisateur, jamais `<%- %>`.
-2. Audit des `reply.send(htmlString)` : déplacer vers des views avec `reply.view(...)` ou au moins ajouter `reply.type('text/html')`.
-3. Ajouter un header `Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'` (les EJS contiennent des `<script>` inline dans modifier.ejs:170, fiche.ejs:75, etc. — soit nonce, soit `'unsafe-inline'` documenté).
-
-## Warnings
-
-### WR-01: `bail-repository-sqlite.ts` — duck-typing dangereux dans `creer-encaissement.ts:62,73`
-
-**File:** `src/application/encaissements/creer-encaissement.ts:62,73`
-**Issue:**
-```typescript
-if ((bail as { actifDepuis: unknown }).actifDepuis === null) {
-  throw new BailNonActif(bail.id);
-}
-// ...
-const bailDateDebut = (bail as { dateDebut: Temporal.PlainDate }).dateDebut;
-```
-
-Le `bail` retourné par `bailRepo.trouverParId()` est de type `Bail | null`. La classe `Bail` expose déjà `actifDepuis` et `dateDebut` typés (cf `bail.ts:81,91`). Ces casts `as { ... }` sont inutiles et masquent le type réel. Si plus tard `Bail` change le nom du champ, ces casts ne lèveront pas d'erreur de compilation.
-
-**Fix:**
-```typescript
-if (bail.actifDepuis === null) {
-  throw new BailNonActif(bail.id);
-}
-// ...
-const bailDateDebut = bail.dateDebut;
-```
-
----
-
-### WR-02: `PdfRendererPdfmake` — singleton module-level state, font config global
-
-**File:** `src/infrastructure/pdf/pdf-renderer-pdfmake.ts:19-32`, `src/web/routes/relances.ts:40`
-**Issue:** Le module `pdf-renderer-pdfmake.ts` appelle `pdfMakeLib.addFonts(...)` et `pdfMakeLib.setUrlAccessPolicy(...)` au top-level (lignes 22-32). Ces configurations sont des side-effects au moment du `import`. En cas de double instanciation (`new PdfRendererPdfmake()` dans `main.ts:115` ET dans `relances.ts:40`), pdfmake-lib étant un require'd module CJS, les fonts sont réassignées 2 fois mais c'est idempotent.
-
-**Plus problématique** : `relances.ts` crée un `new PdfRendererPdfmake()` à chaque appel de plugin alors que `main.ts` en injecte déjà un dans le contexte de l'app. Côté DI hexagonal, ces deux instances coexistent et la confusion peut amener à des configurations divergentes (font path absolu différent).
-
-**Fix:** Utiliser le `pdfRenderer` injecté via `opts` dans `relances.ts:40` au lieu de le réinstancier :
-```typescript
-// relances.ts — plugin signature
-export async function plugin(
-  app: FastifyInstance,
-  opts: {
-    relanceRepo: RelanceRepository;
+.onConflict((oc) =>
+  oc.column('id').doUpdateSet({
+    locataire_id: bail.locataireId,
+    bien_id: bail.bienId,
+    date_debut: bail.dateDebut.toString(),
+    duree_mois: bail.dureeMois,
+    loyer_hc: Number(bail.loyerHc.toCentimes()),          // ← BUG (était à corriger WR-05)
+    mode_charges: bail.modeCharges,
+    montant_charges: Number(bail.montantCharges.toCentimes()),  // ← BUG
+    depot_garantie: Number(bail.depotGarantie.toCentimes()),    // ← BUG
     // ...
-    pdfRenderer: PdfRenderer;  // ← injecter ici
-  },
-): Promise<void> {
-  // const pdfRenderer = new PdfRendererPdfmake();  ← supprimer
-}
-```
-
----
-
-### WR-03: `stockage-fichier-local.ts` — protection path traversal incomplète sur `lireQuittance`
-
-**File:** `src/infrastructure/storage/stockage-fichier-local.ts:34-53`
-**Issue:** La vérification :
-```typescript
-if (!cheminAbsolu.startsWith(baseDirResolu + path.sep) && cheminAbsolu !== baseDirResolu) {
-  throw new FichierIntrouvable(cheminRelatif);
-}
-```
-
-bloque les traversées sortantes (`../../../etc/passwd`), mais ne bloque PAS :
-- Les liens symboliques pointant hors de `baseDir` (un attacker avec write access pourrait créer un symlink `quittances/2026/x.pdf → /etc/passwd` puis appeler `/quittances/:id/pdf`).
-- Les caractères de contrôle dans le path (NULL byte, BOM) — ces caractères peuvent passer `path.resolve` mais déclencher des comportements bizarres dans `fs.readFile`.
-
-**Fix:** Utiliser `fs.realpath()` après resolve pour résoudre les symlinks, puis comparer :
-```typescript
-const cheminAbsolu = path.resolve(this.baseDir, cheminRelatif);
-const baseDirResolu = await fs.realpath(this.baseDir);
-let cheminReel: string;
-try {
-  cheminReel = await fs.realpath(cheminAbsolu);
-} catch (err: unknown) {
-  const nodeErr = err as NodeJS.ErrnoException;
-  if (nodeErr.code === 'ENOENT') throw new FichierIntrouvable(cheminRelatif);
-  throw err;
-}
-if (!cheminReel.startsWith(baseDirResolu + path.sep)) {
-  throw new FichierIntrouvable(cheminRelatif);
-}
-```
-
----
-
-### WR-04: `build-mailto.ts` — troncature potentiellement coupée au milieu d'une séquence percent-encoded
-
-**File:** `src/helpers/build-mailto.ts:27-31`
-**Issue:**
-```typescript
-if (bodyEnc.length > LIMITE_CORPS) {
-  const mentionEnc = encodeURIComponent(MENTION_TRONQUEE).replaceAll('%0A', '%0D%0A');
-  const limite = LIMITE_CORPS - mentionEnc.length;
-  bodyFinal = bodyEnc.substring(0, limite) + mentionEnc;
-}
-```
-
-Si `bodyEnc` se termine au milieu d'une séquence `%XX` (ex : on coupe à `%C3` sans le `%A9` qui ferait `é` en UTF-8), l'URI devient malformé et `decodeURIComponent` côté client client jettera ou affichera mal. Edge case rare (la mention "[Message tronqué...]" est ajoutée juste après), mais possible si le tronquage tombe exactement entre `%` et `XX`.
-
-**Fix:** Reculer la troncation pour éviter de couper une séquence percent-encoded :
-```typescript
-let limite = LIMITE_CORPS - mentionEnc.length;
-// Reculer si on est au milieu d'une séquence %XX
-while (limite > 0 && (bodyEnc[limite - 1] === '%' || bodyEnc[limite - 2] === '%')) {
-  limite--;
-}
-bodyFinal = bodyEnc.substring(0, limite) + mentionEnc;
-```
-
----
-
-### WR-05: `Money.toJSON()` retourne `Number(centimes)` — overflow silencieux et NaN sur compensateurs > MAX_SAFE_INTEGER
-
-**File:** `src/domain/_shared/money.ts:77-79`
-**Issue:**
-```typescript
-toJSON(): number {
-  return Number(this.centimes);
-}
-```
-
-`bigint → number` est lossy pour valeurs > `2^53` (9 × 10^15 centimes = 90 milliards d'euros). Le commentaire en ligne 5 reconnaît ce trade-off pour les positifs, mais ne dit rien sur les compensateurs négatifs. Or `Money.compensateur(Money.fromCentimes(10n)).toJSON() === -10` est valide, mais à `Money.fromCentimes(2n**53n)` on perd la précision.
-
-Plus subtil : `enregistrement` en BDD passe par `Number(e.montant.toCentimes())` (echeance-loyer-repository-sqlite.ts:122 et autres) avec des `Math.round` qui n'arrondissent rien (bigint converti est déjà entier). Si jamais le montant dépasse MAX_SAFE_INTEGER, le `Number(...)` arrondit aux 2^53 voisins et le `Math.round` masque l'erreur. La contrainte SQLite `CHECK (loyer_hc >= 0)` ne lèvera pas, mais la valeur stockée sera tronquée.
-
-**Fix court terme:** Ajouter un assert au moment du `Number(bigint)` :
-```typescript
-private static toSqliteCentimes(m: Money): number {
-  const c = m.toCentimes();
-  if (c > Number.MAX_SAFE_INTEGER || c < Number.MIN_SAFE_INTEGER) {
-    throw new InvariantViolated(`Montant > MAX_SAFE_INTEGER : ${c}`);
-  }
-  return Number(c);
-}
-```
-
-**Fix idéal:** Stocker en TEXT ou en BLOB pour préserver bigint exact. Hors scope V1 mais à documenter dans `RISKS.md`.
-
----
-
-### WR-06: `activer-bail.ts` — `(bail as { id: string, ... })` typage faux dans `genererEcheancesPour`
-
-**File:** `src/application/encaissements/activer-bail.ts:93-99`
-**Issue:** La signature de `genererEcheancesPour` prend un objet "duck-typé" :
-```typescript
-export function genererEcheancesPour(
-  bail: { id: string; dureeMois: number; loyerHc: Money; montantCharges: Money; modeCharges: 'forfait' | 'provisions'; bienId: string; locataireId: string },
-  // ...
+  }),
 )
 ```
 
-Pourquoi ne pas typer `bail: Bail` directement ? Le contrat est plus faible que nécessaire — un appelant pourrait passer un objet incompatible (ex : un `BailMinimal` sans tous les invariants). Bonus : `bail.id as BailId` (ligne 99) caste sans vérification UUID.
+Conséquence : le **chemin de mise à jour** (déclenché par UPSERT sur `id` existant — utilisé notamment par `modifierBailActif.ts:98 → bailRepo.enregistrer(bailModifie)` quand le bail est régénéré, et par toute autre mise à jour de bail existant) bypass complètement l'assert `MAX_SAFE_INTEGER` de `toSqliteInteger()`. Pour un bail dont le loyer dépasserait `2^53` centimes (90 milliards d'euros — théorique mais possible avec compensateurs négatifs cumulés sur les autres tables), la valeur est silencieusement tronquée aux 2^53 voisins.
 
-**Fix:** Utiliser directement le type `Bail` du domaine :
-```typescript
-import type { Bail } from '../../domain/locatif/bail.js';
-export function genererEcheancesPour(
-  bail: Pick<Bail, 'id' | 'dureeMois' | 'loyerHc' | 'montantCharges' | 'modeCharges' | 'bienId' | 'locataireId'>,
-  actifDepuis: Temporal.PlainDate,
-  jourEcheance: number,
-): EcheanceLoyer[] { ... }
-```
-
----
-
-### WR-07: `bailleur-repository-sqlite.enregistrer` ne gère pas le conflit `UNIQUE(singleton_marker)`
-
-**File:** `src/infrastructure/repositories/bailleur-repository-sqlite.ts:22-34`
-**Issue:** `enregistrer` fait un `INSERT INTO bailleur VALUES (...)` sans `ON CONFLICT`. Si un bailleur existe déjà, l'INSERT lèvera `SQLITE_CONSTRAINT_UNIQUE` à cause de `UNIQUE(singleton_marker)`. Le use case `creer-ou-maj-bailleur.ts` orchestre lookup-then-insert-or-update, mais cela laisse une TOCTOU race (window entre `trouver()` et `enregistrer()` où un autre process insert).
-
-C'est un cas peu probable (single-user local-first par design), mais l'erreur de contrainte UNIQUE remonte en 500 plutôt qu'en upsert idempotent.
+Le bug est **identique** au défaut original WR-05 — fix partiel.
 
 **Fix:**
 ```typescript
-async enregistrer(bailleur: Bailleur): Promise<void> {
-  await this.db
-    .insertInto('bailleur')
-    .values({ /* ... */ })
-    .onConflict((oc) =>
-      oc.column('singleton_marker').doUpdateSet({
-        nom_complet: bailleur.nomComplet,
-        rue: bailleur.adresse.rue,
-        code_postal: bailleur.adresse.codePostal,
-        ville: bailleur.adresse.ville,
-        modifie_le: new Date().toISOString(),
-      }),
-    )
-    .execute();
+.onConflict((oc) =>
+  oc.column('id').doUpdateSet({
+    locataire_id: bail.locataireId,
+    bien_id: bail.bienId,
+    date_debut: bail.dateDebut.toString(),
+    duree_mois: bail.dureeMois,
+    loyer_hc: bail.loyerHc.toSqliteInteger(),
+    mode_charges: bail.modeCharges,
+    montant_charges: bail.montantCharges.toSqliteInteger(),
+    depot_garantie: bail.depotGarantie.toSqliteInteger(),
+    irl_trimestre: bail.irlReference.trimestre,
+    irl_valeur: bail.irlReference.valeur,
+    cautionnement: cautionnementJson,
+    actif_depuis: bail.actifDepuis?.toString() ?? null,
+    jour_echeance: bail.jourEcheance,
+    modifie_le: new Date().toISOString(),
+  }),
+)
+```
+
+## Warnings
+
+### WR-01: `ActiviteBailDetectorSqlite` — contredit sa propre docstring et laisse des orphelins potentiels
+
+**File:** `src/infrastructure/repositories/activite-bail-detector-sqlite.ts:21-35`
+**Issue:** Le docstring annonce (lignes 13-15) :
+- 02-02 : `count(echeance_loyer WHERE bail_id = ?)`
+- 02-03 : `+ count(encaissement via echeance)`
+- 02-04 : `+ count(quittance via echeance)`
+
+L'implémentation se limite au 1er check, avec en plus le filtre `annule_le IS NULL` qui exclut les échéances soft-deleted :
+```typescript
+.where('bail_id', '=', bailId)
+.where('annule_le', 'is', null)  // ← Exclut les échéances annulées
+```
+
+Scénario réel : si un opérateur annule TOUTES les échéances d'un bail (cas légitime D-60), `aDeLActivite` retourne `false` → `supprimerBail` accepte la hard-delete → encaissements + quittances liés à ces échéances soft-deleted restent en BDD avec `bail_id` orphelin (les FK SQL `REFERENCES echeance_loyer(id)` empêchent la suppression de l'échéance mais pas du bail).
+
+Le commentaire ligne 33 dit "Plans 02-03 et 02-04 étendront avec encaissement + quittance" mais la phase 02 est complétée (cf 2742e13 "verify and mark complete — 5/5 must-haves"). Soit le commentaire est un artefact historique et il faut compléter, soit la docstring est obsolète et il faut documenter le compromis.
+
+**Fix:** étendre la requête OR avec encaissement + quittance (court-circuit dès qu'une activité est détectée) :
+```typescript
+async aDeLActivite(bailId: BailId): Promise<boolean> {
+  // 02-02 : echeance_loyer
+  const rEch = await this.db
+    .selectFrom('echeance_loyer')
+    .select((eb) => eb.fn.countAll<number>().as('n'))
+    .where('bail_id', '=', bailId)
+    // Inclut les annulées : audit-friendly (D-60)
+    .executeTakeFirst();
+  if (Number(rEch?.n ?? 0) > 0) return true;
+
+  // 02-03 : encaissements via echeances (inclut soft-deleted)
+  const rEnc = await this.db
+    .selectFrom('encaissement')
+    .innerJoin('echeance_loyer', 'echeance_loyer.id', 'encaissement.echeance_id')
+    .select((eb) => eb.fn.countAll<number>().as('n'))
+    .where('echeance_loyer.bail_id', '=', bailId)
+    .executeTakeFirst();
+  if (Number(rEnc?.n ?? 0) > 0) return true;
+
+  // 02-04 : quittances via echeances
+  const rQui = await this.db
+    .selectFrom('quittance')
+    .innerJoin('echeance_loyer', 'echeance_loyer.id', 'quittance.echeance_id')
+    .select((eb) => eb.fn.countAll<number>().as('n'))
+    .where('echeance_loyer.bail_id', '=', bailId)
+    .executeTakeFirst();
+  return Number(rQui?.n ?? 0) > 0;
 }
 ```
 
+À défaut d'étendre, retirer le filtre `annule_le IS NULL` ligne 27 pour inclure les échéances soft-deleted (le bail garde activity tant qu'il a touché à `echeance_loyer`).
+
 ---
 
-### WR-08: `creer-encaissement.ts` — pas de validation que `commande.montantCentimesPositifs >= 0n`
+### WR-02: `generer-quittance.ts` compensation silencieuse — pas de log, pas d'alerte
 
-**File:** `src/application/encaissements/creer-encaissement.ts:67-68`
+**File:** `src/application/encaissements/generer-quittance.ts:156-168`
 **Issue:**
 ```typescript
-const positif = Money.fromCentimes(commande.montantCentimesPositifs);
-const montant = commande.signe === 'compensateur' ? Money.compensateur(positif) : positif;
-```
-
-`Money.fromCentimes` lève si `n < 0n`, ce qui protège. Mais le schéma Zod côté web (`encaissement-schemas.ts:6-7`) accepte `n > 0` strictement positif, donc pas zéro. Le domain peut accepter zéro via direct API. Question : un encaissement de 0€ a-t-il un sens métier ? Non, jamais. Pourtant, le domain `Encaissement.creer` ne le rejette pas.
-
-Cohérence cassée : Zod refuse 0€, domain accepte. Un appelant non-web pourrait créer un Encaissement à 0€.
-
-**Fix:** Ajouter une invariant au niveau du domain :
-```typescript
-// encaissement.ts dans Encaissement.creer
-if (props.montant.egale(Money.zero())) {
-  throw new InvariantViolated('Un Encaissement ne peut pas être de 0 €');
-}
-```
-
----
-
-### WR-09: `Money.multiplyByFraction` accepte `num = 0n` qui retourne `Money.zero()` — comportement OK mais asymétrique
-
-**File:** `src/domain/_shared/money.ts:121-150`
-**Issue:** La validation `if (num < 0n || num > den)` accepte `num === 0n` → `Money.zero()`. Acceptable car prorata 0 = 0€. Mais aucun test explicite ne le couvre (cf `multiplyByFraction` mentioné nulle part dans tests/unit/money.test.ts non lu). Risque de regression silencieuse.
-
-**Fix:** Ajouter un test unitaire `multiplyByFraction(0n, 30n)` returns `Money.zero()`. Mineur — c'est une couverture de test, pas un bug.
-
----
-
-### WR-10: `web/routes/relances.ts:79-83` — pas de validation Zod pour POST /relances
-
-**File:** `src/web/routes/relances.ts:76-83`
-**Issue:**
-```typescript
-app.post('/relances', async (req, reply) => {
-  const body = req.body as { echeanceId?: string; niveau?: string };
-  const echeanceId = body.echeanceId;
-  const niveauRaw = parseInt(body.niveau ?? '', 10);
-
-  if (!echeanceId || ![1, 2, 3].includes(niveauRaw)) {
-    return reply.code(400).send('Paramètres invalides.');
+} catch (err) {
+  try {
+    const quittanceAnnulee = quittance!.annuler(
+      `Erreur génération PDF: ${err instanceof Error ? err.message : String(err)}`,
+      clock.aujourdhui(),
+    );
+    await repos.quittanceRepo.enregistrer(quittanceAnnulee);
+  } catch {
+    // L'annulation échoue — on laisse l'erreur initiale remonter (best-effort).
   }
-```
-
-Aucune validation que `echeanceId` est un UUID v4 (le repo accepte n'importe quelle string, ce qui peut amener à des comportements imprévus). Pas de schéma Zod comme dans les autres routes (`encaissement-schemas.ts`, etc.).
-
-**Fix:** Créer `src/web/schemas/relance-schemas.ts` et appliquer comme dans les autres routes :
-```typescript
-export const relanceFormSchema = z.object({
-  echeanceId: z.string().uuid('Sélectionnez une échéance valide'),
-  niveau: z.coerce.number().int().min(1).max(3),
-});
-```
-
----
-
-### WR-11: `web/routes/quittances.ts:188-209` — pas de re-fetch post-annulation pour éviter race
-
-**File:** `src/web/routes/quittances.ts:200-210`
-**Issue:**
-```typescript
-const quittance = await opts.quittanceRepo.trouverParId(id as QuittanceId);
-const numeroSauvegarde = quittance?.numero ?? id;
-
-await annulerQuittance(
-  { id: id as QuittanceId, raison: parsed.data.raison },
-  opts.quittanceRepo,
-  opts.clock,
-);
-```
-
-`numeroSauvegarde = quittance?.numero ?? id` : si `quittance` est null mais qu'on continue à `annulerQuittance`, le use case lèvera `QuittanceIntrouvable` qui ne sera **pas** catché → le caller voit une 500 au lieu d'une 404. Le pattern `quittance?.` masque l'erreur jusqu'au use case.
-
-**Fix:**
-```typescript
-const quittance = await opts.quittanceRepo.trouverParId(id as QuittanceId);
-if (!quittance) {
-  return reply.code(404).send('Quittance introuvable.');
+  throw err;
 }
-const numeroSauvegarde = quittance.numero;
-// ... continue ...
 ```
+
+Si BOTH l'écriture PDF échoue ET la compensation échoue (catch interne avale silencieusement), on remonte l'erreur PDF mais l'invariant "row active ⇒ PDF présent" est **violé sans trace**. L'opérateur n'a aucun moyen de détecter l'incohérence (pas de log d'erreur de compensation, pas de système d'alerte ni de file d'attente de reprise).
+
+Conséquence : `/quittances/:id/pdf` retournera 404 alors que la quittance "existe" en base. C'est exactement le scénario que CR-02 cherchait à prévenir, juste reporté à un cas plus rare (double-erreur).
+
+**Fix:** Logger explicitement la compensation ratée pour qu'un humain puisse intervenir.
+```typescript
+} catch (err) {
+  try {
+    const quittanceAnnulee = quittance!.annuler(/* … */);
+    await repos.quittanceRepo.enregistrer(quittanceAnnulee);
+  } catch (compErr) {
+    // CRITIQUE : double erreur. Logger explicitement — l'invariant audit
+    // "quittance active ⇒ PDF présent" est violé. Action manuelle requise.
+    console.error(
+      `[CRITICAL] generer-quittance compensation failed for quittance ${quittance!.id} (${quittance!.numero}). ` +
+      `Original error: ${err instanceof Error ? err.message : String(err)}. ` +
+      `Compensation error: ${compErr instanceof Error ? compErr.message : String(compErr)}. ` +
+      `Manual cleanup required: UPDATE quittance SET annulee_le = … WHERE id = '${quittance!.id}'`,
+    );
+  }
+  throw err;
+}
+```
+
+À défaut, l'opérateur devrait pouvoir relancer une "regen" de PDF depuis la fiche quittance (helper qui re-rend le PDF depuis l'état BDD existant — déjà ~implémenté pour les relances PDF).
 
 ---
 
-### WR-12: `web/routes/echeances.ts:206-208` — slicing fragile pour générer filename
+### WR-03: `recalculer-statut-echeance.ts` — erreur générique non typée pour échéance introuvable
 
-**File:** `src/web/routes/echeances.ts:206-208`
+**File:** `src/application/encaissements/recalculer-statut-echeance.ts:36-38`
 **Issue:**
 ```typescript
-const periode = echeance.periodeDebut.toString().substring(0, 7).replace('-', '-');
-const idCourt = id.substring(0, 8);
-const filename = `avis-echeance-${periode}-${idCourt}.pdf`;
+if (!echeance) {
+  throw new Error(`Échéance introuvable : ${echeanceId}`);
+}
 ```
 
-Le `.replace('-', '-')` est un no-op (replace `-` par `-`) — probablement un copier-coller. `idCourt = id.substring(0, 8)` n'a pas de validation que `id` est un UUID v4 — si quelqu'un manipule l'URL avec un id court, le filename devient `avis-echeance-2026-05-x.pdf` avec un idCourt partiel sans suffixe.
+Une `EcheanceLoyerIntrouvable` typée existe déjà (`src/domain/encaissements/erreurs.ts:1-6`). Le use case `creer-encaissement.ts:47` et `enregistrer-relance.ts:69` lèvent déjà cette erreur typée. Le caller `annulerEncaissement` (line 49 de `annuler-encaissement.ts`) ne peut pas distinguer cette cause via `instanceof` — c'est exactement le pattern CR-06 dénoncé.
 
 **Fix:**
 ```typescript
-const periode = echeance.periodeDebut.toString().substring(0, 7);  // YYYY-MM
-const idCourt = id.length >= 8 ? id.substring(0, 8) : id;
-const filename = `avis-echeance-${periode}-${idCourt}.pdf`;
+import { EcheanceLoyerIntrouvable } from '../../domain/encaissements/erreurs.js';
+// ...
+if (!echeance) {
+  throw new EcheanceLoyerIntrouvable(String(echeanceId));
+}
 ```
 
 ---
 
-### WR-13: Migrations 0002 — `ALTER TABLE bail ADD COLUMN actif_depuis TEXT NULL` puis `ADD COLUMN jour_echeance INTEGER NOT NULL DEFAULT 1`
+### WR-04: IN-01 + IN-02 non appliqués (résiduel)
 
-**File:** `migrations/0002_phase2_bailleur_bail_ext.sql:8-10`
-**Issue:** L'ajout de `jour_echeance INTEGER NOT NULL DEFAULT 1 CHECK (...)` sur une table existante :
-1. SQLite supporte cela depuis la version 3.31 (`generated columns` et `DEFAULT` constants). Si le runtime est < 3.31, échec silencieux.
-2. La contrainte CHECK est attachée à la colonne MAIS le `CHECK` doit s'évaluer sur les **anciennes rangées** avec `jour_echeance = 1` par défaut. OK ici car 1 ∈ [1, 28]. Mais le commentaire ne le précise pas — devrait documenter "DEFAULT 1 garantit que CHECK passe pour toutes les rangées existantes".
+**File:** `src/application/encaissements/activer-bail.ts:126-130`, `src/web/routes/baux.ts:563-566`
 
-Plus problématique : la migration n'est **pas atomique**. Les deux `ALTER TABLE` sont deux statements séparés. Si la 2ème échoue (ex : panne disque entre les deux), on a `actif_depuis` ajouté sans `jour_echeance` → DB dans un état incohérent.
-
-**Fix:**
-```sql
-BEGIN TRANSACTION;
-ALTER TABLE bail ADD COLUMN actif_depuis TEXT NULL;
-ALTER TABLE bail ADD COLUMN jour_echeance INTEGER NOT NULL DEFAULT 1
-  CHECK (jour_echeance >= 1 AND jour_echeance <= 28);
-COMMIT;
+**Issue 1 (activer-bail.ts) :** Branche morte conservée :
+```typescript
+if (actifDepuis.day === 1 && i === dureeMois - 1) {
+  // Bail d'1 mois entier commençant le 1er
+  periodeFin = actifDepuis.with({ day: actifDepuis.daysInMonth });
+  loyerPeriode = loyerHc;
+  chargesPeriode = montantCharges;
+} else if (actifDepuis.day === 1) {
+  // 1er du mois → mois plein
+  periodeFin = actifDepuis.with({ day: actifDepuis.daysInMonth });
+  loyerPeriode = loyerHc;
+  chargesPeriode = montantCharges;
+}
 ```
 
-Note : `better-sqlite3.exec` peut déjà encapsuler en transaction implicite par défaut — à vérifier.
+`Bail.creer` impose `dureeMois >= 12` (D-35). Donc `i === 0 && i === dureeMois - 1` est impossible (exigerait `dureeMois === 1`). Les 2 branches produisent en plus le même calcul — duplication pure.
 
-## Info
-
-### IN-01: `src/application/encaissements/activer-bail.ts:117-126` — branche dead-code
-
-**File:** `src/application/encaissements/activer-bail.ts:117-126`
-**Issue:** La branche `if (actifDepuis.day === 1 && i === dureeMois - 1)` est identique à la branche suivante `if (actifDepuis.day === 1)`. La condition `&& i === dureeMois - 1` n'amène pas à un comportement différent.
-
-**Fix:** Supprimer la première branche (lignes 117-122).
-
----
-
-### IN-02: `src/web/routes/baux.ts:563-571` — dynamic import inutile dans handler
-
-**File:** `src/web/routes/baux.ts:563-571`
-**Issue:** Dans `POST /baux/:id/modifier-actif`, les imports dynamiques au runtime :
+**Issue 2 (baux.ts) :** Imports dynamiques inutiles à chaque POST :
 ```typescript
 const { Temporal: _T } = await import('@js-temporal/polyfill');
 const { Money: _M } = await import('../../domain/_shared/money.js');
@@ -765,77 +387,128 @@ const { IRL: _IRL } = await import('../../domain/_shared/irl.js');
 const { Adresse: _Addr } = await import('../../domain/_shared/adresse.js');
 ```
 
-Ces modules sont déjà importés statiquement en tête de fichier (lignes 1, 8, 9, 10). Le `await import()` ajoute latence à chaque POST.
+Ces modules sont déjà importés statiquement en tête de `baux.ts` (lignes 1, 8, 9, 10). Les imports dynamiques ajoutent un await à chaque modification de bail actif et créent une confusion sur la frontière `_M`/`Money`.
 
-**Fix:** Utiliser les imports déjà disponibles, supprimer les `await import(...)`.
+**Fix:**
 
----
-
-### IN-03: Templates relances — mentions de fallback "Cordialement" non personnalisable
-
-**File:** `templates/relances/01-amiable.ejs:14`, `templates/relances/02-ferme.ejs:13`
-**Issue:** Le bailleur n'a pas de "civilité" (Monsieur/Madame) ni de "fonction" dans le profil. Les templates terminent par "Cordialement, <%= nom_bailleur %>" sans option de personnalisation. Acceptable en V1, à noter pour V1.1.
-
-**Fix:** Hors scope. À documenter dans `RISKS.md` ou backlog.
-
----
-
-### IN-04: `src/domain/encaissements/quittance.ts:11-12` — regex numero accepte sequences > 1000
-
-**File:** `src/domain/encaissements/quittance.ts:11-12`
-**Issue:**
+Pour activer-bail.ts, supprimer la 1re branche (lignes 126-130) :
 ```typescript
-const NUMERO_REGEX = /^\d{4}-\d{3,}$/;
+if (i === 0) {
+  periodeDebut = actifDepuis;
+  if (actifDepuis.day === 1) {
+    periodeFin = actifDepuis.with({ day: actifDepuis.daysInMonth });
+    loyerPeriode = loyerHc;
+    chargesPeriode = montantCharges;
+  } else {
+    // Milieu de mois → prorata
+    // …
+  }
+}
 ```
 
-Accepte `2026-001` mais aussi `2026-1234567890`. Le format légal n'a pas de borne supérieure stricte, donc OK, mais la régex `\d{3,}` peut amener à un comportement étrange si jamais le compteur dépasse 999 (l'attribution suivante après `2026-999` serait `2026-1000`, qui passe). Le `formatNumeroQuittance` lui padding à 3 chars minimum, OK.
+Pour baux.ts, supprimer les imports dynamiques et utiliser `Temporal`, `Money`, `IRL`, `Adresse`, `Cautionnement` déjà importés statiquement.
 
-**Fix:** Mineur. Documenter dans le PRD : "compteur 0001-9999 par année".
+## Info
 
----
+### IN-01: Test coverage gap — WR-08 (Encaissement.creer rejette 0€)
 
-### IN-05: `src/web/views/pages/baux/modifier.ejs:170-187` — JS inline avec `IIFE` répétée
-
-**File:** `src/web/views/pages/baux/modifier.ejs:170-187`, `src/web/views/pages/quittances/fiche.ejs:100-109`, `src/web/views/pages/encaissements/fiche.ejs:75-84`
-**Issue:** Pattern `(function() { ... })();` répété dans 3 fiches. Le code est identique modulo `dialog-` id. Duplication.
-
-**Fix:** Externaliser dans `/public/js/dialog-handler.js` avec attribut `data-dialog-target` :
-```js
-document.querySelectorAll('[data-open-dialog]').forEach((btn) => {
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const id = btn.dataset.openDialog;
-    document.getElementById(id).showModal();
-  });
+**File:** `tests/unit/encaissements/encaissement.test.ts`
+**Issue:** Le fix WR-08 ajoute l'invariant "un Encaissement ne peut pas être de 0 €" mais aucun test ne couvre ce scénario. Risque de régression silencieuse — un futur refactor de `Encaissement.creer` pourrait retirer le check sans déclencher de test rouge.
+**Fix:**
+```typescript
+it('rejette montant = 0 €', () => {
+  expect(() =>
+    Encaissement.creer({ ...propsValide(), montant: Money.zero() }),
+  ).toThrow(InvariantViolated);
 });
 ```
 
 ---
 
-### IN-06: `src/main.ts:241` — `import.meta.url === \`file://${process.argv[1]}\`` ne marche pas sur Windows
+### IN-02: Test coverage gap — CR-05 (recalculerStatutEcheance préserve 'annulee')
 
-**File:** `src/main.ts:241-243`, `src/infrastructure/db/database.ts:122-124`
-**Issue:**
-```typescript
-if (import.meta.url === `file://${process.argv[1]}`) {
-  await demarrer();
-}
-```
-
-`import.meta.url` utilise toujours des `/` (POSIX style URL), mais `process.argv[1]` utilise `\` sur Windows. La comparaison échoue silencieusement sur Windows → le démarrage CLI ne fonctionne pas.
-
+**File:** `tests/unit/encaissements/recalculer-statut-echeance.test.ts`
+**Issue:** Aucun test ne vérifie que `recalculerStatutEcheance` sur une échéance déjà `annulee` retourne `{ statut: 'annulee', ... }` sans persister un autre statut.
 **Fix:**
 ```typescript
-import { fileURLToPath } from 'node:url';
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
-  await demarrer();
-}
+it('CR-05: échéance déjà annulée → preserve statut annulee, pas de mettreAJourStatut', async () => {
+  const echeance = creerEcheance(TOTAL);
+  // Forcer statut 'annulee' via stub
+  const { echeanceLoyerRepo, encaissementRepo } = creerRepos(
+    { ...echeance, statut: 'annulee' } as EcheanceLoyer,
+    Money.fromEuros(700),
+  );
+  const mettreAJourSpy = vi.spyOn(echeanceLoyerRepo, 'mettreAJourStatut');
+  const result = await recalculerStatutEcheance(echeance.id, echeanceLoyerRepo as never, encaissementRepo as never);
+  expect(result.statut).toBe('annulee');
+  expect(result.surPaiement).toBeNull();
+  expect(mettreAJourSpy).not.toHaveBeenCalled();
+});
 ```
-
-Hors scope V1 (local-first macOS/Linux), à noter pour Windows.
 
 ---
 
-_Reviewed: 2026-05-14T10:00:00Z_
+### IN-03: Test coverage gap — WR-04 (build-mailto truncation au milieu de %XX)
+
+**File:** `tests/unit/helpers/build-mailto.test.ts`
+**Issue:** Le fix WR-04 ajoute une protection contre la troncature au milieu d'une séquence percent-encoded. Aucun test ne couvre ce cas pathologique (caractère accentué tombant pile à la position limite).
+**Fix:**
+```typescript
+it('WR-04: troncature recule si elle tomberait au milieu d\'un %XX', () => {
+  // Construire un body qui force la coupe à tomber sur un caractère accentué
+  // (encode en 3 chars : %C3%A9 pour 'é'). Padding pour aligner avec LIMITE_CORPS.
+  const padding = 'A'.repeat(1880);
+  const uri = buildMailto({
+    to: 'test@example.fr',
+    subject: 'Test',
+    body: padding + 'éééééééééééé', // 12 'é' = 36 chars encodés
+  });
+  const bodyMatch = uri.match(/&body=(.+)$/);
+  expect(bodyMatch).toBeTruthy();
+  // Le body doit être décodable sans erreur
+  expect(() => decodeURIComponent(bodyMatch![1])).not.toThrow();
+});
+```
+
+---
+
+### IN-04: Dead code — `listerQuittances` use case et `compterParBail` repo method jamais appelés
+
+**File:** `src/application/encaissements/lister-quittances.ts`, `src/domain/encaissements/echeance-loyer-repository.ts:26`, `src/infrastructure/repositories/echeance-loyer-repository-sqlite.ts:109-118`
+**Issue:**
+- `listerQuittances` est exporté mais aucune route ne l'importe. Le route `/quittances` GET appelle directement `opts.quittanceRepo.listerToutes(...)` (cf `web/routes/quittances.ts:50`).
+- `compterParBail` est dans l'interface `EcheanceLoyerRepository` et implémenté dans le sqlite adapter, mais seuls les stubs de test l'utilisent. Aucun code de production ne l'appelle.
+
+Pas un bug, mais un code smell qui dérive l'API du domaine. Si on veut un jour étendre la couverture des tests par mock surface, `compterParBail` est utilisable ; sinon supprimable.
+
+**Fix:** Soit supprimer (`rm src/application/encaissements/lister-quittances.ts` + retirer `compterParBail` de l'interface), soit câbler l'appel dans la route `/quittances`.
+
+---
+
+### IN-05: Migration 0002 — commentaire de DEFAULT 1 + CHECK manque la subtilité SQLite 3.31
+
+**File:** `migrations/0002_phase2_bailleur_bail_ext.sql:10-11`
+**Issue:** Le commentaire explique "DEFAULT 1 garantit que la contrainte CHECK passe pour toutes les rangées existantes" — correct. Mais il ne mentionne pas que `ALTER TABLE ... ADD COLUMN ... CHECK(...)` n'est supporté qu'à partir de SQLite 3.31 (released 2020-01-22). En environnement de test ou OS avec SQLite plus ancien, l'instruction échouera.
+
+Le `package.json` épingle `better-sqlite3 ^11.x` qui bundle SQLite ≥ 3.42 — pas de risque en pratique. Mais le commentaire devrait noter la dépendance pour les opérateurs qui pourraient utiliser un autre adapter (turso, libsql).
+
+**Fix:** ajouter une ligne de commentaire :
+```sql
+-- Requiert SQLite ≥ 3.31 (DEFAULT + CHECK sur ALTER TABLE). better-sqlite3 ^11 bundle ≥ 3.42 — OK.
+```
+
+---
+
+### IN-06: `creer-encaissement.ts` — Bail typé `unknown` dans stubs de test, perte de signalement
+
+**File:** `tests/unit/encaissements/creer-encaissement.test.ts:59`
+**Issue:** Le stub `creerStubBailRepo` retourne `bail as unknown` (et le caller `as never`) ce qui prive le test de type-checking. Si la signature de `Bail` change, les stubs continueront de compiler.
+
+Hors scope V1 (test seulement), mais à fixer pour V1.1 — recréer un Bail réel via `unBailValide()` builder dans les tests.
+
+---
+
+_Reviewed: 2026-05-14T22:30:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+_Iteration: re-review #2 après application des fixes (REVIEW-FIX iteration 1)_
