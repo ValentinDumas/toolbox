@@ -12,7 +12,7 @@ import { Money } from '../../../src/domain/_shared/money.js';
 import { unBailValide, unIrlValide, uneCautionnementPhysique } from '../../_builders/locatif.js';
 import { unBienValide, unLotValide } from '../../_builders/patrimoine.js';
 import { unLocataireValide } from '../../_builders/locatif.js';
-import type { BailId, BienId, LotId, LocataireId } from '../../../src/domain/_shared/identifiants.js';
+import type { BienId, LotId, LocataireId } from '../../../src/domain/_shared/identifiants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');

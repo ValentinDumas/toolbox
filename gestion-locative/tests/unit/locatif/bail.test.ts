@@ -1,11 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Temporal } from '@js-temporal/polyfill';
-import { Bail } from '../../../src/domain/locatif/bail.js';
 import { Money } from '../../../src/domain/_shared/money.js';
-import { IRL } from '../../../src/domain/_shared/irl.js';
 import { InvariantViolated } from '../../../src/domain/_shared/erreurs.js';
-import { unBailValide, unMontantValide, unIrlValide } from '../../_builders/locatif.js';
-import { nouveauBienId, nouveauLotId, nouveauLocataireId } from '../../../src/domain/_shared/identifiants.js';
+import { unBailValide } from '../../_builders/locatif.js';
 
 // Tests Phase 2 — extension Bail.activer() (D-51, D-53)
 

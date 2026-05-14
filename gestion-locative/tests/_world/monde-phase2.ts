@@ -1,15 +1,14 @@
-import { Before, After, type World } from '@cucumber/cucumber';
+import type { World } from '@cucumber/cucumber';
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../src/infrastructure/db/kysely-types.js';
-import { appliquerMigrationsBrutes } from '../../src/infrastructure/db/database.js';
+import { appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
 import { creerApp } from '../../src/main.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
+export const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
 
 interface CookieJar {
   [name: string]: string;
@@ -49,30 +48,27 @@ export function cookieHeader(jar: CookieJar): string {
     .join('; ');
 }
 
-Before(async function (this: MondePhase2) {
+/**
+ * Initialise le monde Phase 2 : crée une DB in-memory avec toutes les migrations
+ * et instancie l'application. À appeler dans le Before hook des step definitions.
+ */
+export async function initialiserMondePhase2(monde: MondePhase2): Promise<void> {
   process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
-  this.sqlite = new Database(':memory:');
-  this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: this.sqlite }) });
+  monde.sqlite = new Database(':memory:');
+  monde.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: monde.sqlite }) });
+  await appliquerToutesMigrations(monde.db, monde.sqlite, MIGRATIONS_DIR);
+  monde.app = await creerApp(monde.db);
+  monde.dernierStatut = 0;
+  monde.derniereUrl = '';
+  monde.dernierCorps = '';
+  monde.cookies = {};
+}
 
-  // Apply migrations sequentially in alphabetical order
-  const fichiersMigration = fs
-    .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .sort();
-
-  for (const fichier of fichiersMigration) {
-    const cheminFichier = path.join(MIGRATIONS_DIR, fichier);
-    await appliquerMigrationsBrutes(this.db, this.sqlite, cheminFichier);
-  }
-
-  this.app = await creerApp(this.db);
-  this.dernierStatut = 0;
-  this.derniereUrl = '';
-  this.dernierCorps = '';
-  this.cookies = {};
-});
-
-After(async function (this: MondePhase2) {
-  if (this.app) await this.app.close();
-  if (this.db) await this.db.destroy();
-});
+/**
+ * Ferme l'application et détruit la DB du monde Phase 2.
+ * À appeler dans le After hook des step definitions.
+ */
+export async function fermerMondePhase2(monde: MondePhase2): Promise<void> {
+  if (monde.app) await monde.app.close();
+  if (monde.db) await monde.db.destroy();
+}

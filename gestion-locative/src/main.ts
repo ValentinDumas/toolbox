@@ -25,11 +25,13 @@ import { ouvrirDb, cheminBaseParDefaut, appliquerToutesMigrations } from './infr
 import { BienRepositorySqlite } from './infrastructure/repositories/bien-repository-sqlite.js';
 import { LocataireRepositorySqlite } from './infrastructure/repositories/locataire-repository-sqlite.js';
 import { BailRepositorySqlite } from './infrastructure/repositories/bail-repository-sqlite.js';
+import { BailleurRepositorySqlite } from './infrastructure/repositories/bailleur-repository-sqlite.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
 import { plugin as bauxPlugin } from './web/routes/baux.js';
 import { plugin as wizardPlugin } from './web/routes/wizard.js';
+import { plugin as bailleurPlugin } from './web/routes/bailleur.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -84,6 +86,7 @@ export async function creerApp(db: Kysely<DB>, opts: { clock?: Clock } = {}): Pr
   const repo = new BienRepositorySqlite(db);
   const locataireRepo = new LocataireRepositorySqlite(db);
   const bailRepo = new BailRepositorySqlite(db);
+  const bailleurRepo = new BailleurRepositorySqlite(db);
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
@@ -101,6 +104,7 @@ export async function creerApp(db: Kysely<DB>, opts: { clock?: Clock } = {}): Pr
   await app.register(biensPlugin, { repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo });
+  await app.register(bailleurPlugin, { bailleurRepo });
 
   return app;
 }

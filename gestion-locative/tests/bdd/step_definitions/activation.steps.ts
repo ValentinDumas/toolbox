@@ -26,7 +26,7 @@ interface MondeActivation extends World {
   cookies: CookieJar;
 }
 
-Before(async function (this: MondeActivation) {
+Before({ tags: 'not @bailleur' }, async function (this: MondeActivation) {
   process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
   const sqlite = new Database(':memory:');
   this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
@@ -38,7 +38,7 @@ Before(async function (this: MondeActivation) {
   this.cookies = {};
 });
 
-After(async function (this: MondeActivation) {
+After({ tags: 'not @bailleur' }, async function (this: MondeActivation) {
   if (this.app) await this.app.close();
   if (this.db) await this.db.destroy();
 });

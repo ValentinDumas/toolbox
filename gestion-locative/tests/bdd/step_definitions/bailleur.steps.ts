@@ -1,19 +1,77 @@
-import { Given, When, Then } from '@cucumber/cucumber';
+import { Before, After, Given, When, Then, World } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
-import type { MondePhase2 } from '../../_world/monde-phase2.js';
-import { extraireCookies, cookieHeader } from '../../_world/monde-phase2.js';
+import { Kysely, SqliteDialect } from 'kysely';
+import Database from 'better-sqlite3';
+import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
+import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { creerApp } from '../../../src/main.js';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
+
+interface CookieJar {
+  [name: string]: string;
+}
+
+interface MondeBailleur extends World {
+  app: Awaited<ReturnType<typeof creerApp>> | null;
+  db: Kysely<DB> | null;
+  sqlite: InstanceType<typeof Database> | null;
+  dernierStatut: number;
+  derniereUrl: string;
+  dernierCorps: string;
+  cookies: CookieJar;
+  [key: string]: unknown;
+}
+
+function extraireCookies(headers: Record<string, string | string[] | undefined>, jar: CookieJar): void {
+  const setCookie = headers['set-cookie'];
+  if (!setCookie) return;
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  for (const cookie of cookies) {
+    const [pair] = cookie.split(';');
+    if (!pair) continue;
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx < 0) continue;
+    const name = pair.substring(0, eqIdx).trim();
+    const value = pair.substring(eqIdx + 1).trim();
+    jar[name] = value;
+  }
+}
+
+function cookieHeader(jar: CookieJar): string {
+  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+Before({ tags: '@bailleur' }, async function (this: MondeBailleur) {
+  process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
+  this.sqlite = new Database(':memory:');
+  this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: this.sqlite }) });
+  await appliquerToutesMigrations(this.db, this.sqlite, MIGRATIONS_DIR);
+  this.app = await creerApp(this.db);
+  this.dernierStatut = 0;
+  this.derniereUrl = '';
+  this.dernierCorps = '';
+  this.cookies = {};
+});
+
+After({ tags: '@bailleur' }, async function (this: MondeBailleur) {
+  if (this.app) await this.app.close();
+  if (this.db) await this.db.destroy();
+});
 
 // ─── Given ────────────────────────────────────────────────────────────────────
 
-Given("l'application est prête pour la phase 2", async function (this: MondePhase2) {
-  // Initialisation faite dans le Before hook de monde-phase2.ts
+Given("l'application est prête pour la phase 2", async function (this: MondeBailleur) {
   assert.ok(this.db, 'DB doit être initialisée');
   assert.ok(this.app, 'App doit être initialisée');
 });
 
 Given(
   'un profil bailleur existe avec nomComplet {string}',
-  async function (this: MondePhase2, nomComplet: string) {
+  async function (this: MondeBailleur, nomComplet: string) {
     assert.ok(this.app, 'App doit être initialisée');
     const payload = new URLSearchParams({
       nomComplet,
@@ -38,7 +96,7 @@ Given(
 
 // ─── When ─────────────────────────────────────────────────────────────────────
 
-When(/^le bailleur visite GET \/bailleur$/, async function (this: MondePhase2) {
+When(/^le bailleur visite GET \/bailleur$/, async function (this: MondeBailleur) {
   assert.ok(this.app, 'App doit être initialisée');
   const headers: Record<string, string> = {};
   if (Object.keys(this.cookies).length > 0) {
@@ -53,7 +111,7 @@ When(/^le bailleur visite GET \/bailleur$/, async function (this: MondePhase2) {
 When(
   'le bailleur soumet le formulaire profil avec nomComplet {string}, rue {string}, codePostal {string}, ville {string}',
   async function (
-    this: MondePhase2,
+    this: MondeBailleur,
     nomComplet: string,
     rue: string,
     codePostal: string,
@@ -90,7 +148,7 @@ When(
 
 When(
   "on tente d'insérer un 2e bailleur directement en base",
-  async function (this: MondePhase2) {
+  async function (this: MondeBailleur) {
     assert.ok(this.db, 'DB doit être initialisée');
     try {
       await this.db
@@ -104,48 +162,31 @@ When(
           ville: 'Paris',
         })
         .execute();
-      // Store that no error was thrown
-      (this as unknown as Record<string, unknown>)['dernierErreurUnique'] = null;
+      this['dernierErreurUnique'] = null;
     } catch (e) {
-      (this as unknown as Record<string, unknown>)['dernierErreurUnique'] = e;
+      this['dernierErreurUnique'] = e;
     }
   },
 );
 
 // ─── Then ─────────────────────────────────────────────────────────────────────
 
-Then('le formulaire profil bailleur est vide', function (this: MondePhase2) {
+Then('le formulaire profil bailleur est vide', function (this: MondeBailleur) {
   assert.equal(this.dernierStatut, 200, `GET /bailleur doit retourner 200, reçu ${this.dernierStatut}`);
-  // Le formulaire doit exister mais les champs doivent être vides (pas de valeur pré-remplie)
   assert.ok(
     this.dernierCorps.includes('Profil bailleur'),
     'La page doit afficher "Profil bailleur"',
   );
 });
 
-Then('il est redirigé vers {string}', function (this: MondePhase2, urlAttendue: string) {
-  assert.equal(
-    this.derniereUrl,
-    urlAttendue,
-    `Attendu redirect vers "${urlAttendue}", obtenu "${this.derniereUrl}"`,
-  );
-});
-
-Then('la page affiche {string}', function (this: MondePhase2, texte: string) {
-  assert.ok(
-    this.dernierCorps.includes(texte),
-    `La page doit afficher "${texte}". Corps reçu (extrait) : ${this.dernierCorps.substring(0, 500)}`,
-  );
-});
-
-Then('le formulaire est pré-rempli avec {string}', function (this: MondePhase2, nomComplet: string) {
+Then('le formulaire est pré-rempli avec {string}', function (this: MondeBailleur, nomComplet: string) {
   assert.ok(
     this.dernierCorps.includes(nomComplet),
     `Le formulaire doit contenir "${nomComplet}". Corps reçu (extrait) : ${this.dernierCorps.substring(0, 500)}`,
   );
 });
 
-Then('la table SQLite bailleur contient exactement 1 ligne', async function (this: MondePhase2) {
+Then('la table SQLite bailleur contient exactement 1 ligne', async function (this: MondeBailleur) {
   assert.ok(this.db, 'DB doit être initialisée');
   const count = await this.db
     .selectFrom('bailleur')
@@ -156,8 +197,8 @@ Then('la table SQLite bailleur contient exactement 1 ligne', async function (thi
 
 Then(
   "l'insertion est rejetée avec une erreur UNIQUE constraint",
-  function (this: MondePhase2) {
-    const erreur = (this as unknown as Record<string, unknown>)['dernierErreurUnique'] as Error | null;
+  function (this: MondeBailleur) {
+    const erreur = this['dernierErreurUnique'] as Error | null;
     assert.ok(erreur !== null, "Une erreur UNIQUE constraint doit avoir été levée");
     assert.ok(
       erreur!.message.includes('UNIQUE constraint failed'),
