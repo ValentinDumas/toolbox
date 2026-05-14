@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerMigrationsBrutes } from '../../../src/infrastructure/db/database.js';
+import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { BailRepositorySqlite } from '../../../src/infrastructure/repositories/bail-repository-sqlite.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { LocataireRepositorySqlite } from '../../../src/infrastructure/repositories/locataire-repository-sqlite.js';
@@ -12,10 +12,10 @@ import { Money } from '../../../src/domain/_shared/money.js';
 import { unBailValide, unIrlValide, uneCautionnementPhysique } from '../../_builders/locatif.js';
 import { unBienValide, unLotValide } from '../../_builders/patrimoine.js';
 import { unLocataireValide } from '../../_builders/locatif.js';
-import type { BailId, BienId, LotId, LocataireId } from '../../../src/domain/_shared/identifiants.js';
+import type { BienId, LotId, LocataireId } from '../../../src/domain/_shared/identifiants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_PATH = path.resolve(__dirname, '../../../migrations/0001_init.sql');
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
 
 describe('BailRepositorySqlite', () => {
   let db: Kysely<DB>;
@@ -27,7 +27,7 @@ describe('BailRepositorySqlite', () => {
   beforeEach(async () => {
     sqlite = new Database(':memory:');
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
-    await appliquerMigrationsBrutes(db, sqlite, MIGRATIONS_PATH);
+    await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
     bailRepo = new BailRepositorySqlite(db);
     bienRepo = new BienRepositorySqlite(db);
     locataireRepo = new LocataireRepositorySqlite(db);

@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerMigrationsBrutes } from '../../../src/infrastructure/db/database.js';
+import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { Bien } from '../../../src/domain/patrimoine/bien.js';
 import { Adresse } from '../../../src/domain/_shared/adresse.js';
@@ -12,7 +12,7 @@ import { Lot } from '../../../src/domain/patrimoine/lot.js';
 import { unBienValide, unLotValide } from '../../_builders/patrimoine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_PATH = path.resolve(__dirname, '../../../migrations/0001_init.sql');
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
 
 describe('BienRepositorySqlite', () => {
   let db: Kysely<DB>;
@@ -22,7 +22,7 @@ describe('BienRepositorySqlite', () => {
   beforeEach(async () => {
     sqlite = new Database(':memory:');
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
-    await appliquerMigrationsBrutes(db, sqlite, MIGRATIONS_PATH);
+    await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
     repo = new BienRepositorySqlite(db);
   });
 

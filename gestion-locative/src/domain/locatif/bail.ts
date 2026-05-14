@@ -27,6 +27,10 @@ interface BailProps {
   depotGarantie: Money;
   irlReference: IRL;
   cautionnement: Cautionnement | null;
+  /** Phase 2 — D-51. null = brouillon, non-null = bail actif. */
+  actifDepuis?: Temporal.PlainDate | null;
+  /** Phase 2 — D-53. Jour du mois de l'échéance, 1..28. Défaut 1. */
+  jourEcheance?: number;
 }
 
 export interface ModifierBailPatch {
@@ -41,6 +45,9 @@ export interface ModifierBailPatch {
   depotGarantie?: Money;
   irlReference?: IRL;
   cautionnement?: Cautionnement | null;
+  /** Phase 2 — D-51. Utiliser `undefined` pour ne pas modifier, `null` pour désactiver. */
+  actifDepuis?: Temporal.PlainDate | null;
+  jourEcheance?: number;
 }
 
 /**
@@ -70,6 +77,10 @@ export class Bail {
   readonly depotGarantie: Money;
   readonly irlReference: IRL;
   readonly cautionnement: Cautionnement | null;
+  /** Phase 2 — D-51. null = brouillon, non-null = bail actif. */
+  readonly actifDepuis: Temporal.PlainDate | null;
+  /** Phase 2 — D-53. Jour du mois de l'échéance, 1..28. Défaut 1. */
+  readonly jourEcheance: number;
 
   private constructor(id: BailId, props: Omit<BailProps, 'id'>) {
     this.id = id;
@@ -85,6 +96,8 @@ export class Bail {
     this.depotGarantie = props.depotGarantie;
     this.irlReference = props.irlReference;
     this.cautionnement = props.cautionnement;
+    this.actifDepuis = props.actifDepuis ?? null;
+    this.jourEcheance = props.jourEcheance ?? 1;
   }
 
   static creer(props: BailProps): Bail {
@@ -120,6 +133,13 @@ export class Bail {
       );
     }
 
+    // Phase 2 — D-53 : jourEcheance ∈ [1, 28] si fourni
+    if (props.jourEcheance !== undefined) {
+      if (props.jourEcheance < 1 || props.jourEcheance > 28) {
+        throw new InvariantViolated("Le jour d'échéance doit être entre 1 et 28 (D-53)");
+      }
+    }
+
     const id = props.id ?? nouveauBailId();
     return new Bail(id, {
       locataireId: props.locataireId,
@@ -134,25 +154,74 @@ export class Bail {
       depotGarantie: props.depotGarantie,
       irlReference: props.irlReference,
       cautionnement: props.cautionnement,
+      actifDepuis: props.actifDepuis,
+      jourEcheance: props.jourEcheance,
     });
+  }
+
+  /** Helper privé — retourne toutes les props pour les méthodes copy-on-write. */
+  private toProps(): BailProps {
+    return {
+      id: this.id,
+      locataireId: this.locataireId,
+      bienId: this.bienId,
+      lotIds: [...this.lotIds],
+      type: this.type,
+      dateDebut: this.dateDebut,
+      dureeMois: this.dureeMois,
+      loyerHc: this.loyerHc,
+      modeCharges: this.modeCharges,
+      montantCharges: this.montantCharges,
+      depotGarantie: this.depotGarantie,
+      irlReference: this.irlReference,
+      cautionnement: this.cautionnement,
+      actifDepuis: this.actifDepuis,
+      jourEcheance: this.jourEcheance,
+    };
   }
 
   /** Copy-on-write — re-valide tous les invariants. */
   modifier(patch: ModifierBailPatch): Bail {
     return Bail.creer({
-      id: this.id,
-      locataireId: patch.locataireId ?? this.locataireId,
-      bienId: patch.bienId ?? this.bienId,
-      lotIds: patch.lotIds ?? [...this.lotIds],
-      type: this.type,
-      dateDebut: patch.dateDebut ?? this.dateDebut,
-      dureeMois: patch.dureeMois ?? this.dureeMois,
-      loyerHc: patch.loyerHc ?? this.loyerHc,
-      modeCharges: patch.modeCharges ?? this.modeCharges,
-      montantCharges: patch.montantCharges ?? this.montantCharges,
-      depotGarantie: patch.depotGarantie ?? this.depotGarantie,
-      irlReference: patch.irlReference ?? this.irlReference,
-      cautionnement: patch.cautionnement !== undefined ? patch.cautionnement : this.cautionnement,
+      ...this.toProps(),
+      ...(patch.locataireId !== undefined && { locataireId: patch.locataireId }),
+      ...(patch.bienId !== undefined && { bienId: patch.bienId }),
+      ...(patch.lotIds !== undefined && { lotIds: patch.lotIds }),
+      ...(patch.dateDebut !== undefined && { dateDebut: patch.dateDebut }),
+      ...(patch.dureeMois !== undefined && { dureeMois: patch.dureeMois }),
+      ...(patch.loyerHc !== undefined && { loyerHc: patch.loyerHc }),
+      ...(patch.modeCharges !== undefined && { modeCharges: patch.modeCharges }),
+      ...(patch.montantCharges !== undefined && { montantCharges: patch.montantCharges }),
+      ...(patch.depotGarantie !== undefined && { depotGarantie: patch.depotGarantie }),
+      ...(patch.irlReference !== undefined && { irlReference: patch.irlReference }),
+      // cautionnement : `null` intentionnel distinct de `undefined` (pas de changement)
+      ...(patch.cautionnement !== undefined && { cautionnement: patch.cautionnement }),
+      // actifDepuis : `null` intentionnel (désactivation) distinct de `undefined` (pas de changement)
+      ...(patch.actifDepuis !== undefined && { actifDepuis: patch.actifDepuis }),
+      ...(patch.jourEcheance !== undefined && { jourEcheance: patch.jourEcheance }),
+    });
+  }
+
+  /**
+   * Phase 2 — D-51, D-53. Active le bail avec une date et un jour d'échéance.
+   * Valide jourEcheance ∈ [1, 28] (D-53).
+   */
+  activer(actifDepuis: Temporal.PlainDate, jourEcheance: number): Bail {
+    return Bail.creer({
+      ...this.toProps(),
+      actifDepuis,
+      jourEcheance,
+    });
+  }
+
+  /**
+   * Phase 2 — D-74. Désactive le bail (actifDepuis = null).
+   * Préserve l'historique (échéances, encaissements, quittances intacts).
+   */
+  desactiver(): Bail {
+    return Bail.creer({
+      ...this.toProps(),
+      actifDepuis: null,
     });
   }
 }

@@ -1,0 +1,61 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Profil bailleur',
+  breadcrumbs: [{ label: 'Profil bailleur' }],
+  navActive: 'bailleur'
+}) %>
+
+<% if (locals.banniereSuccess) { %>
+  <%- include('../../partials/banniere-success', { message: banniereSuccess }) %>
+<% } %>
+
+<h1>Profil bailleur</h1>
+
+<p>
+  Renseignez vos coordonnées de bailleur avant d'émettre votre première quittance
+  (mentions légales obligatoires — loi 89 art. 21).
+</p>
+
+<% if (erreurs._global) { %>
+  <aside role="alert" class="error-msg"><%= erreurs._global %></aside>
+<% } %>
+
+<form method="POST" action="/bailleur" novalidate>
+
+  <%- include('../../partials/form-field', {
+    id: 'nomComplet',
+    name: 'nomComplet',
+    label: 'Nom complet',
+    value: valeurs.nomComplet !== undefined ? valeurs.nomComplet : (bailleur ? bailleur.nomComplet : ''),
+    erreur: erreurs.nomComplet || null
+  }) %>
+
+  <%- include('../../partials/form-field', {
+    id: 'rue',
+    name: 'rue',
+    label: 'Adresse (rue)',
+    value: valeurs.rue !== undefined ? valeurs.rue : (bailleur ? bailleur.adresse.rue : ''),
+    erreur: erreurs.rue || null
+  }) %>
+
+  <%- include('../../partials/form-field', {
+    id: 'codePostal',
+    name: 'codePostal',
+    label: 'Code postal',
+    value: valeurs.codePostal !== undefined ? valeurs.codePostal : (bailleur ? bailleur.adresse.codePostal : ''),
+    hint: '5 chiffres — ex : 75002',
+    erreur: erreurs.codePostal || null
+  }) %>
+
+  <%- include('../../partials/form-field', {
+    id: 'ville',
+    name: 'ville',
+    label: 'Ville',
+    value: valeurs.ville !== undefined ? valeurs.ville : (bailleur ? bailleur.adresse.ville : ''),
+    erreur: erreurs.ville || null
+  }) %>
+
+  <button type="submit">Enregistrer le profil</button>
+
+</form>
+
+<%- include('../../partials/layout-fin') %>

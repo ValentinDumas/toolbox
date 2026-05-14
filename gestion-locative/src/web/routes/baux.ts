@@ -11,8 +11,11 @@ import { Adresse } from '../../domain/_shared/adresse.js';
 import { creerBail } from '../../application/locatif/creer-bail.js';
 import { modifierBail } from '../../application/locatif/modifier-bail.js';
 import { supprimerBail } from '../../application/locatif/supprimer-bail.js';
+import { desactiverBail } from '../../application/locatif/desactiver-bail.js';
 import { listerBaux } from '../../application/locatif/lister-baux.js';
 import { BailIntrouvable } from '../../domain/locatif/erreurs.js';
+import { InvariantViolated } from '../../domain/_shared/erreurs.js';
+import type { ActiviteBailDetector } from '../../domain/locatif/activite-bail-detector.js';
 import { bailCreationSchema } from '../schemas/bail-schemas.js';
 import type { Bien } from '../../domain/patrimoine/bien.js';
 
@@ -41,6 +44,7 @@ export async function plugin(
     bailRepo: BailRepository;
     bienRepo: BienRepository;
     locataireRepo: LocataireRepository;
+    activiteBailDetector: ActiviteBailDetector;
   },
 ): Promise<void> {
 
@@ -220,14 +224,21 @@ export async function plugin(
       return reply.code(404).send('Ce bail n\'existe pas ou a été supprimé. <a href="/baux">Retour aux baux</a>');
     }
 
-    const [bien, locataire] = await Promise.all([
+    const [bien, locataire, aDeLActivite] = await Promise.all([
       opts.bienRepo.trouverParId(bail.bienId),
       opts.locataireRepo.trouverParId(bail.locataireId),
+      opts.activiteBailDetector.aDeLActivite(bail.id),
     ]);
 
     if (!bien || !locataire) {
       return reply.code(404).send('Données du bail incomplètes (bien ou locataire introuvable).');
     }
+
+    // Lire et vider les bannières de session
+    const banniereSuccess = req.session.banniereSuccess ?? null;
+    const banniereWarning = req.session.banniereWarning ?? null;
+    if (banniereSuccess) req.session.banniereSuccess = undefined;
+    if (banniereWarning) req.session.banniereWarning = undefined;
 
     // Résoudre les lots concernés par ce bail
     const lotsduBail = bien.lots.filter((l) => bail.lotIds.includes(l.id as LotId));
@@ -237,7 +248,9 @@ export async function plugin(
       bien,
       locataire,
       lotsduBail,
-      banniereSuccess: null,
+      aDeLActivite,
+      banniereSuccess,
+      banniereWarning,
       navActive: 'baux',
       formatDate,
     });
@@ -369,12 +382,31 @@ export async function plugin(
     }
   });
 
-  // POST /baux/:id/supprimer — soft-delete
+  // POST /baux/:id/supprimer — soft-delete (D-74 : refusé si activité)
   app.post('/baux/:id/supprimer', async (req, reply) => {
     const { id } = req.params as { id: string };
     try {
-      await supprimerBail(id as BailId, opts.bailRepo);
+      await supprimerBail(id as BailId, opts.bailRepo, opts.activiteBailDetector);
       return reply.redirect('/baux');
+    } catch (err) {
+      if (err instanceof BailIntrouvable) {
+        return reply.code(404).send(err.message);
+      }
+      if (err instanceof InvariantViolated && err.message === 'Bail avec activité ne peut être supprimé') {
+        req.session.banniereWarning = "Ce bail a déjà de l'activité, il ne peut plus être supprimé. Vous pouvez en revanche le désactiver.";
+        return reply.redirect('/baux/' + id);
+      }
+      throw err;
+    }
+  });
+
+  // POST /baux/:id/desactiver — désactivation non-destructive (D-74)
+  app.post('/baux/:id/desactiver', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      await desactiverBail(id as BailId, opts.bailRepo);
+      req.session.banniereSuccess = 'Bail désactivé. Vous pouvez le réactiver depuis la fiche.';
+      return reply.redirect('/baux/' + id);
     } catch (err) {
       if (err instanceof BailIntrouvable) {
         return reply.code(404).send(err.message);

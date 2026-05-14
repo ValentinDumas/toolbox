@@ -6,7 +6,7 @@ import { Money } from '../../src/domain/_shared/money.js';
 import { IRL } from '../../src/domain/_shared/irl.js';
 import { Cautionnement } from '../../src/domain/locatif/cautionnement.js';
 import { Bail } from '../../src/domain/locatif/bail.js';
-import { nouveauBailId, nouveauBienId, nouveauLotId } from '../../src/domain/_shared/identifiants.js';
+import { nouveauBienId, nouveauLotId } from '../../src/domain/_shared/identifiants.js';
 
 interface OverridesLocataire {
   id?: LocataireId;

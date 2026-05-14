@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerMigrationsBrutes } from '../../../src/infrastructure/db/database.js';
+import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { marquerWizardComplete } from '../../../src/infrastructure/lifecycle/premier-lancement.js';
 import { creerApp } from '../../../src/main.js';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ import path from 'node:path';
 import type { InjectOptions } from 'fastify';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_PATH = path.resolve(__dirname, '../../../migrations/0001_init.sql');
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
 
 interface CookieJar {
   [name: string]: string;
@@ -26,11 +26,11 @@ interface MondeActivation extends World {
   cookies: CookieJar;
 }
 
-Before(async function (this: MondeActivation) {
+Before({ tags: 'not @bailleur and not @D-74' }, async function (this: MondeActivation) {
   process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
   const sqlite = new Database(':memory:');
   this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
-  await appliquerMigrationsBrutes(this.db, sqlite, MIGRATIONS_PATH);
+  await appliquerToutesMigrations(this.db, sqlite, MIGRATIONS_DIR);
   this.app = await creerApp(this.db);
   this.dernierStatut = 0;
   this.derniereUrl = '';
@@ -38,7 +38,7 @@ Before(async function (this: MondeActivation) {
   this.cookies = {};
 });
 
-After(async function (this: MondeActivation) {
+After({ tags: 'not @bailleur and not @D-74' }, async function (this: MondeActivation) {
   if (this.app) await this.app.close();
   if (this.db) await this.db.destroy();
 });
