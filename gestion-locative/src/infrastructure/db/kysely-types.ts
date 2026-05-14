@@ -59,9 +59,22 @@ export interface BailTable {
   irl_trimestre: string;
   irl_valeur: string;
   cautionnement: string | null;
+  actif_depuis: string | null;
+  jour_echeance: number;
   cree_le: Generated<string>;
   modifie_le: Generated<string>;
   supprime_le: string | null;
+}
+
+export interface BailleurTable {
+  id: string;
+  singleton_marker: string;
+  nom_complet: string;
+  rue: string;
+  code_postal: string;
+  ville: string;
+  cree_le: Generated<string>;
+  modifie_le: Generated<string>;
 }
 
 export interface BailLotsTable {
@@ -81,4 +94,5 @@ export interface DB {
   bail: BailTable;
   bail_lots: BailLotsTable;
   meta: MetaTable;
+  bailleur: BailleurTable;
 }

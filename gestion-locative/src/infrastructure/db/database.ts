@@ -36,38 +36,73 @@ export function cheminBaseParDefaut(): string {
   return path.join(dossier, 'db.sqlite');
 }
 
-// Applique la migration SQL brute via better-sqlite3 exec (idempotent).
+// Applique la migration SQL brute via better-sqlite3 exec (idempotent par nom de fichier).
 // Accepte l'instance better-sqlite3 directement pour éviter l'accès aux internals Kysely.
 export async function appliquerMigrationsBrutes(
   db: Kysely<DB>,
   sqlite: BetterSqlite3.Database,
   cheminSql: string,
 ): Promise<void> {
-  // Idempotence : si la table meta indique que 0001 est appliquée, skip
+  const nomFichier = path.basename(cheminSql);
+
+  // Idempotence : vérifie si cette migration a déjà été appliquée
   try {
+    const cle = `migration_${nomFichier}`;
     const result = await db
       .selectFrom('meta')
       .select('valeur')
-      .where('cle', '=', 'migrations_appliquees')
+      .where('cle', '=', cle)
       .executeTakeFirst();
 
-    if (result?.valeur === '0001') {
+    if (result?.valeur === 'appliquee') {
       return;
     }
   } catch {
-    // Table meta inexistante — première exécution
+    // Table meta inexistante — première exécution (migration 0001 uniquement)
   }
 
   const sqlContent = fs.readFileSync(cheminSql, 'utf-8');
   // better-sqlite3.exec() exécute plusieurs statements en une seule passe (synchrone)
   sqlite.exec(sqlContent);
 
-  // Marquer la migration comme appliquée
-  await db
-    .insertInto('meta')
-    .values({ cle: 'migrations_appliquees', valeur: '0001' })
-    .onConflict((oc) => oc.column('cle').doUpdateSet({ valeur: '0001' }))
-    .execute();
+  // Marquer la migration comme appliquée (seulement si la table meta existe déjà après exec)
+  try {
+    const cle = `migration_${nomFichier}`;
+    await db
+      .insertInto('meta')
+      .values({ cle, valeur: 'appliquee' })
+      .onConflict((oc) => oc.column('cle').doUpdateSet({ valeur: 'appliquee' }))
+      .execute();
+
+    // Rétro-compat : marquer aussi la clé legacy pour la migration 0001
+    if (nomFichier === '0001_init.sql') {
+      await db
+        .insertInto('meta')
+        .values({ cle: 'migrations_appliquees', valeur: '0001' })
+        .onConflict((oc) => oc.column('cle').doUpdateSet({ valeur: '0001' }))
+        .execute();
+    }
+  } catch {
+    // Table meta pas encore disponible (ne devrait pas arriver après exec)
+  }
+}
+
+// Applique toutes les migrations du répertoire dans l'ordre alphabétique.
+// Utilisé par main.ts pour le démarrage de l'application.
+export async function appliquerToutesMigrations(
+  db: Kysely<DB>,
+  sqlite: BetterSqlite3.Database,
+  dossierMigrations: string,
+): Promise<void> {
+  const fichiers = fs
+    .readdirSync(dossierMigrations)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+
+  for (const fichier of fichiers) {
+    const cheminFichier = path.join(dossierMigrations, fichier);
+    await appliquerMigrationsBrutes(db, sqlite, cheminFichier);
+  }
 }
 
 export async function interfaceCli(args: string[]): Promise<void> {

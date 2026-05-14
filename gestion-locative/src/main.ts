@@ -10,6 +10,8 @@ import fastifySession from '@fastify/session';
 import type { Kysely } from 'kysely';
 import { formatDate } from './helpers/format-date.js';
 import { formatMoney } from './helpers/format-money.js';
+import type { Clock } from './domain/_shared/clock.js';
+import { ClockSysteme } from './domain/_shared/clock.js';
 
 // Augmente FastifyReply pour supporter `reply.locals` (injection EJS via @fastify/view defaultContext workaround)
 declare module 'fastify' {
@@ -19,7 +21,7 @@ declare module 'fastify' {
 }
 
 import type { DB } from './infrastructure/db/kysely-types.js';
-import { ouvrirDb, cheminBaseParDefaut, appliquerMigrationsBrutes } from './infrastructure/db/database.js';
+import { ouvrirDb, cheminBaseParDefaut, appliquerToutesMigrations } from './infrastructure/db/database.js';
 import { BienRepositorySqlite } from './infrastructure/repositories/bien-repository-sqlite.js';
 import { LocataireRepositorySqlite } from './infrastructure/repositories/locataire-repository-sqlite.js';
 import { BailRepositorySqlite } from './infrastructure/repositories/bail-repository-sqlite.js';
@@ -36,7 +38,8 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastify>> {
+export async function creerApp(db: Kysely<DB>, opts: { clock?: Clock } = {}): Promise<ReturnType<typeof Fastify>> {
+  const _clock = opts.clock ?? new ClockSysteme();
   const logLevel = process.env['LOG_LEVEL'] ?? 'silent';
 
   // DP-05: SESSION_SECRET fail-fast — 32+ chars requis
@@ -113,10 +116,10 @@ async function demarrer(): Promise<void> {
     const sqlite = new BetterSqlite3(chemin);
     const { Kysely, SqliteDialect } = await import('kysely');
     const db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
-    const migrationsPath = path.join(__dirname, '../migrations/0001_init.sql');
-    await appliquerMigrationsBrutes(db, sqlite, migrationsPath);
+    const dossierMigrations = path.join(__dirname, '../migrations');
+    await appliquerToutesMigrations(db, sqlite, dossierMigrations);
     await db.destroy();
-    console.log(`Migration appliquée : ${chemin}`);
+    console.log(`Migrations appliquées : ${chemin}`);
     process.exit(0);
   }
 
@@ -128,8 +131,8 @@ async function demarrer(): Promise<void> {
   }
 
   const { db, sqlite } = ouvrirDb(cheminDb);
-  const migrationsPath = path.join(__dirname, '../migrations/0001_init.sql');
-  await appliquerMigrationsBrutes(db, sqlite, migrationsPath);
+  const dossierMigrations = path.join(__dirname, '../migrations');
+  await appliquerToutesMigrations(db, sqlite, dossierMigrations);
 
   const app = await creerApp(db);
 

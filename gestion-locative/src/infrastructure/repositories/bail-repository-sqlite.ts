@@ -36,6 +36,8 @@ export class BailRepositorySqlite implements BailRepository {
           irl_trimestre: bail.irlReference.trimestre,
           irl_valeur: bail.irlReference.valeur,
           cautionnement: cautionnementJson,
+          actif_depuis: bail.actifDepuis?.toString() ?? null,
+          jour_echeance: bail.jourEcheance,
         })
         .onConflict((oc) =>
           oc.column('id').doUpdateSet({
@@ -50,6 +52,8 @@ export class BailRepositorySqlite implements BailRepository {
             irl_trimestre: bail.irlReference.trimestre,
             irl_valeur: bail.irlReference.valeur,
             cautionnement: cautionnementJson,
+            actif_depuis: bail.actifDepuis?.toString() ?? null,
+            jour_echeance: bail.jourEcheance,
             modifie_le: new Date().toISOString(),
           }),
         )
@@ -152,6 +156,8 @@ export class BailRepositorySqlite implements BailRepository {
       irl_trimestre: string;
       irl_valeur: string;
       cautionnement: string | null;
+      actif_depuis?: string | null;
+      jour_echeance?: number;
     },
     lotIds: LotId[],
   ): Bail {
@@ -174,6 +180,12 @@ export class BailRepositorySqlite implements BailRepository {
       ? this.cautionnementDepuisJson(row.cautionnement)
       : null;
 
+    // Phase 2 — D-51, D-53 : actifDepuis + jourEcheance
+    const actifDepuis = row.actif_depuis
+      ? Temporal.PlainDate.from(row.actif_depuis)
+      : null;
+    const jourEcheance = row.jour_echeance ?? 1;
+
     return Bail.creer({
       id: row.id as BailId,
       locataireId: row.locataire_id as LocataireId,
@@ -188,6 +200,8 @@ export class BailRepositorySqlite implements BailRepository {
       depotGarantie,
       irlReference,
       cautionnement,
+      actifDepuis,
+      jourEcheance,
     });
   }
 
