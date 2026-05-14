@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "test:bdd": "cucumber-js",
     "test:cov": "vitest run --coverage",
-    "lint": "eslint src tests",
+    "lint": "eslint --no-error-on-unmatched-pattern src tests",
     "lint:deps": "depcruise src",
     "format": "prettier --write ."
   },
