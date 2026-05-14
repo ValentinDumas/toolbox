@@ -69,6 +69,57 @@ describe('Money', () => {
   });
 });
 
+describe('Money.compensateur', () => {
+  // T1 : Money.compensateur factory crée un Money à centimes négatifs
+  it('T1: Money.compensateur(fromCentimes(85000n)) → centimes -85000n', () => {
+    const comp = Money.compensateur(Money.fromCentimes(85_000n));
+    expect(comp.toCentimes()).toBe(-85_000n);
+  });
+
+  // T2 : negation() alias
+  it('T2: Money.fromCentimes(85000n).negation() → centimes -85000n', () => {
+    const neg = Money.fromCentimes(85_000n).negation();
+    expect(neg.toCentimes()).toBe(-85_000n);
+  });
+
+  // T2.bis : double négation idempotente (involution)
+  it('T2.bis: double compensation égale le montant original (involution)', () => {
+    const original = Money.fromCentimes(85_000n);
+    const doubleCmp = Money.compensateur(Money.compensateur(original));
+    expect(doubleCmp.egale(original)).toBe(true);
+    const doubleNeg = original.negation().negation();
+    expect(doubleNeg.egale(original)).toBe(true);
+  });
+
+  // T3 : fromCentimes(-100n) throw (factory Phase 1 inchangée)
+  it('T3: fromCentimes(-100n) throw InvariantViolated', () => {
+    expect(() => Money.fromCentimes(-100n)).toThrow(InvariantViolated);
+  });
+
+  // T4 : additionner compensateur (850€ + (-300€) = 500€)
+  it('T4: fromCentimes(80000n).additionner(compensateur(fromCentimes(30000n))) → 50000n', () => {
+    const result = Money.fromCentimes(80_000n).additionner(
+      Money.compensateur(Money.fromCentimes(30_000n)),
+    );
+    expect(result.toCentimes()).toBe(50_000n);
+  });
+
+  // T5 : compensateur + positif = négatif
+  it('T5: compensateur(80000n).additionner(fromCentimes(30000n)) → -50000n', () => {
+    const result = Money.compensateur(Money.fromCentimes(80_000n)).additionner(
+      Money.fromCentimes(30_000n),
+    );
+    expect(result.toCentimes()).toBe(-50_000n);
+  });
+
+  // estNegatif
+  it('estNegatif: compensateur → true, positif → false', () => {
+    expect(Money.compensateur(Money.fromCentimes(100n)).estNegatif()).toBe(true);
+    expect(Money.fromCentimes(100n).estNegatif()).toBe(false);
+    expect(Money.zero().estNegatif()).toBe(false);
+  });
+});
+
 describe('Money.multiplyByFraction', () => {
   // Test 1 (fast-check) : prorata mois entier = montant total
   it('propriété : prorata mois entier = montant total', () => {
