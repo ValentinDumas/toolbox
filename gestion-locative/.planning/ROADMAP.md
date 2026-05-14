@@ -35,10 +35,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. L'utilisateur peut créer une fiche `Locataire` (identité, contact, garant, pièces).
   4. L'utilisateur peut créer un `Bail` meublé classique (durée 1 an min, loyer HC, forfait ou provisions, dépôt ≤ 2 mois HC, clause IRL) reliant un `Bien`/`Lot` à un `Locataire`.
   5. KPI Activation : un utilisateur ouvrant l'app pour la première fois peut, en une session unique, aboutir à 1 Bien + 1 Locataire + 1 Bail visibles dans une liste persistée.
-**Plans:** 7 plans
+**Plans:** 2/7 plans executed
 Plans:
 - [x] 01-01-project-init-PLAN.md — Scaffolding TS/pnpm/Vitest/Cucumber/ESLint/dependency-cruiser/Mise (wave 0)
-- [ ] 01-02-walking-skeleton-PLAN.md — Walking Skeleton bout-en-bout : Fastify + SQLite + 1 Bien + 1 Lot via formulaire minimal (wave 1, PAT-01)
+- [x] 01-02-walking-skeleton-PLAN.md — Walking Skeleton bout-en-bout : Fastify + SQLite + 1 Bien + 1 Lot via formulaire minimal (wave 1, PAT-01)
 - [ ] 01-03-patrimoine-crud-PLAN.md — CRUD Bien + N-Lots (PAT-01, PAT-02) (wave 2)
 - [ ] 01-04-locataire-crud-PLAN.md — CRUD Locataire (LOC-01) (wave 3)
 - [ ] 01-05-bail-classique-PLAN.md — Bail meublé classique + VOs Money/IRL/Cautionnement (LOC-02) (wave 4)
@@ -134,7 +134,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Activation — Bien, Locataire, Bail | 0/7 | Planned | - |
+| 1. Activation — Bien, Locataire, Bail | 2/7 | In Progress|  |
 | 2. Quittancement — Échéances, Encaissements, Relances | 0/TBD | Not started | - |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/TBD | Not started | - |
 | 4. Coffre documentaire & Travaux | 0/TBD | Not started | - |
