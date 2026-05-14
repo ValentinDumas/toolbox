@@ -197,8 +197,13 @@ export async function plugin(
       return reply.redirect(`/quittances/${id}`);
     }
 
+    // WR-11 : 404 explicite si quittance absente — évite que le use case
+    // remonte QuittanceIntrouvable en 500.
     const quittance = await opts.quittanceRepo.trouverParId(id as QuittanceId);
-    const numeroSauvegarde = quittance?.numero ?? id;
+    if (!quittance) {
+      return reply.code(404).send('Quittance introuvable.');
+    }
+    const numeroSauvegarde = quittance.numero;
 
     await annulerQuittance(
       { id: id as QuittanceId, raison: parsed.data.raison },
