@@ -10,7 +10,7 @@
       <a href="/baux"<% if (locals.navActive === 'baux') { %> aria-current="page"<% } %>>Baux</a>
     </li>
     <li>
-      <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances' || locals.navActive === 'quittances') { %> open<% } %>>
+      <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances' || locals.navActive === 'quittances' || locals.navActive === 'impayes') { %> open<% } %>>
         <summary>Encaissements</summary>
         <ul>
           <li>
@@ -18,6 +18,9 @@
           </li>
           <li>
             <a href="/quittances"<% if (locals.navActive === 'quittances') { %> aria-current="page"<% } %>>Quittances</a>
+          </li>
+          <li>
+            <a href="/impayes"<% if (locals.navActive === 'impayes') { %> aria-current="page"<% } %>>Impayés</a>
           </li>
         </ul>
       </details>

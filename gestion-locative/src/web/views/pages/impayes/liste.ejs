@@ -1,0 +1,104 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Impayés et retards',
+  breadcrumbs: [
+    { label: 'Impayés' }
+  ],
+  navActive: 'impayes'
+}) %>
+
+<h1>Impayés et retards</h1>
+
+<% if (impayes.length === 0) { %>
+  <section aria-label="État vide">
+    <h2>Tous les loyers sont à jour</h2>
+    <p>Aucun retard ou impayé détecté à ce jour.</p>
+  </section>
+<% } else { %>
+
+<p>
+  <strong><%= formatMoney(totalGlobal) %></strong> impayé<%= nbLocataires > 1 ? 's' : '' %>
+  sur <%= nbLocataires %> locataire<%= nbLocataires > 1 ? 's' : '' %>.
+</p>
+
+<form method="GET" action="/impayes" style="margin-bottom: 1rem;">
+  <label for="locataire-filtre">Filtrer par locataire :</label>
+  <select id="locataire-filtre" name="locataire" onchange="this.form.submit()">
+    <option value="">— Tous —</option>
+    <% allLocataires.forEach(function(loc) { %>
+      <option value="<%= loc.id %>"<%= locataireFiltre === loc.id ? ' selected' : '' %>>
+        <%= loc.prenom %> <%= loc.nom %>
+      </option>
+    <% }); %>
+  </select>
+  <noscript><button type="submit">Filtrer</button></noscript>
+</form>
+
+<div role="region" aria-label="Tableau des impayés">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Locataire</th>
+        <th scope="col">Bail</th>
+        <th scope="col">Période</th>
+        <th scope="col" style="text-align:right">Total</th>
+        <th scope="col" style="text-align:right">Payé</th>
+        <th scope="col" style="text-align:right">Reste dû</th>
+        <th scope="col">Statut</th>
+        <th scope="col">Retard</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% impayes.forEach(function(impaye) { %>
+      <tr>
+        <td>
+          <a href="/locataires/<%= impaye.locataireId %>"><%= impaye.locataireNomComplet %></a>
+        </td>
+        <td>
+          <a href="/baux/<%= impaye.bailId %>"><%= impaye.bailId.substring(0, 8) %></a>
+        </td>
+        <td><%= formatPeriode(impaye.periodeDebut) %></td>
+        <td style="text-align:right"><%= formatMoney(impaye.total) %></td>
+        <td style="text-align:right"><%= formatMoney(impaye.sommePaiee) %></td>
+        <td style="text-align:right">
+          <strong style="color:#dc2626"><%= formatMoney(impaye.resteDu) %></strong>
+        </td>
+        <td>
+          <% if (impaye.estEnRetard) { %>
+            <span class="statut-badge statut-badge--en_retard">
+              <span aria-hidden="true">&#10005;</span>
+              <span>En retard</span>
+            </span>
+          <% } else if (impaye.statut === 'partiellement_payee') { %>
+            <span class="statut-badge statut-badge--partiellement_payee">
+              <span aria-hidden="true">&#9680;</span>
+              <span>Partiel</span>
+            </span>
+          <% } else { %>
+            <span class="statut-badge statut-badge--en_attente">
+              <span aria-hidden="true">&#9675;</span>
+              <span>En attente</span>
+            </span>
+          <% } %>
+        </td>
+        <td>
+          <% if (impaye.estEnRetard) { %>
+            <span style="color:#dc2626"><%= impaye.joursDeRetard %> j</span>
+          <% } else { %>
+            —
+          <% } %>
+        </td>
+        <td>
+          <a href="/encaissements/nouveau?echeance=<%= impaye.echeanceId %>">Saisir un encaissement</a>
+          &nbsp;
+          <a href="/echeances/<%= impaye.echeanceId %>">Voir l'échéance</a>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

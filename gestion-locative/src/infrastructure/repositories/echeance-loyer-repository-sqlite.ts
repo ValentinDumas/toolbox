@@ -85,7 +85,7 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
     const rows = await this.db
       .selectFrom('echeance_loyer')
       .selectAll()
-      .where('statut', '!=', 'payee')
+      .where('statut', 'in', ['en_attente', 'partiellement_payee'])
       .where('annule_le', 'is', null)
       .orderBy('jour_echeance_attendue', 'asc')
       .execute();
