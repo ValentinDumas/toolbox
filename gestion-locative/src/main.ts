@@ -198,6 +198,7 @@ export async function creerApp(
     locataireRepo,
     bienRepo: repo,
     bailleurRepo,
+    pdfRenderer,
     clock,
   });
 

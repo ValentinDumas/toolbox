@@ -12,10 +12,10 @@ import type { BailleurRepository } from '../../domain/identite/bailleur-reposito
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { RelanceId } from '../../domain/_shared/identifiants.js';
 import type { NiveauRelance } from '../../domain/encaissements/relance.js';
+import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
 import { enregistrerRelance } from '../../application/encaissements/enregistrer-relance.js';
 import { listerRelances } from '../../application/encaissements/lister-relances.js';
 import { TemplateRendererEjs } from '../../infrastructure/templates/template-renderer-ejs.js';
-import { PdfRendererPdfmake } from '../../infrastructure/pdf/pdf-renderer-pdfmake.js';
 import { construireMiseEnDemeure } from '../../infrastructure/pdf/mise-en-demeure-doc-def.js';
 import { Money } from '../../domain/_shared/money.js';
 import { RelanceNiveauNonDisponible } from '../../domain/encaissements/erreurs.js';
@@ -33,11 +33,14 @@ export async function plugin(
     locataireRepo: LocataireRepository;
     bienRepo: BienRepository;
     bailleurRepo: BailleurRepository;
+    pdfRenderer: PdfRenderer;
     clock: Clock;
   },
 ): Promise<void> {
+  // WR-02 : pdfRenderer injecté via opts (singleton DI) au lieu d'être
+  // réinstancié — évite la double-configuration de pdfmake font state.
   const templateRenderer = new TemplateRendererEjs(TEMPLATES_DIR);
-  const pdfRenderer = new PdfRendererPdfmake();
+  const pdfRenderer = opts.pdfRenderer;
 
   // GET /relances — liste toutes les relances
   app.get('/relances', async (req, reply) => {
