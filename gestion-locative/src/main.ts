@@ -128,6 +128,20 @@ export async function creerApp(
     };
   });
 
+  // CR-07 : defense-in-depth XSS — Content-Security-Policy global.
+  // 'unsafe-inline' est conservé pour les <script> inline existants
+  // (modifier.ejs, fiche.ejs encaissements/quittances). Si on bascule
+  // sur des scripts externes (cf IN-05), passer en mode nonce.
+  app.addHook('onSend', async (_req, reply, payload) => {
+    reply.header(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'",
+    );
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Referrer-Policy', 'same-origin');
+    return payload;
+  });
+
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo });
