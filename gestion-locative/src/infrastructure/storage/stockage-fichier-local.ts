@@ -28,20 +28,48 @@ export class StockageFichierLocal {
 
   /**
    * Lit un fichier PDF depuis son chemin relatif à baseDir.
-   * Vérifie l'absence de path traversal avant lecture.
+   * Vérifie l'absence de path traversal avant lecture, y compris via symlinks.
    * Throw FichierIntrouvable si absent.
+   *
+   * WR-03 : protection renforcée — utilise fs.realpath() pour résoudre les
+   * liens symboliques. Bloque le scénario où un attacker avec write access
+   * crée un symlink baseDir/quittances/x.pdf → /etc/passwd.
+   * Rejette aussi les caractères NULL bytes dans cheminRelatif.
    */
   async lireQuittance(cheminRelatif: string): Promise<Buffer> {
+    // Rejet immédiat des NULL bytes (peuvent tromper path.resolve mais
+    // déclencher des comportements bizarres dans fs.readFile).
+    if (cheminRelatif.includes('\0')) {
+      throw new FichierIntrouvable(cheminRelatif);
+    }
+
     const cheminAbsolu = path.resolve(this.baseDir, cheminRelatif);
 
-    // Protection path traversal : le chemin résolu doit rester sous baseDir
+    // Première barrière : le chemin résolu (sans symlinks) doit rester sous baseDir.
     const baseDirResolu = path.resolve(this.baseDir);
     if (!cheminAbsolu.startsWith(baseDirResolu + path.sep) && cheminAbsolu !== baseDirResolu) {
       throw new FichierIntrouvable(cheminRelatif);
     }
 
+    // Seconde barrière : résoudre les symlinks et revalider.
+    let cheminReel: string;
+    let baseDirReel: string;
     try {
-      const data = await fs.readFile(cheminAbsolu);
+      baseDirReel = await fs.realpath(baseDirResolu);
+      cheminReel = await fs.realpath(cheminAbsolu);
+    } catch (err: unknown) {
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code === 'ENOENT') {
+        throw new FichierIntrouvable(cheminRelatif);
+      }
+      throw err;
+    }
+    if (!cheminReel.startsWith(baseDirReel + path.sep) && cheminReel !== baseDirReel) {
+      throw new FichierIntrouvable(cheminRelatif);
+    }
+
+    try {
+      const data = await fs.readFile(cheminReel);
       return Buffer.from(data);
     } catch (err: unknown) {
       const nodeErr = err as NodeJS.ErrnoException;
