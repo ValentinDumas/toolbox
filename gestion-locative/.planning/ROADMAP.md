@@ -32,10 +32,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Success Criteria** (what must be TRUE):
   1. L'utilisateur peut créer, éditer et supprimer un `Bien` (adresse, surface, type, année construction) et persister la donnée localement (SQLite).
   2. L'utilisateur peut ajouter, éditer et supprimer plusieurs `Lot`s sur un `Bien` (appartement, parking, cave).
-  3. L'utilisateur peut créer une fiche `Locataire` (identité, contact, garant, pièces).
+  3. L'utilisateur peut créer une fiche `Locataire` (identité, contact). _Note V1 : le garant relève du `Cautionnement` porté par le `Bail` (D-33). Les pièces justificatives sont différées Phase 4 — Coffre documentaire (D-32)._
   4. L'utilisateur peut créer un `Bail` meublé classique (durée 1 an min, loyer HC, forfait ou provisions, dépôt ≤ 2 mois HC, clause IRL) reliant un `Bien`/`Lot` à un `Locataire`.
   5. KPI Activation : un utilisateur ouvrant l'app pour la première fois peut, en une session unique, aboutir à 1 Bien + 1 Locataire + 1 Bail visibles dans une liste persistée.
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans executed
 Plans:
 - [x] 01-01-project-init-PLAN.md — Scaffolding TS/pnpm/Vitest/Cucumber/ESLint/dependency-cruiser/Mise (wave 0)
 - [x] 01-02-walking-skeleton-PLAN.md — Walking Skeleton bout-en-bout : Fastify + SQLite + 1 Bien + 1 Lot via formulaire minimal (wave 1, PAT-01)
