@@ -1,20 +1,20 @@
-<%- include('../../partials/layout-debut', { titre: 'Biens', banniereSuccess: locals.banniereSuccess ?? null }) %>
-
-<nav aria-label="Fil d'Ariane">
-  <ul>
-    <li><a href="/">Accueil</a></li>
-    <li>Biens</li>
-  </ul>
-</nav>
-
-<h1>Biens</h1>
-
-<p><a href="/biens/nouveau" role="button">Créer un bien</a></p>
+<%- include('../../partials/layout-debut', {
+  titre: 'Biens',
+  breadcrumbs: [{ label: 'Biens' }],
+  navActive: 'biens'
+}) %>
 
 <% if (biens.length === 0) { %>
-  <p>Aucun bien pour l'instant</p>
-  <p>Ajoutez votre premier bien immobilier pour démarrer la gestion locative.</p>
+  <%- include('../../partials/empty-state', {
+    heading: "Aucun bien pour l'instant",
+    body: "Ajoutez votre premier bien immobilier pour démarrer la gestion locative.",
+    ctaLabel: "Créer un bien",
+    ctaUrl: "/biens/nouveau"
+  }) %>
 <% } else { %>
+  <h1>Biens</h1>
+  <p><a href="/biens/nouveau" role="button">Créer un bien</a></p>
+
   <%- include('../../partials/data-table', {
     ariaLabel: 'Liste des biens',
     colonnes: [

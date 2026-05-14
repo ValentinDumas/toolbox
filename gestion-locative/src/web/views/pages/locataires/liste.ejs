@@ -1,21 +1,20 @@
-<%- include('../../partials/layout-debut', { titre: 'Locataires', banniereSuccess: locals.banniereSuccess ?? null, navActive: locals.navActive ?? null }) %>
-
-<nav aria-label="Fil d'Ariane">
-  <ul>
-    <li><a href="/">Accueil</a></li>
-    <li>Locataires</li>
-  </ul>
-</nav>
-
-<h1>Locataires</h1>
-
-<p><a href="/locataires/nouveau" role="button">Créer un locataire</a></p>
+<%- include('../../partials/layout-debut', {
+  titre: 'Locataires',
+  breadcrumbs: [{ label: 'Locataires' }],
+  navActive: 'locataires'
+}) %>
 
 <% if (locataires.length === 0) { %>
-  <h1>Aucun locataire pour l'instant</h1>
-  <p>Créez votre premier locataire pour pouvoir établir un bail.</p>
-  <a href="/locataires/nouveau" role="button">Créer un locataire</a>
+  <%- include('../../partials/empty-state', {
+    heading: "Aucun locataire pour l'instant",
+    body: "Créez votre premier locataire pour pouvoir établir un bail.",
+    ctaLabel: "Créer un locataire",
+    ctaUrl: "/locataires/nouveau"
+  }) %>
 <% } else { %>
+  <h1>Locataires</h1>
+  <p><a href="/locataires/nouveau" role="button">Créer un locataire</a></p>
+
   <%- include('../../partials/data-table', {
     ariaLabel: 'Liste des locataires',
     colonnes: [

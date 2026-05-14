@@ -8,6 +8,15 @@ import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 import type { Kysely } from 'kysely';
+import { formatDate } from './helpers/format-date.js';
+import { formatMoney } from './helpers/format-money.js';
+
+// Augmente FastifyReply pour supporter `reply.locals` (injection EJS via @fastify/view defaultContext workaround)
+declare module 'fastify' {
+  interface FastifyReply {
+    locals: Record<string, unknown>;
+  }
+}
 
 import type { DB } from './infrastructure/db/kysely-types.js';
 import { ouvrirDb, cheminBaseParDefaut, appliquerMigrationsBrutes } from './infrastructure/db/database.js';
@@ -72,6 +81,17 @@ export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastif
   const repo = new BienRepositorySqlite(db);
   const locataireRepo = new LocataireRepositorySqlite(db);
   const bailRepo = new BailRepositorySqlite(db);
+
+  // Hook global : injecte les helpers de format français dans les locals EJS.
+  // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
+  // Les routes continuent à gérer banniereSuccess elles-mêmes (pas de double lecture de session).
+  app.addHook('preHandler', async (_req, reply) => {
+    reply.locals = {
+      ...(reply.locals ?? {}),
+      formatDate,
+      formatMoney,
+    };
+  });
 
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });

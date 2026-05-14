@@ -1,12 +1,8 @@
-<%- include('../../partials/layout-debut', { titre: bien.adresse.enLigne(), banniereSuccess: locals.banniereSuccess ?? null }) %>
-
-<nav aria-label="Fil d'Ariane">
-  <ul>
-    <li><a href="/">Accueil</a></li>
-    <li><a href="/biens">Biens</a></li>
-    <li><%= bien.adresse.enLigne() %></li>
-  </ul>
-</nav>
+<%- include('../../partials/layout-debut', {
+  titre: bien.adresse.enLigne(),
+  breadcrumbs: [{ url: '/biens', label: 'Biens' }, { label: bien.adresse.enLigne() }],
+  navActive: 'biens'
+}) %>
 
 <h1><%= bien.adresse.enLigne() %></h1>
 

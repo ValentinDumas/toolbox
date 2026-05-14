@@ -1,29 +1,25 @@
-<%- include('../../partials/layout-debut', { titre: 'Baux', banniereSuccess: locals.banniereSuccess ?? null, navActive: locals.navActive ?? null }) %>
-
-<nav aria-label="Fil d'Ariane">
-  <ul>
-    <li><a href="/">Accueil</a></li>
-    <li>Baux</li>
-  </ul>
-</nav>
-
-<h1>Baux</h1>
+<%- include('../../partials/layout-debut', {
+  titre: 'Baux',
+  breadcrumbs: [{ label: 'Baux' }],
+  navActive: 'baux'
+}) %>
 
 <% if (biensCount === 0 || locatairesCount === 0) { %>
-  <%/* Empty state prérequis manquant (UI-SPEC §Empty States §Baux prérequis) */%>
-  <h2>Impossible de créer un bail</h2>
-  <p>Vous avez besoin d'au moins 1 bien et 1 locataire avant de créer un bail.</p>
-  <% if (biensCount === 0) { %>
-    <a href="/biens/nouveau" role="button">Créer un bien</a>
-  <% } else { %>
-    <a href="/locataires/nouveau" role="button">Créer un locataire</a>
-  <% } %>
+  <%- include('../../partials/empty-state', {
+    heading: "Impossible de créer un bail",
+    body: "Vous avez besoin d'au moins 1 bien et 1 locataire avant de créer un bail.",
+    ctaLabel: biensCount === 0 ? "Créer un bien" : "Créer un locataire",
+    ctaUrl: biensCount === 0 ? "/biens/nouveau" : "/locataires/nouveau"
+  }) %>
 <% } else if (baux.length === 0) { %>
-  <%/* Empty state baux (0 baux, prérequis OK) */%>
-  <h2>Aucun bail pour l'instant</h2>
-  <p>Reliez un bien à un locataire en créant votre premier bail meublé.</p>
-  <a href="/baux/nouveau" role="button">Créer un bail</a>
+  <%- include('../../partials/empty-state', {
+    heading: "Aucun bail pour l'instant",
+    body: "Reliez un bien à un locataire en créant votre premier bail meublé.",
+    ctaLabel: "Créer un bail",
+    ctaUrl: "/baux/nouveau"
+  }) %>
 <% } else { %>
+  <h1>Baux</h1>
   <p><a href="/baux/nouveau" role="button">Créer un bail</a></p>
 
   <%- include('../../partials/data-table', {
@@ -40,8 +36,8 @@
       return [
         biensMap[b.bienId] ? locatairesMap[b.locataireId] || b.locataireId : b.locataireId,
         biensMap[b.bienId] ? biensMap[b.bienId].adresse.enLigne() : b.bienId,
-        b.loyerHc.enEuros(),
-        formatDate(b.dateDebut),
+        locals.formatMoney ? locals.formatMoney(b.loyerHc) : b.loyerHc.enEuros(),
+        locals.formatDate ? locals.formatDate(b.dateDebut) : formatDate(b.dateDebut),
         b.dureeMois + ' mois'
       ];
     }),
