@@ -1,0 +1,110 @@
+<%
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+%>
+<%- include('../../partials/wizard-layout', { titreEtape: 'Créer votre premier bien', currentStep: 1, totalSteps: 3 }) %>
+
+<form method="POST" action="/wizard/bien" novalidate>
+
+  <fieldset>
+    <legend>Adresse</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'rue', name: 'rue', label: 'Rue',
+      value: valeurs.rue || '',
+      erreur: erreurs.rue || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'codePostal', name: 'codePostal', label: 'Code postal',
+      value: valeurs.codePostal || '',
+      hint: 'Format : 5 chiffres (ex : 75001)',
+      erreur: erreurs.codePostal || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'ville', name: 'ville', label: 'Ville',
+      value: valeurs.ville || '',
+      erreur: erreurs.ville || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Caractéristiques</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'surface', name: 'surface', label: 'Surface (m²)',
+      type: 'number',
+      value: valeurs.surface || '',
+      erreur: erreurs.surface || null
+    }) %>
+
+    <div class="field">
+      <label for="type">Type de bien <span aria-hidden="true">*</span></label>
+      <select id="type" name="type" required aria-describedby="type-error">
+        <option value="">— Sélectionnez —</option>
+        <option value="appartement"<% if (valeurs.type === 'appartement') { %> selected<% } %>>Appartement</option>
+        <option value="maison"<% if (valeurs.type === 'maison') { %> selected<% } %>>Maison</option>
+        <option value="immeuble"<% if (valeurs.type === 'immeuble') { %> selected<% } %>>Immeuble</option>
+        <option value="local_commercial"<% if (valeurs.type === 'local_commercial') { %> selected<% } %>>Local commercial</option>
+      </select>
+      <% if (erreurs.type) { %>
+        <span id="type-error" role="alert" class="error-msg"><%= erreurs.type %></span>
+      <% } else { %>
+        <span id="type-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+
+    <%- include('../../partials/form-field', {
+      id: 'anneeConstruction', name: 'anneeConstruction', label: 'Année de construction',
+      type: 'number',
+      value: valeurs.anneeConstruction || '',
+      hint: 'Ex : 1985',
+      erreur: erreurs.anneeConstruction || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Lot principal</legend>
+    <p><small>Ajoutez le lot principal de ce bien. Vous pourrez en ajouter d'autres après.</small></p>
+
+    <%- include('../../partials/form-field', {
+      id: 'lot0designation', name: 'lots[0].designation', label: 'Désignation du lot',
+      value: (valeurs['lots[0].designation']) || '',
+      hint: 'Ex : Appartement principal, Parking 1…',
+      erreur: (erreurs['lots.0.designation'] || erreurs['lots[0].designation']) || null
+    }) %>
+
+    <div class="field">
+      <label for="lot0type">Type de lot <span aria-hidden="true">*</span></label>
+      <select id="lot0type" name="lots[0].type" required aria-describedby="lot0type-error">
+        <option value="">— Sélectionnez —</option>
+        <option value="appartement"<% if ((valeurs['lots[0].type']) === 'appartement') { %> selected<% } %>>Appartement</option>
+        <option value="parking"<% if ((valeurs['lots[0].type']) === 'parking') { %> selected<% } %>>Parking</option>
+        <option value="cave"<% if ((valeurs['lots[0].type']) === 'cave') { %> selected<% } %>>Cave</option>
+        <option value="local_commercial"<% if ((valeurs['lots[0].type']) === 'local_commercial') { %> selected<% } %>>Local commercial</option>
+        <option value="terrasse"<% if ((valeurs['lots[0].type']) === 'terrasse') { %> selected<% } %>>Terrasse</option>
+        <option value="autre"<% if ((valeurs['lots[0].type']) === 'autre') { %> selected<% } %>>Autre</option>
+      </select>
+      <% if (erreurs['lots.0.type']) { %>
+        <span id="lot0type-error" role="alert" class="error-msg"><%= erreurs['lots.0.type'] %></span>
+      <% } else { %>
+        <span id="lot0type-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+
+    <%- include('../../partials/form-field', {
+      id: 'lot0surface', name: 'lots[0].surface', label: 'Surface du lot (m²)',
+      type: 'number',
+      value: (valeurs['lots[0].surface']) || '',
+      required: false,
+      hint: 'Optionnel pour parking, cave, terrasse',
+      erreur: (erreurs['lots.0.surface'] || erreurs['lots[0].surface']) || null
+    }) %>
+
+    <input type="hidden" name="lots[0].etage" value="" />
+  </fieldset>
+
+  <button type="submit">Enregistrer le bien</button>
+
+</form>
+
+<%- include('../../partials/wizard-layout-fin', { etapePrecedente: null }) %>

@@ -1,0 +1,196 @@
+<%
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+%>
+<%- include('../../partials/wizard-layout', { titreEtape: 'Créer le bail', currentStep: 3, totalSteps: 3 }) %>
+
+<section aria-label="Récapitulatif">
+  <p><strong>Bien :</strong> <%= bien.adresse.enLigne() %></p>
+  <p><strong>Locataire :</strong> <%= locataire.prenom %> <%= locataire.nom %></p>
+</section>
+
+<form method="POST" action="/wizard/bail" novalidate>
+
+  <% if (bien && bien.lots && bien.lots.length > 0) { %>
+    <fieldset>
+      <legend>Lots concernés <span aria-hidden="true">*</span></legend>
+      <% if (erreurs.lotIds) { %>
+        <span role="alert" class="error-msg"><%= erreurs.lotIds %></span>
+      <% } %>
+      <% bien.lots.forEach(function(lot) { %>
+        <%
+          const lotChecked = valeurs.lotIds
+            ? (Array.isArray(valeurs.lotIds) ? valeurs.lotIds.includes(lot.id) : valeurs.lotIds === lot.id)
+            : true;
+        %>
+        <label>
+          <input type="checkbox" name="lotIds" value="<%= lot.id %>"<% if (lotChecked) { %> checked<% } %>>
+          <%= lot.designation %><% if (lot.surface) { %> — <%= lot.surface %> m²<% } %> (<%= lot.type %>)
+        </label>
+      <% }); %>
+    </fieldset>
+  <% } else { %>
+    <p><em>Aucun lot disponible pour ce bien.</em></p>
+  <% } %>
+
+  <fieldset>
+    <legend>Conditions financières</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'loyerHcEuros', name: 'loyerHcEuros', label: 'Loyer hors charges (€)',
+      type: 'number',
+      value: valeurs.loyerHcEuros || '',
+      hint: 'Montant mensuel en euros (ex : 800)',
+      erreur: erreurs.loyerHcEuros || null
+    }) %>
+
+    <div class="field">
+      <fieldset>
+        <legend>Mode de charges <span aria-hidden="true">*</span></legend>
+        <label>
+          <input type="radio" name="modeCharges" value="forfait"
+            <% if ((valeurs.modeCharges || 'forfait') === 'forfait') { %> checked<% } %>>
+          Forfait mensuel
+        </label>
+        <label>
+          <input type="radio" name="modeCharges" value="provisions"
+            <% if (valeurs.modeCharges === 'provisions') { %> checked<% } %>>
+          Provisions sur charges
+        </label>
+      </fieldset>
+      <% if (erreurs.modeCharges) { %>
+        <span role="alert" class="error-msg"><%= erreurs.modeCharges %></span>
+      <% } %>
+    </div>
+
+    <%- include('../../partials/form-field', {
+      id: 'montantChargesEuros', name: 'montantChargesEuros', label: 'Montant des charges (€)',
+      type: 'number',
+      value: valeurs.montantChargesEuros || '0',
+      hint: '0 si inclus dans le loyer',
+      erreur: erreurs.montantChargesEuros || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'depotGarantieEuros', name: 'depotGarantieEuros', label: 'Dépôt de garantie (€)',
+      type: 'number',
+      value: valeurs.depotGarantieEuros || '',
+      hint: 'Maximum 2 × loyer hors charges',
+      erreur: erreurs.depotGarantieEuros || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Période</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'dateDebut', name: 'dateDebut', label: 'Date de début du bail',
+      type: 'date',
+      value: valeurs.dateDebut || '',
+      erreur: erreurs.dateDebut || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'dureeMois', name: 'dureeMois', label: 'Durée (mois)',
+      type: 'number',
+      value: valeurs.dureeMois || '12',
+      hint: 'Minimum 12 mois pour un bail meublé classique',
+      erreur: erreurs.dureeMois || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>IRL de référence</legend>
+    <p><small>Indice de Référence des Loyers pour la révision annuelle. Récupérer sur insee.fr.</small></p>
+
+    <%- include('../../partials/form-field', {
+      id: 'irlTrimestre', name: 'irlTrimestre', label: 'Trimestre IRL',
+      value: valeurs.irlTrimestre || '2026-T1',
+      hint: 'Format YYYY-TN — ex : "2026-T1"',
+      erreur: erreurs.irlTrimestre || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'irlValeur', name: 'irlValeur', label: 'Valeur IRL',
+      value: valeurs.irlValeur || '145.47',
+      hint: 'Valeur décimale — ex : "145.47"',
+      erreur: erreurs.irlValeur || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Cautionnement (optionnel)</legend>
+
+    <div class="field">
+      <fieldset>
+        <legend>Type de cautionnement</legend>
+        <%
+          const cautTypeActuel = valeurs.cautionnementType || '';
+        %>
+        <label>
+          <input type="radio" name="cautionnementType" value=""
+            <% if (!cautTypeActuel) { %> checked<% } %>>
+          Aucun
+        </label>
+        <label>
+          <input type="radio" name="cautionnementType" value="physique"
+            <% if (cautTypeActuel === 'physique') { %> checked<% } %>>
+          Caution physique (personne)
+        </label>
+        <label>
+          <input type="radio" name="cautionnementType" value="visale"
+            <% if (cautTypeActuel === 'visale') { %> checked<% } %>>
+          VISALE (organisme)
+        </label>
+        <label>
+          <input type="radio" name="cautionnementType" value="gli"
+            <% if (cautTypeActuel === 'gli') { %> checked<% } %>>
+          GLI (garantie loyers impayés)
+        </label>
+      </fieldset>
+    </div>
+
+    <fieldset>
+      <legend>Garant</legend>
+      <%- include('../../partials/form-field', {
+        id: 'garantNom', name: 'garantNom', label: 'Nom du garant',
+        value: valeurs.garantNom || '',
+        required: false,
+        erreur: erreurs.garantNom || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantPrenom', name: 'garantPrenom', label: 'Prénom du garant',
+        value: valeurs.garantPrenom || '',
+        required: false,
+        erreur: erreurs.garantPrenom || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantEmail', name: 'garantEmail', label: 'Email du garant', type: 'email',
+        value: valeurs.garantEmail || '',
+        required: false,
+        erreur: erreurs.garantEmail || null
+      }) %>
+    </fieldset>
+
+    <%- include('../../partials/form-field', {
+      id: 'cautionnementDateSignature', name: 'cautionnementDateSignature', label: 'Date de signature du cautionnement',
+      type: 'date',
+      value: valeurs.cautionnementDateSignature || '',
+      required: false,
+      erreur: erreurs.cautionnementDateSignature || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'cautionnementDureeMois', name: 'cautionnementDureeMois', label: "Durée d'engagement (mois)",
+      type: 'number',
+      value: valeurs.cautionnementDureeMois || '',
+      required: false,
+      erreur: erreurs.cautionnementDureeMois || null
+    }) %>
+  </fieldset>
+
+  <button type="submit">Enregistrer le bail et terminer</button>
+
+</form>
+
+<%- include('../../partials/wizard-layout-fin', { etapePrecedente: { url: '/wizard/locataire' } }) %>

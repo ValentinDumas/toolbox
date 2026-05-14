@@ -18,6 +18,7 @@ import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
 import { plugin as bauxPlugin } from './web/routes/baux.js';
+import { plugin as wizardPlugin } from './web/routes/wizard.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -28,6 +29,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastify>> {
   const logLevel = process.env['LOG_LEVEL'] ?? 'silent';
+
+  // DP-05: SESSION_SECRET fail-fast — 32+ chars requis
+  const sessionSecret = process.env['SESSION_SECRET'];
+  if (!sessionSecret || sessionSecret.length < 32) {
+     
+    console.error(
+      'FATAL: SESSION_SECRET manquant ou < 32 caractères. Générer avec : openssl rand -hex 32',
+    );
+    process.exit(1);
+  }
+
   const app = Fastify({
     logger: {
       level: logLevel,
@@ -39,8 +51,9 @@ export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastif
 
   await app.register(fastifyCookie);
   await app.register(fastifySession, {
-    secret: process.env['SESSION_SECRET'] ?? 'dev-secret-change-me-in-production-32chars',
-    cookie: { httpOnly: true, secure: false },
+    secret: sessionSecret,
+    cookieName: 'glo-session',
+    cookie: { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 24 * 3600 * 1000, path: '/' },
     saveUninitialized: false,
   });
 
@@ -61,6 +74,7 @@ export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastif
   const bailRepo = new BailRepositorySqlite(db);
 
   await app.register(racinePlugin, { db });
+  await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo });

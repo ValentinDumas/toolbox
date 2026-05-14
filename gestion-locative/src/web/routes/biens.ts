@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BienId, LotId } from '../../domain/_shared/identifiants.js';
 import { creerBien } from '../../application/patrimoine/creer-bien.js';
@@ -22,9 +23,11 @@ export async function plugin(
 ): Promise<void> {
 
   // GET /biens — liste tabulée
-  app.get('/biens', async (_req, reply) => {
+  app.get('/biens', async (req, reply) => {
     const biens = await listerBiens(opts.repo);
-    return reply.view('pages/biens/liste.ejs', { biens, banniereSuccess: null });
+    const banniereSuccess = req.session.banniereSuccess ?? null;
+    if (banniereSuccess) req.session.banniereSuccess = undefined;
+    return reply.view('pages/biens/liste.ejs', { biens, banniereSuccess, navActive: 'biens' });
   });
 
   // GET /biens/nouveau — formulaire création

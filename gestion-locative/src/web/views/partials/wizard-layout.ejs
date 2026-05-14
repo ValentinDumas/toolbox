@@ -1,0 +1,35 @@
+<%
+  const etapes = [
+    { num: 1, label: 'Bien' },
+    { num: 2, label: 'Locataire' },
+    { num: 3, label: 'Bail' },
+  ];
+%>
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= titreEtape %> — Gestion locative</title>
+    <link rel="stylesheet" href="/styles/pico.min.css" />
+  </head>
+  <body>
+    <main class="container">
+
+      <nav aria-label="Étapes du wizard d'activation">
+        <ol>
+          <% etapes.forEach(function(etape) { %>
+            <li<% if (etape.num === currentStep) { %> aria-current="step"<% } %>>
+              <%= etape.num %>. <%= etape.label %>
+            </li>
+          <% }); %>
+        </ol>
+      </nav>
+
+      <p><small>Étape <%= currentStep %> sur <%= totalSteps %></small></p>
+
+      <h1><%= titreEtape %></h1>
+
+      <% if (locals.erreurs && locals.erreurs._global) { %>
+        <aside role="alert" class="error-msg"><%= erreurs._global %></aside>
+      <% } %>

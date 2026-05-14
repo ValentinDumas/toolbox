@@ -1,0 +1,82 @@
+<%
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+%>
+<%- include('../../partials/wizard-layout', { titreEtape: 'Créer le locataire', currentStep: 2, totalSteps: 3 }) %>
+
+<form method="POST" action="/wizard/locataire" novalidate>
+
+  <fieldset>
+    <legend>Identité</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'nom', name: 'nom', label: 'Nom',
+      value: valeurs.nom || '',
+      erreur: erreurs.nom || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'prenom', name: 'prenom', label: 'Prénom',
+      value: valeurs.prenom || '',
+      erreur: erreurs.prenom || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'dateNaissance', name: 'dateNaissance', label: 'Date de naissance',
+      type: 'date',
+      value: valeurs.dateNaissance || '',
+      erreur: erreurs.dateNaissance || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'communeNaissance', name: 'communeNaissance', label: 'Commune de naissance',
+      value: valeurs.communeNaissance || '',
+      erreur: erreurs.communeNaissance || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'paysNaissance', name: 'paysNaissance', label: 'Pays de naissance',
+      value: valeurs.paysNaissance || '',
+      erreur: erreurs.paysNaissance || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'nationalite', name: 'nationalite', label: 'Nationalité',
+      value: valeurs.nationalite || '',
+      erreur: erreurs.nationalite || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Contact</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'email', name: 'email', label: 'Email', type: 'email',
+      value: valeurs.email || '',
+      erreur: erreurs.email || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'telephone', name: 'telephone', label: 'Téléphone', type: 'tel',
+      value: valeurs.telephone || '',
+      required: false,
+      hint: 'Optionnel',
+      erreur: erreurs.telephone || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'rue', name: 'rue', label: 'Rue',
+      value: valeurs.rue || '',
+      erreur: erreurs.rue || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'codePostal', name: 'codePostal', label: 'Code postal',
+      value: valeurs.codePostal || '',
+      hint: 'Format : 5 chiffres (ex : 75001)',
+      erreur: erreurs.codePostal || null
+    }) %>
+    <%- include('../../partials/form-field', {
+      id: 'ville', name: 'ville', label: 'Ville',
+      value: valeurs.ville || '',
+      erreur: erreurs.ville || null
+    }) %>
+  </fieldset>
+
+  <button type="submit">Enregistrer le locataire</button>
+
+</form>
+
+<%- include('../../partials/wizard-layout-fin', { etapePrecedente: { url: '/wizard/bien' } }) %>

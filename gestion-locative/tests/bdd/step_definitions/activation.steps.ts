@@ -301,7 +301,10 @@ When(
     dateDebut: string,
     dureeMois: number,
   ) {
-    const payload = new URLSearchParams({
+    assert.ok(this.db, 'DB doit être initialisée');
+    // Récupère les lots du bien créé à l'étape 1
+    const lots = await this.db.selectFrom('lot').select('id').execute();
+    const params = new URLSearchParams({
       loyerHcEuros: String(loyer),
       montantChargesEuros: String(charges),
       modeCharges: mode,
@@ -310,12 +313,15 @@ When(
       irlValeur,
       dateDebut,
       dureeMois: String(dureeMois),
-    }).toString();
+    });
+    for (const lot of lots) {
+      params.append('lotIds', lot.id);
+    }
 
     const result = await requeteAvecCookies(this, {
       method: 'POST',
       url: '/wizard/bail',
-      payload,
+      payload: params.toString(),
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
     });
     this.dernierStatut = result.statusCode;
