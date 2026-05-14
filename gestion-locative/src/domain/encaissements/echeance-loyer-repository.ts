@@ -22,9 +22,6 @@ export interface EcheanceLoyerRepository {
   /** Retourne les échéances non payées (statut IN ('en_attente','partiellement_payee') AND annule_le IS NULL). */
   listerNonPayees(): Promise<EcheanceLoyer[]>;
 
-  /** Compte les échéances existantes pour un bail (utilisé par ActiviteBailDetector D-74). */
-  compterParBail(bailId: BailId): Promise<number>;
-
   /** Supprime physiquement des échéances par IDs (D-73 — jamais encaissées, donc hard-delete OK). */
   supprimerLot(ids: EcheanceLoyerId[]): Promise<void>;
 }

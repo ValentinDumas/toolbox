@@ -73,7 +73,6 @@ describe('annulerEncaissement', () => {
       enregistrerBatch: async () => {},
       listerParBail: async () => [],
       listerNonPayees: async () => [],
-      compterParBail: async () => 0,
       supprimerLot: async () => {},
     };
 
@@ -120,7 +119,6 @@ describe('annulerEncaissement', () => {
       enregistrerBatch: async () => {},
       listerParBail: async () => [],
       listerNonPayees: async () => [],
-      compterParBail: async () => 0,
       supprimerLot: async () => {},
     };
 

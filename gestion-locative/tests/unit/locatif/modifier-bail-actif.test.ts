@@ -85,7 +85,6 @@ function stubRepos(bail: Bail, echeances: EcheanceLoyer[], encaissementsParEchea
       enregistrer: async () => {},
       trouverParId: async () => null,
       listerNonPayees: async () => [],
-      compterParBail: async () => 0,
     },
     encaissementRepo: {
       listerParEcheance: async (id: string, opts?: { inclureAnnules?: boolean }) => {
@@ -264,7 +263,7 @@ describe('modifierBailActif', () => {
   it('T33-guard: bail introuvable → throw BailIntrouvable', async () => {
     const repos = {
       bailRepo: { trouverParId: async () => null, enregistrer: async () => {} },
-      echeanceLoyerRepo: { listerParBail: async () => [], supprimerLot: async () => {}, enregistrerBatch: async () => {}, mettreAJourStatut: async () => {}, enregistrer: async () => {}, trouverParId: async () => null, listerNonPayees: async () => [], compterParBail: async () => 0 },
+      echeanceLoyerRepo: { listerParBail: async () => [], supprimerLot: async () => {}, enregistrerBatch: async () => {}, mettreAJourStatut: async () => {}, enregistrer: async () => {}, trouverParId: async () => null, listerNonPayees: async () => [] },
       encaissementRepo: { listerParEcheance: async () => [], enregistrer: async () => {}, trouverParId: async () => null, listerTous: async () => [], sommePaieeParEcheance: async () => Money.zero() },
     };
 

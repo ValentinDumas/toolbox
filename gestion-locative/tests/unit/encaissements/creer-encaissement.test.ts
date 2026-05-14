@@ -25,7 +25,6 @@ function creerStubEcheanceLoyerRepo(echeance: EcheanceLoyer) {
     enregistrer: async () => {},
     enregistrerBatch: async () => {},
     listerNonPayees: async () => [],
-    compterParBail: async () => 0,
     supprimerLot: async () => {},
     getSommePaiee: () => sommePaiee,
     setExtraSommePaiee: (m: MoneyType) => { sommePaiee = m; },

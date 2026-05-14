@@ -106,17 +106,6 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
       .execute();
   }
 
-  async compterParBail(bailId: BailId): Promise<number> {
-    const result = await this.db
-      .selectFrom('echeance_loyer')
-      .select((eb) => eb.fn.countAll<number>().as('n'))
-      .where('bail_id', '=', bailId)
-      .where('annule_le', 'is', null)
-      .executeTakeFirst();
-
-    return Number(result?.n ?? 0);
-  }
-
   private versRow(e: EcheanceLoyer) {
     return {
       id: e.id,

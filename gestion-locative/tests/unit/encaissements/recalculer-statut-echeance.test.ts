@@ -35,7 +35,6 @@ function creerRepos(echeance: EcheanceLoyer, sommePaiee: Money) {
     enregistrerBatch: async () => {},
     listerParBail: async () => [],
     listerNonPayees: async () => [],
-    compterParBail: async () => 0,
     supprimerLot: async () => {},
     getStatut: () => statut,
   };
