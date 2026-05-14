@@ -4,3 +4,10 @@ export class LocataireIntrouvable extends Error {
     this.name = 'LocataireIntrouvable';
   }
 }
+
+export class BailIntrouvable extends Error {
+  constructor(id: string) {
+    super(`Bail introuvable : ${id}`);
+    this.name = 'BailIntrouvable';
+  }
+}

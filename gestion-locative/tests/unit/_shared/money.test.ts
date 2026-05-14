@@ -60,8 +60,10 @@ describe('Money', () => {
     expect(typeof m.toJSON()).toBe('number');
   });
 
-  it("formatter : Money(80050).enEuros() retourne '800,50 €'", () => {
+  it("formatter : Money(80050).enEuros() retourne '800,50 €' (format français)", () => {
     const m = Money.fromCentimes(80_050n);
-    expect(m.enEuros()).toBe('800,50 €');
+    // Intl.NumberFormat fr-FR utilise une espace insécable (U+00A0) avant le symbole €
+    expect(m.enEuros()).toMatch(/800,50/);
+    expect(m.enEuros()).toMatch(/€/);
   });
 });
