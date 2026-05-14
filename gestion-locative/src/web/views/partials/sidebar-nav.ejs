@@ -10,11 +10,14 @@
       <a href="/baux"<% if (locals.navActive === 'baux') { %> aria-current="page"<% } %>>Baux</a>
     </li>
     <li>
-      <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances') { %> open<% } %>>
+      <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances' || locals.navActive === 'quittances') { %> open<% } %>>
         <summary>Encaissements</summary>
         <ul>
           <li>
             <a href="/encaissements"<% if (locals.navActive === 'encaissements') { %> aria-current="page"<% } %>>Encaissements</a>
+          </li>
+          <li>
+            <a href="/quittances"<% if (locals.navActive === 'quittances') { %> aria-current="page"<% } %>>Quittances</a>
           </li>
         </ul>
       </details>

@@ -216,17 +216,17 @@ async function payerPremiereEcheance(monde: MondeEnc01, montant: number): Promis
 
 // ─── Given ────────────────────────────────────────────────────────────────────
 
-Given('un bail activé avec une échéance payée exactement (700 euros)', async function (this: MondeEnc01) {
+Given(/^un bail activé avec une échéance payée exactement \(700 euros\)$/, async function (this: MondeEnc01) {
   await creerEtActiverBail(this, true);
   await payerPremiereEcheance(this, 700);
 });
 
-Given("un bail activé avec une échéance partiellement payée (300 euros sur 700)", async function (this: MondeEnc01) {
+Given(/^un bail activé avec une échéance partiellement payée \(300 euros sur 700\)$/, async function (this: MondeEnc01) {
   await creerEtActiverBail(this, true);
   await payerPremiereEcheance(this, 300);
 });
 
-Given("un bail activé avec une échéance payée (aucun profil bailleur configuré)", async function (this: MondeEnc01) {
+Given(/^un bail activé avec une échéance payée \(aucun profil bailleur configuré\)$/, async function (this: MondeEnc01) {
   await creerEtActiverBail(this, false);
   await payerPremiereEcheance(this, 700);
 });
@@ -302,7 +302,7 @@ Given('un bail activé avec une quittance générée', async function (this: Mon
 
 // ─── When ─────────────────────────────────────────────────────────────────────
 
-When('le bailleur génère la quittance via POST /quittances', async function (this: MondeEnc01) {
+When(/^le bailleur génère la quittance via POST \/quittances$/, async function (this: MondeEnc01) {
   assert.ok(this.app, 'App doit être initialisée');
   assert.ok(this.derniereEcheanceId, 'EcheanceId doit être défini');
 
@@ -330,7 +330,7 @@ When('le bailleur génère la quittance via POST /quittances', async function (t
   }
 });
 
-When('le bailleur tente de générer la quittance via POST /quittances', async function (this: MondeEnc01) {
+When(/^le bailleur tente de générer la quittance via POST \/quittances$/, async function (this: MondeEnc01) {
   assert.ok(this.app, 'App doit être initialisée');
   assert.ok(this.derniereEcheanceId, 'EcheanceId doit être défini');
 
@@ -424,7 +424,7 @@ When("le bailleur annule l'encaissement lié à cette échéance", async functio
   extraireCookies(reponse.headers as Record<string, string | string[]>, this.cookies);
 });
 
-When('le bailleur demande GET /quittances/:id/pdf', async function (this: MondeEnc01) {
+When(/^le bailleur demande GET \/quittances\/:id\/pdf$/, async function (this: MondeEnc01) {
   assert.ok(this.app, 'App doit être initialisée');
   assert.ok(this.derniereQuittanceId, 'QuittanceId doit être défini');
 
@@ -446,12 +446,7 @@ Then('il est redirigé vers la fiche de la quittance', function (this: MondeEnc0
   assert.match(this.derniereUrl, /^\/quittances\/[0-9a-f-]+$/, `URL doit être /quittances/:id, obtenu: ${this.derniereUrl}`);
 });
 
-Then('la page affiche {string}', function (this: MondeEnc01, texte: string) {
-  assert.ok(
-    this.dernierCorps.includes(texte),
-    `La page doit afficher "${texte}". Corps (500 chars): ${this.dernierCorps.substring(0, 500)}`,
-  );
-});
+// Note: 'la page affiche {string}' step already defined in activation.steps.ts — shared globally
 
 Then('la base contient 1 quittance avec numéro {string}', async function (this: MondeEnc01, numero: string) {
   assert.ok(this.db, 'DB doit être initialisée');
@@ -514,7 +509,7 @@ Then('le statut de l\'échéance redevient {string}', async function (this: Mond
   assert.equal(row.statut, statut, `Statut attendu "${statut}", obtenu "${row.statut}"`);
 });
 
-Then('GET /quittances/:id affiche le warning quittance invalide', async function (this: MondeEnc01) {
+Then(/^GET \/quittances\/:id affiche le warning quittance invalide$/, async function (this: MondeEnc01) {
   assert.ok(this.app, 'App doit être initialisée');
   assert.ok(this.derniereQuittanceId, 'QuittanceId doit être défini');
 
@@ -536,7 +531,7 @@ Then('GET /quittances/:id affiche le warning quittance invalide', async function
   );
 });
 
-Then('la réponse est Content-Type application/pdf', function (this: MondeEnc01) {
+Then(/^la réponse est Content-Type application\/pdf$/, function (this: MondeEnc01) {
   const reponse = (this as MondeEnc01 & { derniereReponse?: { headers: Record<string, string> } }).derniereReponse;
   assert.ok(reponse, 'Une réponse doit être stockée');
   const contentType = reponse.headers['content-type'] ?? '';
