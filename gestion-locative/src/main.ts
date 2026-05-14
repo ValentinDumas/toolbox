@@ -28,12 +28,15 @@ import { LocataireRepositorySqlite } from './infrastructure/repositories/locatai
 import { BailRepositorySqlite } from './infrastructure/repositories/bail-repository-sqlite.js';
 import { BailleurRepositorySqlite } from './infrastructure/repositories/bailleur-repository-sqlite.js';
 import { ActiviteBailDetectorSqlite } from './infrastructure/repositories/activite-bail-detector-sqlite.js';
+import { EcheanceLoyerRepositorySqlite } from './infrastructure/repositories/echeance-loyer-repository-sqlite.js';
+import { PdfRendererPdfmake } from './infrastructure/pdf/pdf-renderer-pdfmake.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
 import { plugin as bauxPlugin } from './web/routes/baux.js';
 import { plugin as wizardPlugin } from './web/routes/wizard.js';
 import { plugin as bailleurPlugin } from './web/routes/bailleur.js';
+import { plugin as echeancesPlugin } from './web/routes/echeances.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -46,7 +49,7 @@ export async function creerApp(
   db: Kysely<DB>,
   opts: { clock?: Clock; activiteBailDetector?: ActiviteBailDetector } = {},
 ): Promise<ReturnType<typeof Fastify>> {
-  const _clock = opts.clock ?? new ClockSysteme();
+  const clock = opts.clock ?? new ClockSysteme();
   const logLevel = process.env['LOG_LEVEL'] ?? 'silent';
 
   // DP-05: SESSION_SECRET fail-fast — 32+ chars requis
@@ -92,6 +95,8 @@ export async function creerApp(
   const locataireRepo = new LocataireRepositorySqlite(db);
   const bailRepo = new BailRepositorySqlite(db);
   const bailleurRepo = new BailleurRepositorySqlite(db);
+  const echeanceLoyerRepo = new EcheanceLoyerRepositorySqlite(db);
+  const pdfRenderer = new PdfRendererPdfmake();
   const activiteBailDetector = opts.activiteBailDetector ?? new ActiviteBailDetectorSqlite(db);
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
@@ -111,6 +116,15 @@ export async function creerApp(
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector });
   await app.register(bailleurPlugin, { bailleurRepo });
+  await app.register(echeancesPlugin, {
+    bailRepo,
+    bienRepo: repo,
+    locataireRepo,
+    echeanceLoyerRepo,
+    bailleurRepo,
+    pdfRenderer,
+    clock,
+  });
 
   return app;
 }

@@ -236,9 +236,15 @@ export async function plugin(
 
     // Lire et vider les bannières de session
     const banniereSuccess = req.session.banniereSuccess ?? null;
-    const banniereWarning = req.session.banniereWarning ?? null;
+    let banniereWarning = req.session.banniereWarning ?? null;
     if (banniereSuccess) req.session.banniereSuccess = undefined;
     if (banniereWarning) req.session.banniereWarning = undefined;
+
+    // Avertissement passé en query param (ex : activation rétroactive D-72)
+    const query = req.query as Record<string, string>;
+    if (query['avertissement']) {
+      banniereWarning = decodeURIComponent(query['avertissement']);
+    }
 
     // Résoudre les lots concernés par ce bail
     const lotsduBail = bien.lots.filter((l) => bail.lotIds.includes(l.id as LotId));

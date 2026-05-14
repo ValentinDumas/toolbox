@@ -224,7 +224,7 @@ describe('activerBail', () => {
     );
 
     expect(result.warnings.length).toBeGreaterThan(0);
-    expect(result.warnings[0]).toMatch(/Activation > 2 ans en arrière/);
+    expect(result.warnings[0]).toMatch(/Activation r.trospective/);
     // Échéances quand même créées
     expect(result.echeancesCreees).toBe(36);
   });

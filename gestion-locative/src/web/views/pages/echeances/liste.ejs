@@ -1,0 +1,69 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Échéances — ' + locataire.prenom + ' ' + locataire.nom,
+  breadcrumbs: [
+    { url: '/baux', label: 'Baux' },
+    { url: '/baux/' + bail.id, label: 'Bail de ' + locataire.prenom + ' ' + locataire.nom },
+    { label: 'Échéances' }
+  ],
+  navActive: 'baux'
+}) %>
+
+<h1>Échéances de loyer — <%= locataire.prenom %> <%= locataire.nom %></h1>
+
+<p>
+  Bail : <%= formatMoney(bail.loyerHc) %> HC + <%= formatMoney(bail.montantCharges) %> charges
+  = <strong><%= formatMoney(bail.loyerHc.additionner(bail.montantCharges)) %> / mois</strong>
+  — Jour d'échéance : <%= bail.jourEcheance %>
+</p>
+
+<% if (echeances.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    message: 'Aucune échéance générée pour ce bail.',
+    action: null
+  }) %>
+<% } else { %>
+<div role="region" aria-label="Tableau des échéances">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Période</th>
+        <th scope="col">Échéance le</th>
+        <th scope="col">Loyer HC</th>
+        <th scope="col">Charges</th>
+        <th scope="col">Total</th>
+        <th scope="col">Statut</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% echeances.forEach(function(e) { %>
+      <tr>
+        <td><%= formatDate(e.periodeDebut) %> → <%= formatDate(e.periodeFin) %></td>
+        <td><%= formatDate(e.jourEcheanceAttendue) %></td>
+        <td><%= formatMoney(e.loyerHc) %></td>
+        <td><%= formatMoney(e.montantCharges) %></td>
+        <td><strong><%= formatMoney(e.total) %></strong></td>
+        <td>
+          <% if (e.statut === 'payee') { %>
+            <span>Payée</span>
+          <% } else if (e.statut === 'partiellement_payee') { %>
+            <span>Partielle</span>
+          <% } else if (e.statut === 'annulee') { %>
+            <span>Annulée</span>
+          <% } else { %>
+            <span>En attente</span>
+          <% } %>
+        </td>
+        <td>
+          <% if (e.statut !== 'annulee') { %>
+            <a href="/echeances/<%= e.id %>/avis-pdf">PDF</a>
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

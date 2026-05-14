@@ -262,7 +262,7 @@ When(
 );
 
 When(
-  'le bailleur télécharge GET /echeances/:id/avis-pdf pour la 1ère échéance',
+  'le bailleur télécharge GET echeances avis-pdf pour la 1ère échéance',
   async function (this: MondeEnc02) {
     assert.ok(this.app, 'App doit être initialisée');
     assert.ok(this.db, 'DB doit être initialisée');
@@ -317,7 +317,7 @@ Then(
 );
 
 Then(
-  'la page GET /baux/:id/echeances liste {int} lignes',
+  'la page GET baux echeances liste {int} lignes',
   async function (this: MondeEnc02, expected: number) {
     assert.ok(this.app, 'App doit être initialisée');
     assert.ok(this.dernierBailId, 'BailId doit être défini');

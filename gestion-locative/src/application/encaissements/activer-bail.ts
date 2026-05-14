@@ -54,7 +54,7 @@ export async function activerBail(
   const deuxAnsAvant = clock.aujourdhui().subtract({ years: 2 });
   if (Temporal.PlainDate.compare(commande.actifDepuis, deuxAnsAvant) < 0) {
     warnings.push(
-      'Activation > 2 ans en arrière. Vérifie les exercices fiscaux concernés.',
+      'Activation rétrospective : plus de 2 ans en arrière. Vérifie les exercices fiscaux concernés.',
     );
   }
 
