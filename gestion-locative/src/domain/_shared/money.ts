@@ -78,10 +78,32 @@ export class Money {
     return Number(this.centimes);
   }
 
-  /** Format légal français : "800,50 €". */
+  /** Format légal français : "800,50 €". Gère les montants négatifs (compensateurs). */
   enEuros(): string {
     const euros = Number(this.centimes) / 100;
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(euros);
+  }
+
+  /**
+   * Crée un Money compensateur (montant négatif) à partir d'un Money positif.
+   * Usage : annulation partielle, encaissement correctif (D-60).
+   * Bypass de fromCentimes qui refuse les négatifs — design Phase 1 préservé.
+   */
+  static compensateur(positif: Money): Money {
+    return new Money(-positif.centimes);
+  }
+
+  /**
+   * Retourne un Money avec les centimes inversés (positif ↔ négatif).
+   * Involution mathématique : negation().negation() === this.
+   */
+  negation(): Money {
+    return new Money(-this.centimes);
+  }
+
+  /** Retourne true si ce montant est négatif (compensateur). */
+  estNegatif(): boolean {
+    return this.centimes < 0n;
   }
 
   /**
