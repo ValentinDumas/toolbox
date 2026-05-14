@@ -147,15 +147,22 @@ describe('activerBail', () => {
     const intermediaires = echeances.slice(1, 11);
     expect(intermediaires).toHaveLength(10);
 
-    // Invariant banker's rounding : somme loyerHc ≈ 700*12 ± 1 centime
+    // Invariant banker's rounding : prorata 1ère + 10 mois pleins + prorata dernière
+    // = 14/28 + 10 + 14/28 = 11 équivalents mensuels
+    // Tolérance ±1 centime pour banker's rounding sur les deux prorata
     const somme = echeances.reduce((sum, e) => sum + e.loyerHc.toCentimes(), 0n);
-    const attenduTotal = loyerHc.toCentimes() * 12n;
+    const premierProrata = loyerHc.multiplyByFraction(14n, 28n).toCentimes();
+    const dernierProrata = loyerHc.multiplyByFraction(14n, 28n).toCentimes();
+    const dixMoisPleins = loyerHc.toCentimes() * 10n;
+    const attenduTotal = premierProrata + dixMoisPleins + dernierProrata;
     const diff = somme - attenduTotal;
     expect(diff >= -1n && diff <= 1n).toBe(true);
 
     // Idem charges
     const sommeCharges = echeances.reduce((sum, e) => sum + e.montantCharges.toCentimes(), 0n);
-    const attenduTotalCharges = montantCharges.toCentimes() * 12n;
+    const premierProrataCharges = montantCharges.multiplyByFraction(14n, 28n).toCentimes();
+    const dernierProrataCharges = montantCharges.multiplyByFraction(14n, 28n).toCentimes();
+    const attenduTotalCharges = premierProrataCharges + montantCharges.toCentimes() * 10n + dernierProrataCharges;
     const diffCharges = sommeCharges - attenduTotalCharges;
     expect(diffCharges >= -1n && diffCharges <= 1n).toBe(true);
   });
@@ -185,7 +192,16 @@ describe('activerBail', () => {
     expect(echeances).toHaveLength(24);
 
     const somme = echeances.reduce((sum, e) => sum + e.loyerHc.toCentimes(), 0n);
-    const diff = somme - loyerHc.toCentimes() * 24n;
+    // 2026-02-15, dureeMois=24:
+    // - i=0 : 15→28 fév 2026 = 14j/28j prorata
+    // - i=1..22 : 22 mois pleins (mars 2026 → déc 2027)
+    // - i=23 : 1→14 fév 2028 = 14j/29j (2028 bissextile)
+    // Note: fév 2028 a 29 jours (2028 est bissextile)
+    const premierProrata = loyerHc.multiplyByFraction(14n, 28n).toCentimes();
+    const dernierProrata = loyerHc.multiplyByFraction(14n, 29n).toCentimes(); // fév 2028 bissextile
+    const moisPleins = loyerHc.toCentimes() * 22n;
+    const attenduTotal = premierProrata + moisPleins + dernierProrata;
+    const diff = somme - attenduTotal;
     expect(diff >= -1n && diff <= 1n).toBe(true);
   });
 

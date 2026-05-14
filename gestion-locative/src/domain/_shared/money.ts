@@ -83,4 +83,48 @@ export class Money {
     const euros = Number(this.centimes) / 100;
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(euros);
   }
+
+  /**
+   * Multiplie ce montant par une fraction (num/den) avec arrondi configurable.
+   * Usage : prorata 1ère/dernière échéance (D-56).
+   * Ex : Money.fromCentimes(85050n).multiplyByFraction(15n, 31n) = 41153n centimes.
+   *
+   * Banker's rounding (mode par défaut) : quand le reste vaut exactement la moitié,
+   * arrondit vers le chiffre pair (évite le biais systématique sur les prorata).
+   *
+   * Invariants :
+   *   - den > 0 sinon InvariantViolated('Le dénominateur du prorata doit être positif')
+   *   - 0 ≤ num ≤ den sinon InvariantViolated('La fraction de prorata doit être entre 0 et 1')
+   */
+  multiplyByFraction(
+    num: bigint,
+    den: bigint,
+    mode: 'banker' | 'floor' | 'ceil' = 'banker',
+  ): Money {
+    if (den <= 0n) {
+      throw new InvariantViolated('Le dénominateur du prorata doit être positif');
+    }
+    if (num < 0n || num > den) {
+      throw new InvariantViolated('La fraction de prorata doit être entre 0 et 1');
+    }
+
+    const produit = this.centimes * num;
+    const quotient = produit / den;
+    const reste = produit % den;
+
+    if (mode === 'floor') {
+      return Money.fromCentimes(quotient);
+    }
+    if (mode === 'ceil') {
+      return Money.fromCentimes(reste > 0n ? quotient + 1n : quotient);
+    }
+
+    // Banker's rounding (round-half-to-even)
+    const deuxFois = reste * 2n;
+    if (deuxFois === den) {
+      // Exactement la moitié : arrondit vers le chiffre pair
+      return Money.fromCentimes(quotient % 2n === 0n ? quotient : quotient + 1n);
+    }
+    return Money.fromCentimes(deuxFois > den ? quotient + 1n : quotient);
+  }
 }
