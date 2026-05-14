@@ -42,6 +42,32 @@
 }) %>
 
 <h2>Baux associés</h2>
-<p>Aucun bail pour l'instant.</p>
+<% if (locals.baux && baux.length > 0) { %>
+  <%- include('../../partials/data-table', {
+    ariaLabel: 'Baux du locataire',
+    colonnes: [
+      { titre: 'Adresse' },
+      { titre: 'Loyer HC', numerique: true },
+      { titre: 'Date début' },
+      { titre: 'Durée' },
+      { titre: 'Actions', srOnly: true }
+    ],
+    lignes: baux.map(function(b) {
+      return [
+        biensMap && biensMap[b.bienId] ? biensMap[b.bienId].adresse.enLigne() : b.bienId,
+        b.loyerHc.enEuros(),
+        formatDate(b.dateDebut),
+        b.dureeMois + ' mois'
+      ];
+    }),
+    actions: function(ligne, i) {
+      const b = baux[i];
+      return '<a href="/baux/' + b.id + '">Voir</a>';
+    }
+  }) %>
+<% } else { %>
+  <p>Aucun bail pour ce locataire.</p>
+  <a href="/baux/nouveau?locataireId=<%= locataire.id %>">Créer un bail</a>
+<% } %>
 
 <%- include('../../partials/layout-fin') %>

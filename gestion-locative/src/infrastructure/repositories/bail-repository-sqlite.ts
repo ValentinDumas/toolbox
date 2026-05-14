@@ -1,5 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { Kysely } from 'kysely';
+
 import type { DB } from '../db/kysely-types.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import { Bail } from '../../domain/locatif/bail.js';

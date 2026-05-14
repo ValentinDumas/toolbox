@@ -1,0 +1,67 @@
+<%- include('../../partials/layout-debut', { titre: 'Baux', banniereSuccess: locals.banniereSuccess ?? null, navActive: locals.navActive ?? null }) %>
+
+<nav aria-label="Fil d'Ariane">
+  <ul>
+    <li><a href="/">Accueil</a></li>
+    <li>Baux</li>
+  </ul>
+</nav>
+
+<h1>Baux</h1>
+
+<% if (biensCount === 0 || locatairesCount === 0) { %>
+  <%/* Empty state prérequis manquant (UI-SPEC §Empty States §Baux prérequis) */%>
+  <h2>Impossible de créer un bail</h2>
+  <p>Vous avez besoin d'au moins 1 bien et 1 locataire avant de créer un bail.</p>
+  <% if (biensCount === 0) { %>
+    <a href="/biens/nouveau" role="button">Créer un bien</a>
+  <% } else { %>
+    <a href="/locataires/nouveau" role="button">Créer un locataire</a>
+  <% } %>
+<% } else if (baux.length === 0) { %>
+  <%/* Empty state baux (0 baux, prérequis OK) */%>
+  <h2>Aucun bail pour l'instant</h2>
+  <p>Reliez un bien à un locataire en créant votre premier bail meublé.</p>
+  <a href="/baux/nouveau" role="button">Créer un bail</a>
+<% } else { %>
+  <p><a href="/baux/nouveau" role="button">Créer un bail</a></p>
+
+  <%- include('../../partials/data-table', {
+    ariaLabel: 'Liste des baux',
+    colonnes: [
+      { titre: 'Locataire' },
+      { titre: 'Adresse du bien' },
+      { titre: 'Loyer HC', numerique: true },
+      { titre: 'Date début' },
+      { titre: 'Durée' },
+      { titre: 'Actions', srOnly: true }
+    ],
+    lignes: baux.map(function(b) {
+      return [
+        biensMap[b.bienId] ? locatairesMap[b.locataireId] || b.locataireId : b.locataireId,
+        biensMap[b.bienId] ? biensMap[b.bienId].adresse.enLigne() : b.bienId,
+        b.loyerHc.enEuros(),
+        formatDate(b.dateDebut),
+        b.dureeMois + ' mois'
+      ];
+    }),
+    actions: function(ligne, i) {
+      const b = baux[i];
+      return '<a href="/baux/' + b.id + '">Voir</a> '
+        + '<a href="/baux/' + b.id + '/modifier">Modifier</a> '
+        + '<button type="button" class="destructif" data-open-dialog="dialog-supprimer-' + b.id + '">Supprimer</button>';
+    }
+  }) %>
+
+  <% baux.forEach(function(b) { %>
+    <%- include('../../partials/confirm-dialog', {
+      id: 'dialog-supprimer-' + b.id,
+      formAction: '/baux/' + b.id + '/supprimer',
+      message: 'Supprimer ce bail ? Cette action est irréversible.',
+      confirmLabel: 'Supprimer définitivement',
+      cancelLabel: 'Annuler'
+    }) %>
+  <% }); %>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

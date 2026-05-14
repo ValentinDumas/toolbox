@@ -1,10 +1,11 @@
 import { Temporal } from '@js-temporal/polyfill';
+
 import { Bail } from '../../domain/locatif/bail.js';
 import { Money } from '../../domain/_shared/money.js';
 import { IRL } from '../../domain/_shared/irl.js';
 import { Cautionnement } from '../../domain/locatif/cautionnement.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
-import { BailIntrouvable, LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
+import { LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';

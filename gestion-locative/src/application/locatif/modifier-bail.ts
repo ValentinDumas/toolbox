@@ -1,4 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
+
 import { Cautionnement } from '../../domain/locatif/cautionnement.js';
 import { Money } from '../../domain/_shared/money.js';
 import { IRL } from '../../domain/_shared/irl.js';
@@ -8,6 +9,7 @@ import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BailId, BienId, LotId } from '../../domain/_shared/identifiants.js';
+
 import type { CautionnementCommande } from './creer-bail.js';
 
 export interface ModifierBailCommande {

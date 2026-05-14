@@ -1,6 +1,9 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { FastifyInstance } from 'fastify';
+
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
+import type { BailRepository } from '../../domain/locatif/bail-repository.js';
+import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { LocataireId } from '../../domain/_shared/identifiants.js';
 import { creerLocataire } from '../../application/locatif/creer-locataire.js';
 import { modifierLocataire } from '../../application/locatif/modifier-locataire.js';
@@ -11,6 +14,7 @@ import {
   locataireCreationSchema,
   locataireModificationSchema,
 } from '../schemas/locataire-schemas.js';
+import type { Bien } from '../../domain/patrimoine/bien.js';
 
 /** Formate un Temporal.PlainDate en DD/MM/YYYY pour l'affichage (format légal français). */
 function formatDate(date: Temporal.PlainDate): string {
@@ -21,7 +25,11 @@ function formatDate(date: Temporal.PlainDate): string {
 
 export async function plugin(
   app: FastifyInstance,
-  opts: { repo: LocataireRepository },
+  opts: {
+    repo: LocataireRepository;
+    bailRepo?: BailRepository;
+    bienRepo?: BienRepository;
+  },
 ): Promise<void> {
 
   // GET /locataires — liste tabulée
@@ -103,8 +111,22 @@ export async function plugin(
         'Ce locataire n\'existe pas ou a été supprimé. Retournez à la liste des locataires.',
       );
     }
+
+    // Charger les baux du locataire et les biens associés (section "Baux associés")
+    const baux = opts.bailRepo
+      ? await opts.bailRepo.listerParLocataire(id as LocataireId)
+      : [];
+
+    const biensMap: Record<string, Bien> = {};
+    if (opts.bienRepo && baux.length > 0) {
+      const biens = await opts.bienRepo.listerTous();
+      for (const b of biens) biensMap[b.id] = b;
+    }
+
     return reply.view('pages/locataires/detail.ejs', {
       locataire,
+      baux,
+      biensMap,
       banniereSuccess: null,
       formatDate,
       navActive: 'locataires',

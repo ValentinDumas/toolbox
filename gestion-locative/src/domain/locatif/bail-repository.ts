@@ -1,5 +1,6 @@
-import type { Bail } from './bail.js';
 import type { BailId, LocataireId } from '../_shared/identifiants.js';
+
+import type { Bail } from './bail.js';
 
 export interface BailRepository {
   enregistrer(bail: Bail): Promise<void>;

@@ -1,0 +1,285 @@
+<%
+  const estCreation = locals.mode === 'creation';
+  const titrePage = estCreation ? 'Créer un bail' : 'Modifier le bail';
+  const formAction = estCreation ? '/baux' : '/baux/' + locals.bail.id + '/modifier';
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+  const bienIdSelectionne = valeurs.bienId || (locals.bail ? locals.bail.bienId : '');
+%>
+<%- include('../../partials/layout-debut', { titre: titrePage, banniereSuccess: null, navActive: locals.navActive ?? null }) %>
+
+<nav aria-label="Fil d'Ariane">
+  <ul>
+    <li><a href="/">Accueil</a></li>
+    <li><a href="/baux">Baux</a></li>
+    <li><%= titrePage %></li>
+  </ul>
+</nav>
+
+<h1><%= titrePage %></h1>
+
+<% if (erreurs._global) { %>
+  <aside role="alert" class="error-msg"><%= erreurs._global %></aside>
+<% } %>
+
+<form method="POST" action="<%= formAction %>" novalidate>
+
+  <fieldset>
+    <legend>Bien et Locataire</legend>
+
+    <div class="field">
+      <label for="bienId">Bien <span aria-hidden="true">*</span></label>
+      <select id="bienId" name="bienId" required aria-describedby="bienId-error">
+        <option value="">— Sélectionnez un bien —</option>
+        <% biens.forEach(function(b) { %>
+          <option value="<%= b.id %>"<% if (bienIdSelectionne === b.id) { %> selected<% } %>>
+            <%= b.adresse.enLigne() %>
+          </option>
+        <% }); %>
+      </select>
+      <% if (erreurs.bienId) { %>
+        <span id="bienId-error" role="alert" class="error-msg"><%= erreurs.bienId %></span>
+      <% } else { %>
+        <span id="bienId-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+
+    <div class="field">
+      <label for="locataireId">Locataire <span aria-hidden="true">*</span></label>
+      <select id="locataireId" name="locataireId" required aria-describedby="locataireId-error">
+        <option value="">— Sélectionnez un locataire —</option>
+        <% locataires.forEach(function(l) { %>
+          <option value="<%= l.id %>"<% if ((valeurs.locataireId || (locals.bail ? locals.bail.locataireId : '')) === l.id) { %> selected<% } %>>
+            <%= l.prenom %> <%= l.nom %>
+          </option>
+        <% }); %>
+      </select>
+      <% if (erreurs.locataireId) { %>
+        <span id="locataireId-error" role="alert" class="error-msg"><%= erreurs.locataireId %></span>
+      <% } else { %>
+        <span id="locataireId-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+
+    <% if (lotsDisponibles && lotsDisponibles.length > 0) { %>
+      <fieldset>
+        <legend>Lots concernés <span aria-hidden="true">*</span></legend>
+        <% if (erreurs.lotIds) { %>
+          <span role="alert" class="error-msg"><%= erreurs.lotIds %></span>
+        <% } %>
+        <% lotsDisponibles.forEach(function(lot) { %>
+          <%
+            const lotIdStr = lot.id;
+            const lotChecked = (valeurs.lotIds || (locals.bail ? locals.bail.lotIds : [])).includes(lotIdStr);
+          %>
+          <label>
+            <input type="checkbox" name="lotIds" value="<%= lot.id %>"<% if (lotChecked) { %> checked<% } %>>
+            <%= lot.designation %><% if (lot.surface) { %> — <%= lot.surface %> m²<% } %>
+          </label>
+        <% }); %>
+      </fieldset>
+    <% } else if (bienIdSelectionne) { %>
+      <p><em>Aucun lot disponible pour ce bien.</em></p>
+    <% } else { %>
+      <p><em>Sélectionnez un bien pour voir ses lots.</em></p>
+      <% if (erreurs.lotIds) { %>
+        <span role="alert" class="error-msg"><%= erreurs.lotIds %></span>
+      <% } %>
+    <% } %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Conditions financières</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'loyerHcEuros', name: 'loyerHcEuros', label: 'Loyer hors charges (€)',
+      type: 'number',
+      value: valeurs.loyerHcEuros || (locals.bail ? Number(locals.bail.loyerHc.toCentimes()) / 100 : ''),
+      hint: 'Montant mensuel en euros (ex : 800)',
+      erreur: erreurs.loyerHcEuros || null
+    }) %>
+
+    <div class="field">
+      <fieldset>
+        <legend>Mode de charges <span aria-hidden="true">*</span></legend>
+        <label>
+          <input type="radio" name="modeCharges" value="forfait"
+            <% if ((valeurs.modeCharges || (locals.bail ? locals.bail.modeCharges : '')) === 'forfait') { %> checked<% } %>>
+          Forfait mensuel
+        </label>
+        <label>
+          <input type="radio" name="modeCharges" value="provisions"
+            <% if ((valeurs.modeCharges || (locals.bail ? locals.bail.modeCharges : '')) === 'provisions') { %> checked<% } %>>
+          Provisions sur charges
+        </label>
+      </fieldset>
+      <% if (erreurs.modeCharges) { %>
+        <span role="alert" class="error-msg"><%= erreurs.modeCharges %></span>
+      <% } %>
+    </div>
+
+    <%- include('../../partials/form-field', {
+      id: 'montantChargesEuros', name: 'montantChargesEuros', label: 'Montant des charges (€)',
+      type: 'number',
+      value: valeurs.montantChargesEuros || (locals.bail ? Number(locals.bail.montantCharges.toCentimes()) / 100 : '0'),
+      hint: '0 si inclus dans le loyer',
+      erreur: erreurs.montantChargesEuros || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'depotGarantieEuros', name: 'depotGarantieEuros', label: 'Dépôt de garantie (€)',
+      type: 'number',
+      value: valeurs.depotGarantieEuros || (locals.bail ? Number(locals.bail.depotGarantie.toCentimes()) / 100 : ''),
+      hint: 'Maximum 2 × loyer hors charges (LOCATION_MEUBLEE_REGLES §5)',
+      erreur: erreurs.depotGarantieEuros || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Période</legend>
+
+    <%- include('../../partials/form-field', {
+      id: 'dateDebut', name: 'dateDebut', label: 'Date de début du bail',
+      type: 'date',
+      value: valeurs.dateDebut || (locals.bail ? locals.bail.dateDebut.toString() : ''),
+      erreur: erreurs.dateDebut || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'dureeMois', name: 'dureeMois', label: 'Durée (mois)',
+      type: 'number',
+      value: valeurs.dureeMois || (locals.bail ? locals.bail.dureeMois : '12'),
+      hint: 'Minimum 12 mois pour un bail meublé classique (LOCATION_MEUBLEE_REGLES §3.1)',
+      erreur: erreurs.dureeMois || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>IRL de référence</legend>
+    <p><small>L'Indice de Référence des Loyers sera utilisé pour la révision annuelle du loyer.</small></p>
+
+    <%- include('../../partials/form-field', {
+      id: 'irlTrimestre', name: 'irlTrimestre', label: 'Trimestre IRL',
+      value: valeurs.irlTrimestre || (locals.bail ? locals.bail.irlReference.trimestre : '2026-T1'),
+      hint: 'Format YYYY-TN — ex : "2026-T1". Récupérer la valeur sur insee.fr.',
+      erreur: erreurs.irlTrimestre || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'irlValeur', name: 'irlValeur', label: 'Valeur IRL',
+      value: valeurs.irlValeur || (locals.bail ? locals.bail.irlReference.valeur : '145.47'),
+      hint: 'Valeur décimale — ex : "145.47"',
+      erreur: erreurs.irlValeur || null
+    }) %>
+  </fieldset>
+
+  <fieldset>
+    <legend>Cautionnement (optionnel)</legend>
+
+    <div class="field">
+      <fieldset>
+        <legend>Type de cautionnement</legend>
+        <%
+          const cautTypeActuel = valeurs.cautionnementType || (locals.bail && locals.bail.cautionnement ? locals.bail.cautionnement.type : '');
+        %>
+        <label>
+          <input type="radio" name="cautionnementType" value=""
+            <% if (!cautTypeActuel) { %> checked<% } %>>
+          Aucun
+        </label>
+        <label>
+          <input type="radio" name="cautionnementType" value="physique"
+            <% if (cautTypeActuel === 'physique') { %> checked<% } %>>
+          Caution physique (personne)
+        </label>
+        <label>
+          <input type="radio" name="cautionnementType" value="visale"
+            <% if (cautTypeActuel === 'visale') { %> checked<% } %>>
+          VISALE (organisme)
+        </label>
+        <label>
+          <input type="radio" name="cautionnementType" value="gli"
+            <% if (cautTypeActuel === 'gli') { %> checked<% } %>>
+          GLI (garantie loyers impayés)
+        </label>
+      </fieldset>
+    </div>
+
+    <fieldset>
+      <legend>Garant</legend>
+      <% const garant = locals.bail && locals.bail.cautionnement ? locals.bail.cautionnement.garant : null; %>
+      <%- include('../../partials/form-field', {
+        id: 'garantNom', name: 'garantNom', label: 'Nom du garant',
+        value: valeurs.garantNom || (garant ? garant.nom : ''),
+        required: false,
+        erreur: erreurs.garantNom || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantPrenom', name: 'garantPrenom', label: 'Prénom du garant',
+        value: valeurs.garantPrenom || (garant ? garant.prenom : ''),
+        required: false,
+        erreur: erreurs.garantPrenom || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantEmail', name: 'garantEmail', label: 'Email du garant', type: 'email',
+        value: valeurs.garantEmail || (garant ? garant.email : ''),
+        required: false,
+        erreur: erreurs.garantEmail || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantTelephone', name: 'garantTelephone', label: 'Téléphone du garant', type: 'tel',
+        value: valeurs.garantTelephone || (garant ? garant.telephone : ''),
+        required: false,
+        erreur: erreurs.garantTelephone || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantRue', name: 'garantRue', label: 'Rue (garant)',
+        value: valeurs.garantRue || (garant ? garant.adresse.rue : ''),
+        required: false,
+        erreur: erreurs.garantRue || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantCodePostal', name: 'garantCodePostal', label: 'Code postal (garant)',
+        value: valeurs.garantCodePostal || (garant ? garant.adresse.codePostal : ''),
+        required: false,
+        erreur: erreurs.garantCodePostal || null
+      }) %>
+      <%- include('../../partials/form-field', {
+        id: 'garantVille', name: 'garantVille', label: 'Ville (garant)',
+        value: valeurs.garantVille || (garant ? garant.adresse.ville : ''),
+        required: false,
+        erreur: erreurs.garantVille || null
+      }) %>
+    </fieldset>
+
+    <%- include('../../partials/form-field', {
+      id: 'cautionnementDateSignature', name: 'cautionnementDateSignature', label: 'Date de signature du cautionnement',
+      type: 'date',
+      value: valeurs.cautionnementDateSignature || (locals.bail && locals.bail.cautionnement ? locals.bail.cautionnement.dateSignature.toString() : ''),
+      required: false,
+      erreur: erreurs.cautionnementDateSignature || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'cautionnementDureeMois', name: 'cautionnementDureeMois', label: "Durée d'engagement (mois)",
+      type: 'number',
+      value: valeurs.cautionnementDureeMois || (locals.bail && locals.bail.cautionnement ? locals.bail.cautionnement.dureeEngagement : ''),
+      required: false,
+      erreur: erreurs.cautionnementDureeMois || null
+    }) %>
+
+    <%- include('../../partials/form-field', {
+      id: 'cautionnementMontantGarantiEuros', name: 'cautionnementMontantGarantiEuros', label: 'Montant garanti (€)',
+      type: 'number',
+      value: valeurs.cautionnementMontantGarantiEuros || (locals.bail && locals.bail.cautionnement && locals.bail.cautionnement.montantGaranti ? Number(locals.bail.cautionnement.montantGaranti.toCentimes()) / 100 : ''),
+      required: false,
+      hint: 'Optionnel',
+      erreur: erreurs.cautionnementMontantGarantiEuros || null
+    }) %>
+  </fieldset>
+
+  <button type="submit">Enregistrer le bail</button>
+
+</form>
+
+<%- include('../../partials/layout-fin') %>

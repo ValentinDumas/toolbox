@@ -1,8 +1,10 @@
 import { Temporal } from '@js-temporal/polyfill';
+
 import { InvariantViolated } from '../_shared/erreurs.js';
 import { nouveauBailId, type BailId, type BienId, type LotId, type LocataireId } from '../_shared/identifiants.js';
 import { Money } from '../_shared/money.js';
 import type { IRL } from '../_shared/irl.js';
+
 import type { Cautionnement } from './cautionnement.js';
 
 /** Phase 1 : meublé classique seulement. Étudiant/mobilité différés V2 (D-34). */

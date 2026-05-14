@@ -1,0 +1,92 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Bail — ' + locataire.prenom + ' ' + locataire.nom,
+  banniereSuccess: locals.banniereSuccess ?? null,
+  navActive: locals.navActive ?? null
+}) %>
+
+<nav aria-label="Fil d'Ariane">
+  <ul>
+    <li><a href="/">Accueil</a></li>
+    <li><a href="/baux">Baux</a></li>
+    <li><%= locataire.prenom %> <%= locataire.nom %> — <%= bien.adresse.enLigne() %></li>
+  </ul>
+</nav>
+
+<h1>Bail de <%= locataire.prenom %> <%= locataire.nom %> au <%= bien.adresse.enLigne() %></h1>
+
+<h2>Locataire</h2>
+<dl>
+  <dt>Nom</dt><dd><%= locataire.nom %></dd>
+  <dt>Prénom</dt><dd><%= locataire.prenom %></dd>
+  <dt>Email</dt><dd><a href="mailto:<%= locataire.email %>"><%= locataire.email %></a></dd>
+  <dt>Téléphone</dt><dd><%= locataire.telephone || '—' %></dd>
+</dl>
+<p><a href="/locataires/<%= locataire.id %>">Voir la fiche locataire</a></p>
+
+<h2>Bien</h2>
+<dl>
+  <dt>Adresse</dt><dd><%= bien.adresse.enLigne() %></dd>
+  <dt>Type</dt><dd><%= bien.type %></dd>
+</dl>
+<h3>Lots concernés par ce bail</h3>
+<ul>
+  <% lotsduBail.forEach(function(lot) { %>
+    <li><%= lot.designation %><% if (lot.surface) { %> — <%= lot.surface %> m²<% } %></li>
+  <% }); %>
+</ul>
+<p><a href="/biens/<%= bien.id %>">Voir la fiche bien</a></p>
+
+<h2>Conditions financières</h2>
+<dl>
+  <dt>Loyer hors charges</dt><dd><%= bail.loyerHc.enEuros() %></dd>
+  <dt>Mode de charges</dt><dd><%= bail.modeCharges === 'forfait' ? 'Forfait mensuel' : 'Provisions sur charges' %></dd>
+  <dt>Montant des charges</dt><dd><%= bail.montantCharges.enEuros() %></dd>
+  <dt>Dépôt de garantie</dt><dd><%= bail.depotGarantie.enEuros() %></dd>
+</dl>
+
+<h2>Période</h2>
+<dl>
+  <dt>Date de début</dt><dd><%= formatDate(bail.dateDebut) %></dd>
+  <dt>Durée</dt><dd><%= bail.dureeMois %> mois</dd>
+</dl>
+
+<h2>IRL de référence</h2>
+<dl>
+  <dt>Trimestre</dt><dd><%= bail.irlReference.trimestre %></dd>
+  <dt>Valeur</dt><dd><%= bail.irlReference.valeur %></dd>
+</dl>
+
+<% if (bail.cautionnement) { %>
+  <h2>Cautionnement</h2>
+  <dl>
+    <dt>Type</dt><dd><%= bail.cautionnement.type %></dd>
+    <% if (bail.cautionnement.garant) { %>
+      <dt>Garant</dt><dd><%= bail.cautionnement.garant.prenom %> <%= bail.cautionnement.garant.nom %></dd>
+      <dt>Email garant</dt><dd><a href="mailto:<%= bail.cautionnement.garant.email %>"><%= bail.cautionnement.garant.email %></a></dd>
+      <dt>Téléphone garant</dt><dd><%= bail.cautionnement.garant.telephone || '—' %></dd>
+    <% } %>
+    <dt>Date de signature</dt><dd><%= formatDate(bail.cautionnement.dateSignature) %></dd>
+    <dt>Durée d'engagement</dt><dd><%= bail.cautionnement.dureeEngagement %> mois</dd>
+    <% if (bail.cautionnement.montantGaranti) { %>
+      <dt>Montant garanti</dt><dd><%= bail.cautionnement.montantGaranti.enEuros() %></dd>
+    <% } %>
+  </dl>
+<% } else { %>
+  <p>Aucun cautionnement pour ce bail.</p>
+<% } %>
+
+<p>
+  <a href="/baux/<%= bail.id %>/modifier" role="button">Modifier le bail</a>
+  &nbsp;
+  <button type="button" class="destructif" data-open-dialog="dialog-supprimer-bail">Supprimer</button>
+</p>
+
+<%- include('../../partials/confirm-dialog', {
+  id: 'dialog-supprimer-bail',
+  formAction: '/baux/' + bail.id + '/supprimer',
+  message: 'Supprimer ce bail ? Cette action est irréversible.',
+  confirmLabel: 'Supprimer définitivement',
+  cancelLabel: 'Annuler'
+}) %>
+
+<%- include('../../partials/layout-fin') %>

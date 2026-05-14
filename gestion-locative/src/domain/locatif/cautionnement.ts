@@ -1,4 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
+
 import { InvariantViolated } from '../_shared/erreurs.js';
 import type { Money } from '../_shared/money.js';
 import type { Adresse } from '../_shared/adresse.js';

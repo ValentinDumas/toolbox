@@ -1,19 +1,23 @@
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
 import Fastify from 'fastify';
 import fastifyView from '@fastify/view';
 import fastifyFormbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
 import type { Kysely } from 'kysely';
+
 import type { DB } from './infrastructure/db/kysely-types.js';
 import { ouvrirDb, cheminBaseParDefaut, appliquerMigrationsBrutes } from './infrastructure/db/database.js';
 import { BienRepositorySqlite } from './infrastructure/repositories/bien-repository-sqlite.js';
 import { LocataireRepositorySqlite } from './infrastructure/repositories/locataire-repository-sqlite.js';
+import { BailRepositorySqlite } from './infrastructure/repositories/bail-repository-sqlite.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
+import { plugin as bauxPlugin } from './web/routes/baux.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -54,10 +58,12 @@ export async function creerApp(db: Kysely<DB>): Promise<ReturnType<typeof Fastif
 
   const repo = new BienRepositorySqlite(db);
   const locataireRepo = new LocataireRepositorySqlite(db);
+  const bailRepo = new BailRepositorySqlite(db);
 
   await app.register(racinePlugin, { db });
   await app.register(biensPlugin, { repo });
-  await app.register(locatairesPlugin, { repo: locataireRepo });
+  await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
+  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo });
 
   return app;
 }
