@@ -60,6 +60,12 @@ export class Encaissement {
       );
     }
 
+    // WR-08 : un encaissement de 0€ n'a pas de sens métier (Zod refuse, le
+    // domaine doit refuser aussi pour cohérence inter-couches).
+    if (props.montant.egale(Money.zero())) {
+      throw new InvariantViolated('Un Encaissement ne peut pas être de 0 €');
+    }
+
     const id = props.id ?? nouveauEncaissementId();
     return new Encaissement(id, {
       echeanceId: props.echeanceId,
