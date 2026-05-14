@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-quittancement-ch-ances-encaissements-relances
 source:
   - 02-01-SUMMARY.md
@@ -102,8 +102,21 @@ blocked: 0
   severity: major
   test: 1
   origin_phase: 01
-  artifacts: []
-  missing: []
+  root_cause: "Double cause conjointe. (1) Les 3 handlers POST de wizard.ts (creerBien, creerLocataire, creerBail) appellent leur use case SANS try/catch — `InvariantViolated` levé par le domaine remonte au framework. (2) Aucun `app.setErrorHandler` global dans main.ts → Fastify default renvoie JSON 500 que le navigateur affiche en texte brut. Les routes hors-wizard (biens.ts, encaissements.ts) ont déjà le bon pattern try/catch + re-render avec erreurs._global — c'est une régression isolée à wizard.ts. Bonus : `lotCreationSchema.surface` est `.nullable()` sans superRefine conditionnel au type → divergence Zod ↔ invariant domaine."
+  artifacts:
+    - path: "src/web/routes/wizard.ts"
+      issue: "Lignes 96-105 (bien), 144-157 (locataire), 245-262 (bail) : pas de try/catch autour des appels d'application"
+    - path: "src/main.ts"
+      issue: "Pas de app.setErrorHandler global — Fastify default JSON renvoyé"
+    - path: "src/web/schemas/bien-schemas.ts"
+      issue: "Lignes 5-8 : lotCreationSchema.surface est .nullable() sans superRefine selon type — divergence avec invariant domaine TYPES_LOT_AVEC_SURFACE_OBLIGATOIRE"
+    - path: "src/domain/patrimoine/lot.ts"
+      issue: "Ligne 43 : source du message d'erreur (domaine, comportement correct — c'est le web qui doit catcher)"
+  missing:
+    - "Ajouter try/catch dans wizard.ts autour des 3 use case (reproduire pattern de biens.ts:65-82) + re-render avec erreurs._global + preservation des valeurs saisies"
+    - "Ajouter app.setErrorHandler global dans main.ts qui distingue HTML (render pages/erreur.ejs) vs JSON selon req.headers.accept"
+    - "Aligner bienCreationSchema sur l'invariant domaine via superRefine : si type ∈ {appartement, local_commercial} alors surface > 0 requis — capture l'erreur AVANT le domaine pour affichage inline précis (erreurs['lots.0.surface'])"
+  debug_session: ".planning/debug/g1-validation-500-json.md"
 
 - truth: "Le wizard doit permettre de créer un bien sans locataire ni bail (locataire + bail optionnels pour usage solo / extraction factures / fiscalité)"
   status: scope_change
@@ -111,9 +124,13 @@ blocked: 0
   severity: major
   test: 1
   origin_phase: 01
-  notes: "Changement de scope du wizard P01 — débloquer le mode bien-only."
+  root_cause: "Changement de scope produit — pas un bug à diagnostiquer. Le wizard P01 impose 3 étapes obligatoires (bien → locataire → bail) par design. Décision produit nécessaire avant fix : (a) rendre les étapes locataire+bail skippables avec CTA 'Ajouter plus tard', (b) splitter en 3 actions indépendantes depuis le menu principal, (c) garder le wizard mais permettre une sortie après bien."
   artifacts: []
-  missing: []
+  missing:
+    - "Décision produit : option A/B/C (rendre skippable, splitter, ou autre)"
+    - "Mise à jour des invariants domaine si nécessaire (Bail peut-il référencer Bien sans Locataire ?)"
+    - "Mise à jour PRD / SPEC selon décision"
+  debug_session: ""
 
 - truth: "La page /quittances ne doit pas contenir de bouton vide sans action"
   status: failed
@@ -121,14 +138,15 @@ blocked: 0
   severity: minor
   test: 1
   origin_phase: 02
-  notes: "ROOT CAUSE identifié pendant test 8 : src/web/views/partials/empty-state.ejs:4 rend toujours `<a href=\"\" role=\"button\"></a>` même quand ctaUrl=null et ctaLabel=null. Fix : wrapper le <a> dans un `<% if (locals.ctaUrl && locals.ctaLabel) { %>`."
+  root_cause: "src/web/views/partials/empty-state.ejs:4 rend toujours `<a href=\"\" role=\"button\"></a>` même quand ctaUrl=null et ctaLabel=null. La page /quittances en état vide passe ctaLabel:null + ctaUrl:null au partial, déclenchant le rendu d'un bouton vide cliquable mais inerte."
   artifacts:
     - path: "src/web/views/partials/empty-state.ejs"
       issue: "ligne 4 : <a> CTA rendu inconditionnellement (href vide + label vide quand null)"
     - path: "src/web/views/pages/quittances/liste.ejs"
       issue: "ligne 13-18 : passe ctaLabel:null + ctaUrl:null au partial, déclenche le bug"
   missing:
-    - "Wrapper conditionnel autour du <a> dans empty-state.ejs"
+    - "Wrapper conditionnel `<% if (locals.ctaUrl && locals.ctaLabel) { %>` autour du <a> dans empty-state.ejs:4"
+  debug_session: ""
 
 - truth: "Les bannières flash de succès doivent s'afficher une seule fois après une action"
   status: failed
@@ -136,9 +154,23 @@ blocked: 0
   severity: minor
   test: 2, 3, 8, 9
   origin_phase: 02
-  notes: "Pattern systémique 3/3 sur les flash banners de succès. Causes probables : (a) partial banniere-warning + banniere-success inclus deux fois dans le layout (layout-debut.ejs + page), (b) query param ?avertissement= + cookie flash banniereWarning concurrents, (c) deux includes pour la même bannière dans la page (un en layout, un en page-specific)."
-  artifacts: []
-  missing: []
+  root_cause: "Anti-pattern systémique de double-include de `banniere-success.ejs`. Le partial `src/web/views/partials/layout-debut.ejs:24` inclut DÉJÀ `banniere-success` automatiquement avec `locals.banniereSuccess` (rendu N°1 systématique). Les 5 pages affectées (profil.ejs:7-9, baux/detail.ejs:9, quittances/fiche.ejs:10, quittances/liste.ejs:7, relances/liste.ejs:11-13) ré-incluent ensuite explicitement `banniere-success` avec le même message → 2 `<aside class=\"banniere-success\">` identiques dans le DOM. Les warnings ne sont PAS doublés (asymétrie volontaire : layout-debut n'inclut que success)."
+  artifacts:
+    - path: "src/web/views/partials/layout-debut.ejs"
+      issue: "ligne 24 : rendu automatique de banniere-success (canal #1)"
+    - path: "src/web/views/pages/bailleur/profil.ejs"
+      issue: "lignes 7-9 : ré-include redondant (test 2)"
+    - path: "src/web/views/pages/baux/detail.ejs"
+      issue: "ligne 9 : ré-include redondant (test 3)"
+    - path: "src/web/views/pages/quittances/fiche.ejs"
+      issue: "ligne 10 : ré-include redondant (tests 8, 9)"
+    - path: "src/web/views/pages/quittances/liste.ejs"
+      issue: "ligne 7 : ré-include redondant (latent)"
+    - path: "src/web/views/pages/relances/liste.ejs"
+      issue: "lignes 11-13 : ré-include redondant (latent)"
+  missing:
+    - "Supprimer les 5 ré-includes de banniere-success dans les pages — laisser layout-debut.ejs comme unique point de rendu"
+  debug_session: ".planning/debug/g4-banniere-flash-dupliquee.md"
 
 - truth: "La date d'activation (actifDepuis) du bail doit être visible sur la fiche bail après activation"
   status: failed
@@ -146,9 +178,13 @@ blocked: 0
   severity: minor
   test: 3
   origin_phase: 02
-  notes: "Gap d'affichage sur la fiche bail (src/web/views/pages/baux/detail.ejs). Ajouter un champ 'Actif depuis : <date>' à proximité du statut."
-  artifacts: []
-  missing: []
+  root_cause: "Gap d'affichage UI — pas un bug. Le champ `actifDepuis` est correctement persisté en BDD via l'activation du bail (plan 02-02 ENC-01), mais n'est pas affiché sur la fiche bail. Diagnostic non requis."
+  artifacts:
+    - path: "src/web/views/pages/baux/detail.ejs"
+      issue: "Manque l'affichage du champ actifDepuis à proximité du statut/bannière d'activité"
+  missing:
+    - "Ajouter un champ 'Actif depuis : <date>' (formaté ISO ou français selon convention) sur baux/detail.ejs, conditionnel sur bail.actifDepuis ≠ null"
+  debug_session: ""
 
 - truth: "La liste /echeances doit proposer des filtres par bail et par statut"
   status: failed
@@ -156,9 +192,17 @@ blocked: 0
   severity: major
   test: 4
   origin_phase: 02
-  notes: "Filtres absents de src/web/views/pages/echeances/liste.ejs. Ajouter <select> bail (peuple via listerBaux) + <select> statut (en_attente/payee_partiellement/payee/annulee). La route GET /echeances doit accepter ces query params."
-  artifacts: []
-  missing: []
+  root_cause: "Fonctionnalité manquante — pas un bug. Les filtres ont été déclarés dans l'expected du test mais jamais implémentés dans le SUMMARY/PLAN du plan 02-02. Diagnostic non requis."
+  artifacts:
+    - path: "src/web/views/pages/echeances/liste.ejs"
+      issue: "Aucun <form>/<select> pour filtrer par bail ou statut"
+    - path: "src/web/routes/echeances.ts"
+      issue: "GET /echeances n'accepte pas de query params bail / statut"
+  missing:
+    - "Ajouter dans liste.ejs un <form method=GET> avec <select name=bail> (peuplé via listerBaux) + <select name=statut> (options: tous / en_attente / payee_partiellement / payee / annulee)"
+    - "Modifier route GET /echeances pour parser ces query params et filtrer la requête repo (extension de la méthode lister du repo si nécessaire)"
+    - "Tests integration : 3 cas (sans filtre, filtre bail, filtre statut, combinés)"
+  debug_session: ""
 
 - truth: "L'action 'Générer quittance' doit être découvrable depuis le contexte d'une échéance payée"
   status: failed
@@ -166,23 +210,32 @@ blocked: 0
   severity: minor
   test: 8
   origin_phase: 02
-  notes: "Discoverability gap. Pistes : (a) ajouter un CTA 'Émettre une quittance' sur /quittances qui amène à la liste filtrée /echeances?statut=payee, (b) ajouter l'action sur la fiche échéance /echeances/:id (pas seulement la liste), (c) sur la fiche bail, montrer une section 'Quittances à émettre' regroupant les échéances payées sans quittance."
-  artifacts: []
-  missing: []
+  root_cause: "Gap de découvrabilité — pas un bug. Le bouton existe (src/web/views/pages/echeances/liste.ejs:69) mais conditionné à statut=payee + pas de quittance active. La page /quittances ne donne aucune indication de où trouver l'action. Décision UX/IA nécessaire."
+  artifacts:
+    - path: "src/web/views/pages/quittances/liste.ejs"
+      issue: "Pas de CTA pour amorcer une nouvelle quittance"
+    - path: "src/web/views/pages/echeances/liste.ejs"
+      issue: "Le bouton est noyé dans une colonne Actions, peu visible"
+  missing:
+    - "Décision UX : option A (CTA 'Émettre une quittance' sur /quittances → /echeances?statut=payee), option B (action sur fiche échéance /echeances/:id en plus de la liste), option C (section 'Quittances à émettre' sur la fiche bail regroupant les échéances payées sans quittance)"
+    - "Implémentation selon option retenue"
+  debug_session: ""
 
-- truth: "Cliquer 'Relancer' (niveau 1, 2 ou 3) doit ouvrir un mailto: (niveau 1+2) ou un PDF (niveau 3) ET tracer la relance en BDD ET donner un feedback visuel"
+- truth: "Cliquer 'Relancer' (niveau 1, 2) doit ouvrir un mailto: ET tracer la relance en BDD ET donner un feedback visuel"
   status: failed
-  reason: "User reported test 11: 'le bouton relancer amiable une fois cliqué, disparait, et rien ne se passe'. Test 12: 'j'ai le bouton relance ferme mais rien ne se passe quand je clique dessus. Il disparait bien apres clic mais c'est tout.' Pattern identique sur amiable ET ferme — bug systémique sur la route POST /relances ou le partial relance-action.ejs."
+  reason: "User reported test 11: 'le bouton relancer amiable une fois cliqué, disparait, et rien ne se passe'. Test 12: 'j'ai le bouton relance ferme mais rien ne se passe quand je clique dessus. Il disparait bien apres clic mais c'est tout.' Pattern identique sur amiable ET ferme — bug systémique sur la route POST /relances. Niveau 3 (PDF) OK confirmé au test 13."
   severity: major
   test: 11, 12
   origin_phase: 02
-  notes: "Le bouton disparaît (POST aboutit, BDD enregistre la relance ✓), mais le mailto: ne s'ouvre pas (niveau 1+2) et probablement pareil pour le PDF niveau 3. Causes probables : (a) la route POST /relances retourne un redirect HTTP qui ignore complètement le mailto: stocké dans le snapshot, (b) le formulaire HTML submit normal au lieu d'un <a href=mailto> ou JS qui ouvre window.location.href=mailtoUri, (c) la liste se re-render et n'a pas de pont vers le mailto:. À investiguer : src/web/routes/relances.ts (handler POST), src/web/views/partials/relance-action.ejs (form/action), src/web/views/pages/relances/liste.ejs, src/helpers/build-mailto.ts (la fonction existe et est testée, mais le résultat n'est pas surfacé côté client)."
+  root_cause: "Le handler POST /relances (src/web/routes/relances.ts:114-116) IGNORE silencieusement le `mailtoUri` retourné par le use case `enregistrerRelance` pour le canal 'email'. Il se contente de poser banniereSuccess en session et de redirect('/impayes'). Aucun pont serveur→navigateur n'existe : ni HTML avec auto-trigger JS, ni handler côté client, ni `<a href=mailto:>`. Le `mailtoUri` est calculé, stocké en BDD dans `contenu_snapshot` (audit OK), retourné par le use case… puis jeté à la couche web. Le canal PDF (niveau 3) fonctionne car il répond `Content-Type: application/pdf` que le navigateur sait télécharger nativement."
   artifacts:
     - path: "src/web/routes/relances.ts"
-      issue: "Redirect HTTP qui ignore le mailtoUri du snapshot"
+      issue: "Lignes 114-116 : branche canal='email' ne fait que redirect, ignore mailtoUri"
     - path: "src/web/views/partials/relance-action.ejs"
-      issue: "Form POST classique sans déclenchement du mailto: côté client"
-    - path: "src/helpers/build-mailto.ts"
-      issue: "mailtoUri généré et stocké mais jamais surfacé au browser"
+      issue: "Form HTML pur sans JavaScript / onclick / target / <a href=mailto:>"
+    - path: "src/web/routes/impayes.ts"
+      issue: "GET /impayes ne reçoit ni n'expose mailtoUri à la vue (alternative possible)"
   missing:
-    - "Bridge client-side qui ouvre le mailtoUri après le POST réussi (option A : retourner du HTML qui contient un <script>window.location=mailto:...</script>, option B : transformer le form en <a href=mailto:...> qui appelle d'abord un POST avec fetch puis navigate au mailto, option C : pattern HTMX/htmx-trigger)"
+    - "Bridge serveur→navigateur pour ouvrir le mailto: après le POST. Option recommandée (la plus simple) : remplacer le redirect('/impayes') ligne 114 par le rendu d'une page intermédiaire `pages/relances/ouverture-mail.ejs` contenant : (1) `<script>window.location.href='<%= mailtoUri %>';</script>`, (2) un lien fallback `<a href=mailtoUri>Ouvrir le mail</a>` (cas JS désactivé), (3) un lien retour `/impayes`, (4) session.banniereSuccess pour le retour ultérieur."
+    - "Test integration : pour canal='email', la réponse HTTP body doit contenir le mailtoUri (tag <a> + script)"
+  debug_session: ".planning/debug/g8-relance-mailto-pas-ouvert.md"
