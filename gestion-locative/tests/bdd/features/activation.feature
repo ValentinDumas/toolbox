@@ -1,4 +1,3 @@
-# language: fr
 Feature: Activation
 
   Scenario: Création Bien minimal au premier lancement

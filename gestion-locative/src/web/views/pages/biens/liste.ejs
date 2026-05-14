@@ -1,0 +1,89 @@
+<%
+  const contenu = `
+    <nav aria-label="Fil d'Ariane">
+      <ul>
+        <li><a href="/">Accueil</a></li>
+        <li>Biens</li>
+      </ul>
+    </nav>
+
+    <h1>Biens</h1>
+
+    ${ biens.length === 0 ? `
+      <p>Aucun bien pour l'instant</p>
+      <p>Ajoutez votre premier bien immobilier pour démarrer la gestion locative.</p>
+    ` : `
+      <table aria-label="Liste des biens">
+        <thead>
+          <tr>
+            <th scope="col">Adresse</th>
+            <th scope="col">Type</th>
+            <th scope="col" class="numeric">Surface</th>
+            <th scope="col" class="numeric">Année</th>
+            <th scope="col" class="numeric">Lots</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${ biens.map(b => `
+            <tr>
+              <td>${ b.adresse.enLigne() }</td>
+              <td>${ b.type }</td>
+              <td class="numeric">${ b.surface } m²</td>
+              <td class="numeric">${ b.anneeConstruction }</td>
+              <td class="numeric">${ b.lots.length }</td>
+            </tr>
+          `).join('') }
+        </tbody>
+      </table>
+    ` }
+
+    <section aria-label="Ajouter un bien">
+      <h2>Ajouter un bien</h2>
+      <form method="POST" action="/biens">
+        <label for="rue">Rue
+          <input type="text" id="rue" name="rue" required placeholder="12 rue des Lilas" />
+        </label>
+        <label for="codePostal">Code postal
+          <input type="text" id="codePostal" name="codePostal" required placeholder="75020" />
+        </label>
+        <label for="ville">Ville
+          <input type="text" id="ville" name="ville" required placeholder="Paris" />
+        </label>
+        <label for="surface">Surface (m²)
+          <input type="number" id="surface" name="surface" required min="1" step="0.5" />
+        </label>
+        <label for="type">Type de bien
+          <select id="type" name="type" required>
+            <option value="appartement">Appartement</option>
+            <option value="maison">Maison</option>
+            <option value="immeuble">Immeuble</option>
+            <option value="local_commercial">Local commercial</option>
+          </select>
+        </label>
+        <label for="anneeConstruction">Année de construction
+          <input type="number" id="anneeConstruction" name="anneeConstruction" required min="1700" max="2027" />
+        </label>
+
+        <fieldset>
+          <legend>Lot principal</legend>
+          <label for="lot1_designation">Désignation
+            <input type="text" id="lot1_designation" name="lot1_designation" required placeholder="Appartement principal" />
+          </label>
+          <label for="lot1_type">Type de lot
+            <select id="lot1_type" name="lot1_type" required>
+              <option value="appartement">Appartement</option>
+              <option value="parking">Parking</option>
+              <option value="cave">Cave</option>
+              <option value="local_commercial">Local commercial</option>
+              <option value="terrasse">Terrasse</option>
+              <option value="autre">Autre</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <button type="submit">Enregistrer le bien</button>
+      </form>
+    </section>
+  `;
+%>
+<%- include('../../partials/layout', { titre: 'Biens', contenu, banniereSuccess: locals.banniereSuccess ?? null }) %>

@@ -78,7 +78,7 @@ When(
   },
 );
 
-Then('le Bien est visible dans la liste GET /biens', async function (this: MondeActivation) {
+Then(/^le Bien est visible dans la liste GET \/biens$/, async function (this: MondeActivation) {
   assert.ok(this.app, 'App doit être initialisée');
   assert.equal(this.dernierStatut, 302, `POST /biens doit retourner 302, obtenu: ${this.dernierStatut}`);
 
