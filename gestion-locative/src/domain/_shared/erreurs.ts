@@ -1,0 +1,6 @@
+export class InvariantViolated extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvariantViolated';
+  }
+}
