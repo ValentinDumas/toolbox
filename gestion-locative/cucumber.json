@@ -1,0 +1,9 @@
+{
+  "default": {
+    "paths": ["tests/bdd/features/**/*.feature"],
+    "import": ["tests/bdd/step_definitions/**/*.ts"],
+    "requireModule": ["tsx/esm"],
+    "format": ["progress-bar", "summary"],
+    "parallel": 1
+  }
+}
