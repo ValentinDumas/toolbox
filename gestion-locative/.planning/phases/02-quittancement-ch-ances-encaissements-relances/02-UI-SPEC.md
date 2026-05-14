@@ -1,10 +1,11 @@
 ---
 phase: 2
 slug: quittancement-echeances-encaissements-relances
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-14
+reviewed_at: 2026-05-14
 ---
 
 # Phase 2 — UI Design Contract
@@ -116,7 +117,7 @@ Toutes les nouvelles pages Phase 2. Chaque écran déclare son ancre visuelle do
 | Fiche échéance | Détail + actions | `GET /echeances/:id` | Montant total dû à 28px semibold est l'ancre; statut badge en dessous, actions (paiement/quittance/relance) en zone dédiée | Variable selon statut |
 | Encaissements (global) | Liste | `GET /encaissements` | Table chronologique; colonne montant right-aligned est dominante | "Saisir un encaissement" |
 | Saisie encaissement | Formulaire | `GET /encaissements/nouveau` | `<h1>` + champ montant en tête de formulaire colonne unique | "Enregistrer l'encaissement" |
-| Quittances | Liste | `GET /quittances` | Table avec numéro + période + statut; numéro `2026-001` en `font-variant-numeric: tabular-nums` | "Télécharger" (par ligne) |
+| Quittances | Liste | `GET /quittances` | Table avec numéro + période + statut; numéro `2026-001` en `font-variant-numeric: tabular-nums` | "Télécharger la quittance" (par ligne) |
 | Impayés | Liste | `GET /impayes` | Table — domaine visuel principal de la page; absence d'impayés = empty state | — (page consultation) |
 | Relances | Liste | `GET /relances` | Table des relances émises + section suggestions actives en haut de page | "Lancer relance niveau N" (conditionnel) |
 
@@ -139,7 +140,7 @@ Variables `locals` : `{ statut: 'payee'|'partiellement_payee'|'en_retard'|'en_at
 
 CSS dans `app.css` :
 ```css
-.statut-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 14px; font-weight: 600; }
+.statut-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 600; }
 .statut-badge--payee { background: #dcfce7; color: #16a34a; }
 .statut-badge--partiellement_payee { background: #fef3c7; color: #d97706; }
 .statut-badge--en_retard { background: #fee2e2; color: #dc2626; }
@@ -445,7 +446,7 @@ L'URI `mailto:` est construit côté serveur avant rendu de la page :
 | Fiche échéance — relance niveau 2 | "Lancer la relance ferme" |
 | Fiche échéance — relance niveau 3 | "Télécharger la mise en demeure PDF" |
 | Liste échéances | "Télécharger l'avis d'échéance" (par ligne) |
-| Liste quittances | "Télécharger" (par ligne) + "Annuler la quittance" (si D-65) |
+| Liste quittances | "Télécharger la quittance" (par ligne) + "Annuler la quittance" (si D-65) |
 | Modification bail actif (modal D-73) | "Régénérer les échéances" |
 | Désactivation bail (D-74) | "Désactiver le bail" |
 
