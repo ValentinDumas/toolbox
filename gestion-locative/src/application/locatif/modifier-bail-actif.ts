@@ -97,24 +97,38 @@ export async function modifierBailActif(
   const bailModifie = bail.modifier(commande.patch);
   await bailRepo.enregistrer(bailModifie);
 
+  // Collecter le set des periodeDebut des échéances à régénérer AVANT suppression
+  // (matching strict par période plutôt qu'index — CR-01).
+  const periodesSupprimees = new Set(
+    echeances
+      .filter((e) => aRegenererIds.includes(e.id))
+      .map((e) => e.periodeDebut.toString()),
+  );
+
   // Hard-delete des échéances à régénérer (jamais encaissées — D-73 invariant)
   await echeanceLoyerRepo.supprimerLot(aRegenererIds);
 
   // Régénérer les périodes supprimées avec le nouveau loyer du bail modifié
-  // On génère un bail complet et on filtre uniquement les périodes des ids supprimés
   if (aRegenererIds.length > 0) {
-    // Les échéances supprimées sont toutes futures — on régénère depuis actifDepuis du bail modifié
-    // avec la même logique que activerBail, puis on prend uniquement les nouvelles périodes
+    // On régénère depuis actifDepuis du bail modifié, puis on filtre uniquement
+    // les périodes correspondant exactement aux échéances supprimées (matching par
+    // periodeDebut, pas par index — sûr face à des préservations non contiguës ou
+    // à un changement de jourEcheance qui décale les dates).
     const toutesLesEcheances = genererEcheancesPour(
       bailModifie,
       bailModifie.actifDepuis!,
       bailModifie.jourEcheance,
     );
 
-    // On régénère uniquement les périodes correspondant aux écheances supprimées
-    // En pratique : les écheances supprimées sont les futures — prendre les dureeMois - aPreserverCount dernières
-    const nbARegenerer = aRegenererIds.length;
-    const nouvellesEcheances = toutesLesEcheances.slice(toutesLesEcheances.length - nbARegenerer);
+    const nouvellesEcheances = toutesLesEcheances.filter((e) =>
+      periodesSupprimees.has(e.periodeDebut.toString()),
+    );
+
+    if (nouvellesEcheances.length !== aRegenererIds.length) {
+      throw new InvariantViolated(
+        `Mismatch entre périodes supprimées (${aRegenererIds.length}) et régénérées (${nouvellesEcheances.length})`,
+      );
+    }
 
     await echeanceLoyerRepo.enregistrerBatch(nouvellesEcheances);
   }
