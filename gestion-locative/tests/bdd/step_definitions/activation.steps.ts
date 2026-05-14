@@ -23,7 +23,7 @@ Before(async function (this: MondeActivation) {
   // DB en mémoire pour les tests BDD
   const sqlite = new Database(':memory:');
   this.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
-  await appliquerMigrationsBrutes(this.db, MIGRATIONS_PATH);
+  await appliquerMigrationsBrutes(this.db, sqlite, MIGRATIONS_PATH);
   this.app = await creerApp(this.db);
   this.dernierStatut = 0;
   this.derniereUrl = '';

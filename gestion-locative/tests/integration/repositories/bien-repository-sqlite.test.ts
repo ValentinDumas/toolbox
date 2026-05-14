@@ -20,7 +20,7 @@ describe('BienRepositorySqlite', () => {
   beforeEach(async () => {
     const sqlite = new Database(':memory:');
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
-    await appliquerMigrationsBrutes(db, MIGRATIONS_PATH);
+    await appliquerMigrationsBrutes(db, sqlite, MIGRATIONS_PATH);
     repo = new BienRepositorySqlite(db);
   });
 
