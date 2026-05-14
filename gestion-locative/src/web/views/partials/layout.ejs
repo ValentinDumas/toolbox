@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><%= titre %> — Gestion locative</title>
     <link rel="stylesheet" href="/styles/pico.min.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
   </head>
   <body>
     <header>
@@ -12,20 +13,15 @@
         <ul>
           <li><strong>Gestion locative</strong></li>
         </ul>
-        <ul>
-          <li><a href="/biens">Biens</a></li>
-          <li><a href="#" aria-disabled="true">Locataires</a></li>
-          <li><a href="#" aria-disabled="true">Baux</a></li>
-        </ul>
+        <%- include('sidebar-nav') %>
       </nav>
     </header>
 
     <main class="container">
-      <% if (locals.banniereSuccess) { %>
-        <aside role="status" aria-live="polite">
-          <%= banniereSuccess %>
-        </aside>
+      <% if (locals.breadcrumbs) { %>
+        <%- include('breadcrumbs') %>
       <% } %>
+      <%- include('banniere-success', { message: locals.banniereSuccess ?? null }) %>
 
       <%- contenu %>
     </main>

@@ -1,0 +1,71 @@
+/* app.css — Complète Pico classless avec les classes spécifiques à la gestion locative */
+
+/* Tableau : thead collant pour les listes longues */
+thead {
+  position: sticky;
+  top: 0;
+  background: var(--pico-background-color);
+  z-index: 1;
+}
+
+/* Colonnes numériques : alignement droite + chiffres tabulaires */
+th.numeric,
+td.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Actions de ligne : masquées par défaut, visibles au survol */
+.row-actions {
+  visibility: hidden;
+}
+tr:hover .row-actions,
+tr:focus-within .row-actions {
+  visibility: visible;
+}
+
+/* Bannière de succès avec auto-dismiss CSS après 5s */
+.banniere-success {
+  background: #d1fae5;
+  border-left: 4px solid #16a34a;
+  padding: 16px;
+  margin-bottom: 16px;
+  animation: disparaitre 0.5s ease-out 5s forwards;
+}
+
+@keyframes disparaitre {
+  from { opacity: 1; }
+  to   { opacity: 0; pointer-events: none; }
+}
+
+/* Champ invalide */
+.field input[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+.error-msg {
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+/* Nav principale : item actif avec accent visuel */
+nav[aria-label="Navigation principale"] a[aria-current="page"] {
+  border-left: 3px solid #1d4ed8;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+/* Wizard : étape active */
+ol[aria-label="Étapes du wizard d'activation"] li[aria-current="step"] {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+/* Accessibilité : respecter la préférence de mouvement réduit */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

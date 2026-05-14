@@ -1,0 +1,13 @@
+<nav aria-label="Fil d'Ariane">
+  <ol>
+    <% (locals.breadcrumbs || []).forEach(function(item, idx, arr) { %>
+      <li>
+        <% if (item.url && idx < arr.length - 1) { %>
+          <a href="<%= item.url %>"><%= item.label %></a>
+        <% } else { %>
+          <span aria-current="page"><%= item.label %></span>
+        <% } %>
+      </li>
+    <% }); %>
+  </ol>
+</nav>
