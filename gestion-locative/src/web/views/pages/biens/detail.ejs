@@ -26,6 +26,14 @@
   cancelLabel: 'Annuler'
 }) %>
 
+<h2>Actions sur ce bien</h2>
+<p>
+  <a href="/locataires/nouveau?bienId=<%= bien.id %>" role="button" class="secondary">Ajouter un locataire pour ce bien</a>
+  &nbsp;
+  <a href="/baux/nouveau?bienId=<%= bien.id %>" role="button" class="secondary">Créer un bail sur ce bien</a>
+</p>
+<p><small>Astuce : commencez par créer un locataire, puis liez-le à ce bien via un bail.</small></p>
+
 <h2>Lots</h2>
 
 <% if (bien.lots.length === 0) { %>
