@@ -96,4 +96,21 @@ describe('Bien invariants', () => {
 
     expect(() => bien.supprimerLot(lotUnique.id)).toThrow(/au moins un Lot/i);
   });
+
+  it('un Bien peut être créé sans Bail ni Locataire associé', () => {
+    // Précondition G2 : l'invariant domaine "Bien autonome" est vrai.
+    // Bail référence Bien via bienId — pas l'inverse. Un Bien existe indépendamment.
+    const bien = Bien.creer({
+      adresse: adresseValide,
+      surface: 45,
+      type: 'appartement',
+      anneeConstruction: 1985,
+      lots: [lotValide],
+    });
+
+    expect(bien.id).toBeTruthy();
+    // Aucune propriété bailId ou locataireId sur l'agrégat Bien
+    expect((bien as unknown as Record<string, unknown>)['bailId']).toBeUndefined();
+    expect((bien as unknown as Record<string, unknown>)['locataireId']).toBeUndefined();
+  });
 });
