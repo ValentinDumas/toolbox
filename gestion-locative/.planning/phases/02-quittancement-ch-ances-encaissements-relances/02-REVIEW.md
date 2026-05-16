@@ -1,205 +1,210 @@
 ---
 phase: 02-quittancement-ch-ances-encaissements-relances
-reviewed: 2026-05-14T23:55:00Z
+reviewed: 2026-05-16T00:00:00Z
 depth: standard
-files_reviewed: 116
+files_reviewed: 18
 files_reviewed_list:
-  - migrations/0002_phase2_bailleur_bail_ext.sql
-  - migrations/0003_phase2_echeance_loyer.sql
-  - migrations/0004_phase2_encaissement.sql
-  - migrations/0005_phase2_quittance.sql
-  - migrations/0006_phase2_relance.sql
-  - src/application/encaissements/activer-bail.ts
-  - src/application/encaissements/annuler-encaissement.ts
-  - src/application/encaissements/annuler-quittance.ts
-  - src/application/encaissements/calculer-relance-disponible.ts
-  - src/application/encaissements/creer-encaissement.ts
-  - src/application/encaissements/enregistrer-relance.ts
-  - src/application/encaissements/generer-quittance.ts
-  - src/application/encaissements/lister-echeances.ts
-  - src/application/encaissements/lister-encaissements.ts
-  - src/application/encaissements/lister-relances.ts
-  - src/application/encaissements/recalculer-statut-echeance.ts
-  - src/application/identite/creer-ou-maj-bailleur.ts
-  - src/application/locatif/desactiver-bail.ts
-  - src/application/locatif/modifier-bail-actif.ts
-  - src/application/locatif/supprimer-bail.ts
-  - src/domain/_shared/clock.ts
-  - src/domain/_shared/identifiants.ts
-  - src/domain/_shared/money.ts
-  - src/domain/encaissements/echeance-loyer-repository.ts
-  - src/domain/encaissements/echeance-loyer.ts
-  - src/domain/encaissements/encaissement-repository.ts
-  - src/domain/encaissements/encaissement.ts
-  - src/domain/encaissements/erreurs.ts
-  - src/domain/encaissements/impaye.ts
-  - src/domain/encaissements/pdf-renderer.ts
-  - src/domain/encaissements/quittance-repository.ts
-  - src/domain/encaissements/quittance.ts
-  - src/domain/encaissements/relance-repository.ts
-  - src/domain/encaissements/relance.ts
-  - src/domain/encaissements/template-renderer.ts
-  - src/domain/identite/bailleur-repository.ts
-  - src/domain/identite/bailleur.ts
-  - src/domain/identite/erreurs.ts
-  - src/domain/locatif/activite-bail-detector.ts
-  - src/domain/locatif/bail.ts
-  - src/helpers/build-mailto.ts
-  - src/helpers/format-numero-quittance.ts
-  - src/helpers/format-periode.ts
-  - src/infrastructure/db/database.ts
-  - src/infrastructure/db/kysely-types.ts
-  - src/infrastructure/pdf/avis-echeance-doc-def.ts
-  - src/infrastructure/pdf/mise-en-demeure-doc-def.ts
-  - src/infrastructure/pdf/pdf-renderer-pdfmake.ts
-  - src/infrastructure/pdf/quittance-doc-def.ts
-  - src/infrastructure/repositories/activite-bail-detector-sqlite.ts
-  - src/infrastructure/repositories/bail-repository-sqlite.ts
-  - src/infrastructure/repositories/bailleur-repository-sqlite.ts
-  - src/infrastructure/repositories/echeance-loyer-repository-sqlite.ts
-  - src/infrastructure/repositories/encaissement-repository-sqlite.ts
-  - src/infrastructure/repositories/quittance-repository-sqlite.ts
-  - src/infrastructure/repositories/relance-repository-sqlite.ts
-  - src/infrastructure/storage/stockage-fichier-local.ts
-  - src/infrastructure/templates/template-renderer-ejs.ts
-  - src/main.ts
-  - src/web/routes/bailleur.ts
-  - src/web/routes/baux.ts
-  - src/web/routes/echeances.ts
-  - src/web/routes/encaissements.ts
-  - src/web/routes/impayes.ts
-  - src/web/routes/quittances.ts
-  - src/web/routes/relances.ts
-  - src/web/routes/wizard.ts
-  - src/web/schemas/bailleur-schemas.ts
-  - src/web/schemas/encaissement-schemas.ts
-  - src/web/schemas/quittance-schemas.ts
-  - src/web/schemas/relance-schemas.ts
-  - src/web/views/pages/bailleur/profil.ejs
-  - src/web/views/pages/baux/activer.ejs
-  - src/web/views/pages/baux/detail.ejs
-  - src/web/views/pages/baux/modifier.ejs
-  - src/web/views/pages/echeances/liste.ejs
-  - src/web/views/pages/encaissements/fiche.ejs
-  - src/web/views/pages/encaissements/formulaire.ejs
-  - src/web/views/pages/encaissements/liste.ejs
-  - src/web/views/pages/impayes/liste.ejs
-  - src/web/views/pages/quittances/fiche.ejs
+  - src/web/views/partials/empty-state.ejs
   - src/web/views/pages/quittances/liste.ejs
+  - src/web/views/pages/quittances/fiche.ejs
+  - src/web/views/pages/bailleur/profil.ejs
+  - src/web/views/pages/baux/detail.ejs
   - src/web/views/pages/relances/liste.ejs
-  - src/web/views/partials/banniere-warning.ejs
-  - src/web/views/partials/relance-action.ejs
-  - src/web/views/partials/sidebar-nav.ejs
-  - src/web/views/partials/warning-live.ejs
-  - templates/relances/01-amiable.ejs
-  - templates/relances/02-ferme.ejs
-  - templates/relances/03-mise-en-demeure.ejs
-  - tests/_builders/encaissements.ts
-  - tests/_builders/identite.ts
-  - tests/_builders/locatif.ts
-  - tests/_world/monde-phase2.ts
-  - tests/bdd/features/bailleur.feature
-  - tests/bdd/features/enc02-activation-bail.feature
-  - tests/bdd/features/encaissements.feature
-  - tests/bdd/features/modifier-bail-actif.feature
-  - tests/bdd/features/quittancement.feature
-  - tests/bdd/features/quittances.feature
-  - tests/bdd/features/relances.feature
-  - tests/bdd/step_definitions/activation.steps.ts
-  - tests/bdd/step_definitions/bailleur.steps.ts
-  - tests/bdd/step_definitions/quittancement.steps.ts
-  - tests/bdd/step_definitions/quittances.steps.ts
-  - tests/bdd/step_definitions/relances.steps.ts
-  - tests/integration/pdf/mise-en-demeure.test.ts
-  - tests/integration/pdf/quittance.test.ts
-  - tests/integration/repositories/bail-repository-sqlite.test.ts
-  - tests/integration/repositories/bailleur-repository-sqlite.test.ts
-  - tests/integration/repositories/bien-repository-sqlite.test.ts
+  - src/web/routes/echeances.ts
+  - src/web/routes/relances.ts
+  - src/web/views/pages/echeances/liste-globale.ejs
+  - src/web/views/pages/relances/ouverture-mail.ejs
+  - src/application/encaissements/lister-echeances.ts
+  - src/infrastructure/repositories/echeance-loyer-repository-sqlite.ts
+  - src/domain/encaissements/echeance-loyer-repository.ts
   - tests/integration/repositories/echeance-loyer-repository-sqlite.test.ts
-  - tests/integration/repositories/encaissement-repository-sqlite.test.ts
-  - tests/integration/repositories/locataire-repository-sqlite.test.ts
-  - tests/integration/repositories/quittance-repository-sqlite.test.ts
-  - tests/integration/repositories/relance-repository-sqlite.test.ts
-  - tests/integration/storage/stockage-fichier-local.test.ts
-  - tests/unit/_shared/clock.test.ts
-  - tests/unit/encaissements/activer-bail.test.ts
-  - tests/unit/encaissements/annuler-encaissement.test.ts
-  - tests/unit/encaissements/calculer-relance-disponible.test.ts
-  - tests/unit/encaissements/creer-encaissement.test.ts
-  - tests/unit/encaissements/encaissement.test.ts
-  - tests/unit/encaissements/enregistrer-relance.test.ts
-  - tests/unit/encaissements/generer-quittance.test.ts
-  - tests/unit/encaissements/lister-impayes.test.ts
-  - tests/unit/encaissements/quittance.test.ts
-  - tests/unit/encaissements/recalculer-statut-echeance.test.ts
-  - tests/unit/encaissements/relance.test.ts
-  - tests/unit/helpers/build-mailto.test.ts
-  - tests/unit/helpers/format-numero-quittance.test.ts
-  - tests/unit/identite/bailleur.test.ts
-  - tests/unit/locatif/bail.test.ts
-  - tests/unit/locatif/desactiver-bail.test.ts
-  - tests/unit/locatif/modifier-bail-actif.test.ts
-  - tests/unit/locatif/supprimer-bail.test.ts
+  - tests/integration/web/relances-mailto.test.ts
+  - tests/unit/views/empty-state.test.ts
+  - tests/bdd/features/gaps-g6-g7.feature
+  - tests/bdd/step_definitions/gaps-g6-g7.steps.ts
 findings:
-  critical: 0
-  warning: 0
-  info: 0
-  total: 0
-status: clean
+  critical: 1
+  warning: 4
+  info: 2
+  total: 7
+status: issues_found
 ---
 
-# Phase 2: Code Review Report (Re-Review #3 — final)
+# Phase 02: Code Review Report (Gap-Closure G6/G7/G8)
 
-**Reviewed:** 2026-05-14T23:55:00Z
+**Reviewed:** 2026-05-16T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 116
-**Status:** clean
+**Files Reviewed:** 18
+**Status:** issues_found
 
 ## Summary
 
-Re-review #3 (final) après 3 itérations de fixes. **Tous les findings précédents sont traités**. Le code est désormais propre selon les critères de revue (correctness, security, maintainability).
+This review covers the gap-closure files for G6 (vue globale /echeances), G7 (CTA quittances), and G8 (relance-mailto auto-trigger). The domain port, application layer, and EJS views are generally sound. Route-level null handling and session management are correct. The global helpers (`formatDate`, `formatMoney`, `formatPeriode`) are correctly injected via the global `preHandler` hook so the views can safely reference them without explicit per-route injection.
 
-### Récapitulatif des fixes validés sur les 11 findings de la revue #2
+Three areas require attention before this code ships:
 
-**Critical résolu :**
-- **CR-01** (`bail-repository-sqlite.enregistrer` — UPSERT `.doUpdateSet` bypass de l'assert overflow) : commit `561afe0`. Les lignes 48, 50, 51 utilisent maintenant `bail.loyerHc.toSqliteInteger()`, `bail.montantCharges.toSqliteInteger()` et `bail.depotGarantie.toSqliteInteger()`, identique au chemin INSERT (lignes 32, 34, 35). Le chemin de mise à jour profite désormais de l'assert `MAX_SAFE_INTEGER`.
-
-**Warnings résolus :**
-- **WR-01** (`ActiviteBailDetectorSqlite` — docstring vs implémentation) : commit `84e3172`. L'adapter chaîne désormais les 3 checks (`echeance_loyer` puis `encaissement` via join puis `quittance` via join) avec court-circuit OR. Le filtre `annule_le IS NULL` retiré sur `echeance_loyer`. Plus de risque d'orphelins encaissement/quittance après hard-delete.
-- **WR-02** (`generer-quittance.ts` — compensation silencieuse) : commit `f73b717`. Le `catch (compErr)` interne (lignes 164-172) log explicitement `[CRITICAL] generer-quittance compensation failed for quittance {id} ({numero})` avec instruction SQL de cleanup manuel. L'opérateur peut désormais détecter et corriger l'incohérence.
-- **WR-03** (`recalculer-statut-echeance.ts` — erreur générique) : commit `b56b2eb`. Ligne 38 lève `EcheanceLoyerIntrouvable(String(echeanceId))` au lieu de `new Error(...)` générique. Les callers (`annulerEncaissement`, `creerEncaissement`) peuvent maintenant distinguer la cause via `instanceof`.
-- **WR-04** (`activer-bail.ts` branche morte + `baux.ts` imports dynamiques) : commit `9c558e3`. La branche morte ligne 126-130 (cas `i === 0 && i === dureeMois - 1` impossible par D-35 dureeMois ≥ 12) est supprimée et un commentaire l'explique. Les imports dynamiques `_T`, `_M`, `_IRL`, `_Addr` sont retirés de `baux.ts` (les modules sont statiquement importés en tête de fichier).
-
-**Info résolus :**
-- **IN-01** (test régression WR-08 Encaissement 0€) : commit `db4e3ff`. Le test "WR-08: rejette montant = 0 €" couvre la garde (lignes 40-47 de `encaissement.test.ts`).
-- **IN-02** (test régression CR-05 statut 'annulee' préservé) : commit `d705f3f`. Le test "CR-05: échéance déjà annulée → préserve statut annulee, pas de mettreAJourStatut" vérifie le statut retourné ET l'absence d'appel à `mettreAJourStatut` (lignes 106-137 de `recalculer-statut-echeance.test.ts`).
-- **IN-03** (test régression WR-04 troncature mailto au milieu de %XX) : commit `afbbf98` + `9d06eff`. Test "WR-04: troncature recule si elle tomberait au milieu d'une séquence %XX" reproduit le scénario pathologique et vérifie `decodeURIComponent` ne jette pas (lignes 56-83 de `build-mailto.test.ts`).
-- **IN-04** (dead code `listerQuittances` + `compterParBail`) : commit `f684b94`. Le fichier `src/application/encaissements/lister-quittances.ts` est supprimé. La méthode `compterParBail` est retirée de l'interface `EcheanceLoyerRepository` et de l'adapter SQLite. Plus aucune référence en source.
-- **IN-05** (commentaire SQLite 3.31 requirement) : commit `ec4090b`. La note "Requiert SQLite ≥ 3.31. better-sqlite3 ^11 bundle ≥ 3.42" est ajoutée dans `migrations/0002_phase2_bailleur_bail_ext.sql` (lignes 12-15).
-- **IN-06** (test typing Bail via builder) : commit `8e8ec92`. `creer-encaissement.test.ts` utilise désormais `unBailValide().activer(...)` pour produire un vrai `Bail` typé, avec helper `creerBailActif()` qui type-checke l'API agrégat.
-
-### Vérifications complémentaires (sweep final)
-
-- Aucun `Number(*.toCentimes())` résiduel dans les chemins INFRA (`src/infrastructure/repositories/*.ts`). Les seules occurrences en source (`baux.ts:310,312,313,458,460,461`) divisent par 100 pour l'affichage UI (centimes → euros pour `<input type="number">`) — pas de stockage SQLite, pas de risque overflow.
-- Aucun `console.log` hors `src/infrastructure/db/database.ts:111,116` (CLI migrate — usage légitime).
-- Aucune fonction dangereuse (`eval`, `innerHTML`, `dangerouslySetInnerHTML`, `exec`, `system`) dans la base code.
-- Aucun `as any` dans le code production. Les `as never` n'apparaissent que dans les tests stubs (acceptable pour mocks).
-- CSP, X-Content-Type-Options, Referrer-Policy correctement appliqués via hook `onSend` (`main.ts:135-143`).
-- `SESSION_SECRET` fail-fast avec assert ≥ 32 chars (`main.ts:66-73`).
-- Chemin path-traversal protection : `fs.realpath` + null-byte check + double barrière `startsWith(baseDir + sep)` (`stockage-fichier-local.ts:39-81`).
-- Migrations 0003-0006 SQL : contraintes `CHECK` cohérentes (statut, mode, niveau, canal), indexes partiels pour les requêtes hot-path (`statut != 'payee'`, `annule_le IS NULL`).
-- Domaine pur : aucun import infrastructure dans `src/domain/` ni `src/application/` (TemplateRenderer + PdfRenderer + Clock + Repos sont des ports).
-- Snapshot Relance.contenuSnapshot bien JSON-typed avec champ `version: 'v1'` pour migrations futures (D-69 audit-friendly).
-- UPSERT compteur quittance atomique avec `CAST(meta.valeur AS INTEGER) + 1` + `RETURNING` (CR-03) — testé en intégration.
-- Compensation transactionnelle quittance PDF : copy-on-write `Quittance.annuler` + double-catch avec log (CR-02 + WR-02).
-
-### Hors-périmètre signalé pour info (non-bloquant)
-
-Aucun finding actif. Le code est prêt pour clôture de phase 2.
+1. **`enregistrerBatch` has no conflict guard** — a duplicate-submit or retry will throw a SQLite UNIQUE constraint violation that propagates as an unhandled 500.
+2. **`raisonAnnulation` null-concatenation** in `quittance/fiche.ejs` will render "Raison : null" literally when a cancelled quittance lacks a reason — possible given the DB column is nullable with no CHECK constraint.
+3. Minor quality issues in tests: unnecessary `as any` cast, a hardcoded wrong `periode_fin` in the BDD helper, and the `ctaAlt` branch in `empty-state` is not tested.
 
 ---
 
-_Reviewed: 2026-05-14T23:55:00Z_
+## Critical Issues
+
+### CR-01: `enregistrerBatch` has no `onConflict` guard — throws unhandled 500 on duplicate call
+
+**File:** `src/infrastructure/repositories/echeance-loyer-repository-sqlite.ts:41-49`
+
+**Issue:** `enregistrerBatch` performs a bare `insertInto` with no `onConflict` clause. The single-record variant `enregistrer` (line 28) correctly uses `.onConflict(oc => oc.column('id').doUpdateSet(...))`. The batch variant does not. If `activerBail` is triggered twice on the same bail (double-submit, client retry, or accidental re-activation), the second invocation passes the HTTP guard at line 94 (`bail.actifDepuis !== null`) only if the session was not committed yet — a narrow but real window — and then `enregistrerBatch` re-inserts the same UUIDs, causing SQLite to throw `UNIQUE constraint failed: echeance_loyer.id`. This is not caught anywhere in the call stack and surfaces as an HTTP 500 with no user-actionable error message.
+
+**Fix:**
+```typescript
+async enregistrerBatch(echeances: EcheanceLoyer[]): Promise<void> {
+  await this.db.transaction().execute(async (trx) => {
+    for (const e of echeances) {
+      await trx
+        .insertInto('echeance_loyer')
+        .values(this.versRow(e))
+        .onConflict((oc) => oc.column('id').doNothing())
+        .execute();
+    }
+  });
+}
+```
+
+`doNothing()` is the right semantics: if the écheance already exists in full, there is nothing to update (unlike the single-record `enregistrer` which is used for status mutations).
+
+---
+
+## Warnings
+
+### WR-01: `quittance.raisonAnnulation` concatenated without null guard — renders "Raison : null" literally
+
+**File:** `src/web/views/pages/quittances/fiche.ejs:13-15`
+
+**Issue:** The warning banner string is built by direct concatenation:
+```js
+warning: '...' + quittance.raisonAnnulation + '. Le PDF original reste consultable.'
+```
+The domain type declares `raisonAnnulation: string | null` (quittance.ts:39). The DB column `raison_annulation TEXT NULL` has no CHECK constraint enforcing `NOT NULL WHEN annulee_le IS NOT NULL`. A quittance loaded from DB with `annulee_le IS NOT NULL` but `raison_annulation IS NULL` (possible via direct DB edit, future migration, or data import) will render the warning with the literal text "Raison : null. Le PDF original reste consultable." — incorrect and confusing to the user.
+
+**Fix:**
+```ejs
+warning: 'Quittance annulée le '
+  + (locals.formatDate ? locals.formatDate(quittance.annuleeLe) : quittance.annuleeLe.toString())
+  + (quittance.raisonAnnulation ? ' — Raison : ' + quittance.raisonAnnulation : '')
+  + '. Le PDF original reste consultable.'
+```
+
+### WR-02: `as any` double-cast in `relances-mailto.test.ts` suppresses Kysely type-checking on `relance` insert
+
+**File:** `tests/integration/web/relances-mailto.test.ts:119,127`
+
+**Issue:**
+```typescript
+await (db as any).insertInto('relance').values({
+  ...
+} as any).execute();
+```
+The `relance` table is fully typed in `DB` (see `kysely-types.ts:150`), so `db.insertInto('relance')` is valid without any cast. The `as any` on the values object bypasses column-type checking, meaning a schema change to `RelanceTable` (e.g., renaming a column or changing its type) will not surface as a compile error in this test. The test silently becomes out-of-sync with the schema.
+
+**Fix:**
+```typescript
+await db.insertInto('relance').values({
+  id,
+  echeance_id: echeanceId,
+  niveau,
+  canal: niveau === 3 ? ('pdf' as const) : ('email' as const),
+  envoyee_le: envoyeeLe,
+  contenu_snapshot: JSON.stringify({ version: 'v1', variables: {}, contenuRendu: 'Test',
+    mailtoUri: niveau < 3 ? 'mailto:test@example.fr?subject=Test' : null }),
+  annule_le: null,
+}).execute();
+```
+
+### WR-03: Hardcoded `periode_fin: '2026-${mois}-28'` is wrong for months with 29/30/31 days
+
+**File:** `tests/bdd/step_definitions/gaps-g6-g7.steps.ts:121`
+
+**Issue:**
+```typescript
+periode_fin: `2026-${mois}-28`,
+```
+This assigns the 28th as the period end for every month regardless of the actual last day. Months 1, 3, 5 (January, March, May) have 31 days; the BDD scenarios create up to 5 échéances (months 01–05), so month 01 gets `periode_fin = '2026-01-28'` instead of `'2026-01-31'`. The domain and PDF renderer both use `periodeFin` for display (avis d'échéance, quittance). Test data that disagrees with what `activerBail` would actually produce means this test helper does not faithfully replicate production state, and period-boundary assertions in future tests would silently pass on wrong data.
+
+**Fix:**
+```typescript
+// Replace the hardcoded 28 with the actual last day of the month:
+import { Temporal } from '@js-temporal/polyfill';
+// ...
+const debut = Temporal.PlainDate.from(`2026-${mois}-01`);
+const fin = debut.with({ day: debut.daysInMonth });
+// ...
+periode_fin: fin.toString(),   // '2026-01-31', '2026-02-28', etc.
+```
+
+### WR-04: `ctaAlt` branch in `empty-state.ejs` has no test coverage
+
+**File:** `tests/unit/views/empty-state.test.ts` (missing cases) / `src/web/views/partials/empty-state.ejs:7-9`
+
+**Issue:** The test suite covers the primary CTA (`ctaUrl` + `ctaLabel`) and the no-CTA cases, but never exercises the `ctaAlt` branch:
+```ejs
+<% if (locals.ctaAlt) { %>
+  <a href="<%= locals.ctaAlt.url %>" role="button" class="secondary"><%= locals.ctaAlt.label %></a>
+<% } %>
+```
+If `ctaAlt` is truthy but `ctaAlt.url` or `ctaAlt.label` is undefined, the rendered output will contain `href="undefined"` or empty link text — no error thrown, silent bad HTML. No regression guard exists.
+
+**Fix:** Add two test cases to `empty-state.test.ts`:
+```typescript
+it('rend le lien CTA alternatif quand ctaAlt est fourni', async () => {
+  const html = await rendre({
+    heading: 'Vide', body: 'Texte',
+    ctaUrl: '/foo', ctaLabel: 'Foo',
+    ctaAlt: { url: '/bar', label: 'Bar' },
+  });
+  expect(html).toContain('<a href="/bar" role="button" class="secondary">Bar</a>');
+});
+
+it('ne rend pas le CTA alternatif quand ctaAlt est absent', async () => {
+  const html = await rendre({ heading: 'Vide', body: 'Texte' });
+  expect(html).not.toContain('class="secondary"');
+});
+```
+
+---
+
+## Info
+
+### IN-01: `build-mailto.ts` — `to` address not percent-encoded in the final URI
+
+**File:** `src/helpers/build-mailto.ts:46`
+
+**Issue:**
+```typescript
+return `mailto:${to}?subject=${subjectEnc}${ccPart}&body=${bodyFinal}`;
+```
+Per RFC 6068, the `to` component of a mailto URI must be percent-encoded. For standard email addresses this is a no-op (no characters need encoding), but an address with a display name (e.g., `"Marie Martin" <marie@example.fr>`) or uncommon characters would produce a syntactically invalid URI. In practice `locataire.email` is validated on entry, so risk is low. Noted for completeness.
+
+**Fix:**
+```typescript
+return `mailto:${encodeURIComponent(to)}?subject=${subjectEnc}${ccPart}&body=${bodyFinal}`;
+```
+
+### IN-02: `listerTous` on `EcheanceLoyerRepository` includes soft-deleted rows by default — design tradeoff to document
+
+**File:** `src/infrastructure/repositories/echeance-loyer-repository-sqlite.ts:109-122` / `src/domain/encaissements/echeance-loyer-repository.ts:28-35`
+
+**Issue:** `listerTous()` with no filters returns all rows including those with `annule_le IS NOT NULL`. The `GET /echeances` route passes no `annule_le IS NULL` filter, so the global list shows cancelled échéances by default alongside active ones. The port JSDoc documents this intent. The view (`liste-globale.ejs`) handles the `annulee` statut gracefully. However the behaviour diverges from `listerParBail` (which always excludes `annule_le IS NOT NULL`). The asymmetry is a potential source of confusion for future contributors. No code change is required given the documented intent, but a brief inline comment in the route would help:
+
+```typescript
+// Note : listerTous inclut les échéances annulées (annule_le IS NOT NULL) — comportement
+// intentionnel pour la vue globale (audit trail). Voir EcheanceLoyerRepository.listerTous JSDoc.
+const echeances = await listerToutesEcheances(filtres, opts.echeanceLoyerRepo);
+```
+
+---
+
+_Reviewed: 2026-05-16T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
-_Iteration: re-review #3 — confirmation clean après 3 itérations de fix_
