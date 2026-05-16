@@ -75,7 +75,11 @@
     }) %>
   </fieldset>
 
-  <button type="submit">Enregistrer le locataire</button>
+  <div class="actions-fin-etape">
+    <button type="submit" formaction="/wizard/locataire">Enregistrer et continuer vers le bail</button>
+    <button type="submit" formaction="/wizard/locataire?terminer=1" class="secondary">Terminer — créer le bail plus tard</button>
+  </div>
+  <p><small>Vous pourrez créer le bail plus tard depuis le menu principal.</small></p>
 
 </form>
 

@@ -93,16 +93,37 @@ export async function plugin(
     }
 
     const data = parsed.data;
-    const bienId = await creerBien(
-      {
-        adresse: { rue: data.rue, codePostal: data.codePostal, ville: data.ville },
-        surface: data.surface,
-        type: data.type,
-        anneeConstruction: data.anneeConstruction,
-        lots: data.lots,
-      },
-      opts.bienRepo,
-    );
+    const terminer = (req.query as Record<string, string>)?.['terminer'] === '1';
+
+    let bienId: string;
+    try {
+      bienId = await creerBien(
+        {
+          adresse: { rue: data.rue, codePostal: data.codePostal, ville: data.ville },
+          surface: data.surface,
+          type: data.type,
+          anneeConstruction: data.anneeConstruction,
+          lots: data.lots,
+        },
+        opts.bienRepo,
+      );
+    } catch (err) {
+      app.log.error({ err, route: 'POST /wizard/bien', body }, 'Erreur création bien');
+      return reply.code(200).view('pages/wizard/bien.ejs', {
+        currentStep: 1,
+        totalSteps: 3,
+        valeurs: body,
+        erreurs: { _global: err instanceof Error ? err.message : 'Erreur inattendue' },
+      });
+    }
+
+    if (terminer) {
+      await marquerWizardComplete(opts.db);
+      app.log.info({ event: 'wizard_complete', step: 'bien', bienId, locataireId: null, bailId: null });
+      req.session.wizard = undefined;
+      req.session.banniereSuccess = 'Bien enregistré. Vous pourrez ajouter un locataire et un bail quand vous le souhaitez.';
+      return reply.redirect('/biens');
+    }
 
     req.session.wizard = { ...(req.session.wizard ?? {}), bienId };
     return reply.redirect('/wizard/locataire');
@@ -141,20 +162,41 @@ export async function plugin(
     }
 
     const data = parsed.data;
-    const locataireId = await creerLocataire(
-      {
-        nom: data.nom,
-        prenom: data.prenom,
-        dateNaissance: data.dateNaissance,
-        communeNaissance: data.communeNaissance,
-        paysNaissance: data.paysNaissance,
-        nationalite: data.nationalite,
-        email: data.email,
-        telephone: data.telephone ?? null,
-        adresseActuelle: { rue: data.rue, codePostal: data.codePostal, ville: data.ville },
-      },
-      opts.locataireRepo,
-    );
+    const terminer = (req.query as Record<string, string>)?.['terminer'] === '1';
+
+    let locataireId: string;
+    try {
+      locataireId = await creerLocataire(
+        {
+          nom: data.nom,
+          prenom: data.prenom,
+          dateNaissance: data.dateNaissance,
+          communeNaissance: data.communeNaissance,
+          paysNaissance: data.paysNaissance,
+          nationalite: data.nationalite,
+          email: data.email,
+          telephone: data.telephone ?? null,
+          adresseActuelle: { rue: data.rue, codePostal: data.codePostal, ville: data.ville },
+        },
+        opts.locataireRepo,
+      );
+    } catch (err) {
+      app.log.error({ err, route: 'POST /wizard/locataire', body }, 'Erreur création locataire');
+      return reply.code(200).view('pages/wizard/locataire.ejs', {
+        currentStep: 2,
+        totalSteps: 3,
+        valeurs: body,
+        erreurs: { _global: err instanceof Error ? err.message : 'Erreur inattendue' },
+      });
+    }
+
+    if (terminer) {
+      await marquerWizardComplete(opts.db);
+      app.log.info({ event: 'wizard_complete', step: 'locataire', bienId: req.session.wizard?.bienId, locataireId, bailId: null });
+      req.session.wizard = undefined;
+      req.session.banniereSuccess = 'Locataire enregistré. Vous pourrez créer un bail plus tard depuis le menu Baux.';
+      return reply.redirect('/biens');
+    }
 
     req.session.wizard = { ...req.session.wizard, locataireId };
     return reply.redirect('/wizard/bail');
@@ -242,24 +284,41 @@ export async function plugin(
           }
         : null;
 
-    const bailId = await creerBail(
-      {
-        bienId: wizardSession.bienId as BienId,
-        locataireId: wizardSession.locataireId as LocataireId,
-        lotIds: data.lotIds as LotId[],
-        dateDebut: Temporal.PlainDate.from(data.dateDebut),
-        dureeMois: data.dureeMois,
-        loyerHc: Money.fromEuros(data.loyerHcEuros),
-        modeCharges: data.modeCharges,
-        montantCharges: Money.fromEuros(data.montantChargesEuros),
-        depotGarantie: Money.fromEuros(data.depotGarantieEuros),
-        irlReference: IRL.creer({ trimestre: data.irlTrimestre, valeur: data.irlValeur }),
-        cautionnement: cautionnementCommande,
-      },
-      opts.bailRepo,
-      opts.bienRepo,
-      opts.locataireRepo,
-    );
+    let bailId: string;
+    try {
+      bailId = await creerBail(
+        {
+          bienId: wizardSession.bienId as BienId,
+          locataireId: wizardSession.locataireId as LocataireId,
+          lotIds: data.lotIds as LotId[],
+          dateDebut: Temporal.PlainDate.from(data.dateDebut),
+          dureeMois: data.dureeMois,
+          loyerHc: Money.fromEuros(data.loyerHcEuros),
+          modeCharges: data.modeCharges,
+          montantCharges: Money.fromEuros(data.montantChargesEuros),
+          depotGarantie: Money.fromEuros(data.depotGarantieEuros),
+          irlReference: IRL.creer({ trimestre: data.irlTrimestre, valeur: data.irlValeur }),
+          cautionnement: cautionnementCommande,
+        },
+        opts.bailRepo,
+        opts.bienRepo,
+        opts.locataireRepo,
+      );
+    } catch (err) {
+      app.log.error({ err, route: 'POST /wizard/bail', body }, 'Erreur création bail');
+      const [bien, locataire] = await Promise.all([
+        opts.bienRepo.trouverParId(wizardSession.bienId as BienId),
+        opts.locataireRepo.trouverParId(wizardSession.locataireId as LocataireId),
+      ]);
+      return reply.code(200).view('pages/wizard/bail.ejs', {
+        currentStep: 3,
+        totalSteps: 3,
+        bien,
+        locataire,
+        valeurs: body,
+        erreurs: { _global: err instanceof Error ? err.message : 'Erreur inattendue' },
+      });
+    }
 
     await marquerWizardComplete(opts.db);
     app.log.info({ event: 'wizard_complete', bienId: wizardSession.bienId, locataireId: wizardSession.locataireId, bailId });

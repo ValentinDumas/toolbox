@@ -103,7 +103,11 @@
     <input type="hidden" name="lots[0].etage" value="" />
   </fieldset>
 
-  <button type="submit">Enregistrer le bien</button>
+  <div class="actions-fin-etape">
+    <button type="submit" formaction="/wizard/bien">Enregistrer et continuer vers locataire</button>
+    <button type="submit" formaction="/wizard/bien?terminer=1" class="secondary">Terminer — ajouter locataire et bail plus tard</button>
+  </div>
+  <p><small>Vous pourrez créer le locataire et le bail plus tard depuis le menu principal.</small></p>
 
 </form>
 
