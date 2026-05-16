@@ -1,10 +1,11 @@
 ---
 phase: 3
 slug: conformit-du-bail-diagnostics-edl-irl-mobilier
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-16
+reviewed_at: 2026-05-16
 ---
 
 # Phase 3 — UI Design Contract
@@ -97,20 +98,20 @@ Semantic color assignments (D-47 — never color as sole differentiator):
 | Succès | `#16a34a` green | Banner "Révision IRL appliquée avec succès"; DPE badge for classes A and B |
 | Gel loyer (bloquant) | `#dc2626` red — `role="alert"` | Banner bloquant "Gel loyer Climat actif" (D-92) — same as erreur, blocking severity |
 
-DPE badge color map (D-78, D-80, D-92) — pairs color with text label, never color alone:
+DPE badge color map (D-78, D-80, D-92) — pairs color with text label, never color alone. Text color chosen to meet WCAG 1.4.3 contrast 4.5:1 on each background :
 
-| Classe DPE | Badge color | Text displayed |
-|------------|-------------|----------------|
-| A | `#16a34a` green | DPE A |
-| B | `#4ade80` light-green | DPE B |
-| C | `#a3e635` yellow-green | DPE C |
-| D | `#fbbf24` amber | DPE D |
-| E | `#f97316` orange | DPE E |
-| F | `#dc2626` red | DPE F — Gel loyer Climat |
-| G | `#991b1b` dark-red | DPE G — Gel loyer Climat |
-| null | `#6b7280` grey | DPE non renseigné |
+| Classe DPE | Badge background | Text color | Text displayed |
+|------------|------------------|------------|----------------|
+| A | `#16a34a` green | `#ffffff` white | DPE A |
+| B | `#4ade80` light-green | `#166534` dark-green | DPE B |
+| C | `#a3e635` yellow-green | `#365314` dark-olive | DPE C |
+| D | `#fbbf24` amber | `#78350f` dark-amber | DPE D |
+| E | `#f97316` orange | `#ffffff` white | DPE E |
+| F | `#dc2626` red | `#ffffff` white | DPE F — Gel loyer Climat |
+| G | `#991b1b` dark-red | `#ffffff` white | DPE G — Gel loyer Climat |
+| null | `#6b7280` grey | `#ffffff` white | DPE non renseigné |
 
-Implementation: inline `<span style="background:COLOR; color:white; padding: 2px 6px; border-radius: 4px; font-weight:600;" aria-label="Classe DPE : A">DPE A</span>`. Always pair with text — WCAG 1.4.1.
+Implementation: inline `<span style="background: <bg>; color: <text>; padding: 2px 6px; border-radius: 4px; font-weight:600;" aria-label="Classe DPE : A">DPE A</span>`. Always pair with text — WCAG 1.4.1. Text colors verified ≥ 4.5:1 ratio against background — WCAG 1.4.3 AA.
 
 ---
 
@@ -165,8 +166,8 @@ Wizard linéaire, step par step. Utilise `wizard-layout.ejs` (existant Phase 1).
 | Étape | URL | Contenu | CTA principal |
 |-------|-----|---------|---------------|
 | 1 (Banner) | (inline sur `/baux/:id`) | Banner informatif cliquable | "Lancer la révision IRL" |
-| 2 (Saisie) | `/baux/:id/indexer` | Formulaire 2 champs : trimestre + valeur IRL | "Simuler" |
-| 3 (Simulation) | `/baux/:id/indexer/simulation` | Tableau comparatif loyer avant/après + formule affichée | "Confirmer" ou "Retour" |
+| 2 (Saisie) | `/baux/:id/indexer` | Formulaire 2 champs : trimestre + valeur IRL | "Simuler la révision" |
+| 3 (Simulation) | `/baux/:id/indexer/simulation` | Tableau comparatif loyer avant/après + formule affichée | "Confirmer les valeurs" ou "Retour" |
 | 4 (Confirmation) | `/baux/:id/indexer/confirmer` | Bouton primaire "Appliquer" + bouton secondaire "Ne pas indexer" + paragraphe D-95 | "Appliquer la révision" / "Ne pas indexer cette année" |
 | 5 (Résultat) | redirect `/baux/:id` | `banniere-success` + lien "Télécharger l'avenant PDF" | "Télécharger l'avenant PDF" |
 
@@ -269,8 +270,8 @@ Tous les libellés en français. Vocabulaire métier ubiquitous (D-04 Phase 1).
 | Fiche Bien — section Diagnostics | "Ajouter un diagnostic" |
 | Formulaire Diagnostic | "Enregistrer le diagnostic" |
 | Fiche Bail — banner IRL | "Lancer la révision IRL" |
-| Wizard IRL étape 2 (saisie) | "Simuler" |
-| Wizard IRL étape 3 (simulation) | "Confirmer" |
+| Wizard IRL étape 2 (saisie) | "Simuler la révision" |
+| Wizard IRL étape 3 (simulation) | "Confirmer les valeurs" |
 | Wizard IRL étape 4 (confirmation) | "Appliquer la révision" |
 | Wizard IRL étape 4 (secondaire) | "Ne pas indexer cette année" |
 | Wizard IRL étape 5 | "Télécharger l'avenant PDF" |
@@ -368,7 +369,7 @@ Applicable à toutes les vues Phase 3. Conformément à D-44 Phase 1 (WCAG 2.1 A
 1. Breadcrumb "Baux / Bail de {locataire} / Révision IRL".
 2. Indicateur d'étapes (`<ol>` — tabulable mais `tabindex="-1"` sur les items non-courants).
 3. Contenu de l'étape courante (formulaire ou tableau de simulation).
-4. Boutons d'action (Appliquer / Ne pas indexer OU Confirmer / Retour / Annuler).
+4. Boutons d'action (Appliquer la révision / Ne pas indexer cette année OU Confirmer les valeurs / Retour / Annuler).
 5. Sidebar nav (navigation principale — en dernier via tabindex naturel du layout).
 
 ---
