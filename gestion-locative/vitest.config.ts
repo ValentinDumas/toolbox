@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+    reporter: ['dot'],
+    cache: { dir: '.vitest-cache' },
     exclude: ['tests/bdd/**', 'node_modules', 'dist', 'coverage'],
     testTimeout: 10000,
     passWithNoTests: true,

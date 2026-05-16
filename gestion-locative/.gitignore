@@ -6,5 +6,6 @@ coverage/
 *.sqlite-journal
 .pid
 .DS_Store
+.vitest-cache/
 .vscode/*
 !.vscode/settings.json
