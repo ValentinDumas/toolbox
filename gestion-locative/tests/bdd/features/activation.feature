@@ -34,3 +34,36 @@ Feature: Activation
     Given l'application a déjà complété le wizard
     When le bailleur visite "/"
     Then il est redirigé vers "/biens"
+
+  @gap-closure
+  Scenario: Bug G1 — submission wizard sans surface re-render avec erreur inline (pas de JSON 500)
+    Given l'application est lancée pour la première fois
+    When le bailleur soumet POST /wizard/bien avec lot type appartement et surface vide
+    Then la réponse a un statusCode 200
+    And la réponse contient le header Content-Type "text/html"
+    And la page ne contient pas '"statusCode":500'
+    And la page contient "obligatoire"
+    And la table SQLite bien contient 0 lignes
+
+  @gap-closure
+  Scenario: Wizard skippable — l'utilisateur termine après l'étape Bien seul
+    Given l'application est lancée pour la première fois
+    When le bailleur soumet POST /wizard/bien?terminer=1 avec un bien valide
+    Then il est redirigé vers "/biens"
+    And la page affiche "Bien enregistré"
+    And la table SQLite bien contient 1 ligne
+    And la table SQLite locataire contient 0 lignes
+    And la table SQLite bail contient 0 lignes
+    And la table SQLite meta contient wizard_complete=1
+
+  @gap-closure
+  Scenario: Wizard skippable — l'utilisateur termine après l'étape Locataire (sans Bail)
+    Given l'application est lancée pour la première fois
+    When le bailleur soumet le formulaire wizard bien avec l'adresse "12 rue des Lilas", code postal "75020", ville "Paris", surface 45, type "appartement", année 1985, lot désignation "Appartement principal", type lot "appartement"
+    And le bailleur soumet POST /wizard/locataire?terminer=1 avec un locataire valide
+    Then il est redirigé vers "/biens"
+    And la page affiche "Locataire enregistré"
+    And la table SQLite bien contient 1 ligne
+    And la table SQLite locataire contient 1 ligne
+    And la table SQLite bail contient 0 lignes
+    And la table SQLite meta contient wizard_complete=1
