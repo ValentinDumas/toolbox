@@ -6,7 +6,6 @@
 
 <h1>Bail de <%= locataire.prenom %> <%= locataire.nom %> au <%= bien.adresse.enLigne() %></h1>
 
-<%- include('../../partials/banniere-success', { message: locals.banniereSuccess }) %>
 <%- include('../../partials/banniere-warning', { message: locals.banniereWarning }) %>
 
 <h2>Locataire</h2>
@@ -43,6 +42,10 @@
 <dl>
   <dt>Date de début</dt><dd><%= formatDate(bail.dateDebut) %></dd>
   <dt>Durée</dt><dd><%= bail.dureeMois %> mois</dd>
+  <% if (bail.actifDepuis !== null) { %>
+    <dt>Actif depuis</dt>
+    <dd><%= formatDate(bail.actifDepuis) %></dd>
+  <% } %>
 </dl>
 
 <h2>IRL de référence</h2>

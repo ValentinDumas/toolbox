@@ -1,0 +1,26 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Ouverture du client mail',
+  breadcrumbs: [
+    { url: '/impayes', label: 'Impayés' },
+    { label: 'Relance enregistrée' }
+  ],
+  navActive: 'relances'
+}) %>
+
+<h1>Relance niveau <%= niveau %> enregistrée</h1>
+
+<p>Le client mail va s'ouvrir automatiquement avec un brouillon pré-rempli. Si rien ne se passe, cliquez sur le bouton ci-dessous.</p>
+
+<p>
+  <a href="<%= mailtoUri %>" role="button">Ouvrir le mail</a>
+</p>
+
+<p>
+  <a href="<%= retourUrl %>">← Retour aux impayés</a>
+</p>
+
+<script>
+  window.location.href = <%- JSON.stringify(mailtoUri) %>;
+</script>
+
+<%- include('../../partials/layout-fin') %>

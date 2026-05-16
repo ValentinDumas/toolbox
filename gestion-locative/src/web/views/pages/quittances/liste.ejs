@@ -4,17 +4,20 @@
   navActive: 'quittances'
 }) %>
 
-<%- include('../../partials/banniere-success', { message: locals.banniereSuccess }) %>
 <%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
 
 <h1>Quittances de loyer</h1>
 
+<p>
+  <a href="/echeances?statut=payee" role="button">Émettre une quittance</a>
+</p>
+
 <% if (quittancesEnrichies.length === 0) { %>
   <%- include('../../partials/empty-state', {
     heading: 'Aucune quittance émise',
-    body: 'Les quittances apparaîtront ici après émission depuis la page Échéances.',
-    ctaLabel: null,
-    ctaUrl: null
+    body: 'Émettez votre première quittance depuis une échéance payée.',
+    ctaLabel: 'Émettre une quittance',
+    ctaUrl: '/echeances?statut=payee'
   }) %>
 <% } else { %>
 <div role="region" aria-label="Tableau des quittances">

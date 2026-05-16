@@ -1,7 +1,9 @@
 <section aria-label="État vide">
   <h1><%= locals.heading %></h1>
   <p><%= locals.body %></p>
-  <a href="<%= locals.ctaUrl %>" role="button"><%= locals.ctaLabel %></a>
+  <% if (locals.ctaUrl && locals.ctaLabel) { %>
+    <a href="<%= locals.ctaUrl %>" role="button"><%= locals.ctaLabel %></a>
+  <% } %>
   <% if (locals.ctaAlt) { %>
     <a href="<%= locals.ctaAlt.url %>" role="button" class="secondary"><%= locals.ctaAlt.label %></a>
   <% } %>

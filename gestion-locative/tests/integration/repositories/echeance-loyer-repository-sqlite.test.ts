@@ -145,6 +145,103 @@ describe('EcheanceLoyerRepositorySqlite', () => {
     expect(await detector.aDeLActivite(bail2.id)).toBe(false);
   });
 
+  // Tests listerTous (G6 gap closure)
+  describe('listerTous', () => {
+    let bailId2: BailId;
+
+    beforeEach(async () => {
+      // Créer un second bail
+      const lot2 = unLotValide({ designation: 'Appt 2' });
+      const bien2 = unBienValide({ lots: [lot2] });
+      await bienRepo.enregistrer(bien2);
+      const locataire2 = unLocataireValide({ email: 'autre@example.fr' });
+      await locataireRepo.enregistrer(locataire2);
+      const bail2 = unBailValide({
+        bienId: bien2.id,
+        locataireId: locataire2.id,
+        lotIds: [lot2.id],
+      });
+      await bailRepo.enregistrer(bail2);
+      bailId2 = bail2.id;
+    });
+
+    function creerEcheancePour(bId: BailId, overrides: { periodeDebut?: string; statut?: 'en_attente' | 'partiellement_payee' | 'payee' | 'annulee' } = {}): EcheanceLoyer {
+      const periodeDebut = Temporal.PlainDate.from(overrides.periodeDebut ?? '2026-05-01');
+      const periodeFin = periodeDebut.with({ day: periodeDebut.daysInMonth });
+      const loyerHc = Money.fromEuros(620);
+      const montantCharges = Money.fromEuros(80);
+      return EcheanceLoyer.creer({
+        bailId: bId,
+        periodeDebut,
+        periodeFin,
+        jourEcheanceAttendue: periodeDebut.with({ day: 5 }),
+        loyerHc,
+        montantCharges,
+        modeCharges: 'forfait',
+        total: loyerHc.additionner(montantCharges),
+        statut: overrides.statut ?? 'en_attente',
+        annuleLe: null,
+      });
+    }
+
+    it('T1 sans filtre retourne toutes les échéances triées par période DESC', async () => {
+      const e1 = creerEcheancePour(bailId, { periodeDebut: '2026-05-01', statut: 'en_attente' });
+      const e2 = creerEcheancePour(bailId, { periodeDebut: '2026-04-01', statut: 'partiellement_payee' });
+      const e3 = creerEcheancePour(bailId2, { periodeDebut: '2026-03-01', statut: 'payee' });
+      const e4 = creerEcheancePour(bailId2, { periodeDebut: '2026-02-01', statut: 'annulee' });
+
+      await echeanceRepo.enregistrerBatch([e1, e2, e3, e4]);
+
+      const result = await echeanceRepo.listerTous();
+      expect(result).toHaveLength(4);
+      // Triées par periode_debut DESC : mai > avr > mars > fév
+      expect(result[0]!.periodeDebut.toString()).toBe('2026-05-01');
+      expect(result[1]!.periodeDebut.toString()).toBe('2026-04-01');
+      expect(result[2]!.periodeDebut.toString()).toBe('2026-03-01');
+      expect(result[3]!.periodeDebut.toString()).toBe('2026-02-01');
+    });
+
+    it('T2 filtre bailId retourne uniquement les échéances de ce bail', async () => {
+      const e1 = creerEcheancePour(bailId, { periodeDebut: '2026-05-01', statut: 'en_attente' });
+      const e2 = creerEcheancePour(bailId, { periodeDebut: '2026-04-01', statut: 'partiellement_payee' });
+      const e3 = creerEcheancePour(bailId2, { periodeDebut: '2026-03-01', statut: 'payee' });
+      const e4 = creerEcheancePour(bailId2, { periodeDebut: '2026-02-01', statut: 'annulee' });
+
+      await echeanceRepo.enregistrerBatch([e1, e2, e3, e4]);
+
+      const result = await echeanceRepo.listerTous({ bailId });
+      expect(result).toHaveLength(2);
+      expect(result.every((e) => e.bailId === bailId)).toBe(true);
+    });
+
+    it('T3 filtre statut retourne uniquement les échéances du statut demandé', async () => {
+      const e1 = creerEcheancePour(bailId, { periodeDebut: '2026-05-01', statut: 'en_attente' });
+      const e2 = creerEcheancePour(bailId, { periodeDebut: '2026-04-01', statut: 'partiellement_payee' });
+      const e3 = creerEcheancePour(bailId2, { periodeDebut: '2026-03-01', statut: 'payee' });
+      const e4 = creerEcheancePour(bailId2, { periodeDebut: '2026-02-01', statut: 'annulee' });
+
+      await echeanceRepo.enregistrerBatch([e1, e2, e3, e4]);
+
+      const result = await echeanceRepo.listerTous({ statut: 'payee' });
+      expect(result).toHaveLength(1);
+      expect(result[0]!.statut).toBe('payee');
+    });
+
+    it('T4 filtre combiné bailId + statut retourne uniquement les correspondances', async () => {
+      const e1 = creerEcheancePour(bailId, { periodeDebut: '2026-05-01', statut: 'en_attente' });
+      const e2 = creerEcheancePour(bailId, { periodeDebut: '2026-04-01', statut: 'partiellement_payee' });
+      const e3 = creerEcheancePour(bailId2, { periodeDebut: '2026-03-01', statut: 'en_attente' });
+      const e4 = creerEcheancePour(bailId2, { periodeDebut: '2026-02-01', statut: 'annulee' });
+
+      await echeanceRepo.enregistrerBatch([e1, e2, e3, e4]);
+
+      const result = await echeanceRepo.listerTous({ bailId, statut: 'en_attente' });
+      expect(result).toHaveLength(1);
+      expect(result[0]!.bailId).toBe(bailId);
+      expect(result[0]!.statut).toBe('en_attente');
+    });
+  });
+
   // T10: listerNonPayees — filtre statut ∈ {en_attente, partiellement_payee}, exclut payee + annulee
   it('T10: listerNonPayees retourne uniquement les échéances en_attente et partiellement_payee, ordonnées par jour_echeance_attendue ASC', async () => {
     // 4 échéances : 1 payee, 1 annulee, 1 en_attente, 1 partiellement_payee

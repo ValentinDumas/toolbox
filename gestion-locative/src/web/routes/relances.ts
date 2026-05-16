@@ -111,9 +111,16 @@ export async function plugin(
           .send(resultat.pdfBuffer);
       }
 
-      // Canal email : redirect vers /impayes avec bannière succès
+      // Canal email (niveaux 1, 2) — gap G8 : afficher page intermédiaire qui
+      // auto-trigger window.location.href = mailtoUri (ouvre le client mail).
+      // Voir .planning/debug/g8-relance-mailto-pas-ouvert.md pour la root cause.
       req.session.banniereSuccess = `Relance niveau ${niveau} enregistrée.`;
-      return reply.redirect('/impayes');
+      return reply.view('pages/relances/ouverture-mail.ejs', {
+        mailtoUri: resultat.mailtoUri,
+        niveau,
+        retourUrl: '/impayes',
+        navActive: 'relances',
+      });
     } catch (err) {
       if (err instanceof RelanceNiveauNonDisponible) {
         return reply.code(422).send(err.message);
