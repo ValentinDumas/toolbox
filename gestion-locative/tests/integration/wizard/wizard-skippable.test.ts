@@ -179,7 +179,8 @@ describe('wizard skippable — terminer après Bien ou Locataire', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.body).toContain('Aucun bail pour l\'instant');
+    // EJS <%= %> encode l'apostrophe en &#39; — chercher la version encodée
+    expect(response.body).toContain('Aucun bail pour l&#39;instant');
     expect(response.body).toContain('Créer un bail');
   });
 });

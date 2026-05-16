@@ -1,0 +1,15 @@
+<%- include('../partials/layout-debut', {
+  titre: 'Erreur',
+  breadcrumbs: [{ label: 'Erreur' }],
+  navActive: null
+}) %>
+
+<h1>Erreur inattendue</h1>
+
+<aside role="alert">
+  <p><%= message %></p>
+</aside>
+
+<p><a href="/">Retour à l'accueil</a></p>
+
+<%- include('../partials/layout-fin') %>

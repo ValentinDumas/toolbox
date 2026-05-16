@@ -1,19 +1,34 @@
 import { z } from 'zod';
 
-export const lotCreationSchema = z.object({
-  designation: z.string().trim().min(1, 'La désignation est obligatoire.'),
-  surface: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
-    z.number().positive('La surface doit être > 0.').nullable(),
-  ),
-  type: z.enum(['appartement', 'parking', 'cave', 'local_commercial', 'terrasse', 'autre'], {
-    errorMap: () => ({ message: "Le type de lot est invalide." }),
-  }),
-  etage: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
-    z.number().int('L\'étage doit être un entier.').nullable(),
-  ),
-});
+export const lotCreationSchema = z
+  .object({
+    designation: z.string().trim().min(1, 'La désignation est obligatoire.'),
+    surface: z.preprocess(
+      (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+      z.number().positive('La surface doit être > 0.').nullable(),
+    ),
+    type: z.enum(['appartement', 'parking', 'cave', 'local_commercial', 'terrasse', 'autre'], {
+      errorMap: () => ({ message: "Le type de lot est invalide." }),
+    }),
+    etage: z.preprocess(
+      (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+      z.number().int("L'étage doit être un entier.").nullable(),
+    ),
+  })
+  .superRefine((data, ctx) => {
+    // Défense en profondeur : aligne le schéma Zod sur l'invariant domaine.
+    // Si le type de lot exige une surface mesurable, elle doit être > 0.
+    if (data.type === 'appartement' || data.type === 'local_commercial') {
+      if (data.surface == null || data.surface <= 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['surface'],
+          message:
+            'La surface est obligatoire et doit être > 0 pour un lot de type appartement ou local commercial.',
+        });
+      }
+    }
+  });
 
 export type LotCreationData = z.infer<typeof lotCreationSchema>;
 

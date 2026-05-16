@@ -142,6 +142,21 @@ export async function creerApp(
     return payload;
   });
 
+  // Gestionnaire d'erreurs global — défense en profondeur (T-01-08-01).
+  // Distingue HTML (Accept: text/html) de JSON pour les API.
+  // Ne sérialise PAS err.stack côté client (mitigation T-01-08-01 information disclosure).
+  app.setErrorHandler(async (err: Error & { statusCode?: number }, req, reply) => {
+    req.log.error({ err, url: req.url, method: req.method }, 'erreur non interceptée');
+    const acceptsHtml = req.headers['accept']?.includes('text/html') ?? false;
+    const message = err.message || 'Erreur inattendue';
+    const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
+
+    if (acceptsHtml) {
+      return reply.code(statusCode).view('pages/erreur.ejs', { message, navActive: null });
+    }
+    return reply.code(statusCode).send({ error: message });
+  });
+
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo });
