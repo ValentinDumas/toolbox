@@ -35,7 +35,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. L'utilisateur peut créer une fiche `Locataire` (identité, contact). _Note V1 : le garant relève du `Cautionnement` porté par le `Bail` (D-33). Les pièces justificatives sont différées Phase 4 — Coffre documentaire (D-32)._
   4. L'utilisateur peut créer un `Bail` meublé classique (durée 1 an min, loyer HC, forfait ou provisions, dépôt ≤ 2 mois HC, clause IRL) reliant un `Bien`/`Lot` à un `Locataire`.
   5. KPI Activation : un utilisateur ouvrant l'app pour la première fois peut, en une session unique, aboutir à 1 Bien + 1 Locataire + 1 Bail visibles dans une liste persistée.
-**Plans:** 7/7 plans executed
+  6. L'utilisateur peut interrompre le wizard après l'étape Bien ou Locataire et reprendre plus tard via les listes — `meta.wizard_complete` est posé et la sortie est tracée dans les logs (`event: wizard_complete, step: bien|locataire`).
+**Plans:** 8/8 plans executed
 Plans:
 - [x] 01-01-project-init-PLAN.md — Scaffolding TS/pnpm/Vitest/Cucumber/ESLint/dependency-cruiser/Mise (wave 0)
 - [x] 01-02-walking-skeleton-PLAN.md — Walking Skeleton bout-en-bout : Fastify + SQLite + 1 Bien + 1 Lot via formulaire minimal (wave 1, PAT-01)
@@ -44,6 +45,7 @@ Plans:
 - [x] 01-05-bail-classique-PLAN.md — Bail meublé classique + VOs Money/IRL/Cautionnement (LOC-02) (wave 4)
 - [x] 01-06-activation-wizard-PLAN.md — Wizard 3 étapes premier lancement + session (wave 5)
 - [x] 01-07-ui-polish-PLAN.md — Partials EJS + helpers format français + audit a11y (wave 6)
+- [x] 01-08-gap-closure-uat-p02-PLAN.md — Fermeture gaps UAT P02 : validation inline G1 + wizard skippable G2 (wave 7)
 **UI hint:** yes
 
 ### Phase 2: Quittancement — Échéances, Encaissements, Relances
@@ -141,7 +143,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Activation — Bien, Locataire, Bail | 6/7 | In Progress|  |
+| 1. Activation — Bien, Locataire, Bail | 8/8 | Complete | 2026-05-16 |
 | 2. Quittancement — Échéances, Encaissements, Relances | 0/6 | Not started | - |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/TBD | Not started | - |
 | 4. Coffre documentaire & Travaux | 0/TBD | Not started | - |
