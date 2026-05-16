@@ -49,3 +49,15 @@ Feature: Relances escaladées — ENC-05
     Then la réponse est un PDF avec Content-Type application/pdf
     And le PDF contient "MISE EN DEMEURE"
     And aucune nouvelle relance n'est créée en base
+
+  @enc-05 @gap-G8
+  Scenario: G8 — POST /relances canal email retourne page intermédiaire avec auto-trigger
+    Given un bail activé avec un locataire et une échéance impayée depuis 15 jours (clock 2026-05-20)
+    When le bailleur soumet POST /relances avec niveau 1
+    Then la réponse est HTML 200 avec auto-trigger mailto et lien retour
+
+  @enc-05 @gap-G8
+  Scenario: G8 régression R1 — POST /relances canal pdf reste application/pdf
+    Given un bail activé avec relances 1 et 2 envoyées et échéance impayée à J+60
+    When le bailleur soumet POST /relances avec niveau 3
+    Then la réponse est un PDF avec Content-Type application/pdf

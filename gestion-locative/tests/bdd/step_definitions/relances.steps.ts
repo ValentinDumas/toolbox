@@ -490,6 +490,29 @@ Then(
 );
 
 Then(
+  'la réponse est HTML 200 avec auto-trigger mailto et lien retour',
+  function (this: MondeRelance) {
+    assert.strictEqual(this.dernierStatut, 200, `Statut attendu 200, reçu ${this.dernierStatut}`);
+    assert.ok(
+      this.dernierContentType.startsWith('text/html'),
+      `Content-Type attendu text/html, reçu ${this.dernierContentType}`,
+    );
+    assert.ok(
+      /href="mailto:[^"]+/.test(this.dernierCorps),
+      'La page doit contenir un lien href mailto: (fallback)',
+    );
+    assert.ok(
+      this.dernierCorps.includes('window.location.href'),
+      'La page doit contenir le script auto-trigger window.location.href',
+    );
+    assert.ok(
+      this.dernierCorps.includes('/impayes'),
+      'La page doit contenir un lien retour vers /impayes',
+    );
+  },
+);
+
+Then(
   "aucune nouvelle relance n'est créée en base",
   async function (this: MondeRelance) {
     assert.ok(this.db, 'DB non initialisée');
