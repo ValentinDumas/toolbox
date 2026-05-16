@@ -10,11 +10,16 @@ import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { BailId } from '../../domain/_shared/identifiants.js';
 import { activerBail } from '../../application/encaissements/activer-bail.js';
-import { listerEcheancesParBail } from '../../application/encaissements/lister-echeances.js';
+import { listerEcheancesParBail, listerToutesEcheances } from '../../application/encaissements/lister-echeances.js';
+import type { StatutEcheanceLoyer } from '../../domain/encaissements/echeance-loyer.js';
 import { BailIntrouvable } from '../../domain/locatif/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import { EcheanceLoyerIntrouvable } from '../../domain/encaissements/erreurs.js';
 import { construireAvisEcheance } from '../../infrastructure/pdf/avis-echeance-doc-def.js';
+
+const STATUTS_VALIDES: ReadonlySet<string> = new Set([
+  'en_attente', 'partiellement_payee', 'payee', 'annulee',
+]);
 
 export async function plugin(
   app: FastifyInstance,
@@ -28,6 +33,55 @@ export async function plugin(
     clock: Clock;
   },
 ): Promise<void> {
+
+  // GET /echeances — liste globale avec filtres optionnels (gap G6)
+  app.get('/echeances', async (req, reply) => {
+    const query = req.query as { bail?: string; statut?: string };
+    const bailFiltre = query.bail && query.bail.length > 0 ? query.bail : null;
+    const statutFiltre = query.statut && STATUTS_VALIDES.has(query.statut)
+      ? (query.statut as StatutEcheanceLoyer)
+      : null;
+
+    const filtres: { bailId?: BailId; statut?: StatutEcheanceLoyer } = {};
+    if (bailFiltre) filtres.bailId = bailFiltre as BailId;
+    if (statutFiltre) filtres.statut = statutFiltre;
+
+    const echeances = await listerToutesEcheances(filtres, opts.echeanceLoyerRepo);
+
+    // Pour le <select bail>, charger tous les baux + leurs locataires
+    const [tousLesBaux, locataires] = await Promise.all([
+      opts.bailRepo.listerTous(),
+      opts.locataireRepo.listerTous(),
+    ]);
+    const locataireParId = new Map(locataires.map((l) => [l.id, l]));
+    const bauxParId = new Map(tousLesBaux.map((b) => [b.id, b]));
+
+    // Enrichir chaque échéance avec son locataire
+    const lignes = echeances.map((e) => {
+      const bail = bauxParId.get(e.bailId);
+      const locataire = bail ? locataireParId.get(bail.locataireId) : undefined;
+      return {
+        echeance: e,
+        locataireNomComplet: locataire ? `${locataire.prenom} ${locataire.nom}` : '—',
+      };
+    });
+
+    const bauxPourSelect = tousLesBaux.map((b) => ({
+      id: b.id,
+      libelle: (() => {
+        const loc = locataireParId.get(b.locataireId);
+        return loc ? `${loc.prenom} ${loc.nom} — Bail ${b.id.substring(0, 8)}` : `Bail ${b.id.substring(0, 8)}`;
+      })(),
+    }));
+
+    return reply.view('pages/echeances/liste-globale.ejs', {
+      lignes,
+      bauxPourSelect,
+      bailFiltre,
+      statutFiltre,
+      navActive: 'echeances',
+    });
+  });
 
   // GET /baux/:id/activer — formulaire d'activation
   app.get('/baux/:id/activer', async (req, reply) => {

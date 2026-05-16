@@ -24,4 +24,13 @@ export interface EcheanceLoyerRepository {
 
   /** Supprime physiquement des échéances par IDs (D-73 — jamais encaissées, donc hard-delete OK). */
   supprimerLot(ids: EcheanceLoyerId[]): Promise<void>;
+
+  /**
+   * Liste toutes les échéances avec filtres optionnels.
+   * - filtres.bailId : restreint à un bail (UUID).
+   * - filtres.statut : restreint à un statut donné.
+   * Tri primaire periode_debut DESC, secondaire jour_echeance_attendue ASC.
+   * NE FILTRE PAS automatiquement annule_le — les annulées sont visibles si statut='annulee' demandé.
+   */
+  listerTous(filtres?: { bailId?: BailId; statut?: StatutEcheanceLoyer }): Promise<EcheanceLoyer[]>;
 }

@@ -106,6 +106,21 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
       .execute();
   }
 
+  async listerTous(filtres: { bailId?: BailId; statut?: StatutEcheanceLoyer } = {}): Promise<EcheanceLoyer[]> {
+    let q = this.db.selectFrom('echeance_loyer').selectAll();
+    if (filtres.bailId !== undefined) {
+      q = q.where('bail_id', '=', filtres.bailId);
+    }
+    if (filtres.statut !== undefined) {
+      q = q.where('statut', '=', filtres.statut);
+    }
+    const rows = await q
+      .orderBy('periode_debut', 'desc')
+      .orderBy('jour_echeance_attendue', 'asc')
+      .execute();
+    return rows.map((r) => this.versDomaine(r as EcheanceLoyerRow));
+  }
+
   private versRow(e: EcheanceLoyer) {
     return {
       id: e.id,

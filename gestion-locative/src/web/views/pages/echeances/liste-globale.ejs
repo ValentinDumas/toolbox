@@ -1,0 +1,92 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Toutes les échéances',
+  breadcrumbs: [{ label: 'Échéances' }],
+  navActive: 'echeances'
+}) %>
+
+<h1>Toutes les échéances</h1>
+
+<form method="GET" action="/echeances" style="margin-bottom: 1rem;">
+  <label for="filtre-bail">Bail
+    <select id="filtre-bail" name="bail">
+      <option value="">— Tous les baux —</option>
+      <% bauxPourSelect.forEach(function(b) { %>
+        <option value="<%= b.id %>"<%= bailFiltre === b.id ? ' selected' : '' %>><%= b.libelle %></option>
+      <% }); %>
+    </select>
+  </label>
+
+  <label for="filtre-statut">Statut
+    <select id="filtre-statut" name="statut">
+      <option value="">— Tous les statuts —</option>
+      <option value="en_attente"<%= statutFiltre === 'en_attente' ? ' selected' : '' %>>En attente</option>
+      <option value="partiellement_payee"<%= statutFiltre === 'partiellement_payee' ? ' selected' : '' %>>Partiellement payée</option>
+      <option value="payee"<%= statutFiltre === 'payee' ? ' selected' : '' %>>Payée</option>
+      <option value="annulee"<%= statutFiltre === 'annulee' ? ' selected' : '' %>>Annulée</option>
+    </select>
+  </label>
+
+  <button type="submit">Filtrer</button>
+  <a href="/echeances" role="button" class="secondary">Réinitialiser</a>
+</form>
+
+<% if (lignes.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucune échéance ne correspond aux filtres',
+    body: bailFiltre || statutFiltre ? 'Modifiez les filtres ou réinitialisez-les pour voir toutes les échéances.' : 'Aucune échéance générée pour le moment. Activez un bail pour générer ses échéances.',
+    ctaLabel: bailFiltre || statutFiltre ? 'Réinitialiser les filtres' : 'Voir les baux',
+    ctaUrl: bailFiltre || statutFiltre ? '/echeances' : '/baux'
+  }) %>
+<% } else { %>
+<div role="region" aria-label="Tableau des échéances">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Locataire</th>
+        <th scope="col">Bail</th>
+        <th scope="col">Période</th>
+        <th scope="col">Échéance le</th>
+        <th scope="col">Total</th>
+        <th scope="col">Statut</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% lignes.forEach(function(ligne) { %>
+      <% var e = ligne.echeance; %>
+      <tr>
+        <td><%= ligne.locataireNomComplet %></td>
+        <td><a href="/baux/<%= e.bailId %>"><%= e.bailId.substring(0, 8) %></a></td>
+        <td><%= formatPeriode(e.periodeDebut) %></td>
+        <td><%= formatDate(e.jourEcheanceAttendue) %></td>
+        <td><strong><%= formatMoney(e.total) %></strong></td>
+        <td>
+          <% if (e.statut === 'payee') { %>Payée
+          <% } else if (e.statut === 'partiellement_payee') { %>Partielle
+          <% } else if (e.statut === 'annulee') { %>Annulée
+          <% } else { %>En attente
+          <% } %>
+        </td>
+        <td>
+          <% if (e.statut !== 'annulee') { %>
+            <a href="/echeances/<%= e.id %>/avis-pdf">Avis PDF</a>
+          <% } %>
+          <% if (e.statut !== 'annulee' && e.statut !== 'payee') { %>
+            &nbsp; <a href="/encaissements/nouveau?echeance=<%= e.id %>">Encaisser</a>
+          <% } %>
+          <% if (e.statut === 'payee') { %>
+            &nbsp;
+            <form method="POST" action="/quittances" style="display:inline;">
+              <input type="hidden" name="echeanceId" value="<%= e.id %>" />
+              <button type="submit">Générer quittance</button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>
