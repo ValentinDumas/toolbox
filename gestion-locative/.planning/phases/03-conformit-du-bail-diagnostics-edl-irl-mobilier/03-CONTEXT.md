@@ -2,6 +2,7 @@
 
 **Gathered:** 2026-05-16
 **Status:** Ready for planning
+**Note skip:** No RESEARCH.md / VALIDATION.md emitted for Phase 3 — CONTEXT.md + PATTERNS.md + UI-SPEC.md (~210K combined) cover the technical design space (libraries verrouillées Phase 1 D-01..D-27, patterns Phase 1/2 re-joués, références juridiques opposables LOCATION_MEUBLEE_REGLES.md + LMNP.md). Acknowledged checker warning 5 (Phase 3 revision iteration 1).
 
 <domain>
 ## Phase Boundary
