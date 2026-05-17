@@ -7,8 +7,8 @@
 <% if (!inventaire || inventaire.length === 0) { %>
   <p><em>Inventaire vide.</em></p>
 <% } else { %>
-  <table>
-    <caption>Inventaire mobilier</caption>
+  <table role="table" aria-label="Inventaire mobilier (12 items décret 2015-981)">
+    <caption class="sr-only">Inventaire mobilier (12 items décret 2015-981)</caption>
     <thead>
       <tr>
         <th scope="col">Élément</th>

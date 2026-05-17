@@ -7,7 +7,7 @@
 %>
 
 <% if (locals.warningsTexte && locals.warningsTexte.length > 0) { %>
-  <aside role="alert" class="warning-zone">
+  <aside role="status" aria-live="polite" class="warning-zone">
     <h3>Avertissements non bloquants</h3>
     <ul>
       <% locals.warningsTexte.forEach(function(w) { %>
@@ -18,7 +18,7 @@
 <% } %>
 
 <% if (locals.deltaWarnings && locals.deltaWarnings.length > 0) { %>
-  <aside role="alert" class="warning-zone">
+  <aside role="status" aria-live="polite" class="warning-zone">
     <h3>Delta entrée/sortie — points de vigilance</h3>
     <ul>
       <% locals.deltaWarnings.forEach(function(w) { %>

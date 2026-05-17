@@ -123,12 +123,14 @@
   }) %>
 <% } %>
 
-<h2>État des lieux</h2>
-<p>
-  <a href="/baux/<%= bail.id %>/edl/entree">EDL d'entrée</a>
-  &nbsp;|&nbsp;
-  <a href="/baux/<%= bail.id %>/edl/sortie">EDL de sortie</a>
-</p>
+<section aria-labelledby="edl-heading">
+  <h2 id="edl-heading">État des lieux</h2>
+  <p>
+    <a href="/baux/<%= bail.id %>/edl/entree">EDL d'entrée</a>
+    &nbsp;|&nbsp;
+    <a href="/baux/<%= bail.id %>/edl/sortie">EDL de sortie</a>
+  </p>
+</section>
 
 <section aria-labelledby="indexations-heading">
   <h2 id="indexations-heading">Historique des indexations IRL</h2>

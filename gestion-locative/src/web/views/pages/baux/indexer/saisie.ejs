@@ -21,6 +21,7 @@
     type="text"
     pattern="(\d{4}-T[1-4]|[1-4]T\d{4})"
     required
+    autofocus
     value="<%= locals.valeurs && valeurs.irl_trimestre ? valeurs.irl_trimestre : '' %>"
     aria-describedby="hint-trimestre<% if (erreurs && erreurs.irl_trimestre) { %> err-trimestre<% } %>"
   />

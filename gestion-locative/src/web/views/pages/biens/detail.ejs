@@ -137,6 +137,36 @@
       ctaUrl: '/biens/' + bien.id + '/diagnostics/nouveau',
       ctaLabel: 'Ajouter un diagnostic'
     }) %>
+  <% } else if (bien.classeDpe === null || bien.classeDpe === undefined) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Classe DPE non renseignée',
+      body: 'Aucun diagnostic DPE valide n\'est associé à ce bien. La classe DPE est nécessaire pour vérifier le gel loyer Climat (DPE F/G) avant indexation IRL.',
+      ctaUrl: '/biens/' + bien.id + '/diagnostics/nouveau',
+      ctaLabel: 'Ajouter un DPE'
+    }) %>
+    <table role="table" aria-label="Diagnostics du bien">
+      <caption class="sr-only">Diagnostics du bien</caption>
+      <thead>
+        <tr>
+          <th scope="col">Type</th>
+          <th scope="col">Date d'émission</th>
+          <th scope="col">Date d'expiration</th>
+          <th scope="col">Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% bien.diagnostics.forEach(function(d) { %>
+          <%- include('../../partials/partial-diagnostic-row', {
+            d: d,
+            today: today,
+            helpers: { formaterTypeDiagnostic: formaterTypeDiagnostic, formatDate: formatDate, formaterStatutDiagnostic: formaterStatutDiagnostic }
+          }) %>
+        <% }) %>
+      </tbody>
+    </table>
+    <p>
+      <a href="/biens/<%= bien.id %>/diagnostics/nouveau" role="button">Ajouter un diagnostic</a>
+    </p>
   <% } else { %>
     <table role="table" aria-label="Diagnostics du bien">
       <caption class="sr-only">Diagnostics du bien</caption>

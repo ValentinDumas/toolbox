@@ -1,3 +1,15 @@
+<%
+/*
+ * sidebar-nav.ejs — Navigation principale (top-level liens).
+ *
+ * Phase 3 (UI-SPEC §Sidebar, décision D-40 sobriété) : AUCUN nouveau top-level.
+ * Diagnostics accessibles depuis la fiche Bien, EDL et révision IRL depuis la fiche Bail.
+ * Ne pas ajouter de lien top-level sans révision explicite de la décision D-40.
+ *
+ * Active state via `locals.navActive` injecté par chaque route — applique
+ * aria-current="page" sur le lien correspondant (WCAG 4.1.2).
+ */
+%>
 <nav aria-label="Navigation principale">
   <ul>
     <li>
