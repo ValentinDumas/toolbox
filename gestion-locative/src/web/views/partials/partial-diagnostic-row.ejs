@@ -1,0 +1,20 @@
+<%
+/*
+ * partial-diagnostic-row.ejs — Ligne de tableau pour un Diagnostic.
+ * Variables attendues :
+ *   d       : Diagnostic (type, classeDpe, dateEmission, dateExpiration, estExpire())
+ *   today   : Temporal.PlainDate (injecté par le preHandler clock)
+ *   helpers : { formaterTypeDiagnostic, formatDate, formaterStatutDiagnostic }
+ */
+const expire = d.estExpire(today);
+%>
+<tr<% if (expire) { %> class="row-warning"<% } %>>
+  <td>
+    <%= helpers.formaterTypeDiagnostic(d.type) %><% if (d.type === 'dpe' && d.classeDpe) { %> — <%= d.classeDpe %><% } %>
+  </td>
+  <td><%= helpers.formatDate(d.dateEmission) %></td>
+  <td><%= d.dateExpiration === null ? '—' : helpers.formatDate(d.dateExpiration) %></td>
+  <td<% if (expire) { %> style="color: #dc2626;"<% } %>>
+    <%= helpers.formaterStatutDiagnostic(d.dateExpiration, today) %>
+  </td>
+</tr>

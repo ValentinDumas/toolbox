@@ -32,6 +32,13 @@ export function estLotId(s: string): s is LotId {
   return UUID_V4_REGEX.test(s);
 }
 
+// Phase 3 — identifiants nouveaux sous-agrégats
+export type DiagnosticId = string & { readonly __brand: 'DiagnosticId' };
+
+export function nouveauDiagnosticId(): DiagnosticId {
+  return crypto.randomUUID() as DiagnosticId;
+}
+
 // Phase 2 — identifiants nouveaux agrégats
 export type BailleurId = string & { readonly __brand: 'BailleurId' };
 export type EcheanceLoyerId = string & { readonly __brand: 'EcheanceLoyerId' };

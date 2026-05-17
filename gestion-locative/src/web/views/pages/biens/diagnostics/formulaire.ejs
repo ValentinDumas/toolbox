@@ -1,0 +1,71 @@
+<%
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+%>
+<%- include('../../../partials/layout-debut', {
+  titre: 'Ajouter un diagnostic — ' + bien.adresse.enLigne(),
+  breadcrumbs: locals.breadcrumbs,
+  navActive: 'biens',
+  banniereSuccess: null
+}) %>
+
+<h1>Ajouter un diagnostic — <%= bien.adresse.enLigne() %></h1>
+
+<% if (erreurs._global) { %>
+  <div role="alert" class="error-msg"><%= erreurs._global %></div>
+<% } %>
+
+<form method="POST" action="/biens/<%= bien.id %>/diagnostics" novalidate>
+
+  <div class="field">
+    <label for="type">Type de diagnostic <span aria-hidden="true">*</span></label>
+    <select
+      id="type"
+      name="type"
+      required
+      aria-describedby="type-error"
+      <% if (erreurs.type) { %>aria-invalid="true"<% } %>
+    >
+      <option value="">— Sélectionner —</option>
+      <option value="dpe" <%= valeurs.type === 'dpe' ? 'selected' : '' %>>DPE</option>
+      <option value="gaz" <%= valeurs.type === 'gaz' ? 'selected' : '' %>>Gaz</option>
+      <option value="elec" <%= valeurs.type === 'elec' ? 'selected' : '' %>>Électricité</option>
+      <option value="erp" <%= valeurs.type === 'erp' ? 'selected' : '' %>>ERP (risques et pollutions)</option>
+    </select>
+    <span id="type-error" role="alert" class="error-msg" <% if (!erreurs.type) { %>hidden<% } %>><%= erreurs.type || '' %></span>
+  </div>
+
+  <%- include('../../../partials/form-field', {
+    id: 'date_emission',
+    name: 'date_emission',
+    label: "Date d'émission",
+    type: 'date',
+    value: valeurs.date_emission || '',
+    required: true,
+    erreur: erreurs.date_emission || null
+  }) %>
+
+  <div class="field">
+    <label for="classe_dpe">Classe DPE</label>
+    <select
+      id="classe_dpe"
+      name="classe_dpe"
+      aria-describedby="classe_dpe-hint classe_dpe-error"
+      <% if (erreurs.classe_dpe) { %>aria-invalid="true"<% } %>
+    >
+      <option value="">— Sélectionner —</option>
+      <% ['A','B','C','D','E','F','G'].forEach(function(c) { %>
+        <option value="<%= c %>" <%= valeurs.classe_dpe === c ? 'selected' : '' %>><%= c %></option>
+      <% }) %>
+    </select>
+    <small id="classe_dpe-hint">Obligatoire si type = DPE.</small>
+    <span id="classe_dpe-error" role="alert" class="error-msg" <% if (!erreurs.classe_dpe) { %>hidden<% } %>><%= erreurs.classe_dpe || '' %></span>
+  </div>
+
+  <button type="submit">Enregistrer le diagnostic</button>
+  &nbsp;
+  <a href="/biens/<%= bien.id %>" role="button" class="secondary">Annuler</a>
+
+</form>
+
+<%- include('../../../partials/layout-fin') %>

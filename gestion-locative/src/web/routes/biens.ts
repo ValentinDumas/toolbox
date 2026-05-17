@@ -90,7 +90,9 @@ export async function plugin(
         'Ce bien n\'existe pas ou a été supprimé. Retournez à la liste des biens.',
       );
     }
-    return reply.view('pages/biens/detail.ejs', { bien, banniereSuccess: null });
+    const banniereSuccess = req.session.banniereSuccess ?? null;
+    if (banniereSuccess) req.session.banniereSuccess = undefined;
+    return reply.view('pages/biens/detail.ejs', { bien, banniereSuccess });
   });
 
   // GET /biens/:id/modifier — formulaire édition

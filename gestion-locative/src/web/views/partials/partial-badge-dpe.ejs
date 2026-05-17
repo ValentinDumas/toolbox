@@ -1,0 +1,21 @@
+<%
+/*
+ * partial-badge-dpe.ejs — Badge DPE coloré avec aria-label (accessibilité WCAG 1.4.1 + 1.4.3).
+ * Variable attendue : classe (ClasseDpe | null)
+ * Couleurs vérifiées ≥ 4.5:1 ratio texte/fond — UI-SPEC L101-114.
+ * Toujours paire couleur + texte (jamais couleur seule).
+ */
+const dpeMap = {
+  A: { bg: '#16a34a', fg: '#ffffff', label: 'DPE A' },
+  B: { bg: '#4ade80', fg: '#166534', label: 'DPE B' },
+  C: { bg: '#a3e635', fg: '#365314', label: 'DPE C' },
+  D: { bg: '#fbbf24', fg: '#78350f', label: 'DPE D' },
+  E: { bg: '#f97316', fg: '#ffffff', label: 'DPE E' },
+  F: { bg: '#dc2626', fg: '#ffffff', label: 'DPE F — Gel loyer Climat' },
+  G: { bg: '#991b1b', fg: '#ffffff', label: 'DPE G — Gel loyer Climat' },
+};
+const item = (classe && dpeMap[classe]) ? dpeMap[classe] : { bg: '#6b7280', fg: '#ffffff', label: 'DPE non renseigné' };
+%><span
+  style="background: <%= item.bg %>; color: <%= item.fg %>; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; white-space: nowrap;"
+  aria-label="Classe DPE : <%= classe ?? 'non renseignée' %>"
+><%= item.label %></span>

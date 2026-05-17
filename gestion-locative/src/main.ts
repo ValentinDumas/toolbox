@@ -12,6 +12,9 @@ import type { Kysely } from 'kysely';
 import { formatDate } from './helpers/format-date.js';
 import { formatMoney } from './helpers/format-money.js';
 import { formatPeriode } from './helpers/format-periode.js';
+import { formaterClasseDpe } from './helpers/format-classe-dpe.js';
+import { formaterTypeDiagnostic } from './helpers/format-type-diagnostic.js';
+import { formaterStatutDiagnostic } from './helpers/format-statut-diagnostic.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
 import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
@@ -46,6 +49,7 @@ import { plugin as encaissementsPlugin } from './web/routes/encaissements.js';
 import { plugin as quittancesPlugin } from './web/routes/quittances.js';
 import { plugin as impayesPlugin } from './web/routes/impayes.js';
 import { plugin as relancesPlugin } from './web/routes/relances.js';
+import { plugin as diagnosticsPlugin } from './web/routes/diagnostics.js';
 import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
 import {
   verifierDejaLance,
@@ -120,11 +124,16 @@ export async function creerApp(
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
   // Les routes continuent à gérer banniereSuccess elles-mêmes (pas de double lecture de session).
   app.addHook('preHandler', async (_req, reply) => {
+    const today = clock.aujourdhui();
     reply.locals = {
       ...(reply.locals ?? {}),
       formatDate,
       formatMoney,
       formatPeriode,
+      formaterClasseDpe,
+      formaterTypeDiagnostic,
+      formaterStatutDiagnostic,
+      today,
     };
   });
 
@@ -160,6 +169,7 @@ export async function creerApp(
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo });
+  await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, clock });
   await app.register(bailleurPlugin, { bailleurRepo });
