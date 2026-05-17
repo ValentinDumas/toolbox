@@ -1,6 +1,11 @@
-import { Before, After, Given, When, Then } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
+
+import { Before, After, Given, When, Then } from '@cucumber/cucumber';
 import { Temporal } from '@js-temporal/polyfill';
+
+import { Diagnostic } from '../../../src/domain/patrimoine/diagnostic.js';
+import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
+import { unBienValide } from '../../_builders/patrimoine.js';
 import {
   type MondePhase3,
   initialiserMondePhase3,
@@ -8,10 +13,6 @@ import {
   extraireCookies,
   cookieHeader,
 } from '../../_world/monde-phase3.js';
-import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
-import { Diagnostic } from '../../../src/domain/patrimoine/diagnostic.js';
-import { unBienValide, unDiagnosticDpeValide } from '../../_builders/patrimoine.js';
-import type { BienId } from '../../../src/domain/_shared/identifiants.js';
 
 // ─── Before/After pour @phase3 ──────────────────────────────────────────────
 
@@ -49,7 +50,7 @@ Given(
 );
 
 Given(
-  'un Bien Phase 3 avec un DPE expiré date_emission={string} classe_dpe={string}',
+  /^un Bien Phase 3 avec un DPE expiré date_emission=(\S+) classe_dpe=(\S+)$/,
   async function (this: MondePhase3, dateEmissionStr: string, classeDpe: string) {
     assert.ok(this.db, 'DB non initialisée');
     const bienRepo = new BienRepositorySqlite(this.db);
@@ -66,7 +67,7 @@ Given(
 );
 
 Given(
-  'un Bien Phase 3 avec 2 DPE successifs date_emission={string} classe={string} et date_emission={string} classe={string}',
+  /^un Bien Phase 3 avec 2 DPE successifs date_emission=(\S+) classe=(\S+) et date_emission=(\S+) classe=(\S+)$/,
   async function (
     this: MondePhase3,
     date1: string,
@@ -96,7 +97,7 @@ Given(
 // ─── When ────────────────────────────────────────────────────────────────────
 
 When(
-  'le bailleur soumet POST /biens/:id/diagnostics avec type=dpe date_emission={string} classe_dpe={string}',
+  /^le bailleur soumet POST \/biens\/:id\/diagnostics avec type=dpe date_emission=(.+) classe_dpe=(.+)$/,
   async function (this: MondePhase3, dateEmission: string, classeDpe: string) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.bienId, 'bienId non défini');
@@ -114,7 +115,7 @@ When(
 );
 
 When(
-  'le bailleur soumet POST /biens/:id/diagnostics avec type=erp date_emission={string}',
+  /^le bailleur soumet POST \/biens\/:id\/diagnostics avec type=erp date_emission=(.+)$/,
   async function (this: MondePhase3, dateEmission: string) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.bienId, 'bienId non défini');
@@ -132,7 +133,7 @@ When(
 );
 
 When(
-  'le bailleur soumet POST /biens/:id/diagnostics avec type=dpe date_emission={string} sans classe_dpe',
+  /^le bailleur soumet POST \/biens\/:id\/diagnostics avec type=dpe date_emission=(.+) sans classe_dpe$/,
   async function (this: MondePhase3, dateEmission: string) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.bienId, 'bienId non défini');
@@ -150,7 +151,7 @@ When(
 );
 
 When(
-  'le bailleur navigue vers GET /biens/:id',
+  /^le bailleur navigue vers GET \/biens\/:id$/,
   async function (this: MondePhase3) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.bienId, 'bienId non défini');
@@ -202,16 +203,6 @@ Then(
 );
 
 Then(
-  'la page affiche {string}',
-  function (this: MondePhase3, texte: string) {
-    assert.ok(
-      this.dernierCorps.includes(texte),
-      `Page ne contient pas "${texte}"\nExtrait: ${this.dernierCorps.substring(0, 500)}`,
-    );
-  },
-);
-
-Then(
   'la colonne classe_dpe du Bien en base est {string}',
   function (this: MondePhase3, classeAttendue: string) {
     assert.ok(this.sqlite, 'SQLite non initialisée');
@@ -225,7 +216,7 @@ Then(
 );
 
 Then(
-  'la table diagnostics contient 1 ligne avec type=dpe date_emission={string} date_expiration={string}',
+  /^la table diagnostics contient 1 ligne avec type=dpe date_emission=(\S+) date_expiration=(\S+)$/,
   function (this: MondePhase3, dateEmission: string, dateExpiration: string) {
     assert.ok(this.sqlite, 'SQLite non initialisée');
     assert.ok(this.bienId, 'bienId non défini');

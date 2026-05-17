@@ -1,4 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
+
 import { Diagnostic } from '../../domain/patrimoine/diagnostic.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';

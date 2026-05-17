@@ -1,4 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
+
 import { InvariantViolated } from '../_shared/erreurs.js';
 import { nouveauDiagnosticId, type DiagnosticId } from '../_shared/identifiants.js';
 import {

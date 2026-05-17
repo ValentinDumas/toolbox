@@ -49,6 +49,7 @@ import { plugin as encaissementsPlugin } from './web/routes/encaissements.js';
 import { plugin as quittancesPlugin } from './web/routes/quittances.js';
 import { plugin as impayesPlugin } from './web/routes/impayes.js';
 import { plugin as relancesPlugin } from './web/routes/relances.js';
+import { plugin as diagnosticsPlugin } from './web/routes/diagnostics.js';
 import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
 import {
   verifierDejaLance,
@@ -168,6 +169,7 @@ export async function creerApp(
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo });
+  await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, clock });
   await app.register(bailleurPlugin, { bailleurRepo });

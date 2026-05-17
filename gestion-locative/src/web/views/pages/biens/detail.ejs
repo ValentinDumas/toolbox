@@ -115,4 +115,53 @@
   <button type="submit">Ajouter un lot</button>
 </form>
 
+
+<section aria-labelledby="diagnostics-heading">
+  <h2 id="diagnostics-heading">Diagnostics <%- include('../../partials/partial-badge-dpe', { classe: bien.classeDpe }) %></h2>
+
+  <%
+    const diagnosticsExpires = bien.diagnostics.filter(function(d) { return d.estExpire(today); });
+  %>
+  <% if (diagnosticsExpires.length > 0) { %>
+    <aside class="banniere-warning" aria-live="polite" style="background: #fef3c7; border-left: 4px solid #d97706; padding: 12px 16px; margin-bottom: 16px;">
+      &#9888; Le diagnostic <%= formaterTypeDiagnostic(diagnosticsExpires[0].type) %> a expiré
+      <% if (diagnosticsExpires[0].dateExpiration) { %>le <%= formatDate(diagnosticsExpires[0].dateExpiration) %><% } %>.
+      Pensez à le renouveler avant la prochaine relocation.
+    </aside>
+  <% } %>
+
+  <% if (bien.diagnostics.length === 0) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Aucun diagnostic enregistré',
+      body: 'Les diagnostics obligatoires (DPE, gaz, électricité, ERP) doivent être annexés au bail.',
+      ctaUrl: '/biens/' + bien.id + '/diagnostics/nouveau',
+      ctaLabel: 'Ajouter un diagnostic'
+    }) %>
+  <% } else { %>
+    <table role="table" aria-label="Diagnostics du bien">
+      <caption class="sr-only">Diagnostics du bien</caption>
+      <thead>
+        <tr>
+          <th scope="col">Type</th>
+          <th scope="col">Date d'émission</th>
+          <th scope="col">Date d'expiration</th>
+          <th scope="col">Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% bien.diagnostics.forEach(function(d) { %>
+          <%- include('../../partials/partial-diagnostic-row', {
+            d: d,
+            today: today,
+            helpers: { formaterTypeDiagnostic: formaterTypeDiagnostic, formatDate: formatDate, formaterStatutDiagnostic: formaterStatutDiagnostic }
+          }) %>
+        <% }) %>
+      </tbody>
+    </table>
+    <p>
+      <a href="/biens/<%= bien.id %>/diagnostics/nouveau" role="button">Ajouter un diagnostic</a>
+    </p>
+  <% } %>
+</section>
+
 <%- include('../../partials/layout-fin') %>
