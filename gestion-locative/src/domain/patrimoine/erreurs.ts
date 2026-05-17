@@ -4,3 +4,10 @@ export class BienIntrouvable extends Error {
     this.name = 'BienIntrouvable';
   }
 }
+
+export class DiagnosticIntrouvable extends Error {
+  constructor(id: string) {
+    super(`Diagnostic introuvable : ${id}`);
+    this.name = 'DiagnosticIntrouvable';
+  }
+}

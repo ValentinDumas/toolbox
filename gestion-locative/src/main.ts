@@ -12,6 +12,9 @@ import type { Kysely } from 'kysely';
 import { formatDate } from './helpers/format-date.js';
 import { formatMoney } from './helpers/format-money.js';
 import { formatPeriode } from './helpers/format-periode.js';
+import { formaterClasseDpe } from './helpers/format-classe-dpe.js';
+import { formaterTypeDiagnostic } from './helpers/format-type-diagnostic.js';
+import { formaterStatutDiagnostic } from './helpers/format-statut-diagnostic.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
 import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
@@ -120,11 +123,16 @@ export async function creerApp(
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
   // Les routes continuent à gérer banniereSuccess elles-mêmes (pas de double lecture de session).
   app.addHook('preHandler', async (_req, reply) => {
+    const today = clock.aujourdhui();
     reply.locals = {
       ...(reply.locals ?? {}),
       formatDate,
       formatMoney,
       formatPeriode,
+      formaterClasseDpe,
+      formaterTypeDiagnostic,
+      formaterStatutDiagnostic,
+      today,
     };
   });
 

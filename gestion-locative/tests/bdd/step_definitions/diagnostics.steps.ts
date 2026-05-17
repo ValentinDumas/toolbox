@@ -2,7 +2,7 @@ import { Before, After, Given, When, Then } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import { Temporal } from '@js-temporal/polyfill';
 import {
-  MondePhase3,
+  type MondePhase3,
   initialiserMondePhase3,
   fermerMondePhase3,
   extraireCookies,

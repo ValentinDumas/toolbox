@@ -11,9 +11,21 @@ export interface BienTable {
   surface: number;
   type: 'appartement' | 'maison' | 'immeuble' | 'local_commercial';
   annee_construction: number;
+  classe_dpe: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | null;
   cree_le: Generated<string>;
   modifie_le: Generated<string>;
   supprime_le: string | null;
+}
+
+// Phase 3 — Diagnostics techniques immobiliers (PAT-03)
+export interface DiagnosticsTable {
+  id: string;
+  bien_id: string;
+  type: 'dpe' | 'gaz' | 'elec' | 'erp';
+  date_emission: string;
+  date_expiration: string | null;
+  classe_dpe: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | null;
+  cree_le: Generated<string>;
 }
 
 export interface LotTable {
@@ -148,4 +160,5 @@ export interface DB {
   encaissement: EncaissementTable;
   quittance: QuittanceTable;
   relance: RelanceTable;
+  diagnostics: DiagnosticsTable;
 }
