@@ -254,6 +254,18 @@ export async function plugin(
       return reply.code(404).send('Données du bail incomplètes (bien ou locataire introuvable).');
     }
 
+    // Phase 3-03 D-90 — calcul indexabilité + date dernier anniversaire pour banner.
+    const today = clock.aujourdhui();
+    let bailIndexable = false;
+    let dateAnniversaire: Temporal.PlainDate | null = null;
+    if (bail.actifDepuis !== null) {
+      const premierAnniversaire = bail.dateDebut.add({ years: 1 });
+      if (Temporal.PlainDate.compare(today, premierAnniversaire) >= 0) {
+        bailIndexable = true;
+        dateAnniversaire = bail.dateAnniversaireProchaine(today).subtract({ years: 1 });
+      }
+    }
+
     // Lire et vider les bannières de session
     const banniereSuccess = req.session.banniereSuccess ?? null;
     let banniereWarning = req.session.banniereWarning ?? null;
@@ -277,6 +289,8 @@ export async function plugin(
       aDeLActivite,
       banniereSuccess,
       banniereWarning,
+      bailIndexable,
+      dateAnniversaire,
       navActive: 'baux',
       formatDate,
     });

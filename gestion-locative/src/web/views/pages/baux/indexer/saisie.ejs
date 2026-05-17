@@ -1,0 +1,54 @@
+<%- include('../../../partials/layout-debut', {
+  titre: 'Révision IRL — saisie',
+  breadcrumbs: breadcrumbs,
+  navActive: 'baux'
+}) %>
+
+<%- include('../../../partials/wizard-irl-layout', { currentStep: 2 }) %>
+
+<h1>Saisir le nouvel IRL</h1>
+<p>Récupérez la valeur IRL sur <a href="https://www.insee.fr/" target="_blank" rel="noopener">insee.fr</a>.</p>
+
+<% if (locals.erreurs && erreurs._global) { %>
+  <aside role="alert" class="error-msg"><%= erreurs._global %></aside>
+<% } %>
+
+<form method="POST" action="/baux/<%= bail.id %>/indexer/simuler" novalidate>
+  <label for="irl_trimestre">Trimestre IRL <span aria-hidden="true">*</span></label>
+  <input
+    id="irl_trimestre"
+    name="irl_trimestre"
+    type="text"
+    pattern="(\d{4}-T[1-4]|[1-4]T\d{4})"
+    required
+    value="<%= locals.valeurs && valeurs.irl_trimestre ? valeurs.irl_trimestre : '' %>"
+    aria-describedby="hint-trimestre<% if (erreurs && erreurs.irl_trimestre) { %> err-trimestre<% } %>"
+  />
+  <small id="hint-trimestre">Format : 2026-T1 ou 1T2026.</small>
+  <% if (erreurs && erreurs.irl_trimestre) { %>
+    <small id="err-trimestre" role="alert" class="error-msg"><%= erreurs.irl_trimestre %></small>
+  <% } %>
+
+  <label for="irl_valeur">Valeur IRL <span aria-hidden="true">*</span></label>
+  <input
+    id="irl_valeur"
+    name="irl_valeur"
+    type="number"
+    step="0.01"
+    min="1"
+    required
+    value="<%= locals.valeurs && valeurs.irl_valeur ? valeurs.irl_valeur : '' %>"
+    aria-describedby="hint-valeur<% if (erreurs && erreurs.irl_valeur) { %> err-valeur<% } %>"
+  />
+  <small id="hint-valeur">Valeur publiée par l'INSEE (ex 145.47).</small>
+  <% if (erreurs && erreurs.irl_valeur) { %>
+    <small id="err-valeur" role="alert" class="error-msg"><%= erreurs.irl_valeur %></small>
+  <% } %>
+
+  <p>
+    <button type="submit">Simuler la révision</button>
+    <a href="/baux/<%= bail.id %>" role="button" class="secondary">Annuler</a>
+  </p>
+</form>
+
+<%- include('../../../partials/layout-fin') %>

@@ -53,6 +53,7 @@ import { plugin as impayesPlugin } from './web/routes/impayes.js';
 import { plugin as relancesPlugin } from './web/routes/relances.js';
 import { plugin as diagnosticsPlugin } from './web/routes/diagnostics.js';
 import { plugin as etatsDesLieuxPlugin } from './web/routes/etats-des-lieux.js';
+import { plugin as indexationsPlugin } from './web/routes/indexations.js';
 import { EtatDesLieuxRepositorySqlite } from './infrastructure/repositories/etat-des-lieux-repository-sqlite.js';
 import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
 import {
@@ -179,6 +180,7 @@ export async function creerApp(
   await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, clock });
+  await app.register(indexationsPlugin, { bailRepo, bienRepo: repo, locataireRepo });
   await app.register(etatsDesLieuxPlugin, { bailRepo, edlRepo });
   await app.register(bailleurPlugin, { bailleurRepo });
   await app.register(echeancesPlugin, {

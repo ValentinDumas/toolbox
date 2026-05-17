@@ -8,6 +8,13 @@
 
 <%- include('../../partials/banniere-warning', { message: locals.banniereWarning }) %>
 
+<% if (locals.bailIndexable && locals.dateAnniversaire) { %>
+  <%- include('../../partials/partial-indexation-banner', {
+    bailId: bail.id,
+    dateAnniversaire: locals.dateAnniversaire
+  }) %>
+<% } %>
+
 <h2>Locataire</h2>
 <dl>
   <dt>Nom</dt><dd><%= locataire.nom %></dd>

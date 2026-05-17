@@ -1,0 +1,42 @@
+<%- include('../../../partials/layout-debut', {
+  titre: 'Révision IRL — simulation',
+  breadcrumbs: breadcrumbs,
+  navActive: 'baux'
+}) %>
+
+<%- include('../../../partials/wizard-irl-layout', { currentStep: 3 }) %>
+
+<h1>Simulation de la révision</h1>
+
+<table role="table" aria-label="Simulation révision IRL">
+  <tbody>
+    <tr><th scope="row">Loyer actuel (HC)</th><td><%= formatMoney(result.loyerAvant) %></td></tr>
+    <tr><th scope="row">IRL de référence</th><td><%= formaterTrimestreIRL(result.irlAvant.trimestre) %> — <%= result.irlAvant.valeur %></td></tr>
+    <tr><th scope="row">Nouvel IRL saisi</th><td><%= formaterTrimestreIRL(result.irlApres.trimestre) %> — <%= result.irlApres.valeur %></td></tr>
+    <tr>
+      <th scope="row"><strong>Nouveau loyer calculé (HC)</strong></th>
+      <td><strong><%= formatMoney(result.loyerApres) %></strong></td>
+    </tr>
+    <tr>
+      <th scope="row">Différence</th>
+      <td>
+        <% if (result.loyerApres.toCentimes() >= result.loyerAvant.toCentimes()) { %>
+          + <%= formatMoney(result.loyerApres.soustraire(result.loyerAvant)) %>
+        <% } else { %>
+          − <%= formatMoney(result.loyerAvant.soustraire(result.loyerApres)) %>
+        <% } %>
+      </td>
+    </tr>
+    <tr><th scope="row">Formule</th><td><%= result.formule %></td></tr>
+  </tbody>
+</table>
+
+<form method="POST" action="/baux/<%= bail.id %>/indexer/confirmer">
+  <p>
+    <button type="submit">Confirmer les valeurs</button>
+    <a href="/baux/<%= bail.id %>/indexer" role="button" class="secondary">Retour</a>
+    <a href="/baux/<%= bail.id %>" role="button" class="contrast">Annuler</a>
+  </p>
+</form>
+
+<%- include('../../../partials/layout-fin') %>

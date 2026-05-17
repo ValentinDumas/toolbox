@@ -277,15 +277,16 @@ export class Bail {
     }
     // Sémantique : "anniversaire atteint maintenant" → on retourne l'anniversaire suivant.
     // Cherche le plus petit N tel que dateDebut + N ans > today (strictement).
+    // Sur dateDebut bissextile (29 fév), Temporal clamp à 28 fév les années
+    // non bissextiles ; on commence à diff.years puis on incrémente récursivement.
     const diff = this.dateDebut.until(today, { largestUnit: 'years' });
-    // Note : sur dateDebut bissextile (29 fév), Temporal clamp à 28 fév les années
-    // non bissextiles ; diff peut donc valoir { years: N-1, months: 11, days: 28 }
-    // alors que dateDebut + N ans == today. On itère pour gérer ce cas.
-    let n = diff.years;
-    while (Temporal.PlainDate.compare(this.dateDebut.add({ years: n }), today) <= 0) {
-      n += 1;
-    }
-    return this.dateDebut.add({ years: n });
+    const prochainDepuis = (n: number): Temporal.PlainDate => {
+      const candidat = this.dateDebut.add({ years: n });
+      return Temporal.PlainDate.compare(candidat, today) > 0
+        ? candidat
+        : prochainDepuis(n + 1);
+    };
+    return prochainDepuis(diff.years);
   }
 
   /**

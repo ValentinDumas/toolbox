@@ -99,7 +99,7 @@ When('le bailleur ouvre la fiche du Bail', async function (this: MondePhase3) {
 });
 
 When(
-  'le bailleur ouvre GET /baux/:id/indexer',
+  /^le bailleur ouvre GET \/baux\/:id\/indexer$/,
   async function (this: MondePhase3) {
     assert.ok(this.app && this.bailId);
     const resp = await this.app.inject({
@@ -147,13 +147,6 @@ Then(
     );
   },
 );
-
-Then('la page contient {string}', function (this: MondePhase3, texte: string) {
-  assert.ok(
-    this.dernierCorps.includes(texte),
-    `Le corps ne contient pas "${texte}". Statut ${this.dernierStatut}. Extrait : ${this.dernierCorps.slice(0, 500)}`,
-  );
-});
 
 Then(
   /^la page (?:LOC-04|LOC-05) ne contient PAS "([^"]+)"$/,
