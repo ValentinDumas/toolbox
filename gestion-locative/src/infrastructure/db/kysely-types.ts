@@ -164,6 +164,22 @@ export interface RelanceTable {
   cree_le: Generated<string>;
 }
 
+// Phase 3 — BailIndexation append-only (LOC-04 apply, D-96)
+export interface BailIndexationsTable {
+  id: string;
+  bail_id: string;
+  date_effet: string;
+  irl_avant_trimestre: string;
+  irl_avant_valeur: string;
+  irl_apres_trimestre: string;
+  irl_apres_valeur: string;
+  loyer_avant_centimes: number;
+  loyer_apres_centimes: number;
+  indexation_appliquee: 0 | 1;
+  raison_non_application: 'gel_dpe' | 'refus_bailleur' | null;
+  cree_le: Generated<string>;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -178,4 +194,5 @@ export interface DB {
   relance: RelanceTable;
   diagnostics: DiagnosticsTable;
   etat_des_lieux: EtatDesLieuxTable;
+  bail_indexations: BailIndexationsTable;
 }

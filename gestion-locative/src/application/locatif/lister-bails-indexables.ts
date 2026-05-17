@@ -1,5 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
+import type { BailIndexationRepository } from '../../domain/locatif/bail-indexation-repository.js';
 import type { BailId } from '../../domain/_shared/identifiants.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 
@@ -18,19 +19,35 @@ import type { Clock } from '../../domain/_shared/clock.js';
  * Phase 7 (dashboard cross-Bien).
  */
 export async function listerBailsIndexables(
-  repos: { bailRepo: BailRepository },
+  repos: {
+    bailRepo: BailRepository;
+    /** Optional Phase 3-04 : exclut les bails déjà indexés dans les 12 derniers mois. */
+    bailIndexationRepo?: BailIndexationRepository;
+  },
   clock: Clock,
 ): Promise<BailId[]> {
   const today = clock.aujourdhui();
   const bails = await repos.bailRepo.listerTous();
 
-  return bails
+  const candidats = bails
     .filter((b) => b.actifDepuis !== null)
     .filter((b) => {
-      // Le bail est indexable dès que today >= dateDebut + 1 an
-      // (au moins un anniversaire est survenu depuis le démarrage).
       const premierAnniversaire = b.dateDebut.add({ years: 1 });
       return Temporal.PlainDate.compare(today, premierAnniversaire) >= 0;
-    })
-    .map((b) => b.id);
+    });
+
+  if (!repos.bailIndexationRepo) {
+    return candidats.map((b) => b.id);
+  }
+
+  const seuilDouze = today.subtract({ months: 12 });
+  const indexables: BailId[] = [];
+  for (const b of candidats) {
+    const derniere = await repos.bailIndexationRepo.dernierePourBail(b.id);
+    if (derniere && Temporal.PlainDate.compare(derniere.dateEffet, seuilDouze) > 0) {
+      continue;
+    }
+    indexables.push(b.id);
+  }
+  return indexables;
 }

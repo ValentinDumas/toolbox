@@ -313,4 +313,43 @@ export class Bail {
     const nouveauLoyerHc = this.loyerHc.multiplyByRatio(num, den, 'banker');
     return { nouveauLoyerHc, gelLoyer: false };
   }
+
+  /**
+   * Phase 3 — LOC-04 apply. Copy-on-write : pivot du loyer + de l'IRL de référence.
+   *
+   * Le check de gel Climat F/G est responsabilité du use case (cross-aggregate :
+   * le Bail ne connaît pas Bien.classeDpe). On passe `null` à simulerIndexation
+   * pour bypass le check côté domaine — le use case a déjà refusé en amont.
+   *
+   * Note : `dateEffet` n'est pas utilisé pour le pivot du bail lui-même (le bail
+   * n'a pas de notion de date-d'effet métier). Elle est conservée dans la
+   * signature pour exprimer le métier (et utilisée par le use case pour créer
+   * la ligne BailIndexation + filtrer les échéances futures à régénérer).
+   */
+  appliquerIndexation(
+    irlNouveau: IRL,
+    _dateEffet: Temporal.PlainDate,
+  ): Bail {
+    const result = this.simulerIndexation(irlNouveau, null);
+    return Bail.creer({
+      ...this.toProps(),
+      loyerHc: result.nouveauLoyerHc,
+      irlReference: irlNouveau,
+    });
+  }
+
+  /**
+   * Phase 3 — LOC-04 renoncer (D-95). Copy-on-write minimal : pivot de l'IRL
+   * de référence seulement (loyer inchangé).
+   *
+   * Cas d'usage : le bailleur renonce à l'indexation cette année — l'IRL est
+   * tout de même mis à jour pour que la prochaine révision parte de la bonne
+   * base, sinon le bailleur resterait bloqué indéfiniment sur l'ancien indice.
+   */
+  pivoterIrlReference(irlNouveau: IRL): Bail {
+    return Bail.creer({
+      ...this.toProps(),
+      irlReference: irlNouveau,
+    });
+  }
 }

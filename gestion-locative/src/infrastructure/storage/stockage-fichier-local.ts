@@ -81,6 +81,62 @@ export class StockageFichierLocal {
   }
 
   /**
+   * Phase 3-04 — Écrit un fichier PDF d'avenant IRL sur disque.
+   * Strictement symétrique à `ecrireQuittance` (flag 'wx' immutable, D-63).
+   *
+   * Retourne le chemin RELATIF à baseDir.
+   */
+  async ecrireAvenant(annee: number, nomFichier: string, buffer: Buffer): Promise<string> {
+    const cheminAbsolu = path.join(this.baseDir, 'avenants', String(annee), nomFichier);
+    await fs.mkdir(path.dirname(cheminAbsolu), { recursive: true });
+    await fs.writeFile(cheminAbsolu, buffer, { flag: 'wx' });
+    return path.join('avenants', String(annee), nomFichier);
+  }
+
+  /**
+   * Phase 3-04 — Lit un fichier PDF d'avenant depuis son chemin relatif à baseDir.
+   * Strictement symétrique à `lireQuittance` (NULL byte check + realpath boundary).
+   */
+  async lireAvenant(cheminRelatif: string): Promise<Buffer> {
+    if (cheminRelatif.includes('\0')) {
+      throw new FichierIntrouvable(cheminRelatif);
+    }
+
+    const cheminAbsolu = path.resolve(this.baseDir, cheminRelatif);
+    const baseDirResolu = path.resolve(this.baseDir);
+    if (!cheminAbsolu.startsWith(baseDirResolu + path.sep) && cheminAbsolu !== baseDirResolu) {
+      throw new FichierIntrouvable(cheminRelatif);
+    }
+
+    let cheminReel: string;
+    let baseDirReel: string;
+    try {
+      baseDirReel = await fs.realpath(baseDirResolu);
+      cheminReel = await fs.realpath(cheminAbsolu);
+    } catch (err: unknown) {
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code === 'ENOENT') {
+        throw new FichierIntrouvable(cheminRelatif);
+      }
+      throw err;
+    }
+    if (!cheminReel.startsWith(baseDirReel + path.sep) && cheminReel !== baseDirReel) {
+      throw new FichierIntrouvable(cheminRelatif);
+    }
+
+    try {
+      const data = await fs.readFile(cheminReel);
+      return Buffer.from(data);
+    } catch (err: unknown) {
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code === 'ENOENT') {
+        throw new FichierIntrouvable(cheminRelatif);
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Slugifie une chaîne en [a-z0-9-] uniquement.
    * Protection contre path traversal et caractères dangereux.
    * "René Dupré-Martin" → "rene-dupre-martin"

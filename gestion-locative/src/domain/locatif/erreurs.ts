@@ -53,6 +53,15 @@ export class EDLDejaAnnule extends Error {
  * Defense en profondeur : la route UI a déjà filtré, mais le use case rejette
  * tout calcul d'indexation côté serveur — interdiction du décret n° 2022-1313.
  */
+// Phase 3 — Plan 04 : BailIndexation introuvable (LOC-04 apply)
+
+export class BailIndexationIntrouvable extends Error {
+  constructor(id: string) {
+    super(`Indexation de bail introuvable : ${id}`);
+    this.name = 'BailIndexationIntrouvable';
+  }
+}
+
 export class GelLoyerClimatActif extends Error {
   readonly bailId: string;
   readonly classeDpe: 'F' | 'G';

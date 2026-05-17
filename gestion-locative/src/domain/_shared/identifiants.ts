@@ -46,6 +46,13 @@ export function nouveauEtatDesLieuxId(): EtatDesLieuxId {
   return crypto.randomUUID() as EtatDesLieuxId;
 }
 
+// Phase 3 plan 04 — BailIndexation agrégat append-only (LOC-04 apply, D-96)
+export type BailIndexationId = string & { readonly __brand: 'BailIndexationId' };
+
+export function nouveauBailIndexationId(): BailIndexationId {
+  return crypto.randomUUID() as BailIndexationId;
+}
+
 // Phase 2 — identifiants nouveaux agrégats
 export type BailleurId = string & { readonly __brand: 'BailleurId' };
 export type EcheanceLoyerId = string & { readonly __brand: 'EcheanceLoyerId' };
