@@ -6,7 +6,17 @@ import { Money } from '../../src/domain/_shared/money.js';
 import { IRL } from '../../src/domain/_shared/irl.js';
 import { Cautionnement } from '../../src/domain/locatif/cautionnement.js';
 import { Bail } from '../../src/domain/locatif/bail.js';
-import { nouveauBienId, nouveauLotId } from '../../src/domain/_shared/identifiants.js';
+import { nouveauBienId, nouveauLotId, nouveauBailId } from '../../src/domain/_shared/identifiants.js';
+import {
+  InventaireItem,
+  TYPES_ITEM_INVENTAIRE,
+  inventaireCompletPresent,
+  inventaireVidePour,
+  type TypeItemInventaire,
+  type EtatItem,
+} from '../../src/domain/_shared/inventaire-item.js';
+import { EtatDesLieux, type TypeEDL } from '../../src/domain/locatif/etat-des-lieux.js';
+import type { EtatDesLieuxId } from '../../src/domain/_shared/identifiants.js';
 
 interface OverridesLocataire {
   id?: LocataireId;
@@ -93,6 +103,7 @@ interface OverridesBail {
   depotGarantie?: Money;
   irlReference?: IRL;
   cautionnement?: Cautionnement | null;
+  mobilier?: InventaireItem[];
 }
 
 /** Builder Bail valide — defaults cohérents avec invariants D-35. */
@@ -111,5 +122,90 @@ export function unBailValide(overrides: OverridesBail = {}): Bail {
     depotGarantie: overrides.depotGarantie ?? Money.fromCentimes(80_000n),
     irlReference: overrides.irlReference ?? unIrlValide(),
     cautionnement: overrides.cautionnement !== undefined ? overrides.cautionnement : null,
+    mobilier: overrides.mobilier,
+  });
+}
+
+// ─── InventaireItem builders ─────────────────────────────────────────────────
+
+interface OverridesInventaireItem {
+  typeItem?: TypeItemInventaire;
+  present?: boolean;
+  etat?: EtatItem;
+  note?: string | null;
+}
+
+export function unInventaireItemValide(overrides: OverridesInventaireItem = {}): InventaireItem {
+  const present = overrides.present ?? true;
+  const etat = overrides.etat !== undefined ? overrides.etat : (present ? 'bon' : null);
+  return InventaireItem.creer({
+    typeItem: overrides.typeItem ?? 'literie',
+    present,
+    etat,
+    note: overrides.note !== undefined ? overrides.note : null,
+  });
+}
+
+export function inventaire12ItemsPresentsBon(): InventaireItem[] {
+  return inventaireCompletPresent();
+}
+
+export function inventaire12ItemsVides(): InventaireItem[] {
+  return inventaireVidePour(TYPES_ITEM_INVENTAIRE);
+}
+
+// ─── EtatDesLieux builders ────────────────────────────────────────────────────
+
+interface OverridesEDL {
+  id?: EtatDesLieuxId;
+  bailId?: BailId;
+  type?: TypeEDL;
+  dateEdl?: Temporal.PlainDate;
+  contradictoire?: boolean;
+  dateSignature?: Temporal.PlainDate | null;
+  inventaire?: InventaireItem[];
+  annuleLe?: Temporal.PlainDate | null;
+  raisonAnnulation?: string | null;
+}
+
+export function unEtatDesLieuxEntreeValide(overrides: OverridesEDL = {}): EtatDesLieux {
+  const contradictoire = overrides.contradictoire ?? true;
+  const dateSignature =
+    overrides.dateSignature !== undefined
+      ? overrides.dateSignature
+      : contradictoire
+        ? Temporal.PlainDate.from('2026-05-01')
+        : null;
+  return EtatDesLieux.creer({
+    id: overrides.id,
+    bailId: overrides.bailId ?? nouveauBailId(),
+    type: overrides.type ?? 'entree',
+    dateEdl: overrides.dateEdl ?? Temporal.PlainDate.from('2026-05-01'),
+    contradictoire,
+    dateSignature,
+    inventaire: overrides.inventaire ?? inventaire12ItemsPresentsBon(),
+    annuleLe: overrides.annuleLe,
+    raisonAnnulation: overrides.raisonAnnulation,
+  });
+}
+
+export function unEtatDesLieuxSortieValide(overrides: OverridesEDL = {}): EtatDesLieux {
+  const contradictoire = overrides.contradictoire ?? true;
+  const dateSignature =
+    overrides.dateSignature !== undefined
+      ? overrides.dateSignature
+      : contradictoire
+        ? Temporal.PlainDate.from('2027-05-01')
+        : null;
+  return EtatDesLieux.creer({
+    id: overrides.id,
+    bailId: overrides.bailId ?? nouveauBailId(),
+    type: overrides.type ?? 'sortie',
+    dateEdl: overrides.dateEdl ?? Temporal.PlainDate.from('2027-05-01'),
+    contradictoire,
+    dateSignature,
+    inventaire: overrides.inventaire ?? inventaire12ItemsPresentsBon(),
+    annuleLe: overrides.annuleLe,
+    raisonAnnulation: overrides.raisonAnnulation,
   });
 }

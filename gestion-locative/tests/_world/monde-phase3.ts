@@ -7,7 +7,7 @@ import type { DB } from '../../src/infrastructure/db/kysely-types.js';
 import { appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
 import { creerApp } from '../../src/main.js';
 import { ClockFixe } from '../../src/domain/_shared/clock.js';
-import type { BienId } from '../../src/domain/_shared/identifiants.js';
+import type { BienId, BailId, EtatDesLieuxId } from '../../src/domain/_shared/identifiants.js';
 import type { DiagnosticId } from '../../src/domain/_shared/identifiants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +28,9 @@ export interface MondePhase3 extends World {
   cookies: CookieJar;
   bienId: BienId | null;
   diagnosticIds: DiagnosticId[];
+  /** Phase 3 — plan 02 : EDL + mobilier */
+  bailId: BailId | null;
+  edlId: EtatDesLieuxId | null;
 }
 
 export function extraireCookies(
@@ -72,6 +75,8 @@ export async function initialiserMondePhase3(monde: MondePhase3, clockIso: strin
   monde.cookies = {};
   monde.bienId = null;
   monde.diagnosticIds = [];
+  monde.bailId = null;
+  monde.edlId = null;
 }
 
 /**
