@@ -83,7 +83,7 @@ Plans:
   5. À la création/édition d'un `Bail` meublé, le système vérifie la checklist des 12 éléments de mobilier obligatoire (décret 2015-981) et signale tout manquant comme risque de requalification.
 **Plans:** 5 plans
 Plans:
-- [ ] 03-01-diagnostics-PLAN.md — Vertical slice PAT-03 (Diagnostics sous-agrégat Bien + classeDpe + table dédiée + 3 helpers) (wave 1)
+- [x] 03-01-diagnostics-PLAN.md — Vertical slice PAT-03 (Diagnostics sous-agrégat Bien + classeDpe + table dédiée + 3 helpers) (wave 1)
 - [ ] 03-02-edl-mobilier-PLAN.md — Vertical slice LOC-03 + LOC-06 (EtatDesLieux + InventaireItem 12 items décret 2015-981 + Bail.mobilier + comparerInventaires) (wave 2)
 - [ ] 03-03-irl-simulation-PLAN.md — Vertical slice LOC-04 simulation + LOC-05 gel (Money.multiplyByRatio + Bail.dateAnniversaireProchaine + Bail.simulerIndexation + wizard étapes 2-3 + gel-loyer.ejs) (wave 3)
 - [ ] 03-04-irl-apply-avenant-PLAN.md — Vertical slice LOC-04 apply (BailIndexation append-only + Bail.appliquerIndexation + use case transactionnel 5 effets + PDF avenant pdfmake) (wave 4)
