@@ -1,0 +1,31 @@
+<%
+  /**
+   * Partial : tableau d'affichage d'un inventaire EDL.
+   * Variables attendues : inventaire (InventaireItem[]), formaterTypeItemInventaire, formaterEtatItem.
+   */
+%>
+<% if (!inventaire || inventaire.length === 0) { %>
+  <p><em>Inventaire vide.</em></p>
+<% } else { %>
+  <table>
+    <caption>Inventaire mobilier</caption>
+    <thead>
+      <tr>
+        <th scope="col">Élément</th>
+        <th scope="col">Présent</th>
+        <th scope="col">État</th>
+        <th scope="col">Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% inventaire.forEach(function(item) { %>
+        <tr>
+          <td><%= formaterTypeItemInventaire(item.typeItem) %></td>
+          <td><%= item.present ? 'Oui' : 'Non' %></td>
+          <td><%= formaterEtatItem(item.etat) %></td>
+          <td><%= item.note || '—' %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+<% } %>

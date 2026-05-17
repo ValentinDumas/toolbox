@@ -1,0 +1,65 @@
+<%- include('../../../partials/layout-debut', {
+  titre: "EDL de sortie — " + locals.bail.id,
+  breadcrumbs: [
+    { url: '/baux', label: 'Baux' },
+    { url: '/baux/' + locals.bail.id, label: 'Bail' },
+    { label: 'État des lieux de sortie' }
+  ],
+  navActive: 'baux'
+}) %>
+
+<h1>État des lieux de sortie</h1>
+
+<%- include('../../../partials/banniere-warning', { message: locals.banniereWarning }) %>
+
+<% if (!locals.edl) { %>
+  <p>Aucun EDL de sortie actif pour ce bail.</p>
+  <% if (locals.warningsTexte && locals.warningsTexte.length > 0) { %>
+    <%- include('../../../partials/partial-inventaire-warnings', {
+      deltaWarnings: [],
+      warningsTexte: locals.warningsTexte,
+      formaterTypeItemInventaire: locals.formaterTypeItemInventaire,
+      formaterEtatItem: locals.formaterEtatItem,
+    }) %>
+  <% } %>
+  <p><a href="/baux/<%= locals.bail.id %>/edl/sortie/nouveau" role="button">Enregistrer un EDL de sortie</a></p>
+<% } else { %>
+  <dl>
+    <dt>Date de l'EDL</dt><dd><%= formatDate(locals.edl.dateEdl) %></dd>
+    <dt>Contradictoire</dt><dd><%= locals.edl.contradictoire ? 'Oui' : 'Non' %></dd>
+    <% if (locals.edl.dateSignature) { %>
+      <dt>Date de signature</dt><dd><%= formatDate(locals.edl.dateSignature) %></dd>
+    <% } %>
+    <% if (locals.edl.annuleLe) { %>
+      <dt>Annulé le</dt><dd><%= formatDate(locals.edl.annuleLe) %></dd>
+      <dt>Raison</dt><dd><%= locals.edl.raisonAnnulation %></dd>
+    <% } %>
+  </dl>
+
+  <%- include('../../../partials/partial-inventaire-warnings', {
+    deltaWarnings: locals.deltaWarnings || [],
+    warningsTexte: locals.warningsTexte || [],
+    formaterTypeItemInventaire: locals.formaterTypeItemInventaire,
+    formaterEtatItem: locals.formaterEtatItem,
+  }) %>
+
+  <%- include('../../../partials/partial-inventaire-display', {
+    inventaire: locals.edl.inventaire,
+    formaterTypeItemInventaire: locals.formaterTypeItemInventaire,
+    formaterEtatItem: locals.formaterEtatItem,
+  }) %>
+
+  <% if (!locals.edl.annuleLe) { %>
+    <form method="POST" action="/baux/<%= locals.bail.id %>/edl/sortie/<%= locals.edl.id %>/annuler">
+      <div class="field">
+        <label for="raison">Raison d'annulation <span aria-hidden="true">*</span></label>
+        <input type="text" id="raison" name="raison" required maxlength="500">
+      </div>
+      <button type="submit" class="destructif">Annuler cet EDL</button>
+    </form>
+  <% } %>
+<% } %>
+
+<p><a href="/baux/<%= locals.bail.id %>">Retour à la fiche bail</a></p>
+
+<%- include('../../../partials/layout-fin') %>

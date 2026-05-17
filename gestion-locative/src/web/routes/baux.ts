@@ -5,6 +5,7 @@ import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import type { BailId, BienId, LocataireId, LotId } from '../../domain/_shared/identifiants.js';
+import type { EtatDesLieuxRepository } from '../../domain/locatif/etat-des-lieux-repository.js';
 import { Money } from '../../domain/_shared/money.js';
 import { IRL } from '../../domain/_shared/irl.js';
 import { Adresse } from '../../domain/_shared/adresse.js';
@@ -16,7 +17,7 @@ import { listerBaux } from '../../application/locatif/lister-baux.js';
 import { BailIntrouvable } from '../../domain/locatif/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import type { ActiviteBailDetector } from '../../domain/locatif/activite-bail-detector.js';
-import { bailCreationSchema } from '../schemas/bail-schemas.js';
+import { bailCreationSchema, mobilierVersInventaireItems } from '../schemas/bail-schemas.js';
 import type { Bien } from '../../domain/patrimoine/bien.js';
 import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
 import type { EncaissementRepository } from '../../domain/encaissements/encaissement-repository.js';
@@ -52,6 +53,7 @@ export async function plugin(
     activiteBailDetector: ActiviteBailDetector;
     echeanceLoyerRepo?: EcheanceLoyerRepository;
     encaissementRepo?: EncaissementRepository;
+    edlRepo?: EtatDesLieuxRepository;
     clock?: Clock;
   },
 ): Promise<void> {
@@ -184,6 +186,7 @@ export async function plugin(
           }
         : null;
 
+      const mobilierItems = mobilierVersInventaireItems(data.mobilier ?? []);
       const bailId = await creerBail(
         {
           bienId: data.bienId as BienId,
@@ -197,11 +200,19 @@ export async function plugin(
           depotGarantie: Money.fromEuros(data.depotGarantieEuros),
           irlReference: IRL.creer({ trimestre: data.irlTrimestre, valeur: data.irlValeur }),
           cautionnement: cautionnementCommande,
+          mobilier: mobilierItems,
         },
         opts.bailRepo,
         opts.bienRepo,
         opts.locataireRepo,
       );
+
+      // Warning LOC-06 : mobilier incomplet
+      const bailCree = await opts.bailRepo.trouverParId(bailId);
+      if (bailCree) {
+        const { warning } = bailCree.verifierChecklistMobilier();
+        if (warning) req.session.banniereWarning = warning;
+      }
 
       return reply.redirect('/baux/' + bailId);
     } catch (err) {
@@ -375,6 +386,7 @@ export async function plugin(
           }
         : null;
 
+      const mobilierItemsModif = mobilierVersInventaireItems(data.mobilier ?? []);
       await modifierBail(
         {
           id: id as BailId,
@@ -388,10 +400,18 @@ export async function plugin(
           depotGarantie: Money.fromEuros(data.depotGarantieEuros),
           irlReference: IRL.creer({ trimestre: data.irlTrimestre, valeur: data.irlValeur }),
           cautionnement: cautionnementCommande,
+          mobilier: mobilierItemsModif,
         },
         opts.bailRepo,
         opts.bienRepo,
       );
+
+      // Warning LOC-06 : mobilier incomplet après modification
+      const bailModifie = await opts.bailRepo.trouverParId(id as BailId);
+      if (bailModifie) {
+        const { warning } = bailModifie.verifierChecklistMobilier();
+        if (warning) req.session.banniereWarning = warning;
+      }
 
       return reply.redirect('/baux/' + id);
     } catch (err) {

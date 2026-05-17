@@ -1,0 +1,41 @@
+<%
+  /**
+   * Partial : affiche les warnings delta entrée/sortie.
+   * Variables attendues : deltaWarnings (Warning[]), formaterTypeItemInventaire.
+   * Aussi : warningsTexte (string[]) pour les warnings non-bloquants EDL.
+   */
+%>
+
+<% if (locals.warningsTexte && locals.warningsTexte.length > 0) { %>
+  <aside role="alert" class="warning-zone">
+    <h3>Avertissements non bloquants</h3>
+    <ul>
+      <% locals.warningsTexte.forEach(function(w) { %>
+        <li><%= w %></li>
+      <% }); %>
+    </ul>
+  </aside>
+<% } %>
+
+<% if (locals.deltaWarnings && locals.deltaWarnings.length > 0) { %>
+  <aside role="alert" class="warning-zone">
+    <h3>Delta entrée/sortie — points de vigilance</h3>
+    <ul>
+      <% locals.deltaWarnings.forEach(function(w) { %>
+        <li>
+          <strong><%= formaterTypeItemInventaire(w.typeItem) %></strong> —
+          <% if (w.code === 'WARNING_ITEM_DISPARU') { %>
+            présent à l'entrée mais disparu à la sortie
+          <% } else if (w.code === 'WARNING_ITEM_DEGRADE') { %>
+            état dégradé par rapport à l'entrée
+            <% if (w.contexte) { %>
+              (entrée : <%= formaterEtatItem(w.contexte.etatEntree) %>, sortie : <%= formaterEtatItem(w.contexte.etatSortie) %>)
+            <% } %>
+          <% } else { %>
+            <%= w.message %>
+          <% } %>
+        </li>
+      <% }); %>
+    </ul>
+  </aside>
+<% } %>

@@ -1,0 +1,27 @@
+<%
+  const titrePage = locals.typeEdl === 'entree' ? "État des lieux d'entrée" : "État des lieux de sortie";
+%>
+<%- include('../../../partials/layout-debut', {
+  titre: titrePage + ' — ' + locals.bail.id,
+  breadcrumbs: [
+    { url: '/baux', label: 'Baux' },
+    { url: '/baux/' + locals.bail.id, label: 'Bail' },
+    { label: titrePage }
+  ],
+  navActive: 'baux'
+}) %>
+
+<h1><%= titrePage %></h1>
+
+<%- include('../../../partials/partial-edl-form', {
+  typeEdl: locals.typeEdl,
+  inventaire: locals.typesItemInventaire,
+  formAction: locals.formAction,
+  valeurs: locals.valeurs,
+  erreurs: locals.erreurs,
+  bailId: locals.bail.id,
+  formaterTypeItemInventaire: locals.formaterTypeItemInventaire,
+  formaterEtatItem: locals.formaterEtatItem,
+}) %>
+
+<%- include('../../../partials/layout-fin') %>

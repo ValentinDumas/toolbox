@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TYPES_ITEM_INVENTAIRE, InventaireItem, type TypeItemInventaire } from '../../domain/_shared/inventaire-item.js';
 
 export const bailCreationSchema = z
   .object({
@@ -41,6 +42,16 @@ export const bailCreationSchema = z
       .optional()
       .or(z.literal('').transform(() => undefined)),
     cautionnementDureeMois: z.coerce.number().int().optional(),
+    // Mobilier — checkboxes LOC-06 (un ou plusieurs TypeItemInventaire)
+    mobilier: z
+      .union([
+        z.string(),
+        z.array(z.string()),
+      ])
+      .transform((val) => (Array.isArray(val) ? val : [val]))
+      .pipe(z.array(z.string()))
+      .optional()
+      .default([]),
   })
   .superRefine((data, ctx) => {
     // T-05-01 : double validation dépôt ≤ 2 × loyer
@@ -70,3 +81,23 @@ export type BailCreationFormData = z.infer<typeof bailCreationSchema>;
 
 export const bailModificationSchema = bailCreationSchema;
 export type BailModificationFormData = z.infer<typeof bailModificationSchema>;
+
+/**
+ * Transforme le tableau de strings mobilier (valeurs de checkbox) en InventaireItem[].
+ * Les types non reconnus sont ignorés silencieusement.
+ * Les types manquants sont ajoutés avec present=false.
+ */
+export function mobilierVersInventaireItems(mobilierCoches: string[]): InventaireItem[] {
+  const cochesSet = new Set(mobilierCoches.filter((t) => (TYPES_ITEM_INVENTAIRE as string[]).includes(t)));
+  return TYPES_ITEM_INVENTAIRE.map((type) => {
+    const present = cochesSet.has(type);
+    return InventaireItem.creer({
+      typeItem: type as TypeItemInventaire,
+      present,
+      // Mobilier checklist : état='bon' par défaut si présent (InventaireItem.creer exige etat non-null si présent).
+      // L'EDL affine l'état réel lors de l'état des lieux.
+      etat: present ? 'bon' : null,
+      note: null,
+    });
+  });
+}

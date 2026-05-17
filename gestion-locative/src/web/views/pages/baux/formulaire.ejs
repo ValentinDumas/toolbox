@@ -278,6 +278,38 @@
     }) %>
   </fieldset>
 
+  <fieldset>
+    <legend>Mobilier — Décret n° 2015-981 (LOC-06)</legend>
+    <p><small>Cochez les éléments de mobilier présents dans le logement. Tous les éléments obligatoires doivent être présents pour un bail meublé.</small></p>
+    <% if (erreurs.mobilier) { %>
+      <span role="alert" class="error-msg"><%= erreurs.mobilier %></span>
+    <% } %>
+    <% const mobilierCoches = valeurs.mobilier
+        ? (Array.isArray(valeurs.mobilier) ? valeurs.mobilier : [valeurs.mobilier])
+        : (locals.bail && locals.bail.mobilier ? locals.bail.mobilier.filter(function(i) { return i.present; }).map(function(i) { return i.typeItem; }) : []); %>
+    <% const labelsItem = {
+      literie: 'Literie (couette ou couverture)',
+      volets_occultants: 'Volets ou rideaux occultants dans les chambres',
+      plaques_cuisson: 'Plaques de cuisson',
+      four_micro_ondes: 'Four ou four à micro-ondes',
+      refrigerateur_congelateur: 'Réfrigérateur et congélateur ou réfrigérateur avec compartiment à froid',
+      vaisselle: 'Vaisselle en nombre suffisant',
+      ustensiles: 'Ustensiles de cuisine',
+      table: 'Table',
+      sieges: 'Sièges',
+      etageres: 'Étagères de rangement',
+      luminaires: 'Luminaires',
+      materiel_entretien: 'Matériel d\'entretien ménager adapté au logement',
+    }; %>
+    <% ['literie', 'volets_occultants', 'plaques_cuisson', 'four_micro_ondes', 'refrigerateur_congelateur', 'vaisselle', 'ustensiles', 'table', 'sieges', 'etageres', 'luminaires', 'materiel_entretien'].forEach(function(type) { %>
+      <label>
+        <input type="checkbox" name="mobilier" value="<%= type %>"
+          <% if (mobilierCoches.indexOf(type) >= 0) { %> checked<% } %>>
+        <%= labelsItem[type] %>
+      </label>
+    <% }); %>
+  </fieldset>
+
   <button type="submit">Enregistrer le bail</button>
 
 </form>

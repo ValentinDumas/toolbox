@@ -9,6 +9,7 @@ import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BailId, BienId, LotId } from '../../domain/_shared/identifiants.js';
+import type { InventaireItem } from '../../domain/_shared/inventaire-item.js';
 
 import type { CautionnementCommande } from './creer-bail.js';
 
@@ -24,6 +25,7 @@ export interface ModifierBailCommande {
   depotGarantie?: Money;
   irlReference?: IRL;
   cautionnement?: CautionnementCommande | null;
+  mobilier?: InventaireItem[];
 }
 
 export async function modifierBail(
@@ -73,6 +75,7 @@ export async function modifierBail(
     depotGarantie: commande.depotGarantie,
     irlReference: commande.irlReference,
     cautionnement,
+    mobilier: commande.mobilier,
   });
 
   await bailRepo.enregistrer(bailModifie);

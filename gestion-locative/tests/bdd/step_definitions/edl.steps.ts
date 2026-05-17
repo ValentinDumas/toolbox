@@ -303,7 +303,7 @@ When(
 // ─── Then ──────────────────────────────────────────────────────────────────────
 
 Then(
-  'la table etat_des_lieux contient {int} lignes pour ce bail',
+  'la table etat_des_lieux contient {int} ligne(s) pour ce bail',
   function (this: MondePhase3, n: number) {
     assert.ok(this.sqlite, 'SQLite non initialisée');
     assert.ok(this.bailId, 'bailId non défini');

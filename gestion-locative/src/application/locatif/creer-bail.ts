@@ -12,6 +12,7 @@ import type { BienRepository } from '../../domain/patrimoine/bien-repository.js'
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import type { BailId, BienId, LotId, LocataireId } from '../../domain/_shared/identifiants.js';
 import type { Adresse } from '../../domain/_shared/adresse.js';
+import type { InventaireItem } from '../../domain/_shared/inventaire-item.js';
 
 export interface GarantCommande {
   nom: string;
@@ -41,6 +42,7 @@ export interface CreerBailCommande {
   depotGarantie: Money;
   irlReference: IRL;
   cautionnement: CautionnementCommande | null;
+  mobilier?: InventaireItem[];
 }
 
 /**
@@ -95,6 +97,7 @@ export async function creerBail(
     depotGarantie: commande.depotGarantie,
     irlReference: commande.irlReference,
     cautionnement,
+    mobilier: commande.mobilier,
   });
 
   await bailRepo.enregistrer(bail);

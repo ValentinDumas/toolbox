@@ -1,0 +1,88 @@
+<%
+  /**
+   * Partial : formulaire EDL (entrée ou sortie).
+   * Variables attendues : typeedl ('entree'|'sortie'), inventaire (TypeItemInventaire[]),
+   *   formAction, valeurs, erreurs, formaterTypeItemInventaire, formaterEtatItem.
+   */
+  const v = locals.valeurs || {};
+  const err = locals.erreurs || {};
+%>
+
+<% if (err._global) { %>
+  <aside role="alert" class="error-msg"><%= err._global %></aside>
+<% } %>
+
+<form method="POST" action="<%= formAction %>" novalidate>
+
+  <fieldset>
+    <legend>Informations générales</legend>
+
+    <div class="field">
+      <label for="date_edl">Date de l'EDL <span aria-hidden="true">*</span></label>
+      <input type="date" id="date_edl" name="date_edl" required
+        value="<%= v.date_edl || '' %>"
+        aria-describedby="date_edl-error">
+      <% if (err.date_edl) { %>
+        <span id="date_edl-error" role="alert" class="error-msg"><%= err.date_edl %></span>
+      <% } else { %>
+        <span id="date_edl-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+
+    <div class="field">
+      <label>
+        <input type="checkbox" name="contradictoire" value="on"
+          <% if (v.contradictoire === 'on' || v.contradictoire === true) { %> checked<% } %>>
+        EDL contradictoire (bailleur + locataire présents)
+      </label>
+    </div>
+
+    <div class="field">
+      <label for="date_signature">Date de signature (si contradictoire)</label>
+      <input type="date" id="date_signature" name="date_signature"
+        value="<%= v.date_signature || '' %>"
+        aria-describedby="date_signature-error">
+      <% if (err.date_signature) { %>
+        <span id="date_signature-error" role="alert" class="error-msg"><%= err.date_signature %></span>
+      <% } else { %>
+        <span id="date_signature-error" role="alert" class="error-msg" hidden></span>
+      <% } %>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Inventaire mobilier — Décret n° 2015-981</legend>
+    <p><small>Cochez les éléments présents et indiquez leur état.</small></p>
+
+    <% inventaire.forEach(function(type, idx) { %>
+      <% const itemValeurs = (v.inventaire && v.inventaire[idx]) ? v.inventaire[idx] : {}; %>
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend><%= formaterTypeItemInventaire(type) %></legend>
+        <input type="hidden" name="inventaire[<%= idx %>].typeItem" value="<%= type %>">
+        <label>
+          <input type="checkbox" name="inventaire[<%= idx %>].present" value="on"
+            <% if (itemValeurs.present === 'on' || itemValeurs.present === true) { %> checked<% } %>>
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-<%= idx %>">État</label>
+          <select id="etat-<%= idx %>" name="inventaire[<%= idx %>].etat">
+            <option value="">—</option>
+            <option value="bon"<% if (itemValeurs.etat === 'bon') { %> selected<% } %>>Bon</option>
+            <option value="moyen"<% if (itemValeurs.etat === 'moyen') { %> selected<% } %>>Moyen</option>
+            <option value="degrade"<% if (itemValeurs.etat === 'degrade') { %> selected<% } %>>Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-<%= idx %>">Note</label>
+          <input type="text" id="note-<%= idx %>" name="inventaire[<%= idx %>].note"
+            value="<%= itemValeurs.note || '' %>" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    <% }); %>
+  </fieldset>
+
+  <button type="submit">Enregistrer l'EDL</button>
+  <a href="/baux/<%= bailId %>">Annuler</a>
+
+</form>

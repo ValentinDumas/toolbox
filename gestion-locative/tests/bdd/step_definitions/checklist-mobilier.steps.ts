@@ -74,12 +74,12 @@ function buildBailPayloadAvecMobilier(
     'lotIds': lotId,
     dateDebut: '2025-06-01',
     dureeMois: '12',
-    loyerHc: '800',
+    loyerHcEuros: '800',
     modeCharges: 'forfait',
-    montantCharges: '50',
-    depotGarantie: '800',
-    'irlReference.trimestre': '2026-T1',
-    'irlReference.valeur': '145.47',
+    montantChargesEuros: '50',
+    depotGarantieEuros: '800',
+    irlTrimestre: '2026-T1',
+    irlValeur: '145.47',
   });
   // Ajouter les checkboxes mobilier
   for (const type of mobilierCoches) {
@@ -121,7 +121,7 @@ When(
 );
 
 When(
-  "le bailleur crée un Bail avec 11 checkboxes mobilier cochées (literie décochée)",
+  "le bailleur crée un Bail avec 11 checkboxes mobilier cochées \\(literie décochée)",
   async function (this: MondePhase3) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.bienId, 'bienId non défini');
@@ -174,12 +174,12 @@ When(
       'lotIds': bail.lotIds[0]!,
       dateDebut: bail.dateDebut.toString(),
       dureeMois: String(bail.dureeMois),
-      loyerHc: String(Number(bail.loyerHc.toCentimes()) / 100),
+      loyerHcEuros: String(Number(bail.loyerHc.toCentimes()) / 100),
       modeCharges: bail.modeCharges,
-      montantCharges: String(Number(bail.montantCharges.toCentimes()) / 100),
-      depotGarantie: String(Number(bail.depotGarantie.toCentimes()) / 100),
-      'irlReference.trimestre': bail.irlReference.trimestre,
-      'irlReference.valeur': bail.irlReference.valeur,
+      montantChargesEuros: String(Number(bail.montantCharges.toCentimes()) / 100),
+      depotGarantieEuros: String(Number(bail.depotGarantie.toCentimes()) / 100),
+      irlTrimestre: bail.irlReference.trimestre,
+      irlValeur: bail.irlReference.valeur,
     });
     for (const type of mobilierCoches) {
       params.append('mobilier', type);
@@ -187,7 +187,7 @@ When(
 
     const resp = await this.app.inject({
       method: 'POST',
-      url: `/baux/${this.bailId}`,
+      url: `/baux/${this.bailId}/modifier`,
       payload: params.toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookieHeader(this.cookies) },
     });
