@@ -106,6 +106,34 @@ interface OverridesBail {
   mobilier?: InventaireItem[];
 }
 
+/**
+ * Builder Bail "indexable" — actif, anniversaire atteignable (Phase 3-03).
+ * Defaults : dateDebut 2025-05-01, irlReference 2024-T4/142.06, loyerHc 800€,
+ * actif depuis dateDebut.
+ */
+export function unBailIndexableValide(overrides: OverridesBail = {}): Bail {
+  const dateDebut = overrides.dateDebut ?? Temporal.PlainDate.from('2025-05-01');
+  return Bail.creer({
+    id: overrides.id,
+    locataireId: overrides.locataireId ?? (crypto.randomUUID() as LocataireId),
+    bienId: overrides.bienId ?? nouveauBienId(),
+    lotIds: overrides.lotIds ?? [nouveauLotId()],
+    type: 'classique',
+    dateDebut,
+    dureeMois: overrides.dureeMois ?? 12,
+    loyerHc: overrides.loyerHc ?? Money.fromCentimes(80_000n),
+    modeCharges: overrides.modeCharges ?? 'forfait',
+    montantCharges: overrides.montantCharges ?? Money.fromCentimes(5_000n),
+    depotGarantie: overrides.depotGarantie ?? Money.fromCentimes(80_000n),
+    irlReference:
+      overrides.irlReference ?? IRL.creer({ trimestre: '2024-T4', valeur: '142.06' }),
+    cautionnement: overrides.cautionnement !== undefined ? overrides.cautionnement : null,
+    actifDepuis: dateDebut,
+    jourEcheance: 1,
+    mobilier: overrides.mobilier,
+  });
+}
+
 /** Builder Bail valide — defaults cohérents avec invariants D-35. */
 export function unBailValide(overrides: OverridesBail = {}): Bail {
   return Bail.creer({

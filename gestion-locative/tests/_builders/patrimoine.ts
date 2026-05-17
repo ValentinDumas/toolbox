@@ -75,6 +75,16 @@ export function unLotValide(overrides: OverridesLot = {}): Lot {
   });
 }
 
+/** Builder Bien avec DPE F (gel loyer Climat — LOC-05). */
+export function unBienAvecDpeF(overrides: OverridesBien = {}): Bien {
+  return unBienValide({ ...overrides, classeDpe: 'F' });
+}
+
+/** Builder Bien avec DPE D (pas de gel). */
+export function unBienAvecDpeD(overrides: OverridesBien = {}): Bien {
+  return unBienValide({ ...overrides, classeDpe: 'D' });
+}
+
 export function unBienValide(overrides: OverridesBien = {}): Bien {
   const lots = overrides.lots ?? [unLotValide()];
   return Bien.creer({
