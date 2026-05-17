@@ -4,6 +4,7 @@ import { InvariantViolated } from '../_shared/erreurs.js';
 import { nouveauBailId, type BailId, type BienId, type LotId, type LocataireId } from '../_shared/identifiants.js';
 import { Money } from '../_shared/money.js';
 import type { IRL } from '../_shared/irl.js';
+import type { ClasseDpe } from '../_shared/duree-validite-diagnostic.js';
 
 import type { Cautionnement } from './cautionnement.js';
 import { InventaireItem, TYPES_ITEM_OBLIGATOIRES, type TypeItemInventaire } from '../_shared/inventaire-item.js';
@@ -260,5 +261,55 @@ export class Bail {
       manquants,
       warning: `Attention : ${manquants.length} élément(s) obligatoire(s) du décret 2015-981 sont marqués absents. Le bail risque d'être requalifié en bail nu, entraînant un changement de régime fiscal (revenus fonciers au lieu de BIC).`,
     };
+  }
+
+  /**
+   * Phase 3 — LOC-04 D-91 / DP-20. Date du prochain anniversaire du bail à partir de `today`.
+   * Pure (no copy-on-write). Utilise Temporal natif pour le clamp bissextile.
+   *
+   * Sémantique : "atteint dès aujourd'hui" → prochain est dans 1 an.
+   *  - today < dateDebut → dateDebut + 1 an
+   *  - today >= dateDebut → cherche le plus petit N tel que dateDebut + N ans > today
+   */
+  dateAnniversaireProchaine(today: Temporal.PlainDate): Temporal.PlainDate {
+    if (Temporal.PlainDate.compare(today, this.dateDebut) < 0) {
+      return this.dateDebut.add({ years: 1 });
+    }
+    // Sémantique : "anniversaire atteint maintenant" → on retourne l'anniversaire suivant.
+    // Cherche le plus petit N tel que dateDebut + N ans > today (strictement).
+    const diff = this.dateDebut.until(today, { largestUnit: 'years' });
+    // Note : sur dateDebut bissextile (29 fév), Temporal clamp à 28 fév les années
+    // non bissextiles ; diff peut donc valoir { years: N-1, months: 11, days: 28 }
+    // alors que dateDebut + N ans == today. On itère pour gérer ce cas.
+    let n = diff.years;
+    while (Temporal.PlainDate.compare(this.dateDebut.add({ years: n }), today) <= 0) {
+      n += 1;
+    }
+    return this.dateDebut.add({ years: n });
+  }
+
+  /**
+   * Phase 3 — LOC-04 D-91 simulation IRL + LOC-05 D-92 gel Climat F/G.
+   * Pure (no copy-on-write).
+   *
+   * - DPE F/G → { gelLoyer: true, raison: 'gel_dpe', nouveauLoyerHc: this.loyerHc }
+   * - Sinon : nouveauLoyerHc = loyerHc × (IRL_nouveau / IRL_référence) avec banker's rounding.
+   *   Précision via BigInt sur centièmes (DP-16 résolu).
+   */
+  simulerIndexation(
+    irlNouveau: IRL,
+    classeDpeBien: ClasseDpe | null,
+  ): { nouveauLoyerHc: Money; gelLoyer: boolean; raison?: 'gel_dpe' } {
+    if (classeDpeBien === 'F' || classeDpeBien === 'G') {
+      return { nouveauLoyerHc: this.loyerHc, gelLoyer: true, raison: 'gel_dpe' };
+    }
+
+    const valeurAvant = parseFloat(this.irlReference.valeur);
+    const valeurApres = parseFloat(irlNouveau.valeur);
+    const den = BigInt(Math.round(valeurAvant * 100));
+    const num = BigInt(Math.round(valeurApres * 100));
+
+    const nouveauLoyerHc = this.loyerHc.multiplyByRatio(num, den, 'banker');
+    return { nouveauLoyerHc, gelLoyer: false };
   }
 }

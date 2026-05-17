@@ -1,0 +1,36 @@
+import { Temporal } from '@js-temporal/polyfill';
+import type { BailRepository } from '../../domain/locatif/bail-repository.js';
+import type { BailId } from '../../domain/_shared/identifiants.js';
+import type { Clock } from '../../domain/_shared/clock.js';
+
+/**
+ * Use case read-only : liste les bails dont l'anniversaire de révision IRL est atteint
+ * (D-90, LOC-04 partie simulation).
+ *
+ * Critère 03-03 : bail actif (actifDepuis non null) ET today >= dateAnniversaire précédent
+ *  — c'est-à-dire today >= dateAnniversaireProchaine(today).subtract({ years: 1 }).
+ *
+ * LIMITATION 03-03 : ne filtre PAS par "dernière indexation < 12 mois" (le BailIndexation
+ * append-only sera créé en 03-04). En 03-04 : étendre pour appeler
+ * `bailIndexationRepo.dernierePourBail(bail.id)` et exclure si récente.
+ *
+ * Consommé par : route GET /baux/:id (banner), 03-04 (apply), 03-05 (UI polish),
+ * Phase 7 (dashboard cross-Bien).
+ */
+export async function listerBailsIndexables(
+  repos: { bailRepo: BailRepository },
+  clock: Clock,
+): Promise<BailId[]> {
+  const today = clock.aujourdhui();
+  const bails = await repos.bailRepo.listerTous();
+
+  return bails
+    .filter((b) => b.actifDepuis !== null)
+    .filter((b) => {
+      // Le bail est indexable dès que today >= dateDebut + 1 an
+      // (au moins un anniversaire est survenu depuis le démarrage).
+      const premierAnniversaire = b.dateDebut.add({ years: 1 });
+      return Temporal.PlainDate.compare(today, premierAnniversaire) >= 0;
+    })
+    .map((b) => b.id);
+}

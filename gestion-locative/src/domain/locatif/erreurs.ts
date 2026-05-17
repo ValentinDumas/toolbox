@@ -45,3 +45,24 @@ export class EDLDejaAnnule extends Error {
     this.name = 'EDLDejaAnnule';
   }
 }
+
+// Phase 3 — Plan 03 : LOC-05 gel loyer Climat F/G (D-92)
+
+/**
+ * Levée par simulerIndexationIRL quand le DPE du Bien est F ou G.
+ * Defense en profondeur : la route UI a déjà filtré, mais le use case rejette
+ * tout calcul d'indexation côté serveur — interdiction du décret n° 2022-1313.
+ */
+export class GelLoyerClimatActif extends Error {
+  readonly bailId: string;
+  readonly classeDpe: 'F' | 'G';
+
+  constructor(bailId: string, classeDpe: 'F' | 'G') {
+    super(
+      `Gel loyer Climat actif (DPE ${classeDpe}). Toute hausse de loyer est interdite par le décret n° 2022-1313, prorogé. L'indexation ne peut pas être appliquée.`,
+    );
+    this.name = 'GelLoyerClimatActif';
+    this.bailId = bailId;
+    this.classeDpe = classeDpe;
+  }
+}

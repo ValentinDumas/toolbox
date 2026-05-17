@@ -176,4 +176,45 @@ export class Money {
     }
     return Money.fromCentimes(deuxFois > den ? quotient + 1n : quotient);
   }
+
+  /**
+   * Multiplie ce montant par un ratio (num/den) avec arrondi configurable.
+   * Différent de multiplyByFraction qui exige 0 ≤ num ≤ den (prorata).
+   * Ici num peut être > den (cas indexation IRL à la hausse). DP-16 Phase 3.
+   *
+   * Banker's rounding par défaut (round-half-to-even) — identique à multiplyByFraction.
+   *
+   * Invariants :
+   *   - den > 0 sinon InvariantViolated('Le dénominateur du ratio doit être positif')
+   *   - num >= 0 sinon InvariantViolated('Le numérateur du ratio doit être positif ou nul')
+   */
+  multiplyByRatio(
+    num: bigint,
+    den: bigint,
+    mode: 'banker' | 'floor' | 'ceil' = 'banker',
+  ): Money {
+    if (den <= 0n) {
+      throw new InvariantViolated('Le dénominateur du ratio doit être positif');
+    }
+    if (num < 0n) {
+      throw new InvariantViolated('Le numérateur du ratio doit être positif ou nul');
+    }
+
+    const produit = this.centimes * num;
+    const quotient = produit / den;
+    const reste = produit % den;
+
+    if (mode === 'floor') {
+      return Money.fromCentimes(quotient);
+    }
+    if (mode === 'ceil') {
+      return Money.fromCentimes(reste > 0n ? quotient + 1n : quotient);
+    }
+
+    const deuxFois = reste * 2n;
+    if (deuxFois === den) {
+      return Money.fromCentimes(quotient % 2n === 0n ? quotient : quotient + 1n);
+    }
+    return Money.fromCentimes(deuxFois > den ? quotient + 1n : quotient);
+  }
 }
