@@ -1,18 +1,36 @@
+import path from 'node:path';
+
 import type { FastifyInstance } from 'fastify';
+import type { Kysely } from 'kysely';
 
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
+import type { BailleurRepository } from '../../domain/identite/bailleur-repository.js';
+import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
+import type { EncaissementRepository } from '../../domain/encaissements/encaissement-repository.js';
+import type { BailIndexationRepository } from '../../domain/locatif/bail-indexation-repository.js';
 import type { BailId } from '../../domain/_shared/identifiants.js';
+import type { Clock } from '../../domain/_shared/clock.js';
+import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { DB } from '../../infrastructure/db/kysely-types.js';
 import {
   BailIntrouvable,
   GelLoyerClimatActif,
 } from '../../domain/locatif/erreurs.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
+import { FichierIntrouvable } from '../../domain/encaissements/erreurs.js';
 import { simulerIndexationIRL } from '../../application/locatif/simuler-indexation-irl.js';
+import { appliquerIndexationIRL } from '../../application/locatif/appliquer-indexation-irl.js';
+import { renoncerIndexationIRL } from '../../application/locatif/renoncer-indexation-irl.js';
 import { indexationSaisieSchema } from '../schemas/indexation-schemas.js';
 import { formaterTrimestreIRL } from '../../helpers/format-trimestre-irl.js';
+
+interface StockageLike {
+  ecrireAvenant(annee: number, nomFichier: string, buffer: Buffer): Promise<string>;
+  lireAvenant(cheminRelatif: string): Promise<Buffer>;
+}
 
 declare module 'fastify' {
   interface Session {
@@ -37,6 +55,15 @@ export async function plugin(
     bailRepo: BailRepository;
     bienRepo: BienRepository;
     locataireRepo: LocataireRepository;
+    /** Phase 3-04 (LOC-04 apply). Optionnels en mode lecture/simulation seule. */
+    bailleurRepo?: BailleurRepository;
+    echeanceLoyerRepo?: EcheanceLoyerRepository;
+    encaissementRepo?: EncaissementRepository;
+    bailIndexationRepo?: BailIndexationRepository;
+    pdfRenderer?: PdfRenderer;
+    stockage?: StockageLike;
+    clock?: Clock;
+    db?: Kysely<DB>;
   },
 ): Promise<void> {
   // ── GET /baux/:id/indexer — étape 2 (saisie OU gel) ────────────────────────
@@ -173,21 +200,221 @@ export async function plugin(
     }
   });
 
-  // ── POST /baux/:id/indexer/confirmer — étape 4 (stub 03-03, livré 03-04) ────
+  // ── POST /baux/:id/indexer/confirmer — étape 4 (livré 03-04) ───────────────
   app.post('/baux/:id/indexer/confirmer', async (req, reply) => {
     const { id } = req.params as { id: string };
     const bail = await opts.bailRepo.trouverParId(id as BailId);
     if (!bail) return reply.code(404).send("Ce bail n'existe pas.");
-
     if (!req.session.indexationDraft) {
       return reply.redirect(`/baux/${bail.id}/indexer`);
     }
-    // Stub 03-03 : la route POST /baux/:id/indexer/appliquer est livrée en 03-04.
-    // On affiche un message minimal.
-    return reply
-      .code(501)
-      .send(
-        "Application de l'indexation : à venir dans le plan 03-04. La simulation a été enregistrée en session.",
+    const bien = await opts.bienRepo.trouverParId(bail.bienId);
+    const locataire = await opts.locataireRepo.trouverParId(bail.locataireId);
+
+    // Recalcul de la simulation pour réafficher les valeurs récap.
+    const draft = req.session.indexationDraft;
+    const result = await simulerIndexationIRL(
+      { bailId: bail.id, irlTrimestre: draft.irlTrimestre, irlValeur: draft.irlValeur },
+      { bailRepo: opts.bailRepo, bienRepo: opts.bienRepo },
+    );
+
+    const breadcrumbs = [
+      { url: '/baux', label: 'Baux' },
+      { url: `/baux/${bail.id}`, label: 'Bail' },
+      { label: 'Révision IRL' },
+    ];
+
+    return reply.view('pages/baux/indexer/confirmation.ejs', {
+      bail,
+      bien,
+      locataire,
+      result,
+      currentStep: 4,
+      breadcrumbs,
+      navActive: 'baux',
+      formaterTrimestreIRL,
+    });
+  });
+
+  // ── POST /baux/:id/indexer/appliquer — étape 5 (livré 03-04) ────────────────
+  app.post('/baux/:id/indexer/appliquer', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (
+      !opts.bailleurRepo ||
+      !opts.echeanceLoyerRepo ||
+      !opts.encaissementRepo ||
+      !opts.bailIndexationRepo ||
+      !opts.pdfRenderer ||
+      !opts.stockage ||
+      !opts.clock ||
+      !opts.db
+    ) {
+      return reply.code(500).send("Dépendances manquantes pour appliquer l'indexation.");
+    }
+
+    const bail = await opts.bailRepo.trouverParId(id as BailId);
+    if (!bail) return reply.code(404).send("Ce bail n'existe pas.");
+    const draft = req.session.indexationDraft;
+    if (!draft) {
+      req.session.banniereWarning = 'Veuillez saisir un IRL avant d\'appliquer.';
+      return reply.redirect(`/baux/${bail.id}/indexer`);
+    }
+
+    try {
+      const { nouveauLoyerHc } = await appliquerIndexationIRL(
+        {
+          bailId: bail.id,
+          irlTrimestre: draft.irlTrimestre,
+          irlValeur: draft.irlValeur,
+        },
+        {
+          bailRepo: opts.bailRepo,
+          bienRepo: opts.bienRepo,
+          locataireRepo: opts.locataireRepo,
+          bailleurRepo: opts.bailleurRepo,
+          echeanceLoyerRepo: opts.echeanceLoyerRepo,
+          encaissementRepo: opts.encaissementRepo,
+          bailIndexationRepo: opts.bailIndexationRepo,
+        },
+        { pdfRenderer: opts.pdfRenderer, stockage: opts.stockage, clock: opts.clock },
+        opts.db,
       );
+      req.session.indexationDraft = undefined;
+      req.session.banniereSuccess =
+        `Révision IRL appliquée avec succès. Nouveau loyer : ${nouveauLoyerHc.enEuros()}. Avenant disponible au téléchargement.`;
+      return reply.redirect(`/baux/${bail.id}`);
+    } catch (err) {
+      if (err instanceof GelLoyerClimatActif) {
+        const bien = await opts.bienRepo.trouverParId(bail.bienId);
+        const locataire = await opts.locataireRepo.trouverParId(bail.locataireId);
+        return reply.code(403).view('pages/baux/indexer/gel-loyer.ejs', {
+          bail,
+          bien,
+          locataire,
+          classeDpe: bien?.classeDpe ?? null,
+          currentStep: 2,
+          breadcrumbs: [
+            { url: '/baux', label: 'Baux' },
+            { url: `/baux/${bail.id}`, label: 'Bail' },
+            { label: 'Révision IRL' },
+          ],
+          navActive: 'baux',
+          formaterTrimestreIRL,
+        });
+      }
+      if (
+        err instanceof InvariantViolated ||
+        err instanceof BailIntrouvable ||
+        err instanceof BienIntrouvable
+      ) {
+        req.session.banniereWarning = err.message;
+        return reply.redirect(`/baux/${bail.id}/indexer`);
+      }
+      throw err;
+    }
+  });
+
+  // ── POST /baux/:id/indexer/renoncer — étape 4 alternative ───────────────────
+  app.post('/baux/:id/indexer/renoncer', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!opts.bailIndexationRepo || !opts.db) {
+      return reply.code(500).send("Dépendances manquantes pour renoncer à l'indexation.");
+    }
+    const bail = await opts.bailRepo.trouverParId(id as BailId);
+    if (!bail) return reply.code(404).send("Ce bail n'existe pas.");
+    const draft = req.session.indexationDraft;
+    if (!draft) {
+      req.session.banniereWarning = 'Veuillez saisir un IRL avant de renoncer.';
+      return reply.redirect(`/baux/${bail.id}/indexer`);
+    }
+
+    try {
+      await renoncerIndexationIRL(
+        {
+          bailId: bail.id,
+          irlTrimestre: draft.irlTrimestre,
+          irlValeur: draft.irlValeur,
+        },
+        {
+          bailRepo: opts.bailRepo,
+          bienRepo: opts.bienRepo,
+          bailIndexationRepo: opts.bailIndexationRepo,
+        },
+        opts.db,
+      );
+      req.session.indexationDraft = undefined;
+      req.session.banniereSuccess =
+        "Révision IRL non appliquée — l'IRL de référence est mis à jour pour la prochaine révision.";
+      return reply.redirect(`/baux/${bail.id}`);
+    } catch (err) {
+      if (err instanceof GelLoyerClimatActif) {
+        const bien = await opts.bienRepo.trouverParId(bail.bienId);
+        const locataire = await opts.locataireRepo.trouverParId(bail.locataireId);
+        return reply.code(403).view('pages/baux/indexer/gel-loyer.ejs', {
+          bail,
+          bien,
+          locataire,
+          classeDpe: bien?.classeDpe ?? null,
+          currentStep: 2,
+          breadcrumbs: [
+            { url: '/baux', label: 'Baux' },
+            { url: `/baux/${bail.id}`, label: 'Bail' },
+            { label: 'Révision IRL' },
+          ],
+          navActive: 'baux',
+          formaterTrimestreIRL,
+        });
+      }
+      if (
+        err instanceof InvariantViolated ||
+        err instanceof BailIntrouvable ||
+        err instanceof BienIntrouvable
+      ) {
+        req.session.banniereWarning = err.message;
+        return reply.redirect(`/baux/${bail.id}/indexer`);
+      }
+      throw err;
+    }
+  });
+
+  // ── GET /baux/:id/avenant/:annee — téléchargement PDF ──────────────────────
+  app.get('/baux/:id/avenant/:annee', async (req, reply) => {
+    if (!opts.bailIndexationRepo || !opts.stockage) {
+      return reply.code(500).send('Dépendances manquantes pour télécharger un avenant.');
+    }
+    const { id, annee: anneeStr } = req.params as { id: string; annee: string };
+    const annee = parseInt(anneeStr, 10);
+    if (!Number.isInteger(annee) || annee < 1900 || annee > 9999) {
+      return reply.code(400).send('Année invalide.');
+    }
+    const bail = await opts.bailRepo.trouverParId(id as BailId);
+    if (!bail) return reply.code(404).send("Ce bail n'existe pas.");
+
+    const indexations = await opts.bailIndexationRepo.listerParBail(bail.id);
+    const indexation = indexations.find(
+      (i) => i.dateEffet.year === annee && i.indexationAppliquee,
+    );
+    if (!indexation) {
+      return reply.code(404).send('Aucun avenant pour cette année.');
+    }
+
+    const bailIdCourt = bail.id.slice(0, 8);
+    const nomFichier = `avenant-${bailIdCourt}-${indexation.dateEffet.toString()}.pdf`;
+    const cheminRelatif = path.join('avenants', String(annee), nomFichier);
+
+    try {
+      const buffer = await opts.stockage.lireAvenant(cheminRelatif);
+      reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `attachment; filename="${nomFichier}"`);
+      return reply.send(buffer);
+    } catch (err) {
+      if (err instanceof FichierIntrouvable) {
+        return reply
+          .code(404)
+          .send("Fichier PDF avenant introuvable. Régénérez en relançant la révision IRL.");
+      }
+      throw err;
+    }
   });
 }

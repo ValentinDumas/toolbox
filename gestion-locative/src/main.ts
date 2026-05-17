@@ -17,6 +17,7 @@ import { formaterTypeDiagnostic } from './helpers/format-type-diagnostic.js';
 import { formaterStatutDiagnostic } from './helpers/format-statut-diagnostic.js';
 import { formaterTypeItemInventaire } from './helpers/format-type-item-inventaire.js';
 import { formaterEtatItem } from './helpers/format-etat-item.js';
+import { formaterRaisonNonApplication } from './helpers/format-raison-non-application.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
 import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
@@ -55,6 +56,7 @@ import { plugin as diagnosticsPlugin } from './web/routes/diagnostics.js';
 import { plugin as etatsDesLieuxPlugin } from './web/routes/etats-des-lieux.js';
 import { plugin as indexationsPlugin } from './web/routes/indexations.js';
 import { EtatDesLieuxRepositorySqlite } from './infrastructure/repositories/etat-des-lieux-repository-sqlite.js';
+import { BailIndexationRepositorySqlite } from './infrastructure/repositories/bail-indexation-repository-sqlite.js';
 import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
 import {
   verifierDejaLance,
@@ -123,6 +125,7 @@ export async function creerApp(
   );
   const pdfRenderer = new PdfRendererPdfmake();
   const edlRepo = new EtatDesLieuxRepositorySqlite(db);
+  const bailIndexationRepo = new BailIndexationRepositorySqlite(db);
   const relanceRepo = new RelanceRepositorySqlite(db);
   const activiteBailDetector = opts.activiteBailDetector ?? new ActiviteBailDetectorSqlite(db);
 
@@ -141,6 +144,7 @@ export async function creerApp(
       formaterStatutDiagnostic,
       formaterTypeItemInventaire,
       formaterEtatItem,
+      formaterRaisonNonApplication,
       today,
     };
   });
@@ -179,8 +183,20 @@ export async function creerApp(
   await app.register(biensPlugin, { repo });
   await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
-  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, clock });
-  await app.register(indexationsPlugin, { bailRepo, bienRepo: repo, locataireRepo });
+  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, bailIndexationRepo, clock });
+  await app.register(indexationsPlugin, {
+    bailRepo,
+    bienRepo: repo,
+    locataireRepo,
+    bailleurRepo,
+    echeanceLoyerRepo,
+    encaissementRepo,
+    bailIndexationRepo,
+    pdfRenderer,
+    stockage,
+    clock,
+    db,
+  });
   await app.register(etatsDesLieuxPlugin, { bailRepo, edlRepo });
   await app.register(bailleurPlugin, { bailleurRepo });
   await app.register(echeancesPlugin, {

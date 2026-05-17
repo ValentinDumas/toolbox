@@ -6,6 +6,7 @@ import type { BienRepository } from '../../domain/patrimoine/bien-repository.js'
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import type { BailId, BienId, LocataireId, LotId } from '../../domain/_shared/identifiants.js';
 import type { EtatDesLieuxRepository } from '../../domain/locatif/etat-des-lieux-repository.js';
+import type { BailIndexationRepository } from '../../domain/locatif/bail-indexation-repository.js';
 import { Money } from '../../domain/_shared/money.js';
 import { IRL } from '../../domain/_shared/irl.js';
 import { Adresse } from '../../domain/_shared/adresse.js';
@@ -54,6 +55,7 @@ export async function plugin(
     echeanceLoyerRepo?: EcheanceLoyerRepository;
     encaissementRepo?: EncaissementRepository;
     edlRepo?: EtatDesLieuxRepository;
+    bailIndexationRepo?: BailIndexationRepository;
     clock?: Clock;
   },
 ): Promise<void> {
@@ -281,6 +283,11 @@ export async function plugin(
     // Résoudre les lots concernés par ce bail
     const lotsduBail = bien.lots.filter((l) => bail.lotIds.includes(l.id as LotId));
 
+    // Phase 3-04 : historique des indexations IRL (optionnel selon wiring)
+    const indexations = opts.bailIndexationRepo
+      ? await opts.bailIndexationRepo.listerParBail(bail.id)
+      : [];
+
     return reply.view('pages/baux/detail.ejs', {
       bail,
       bien,
@@ -291,6 +298,7 @@ export async function plugin(
       banniereWarning,
       bailIndexable,
       dateAnniversaire,
+      indexations,
       navActive: 'baux',
       formatDate,
     });

@@ -130,4 +130,46 @@
   <a href="/baux/<%= bail.id %>/edl/sortie">EDL de sortie</a>
 </p>
 
+<section aria-labelledby="indexations-heading">
+  <h2 id="indexations-heading">Historique des indexations IRL</h2>
+  <% if (!locals.indexations || indexations.length === 0) { %>
+    <p>Aucune révision IRL enregistrée pour ce bail.</p>
+    <% if (locals.bailIndexable) { %>
+      <p><a href="/baux/<%= bail.id %>/indexer" role="button">Lancer la révision</a></p>
+    <% } %>
+  <% } else { %>
+    <table role="table" aria-label="Historique des révisions IRL">
+      <caption class="sr-only">Historique des révisions IRL</caption>
+      <thead>
+        <tr>
+          <th scope="col">Date d'effet</th>
+          <th scope="col">IRL avant</th>
+          <th scope="col">IRL après</th>
+          <th scope="col">Loyer avant</th>
+          <th scope="col">Loyer après</th>
+          <th scope="col">Application</th>
+          <th scope="col">Avenant</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% indexations.forEach(function(i) { %>
+          <tr>
+            <td><%= formatDate(i.dateEffet) %></td>
+            <td><%= i.irlAvant.trimestre %> — <%= i.irlAvant.valeur %></td>
+            <td><%= i.irlApres.trimestre %> — <%= i.irlApres.valeur %></td>
+            <td><%= formatMoney(i.loyerAvant) %></td>
+            <td><%= formatMoney(i.loyerApres) %></td>
+            <td><%= formaterRaisonNonApplication(i.raisonNonApplication) %></td>
+            <td>
+              <% if (i.indexationAppliquee) { %>
+                <a href="/baux/<%= bail.id %>/avenant/<%= i.dateEffet.year %>">Télécharger PDF</a>
+              <% } else { %>—<% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
 <%- include('../../partials/layout-fin') %>
