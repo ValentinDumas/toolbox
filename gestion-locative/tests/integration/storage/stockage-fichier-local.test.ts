@@ -82,6 +82,51 @@ describe('StockageFichierLocal', () => {
     expect(result).toMatch(/^[a-z0-9-]+$/);
   });
 
+  // ── Phase 3-04 : avenant IRL ─────────────────────────────────────────────
+
+  it('T23: ecrireAvenant crée avenants/{annee}/ et écrit le fichier', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageFichierLocal(baseDir);
+    const buffer = Buffer.from('%PDF-avenant');
+    const nomFichier = 'avenant-abc12345-2026-05-01.pdf';
+
+    const cheminRelatif = await stockage.ecrireAvenant(2026, nomFichier, buffer);
+
+    expect(cheminRelatif).toBe(path.join('avenants', '2026', nomFichier));
+    const cheminAbsolu = path.join(baseDir, 'avenants', '2026', nomFichier);
+    expect(fs.existsSync(cheminAbsolu)).toBe(true);
+    expect(fs.readFileSync(cheminAbsolu).equals(buffer)).toBe(true);
+  });
+
+  it('T24: ecrireAvenant 2× même fichier → throw EEXIST (flag wx, immutable)', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageFichierLocal(baseDir);
+    const buffer = Buffer.from('%PDF-avenant');
+    const nomFichier = 'avenant-abc12345-2026-05-01.pdf';
+    await stockage.ecrireAvenant(2026, nomFichier, buffer);
+    await expect(
+      stockage.ecrireAvenant(2026, nomFichier, Buffer.from('%PDF-ecrase')),
+    ).rejects.toThrow();
+  });
+
+  it('T25: lireAvenant retourne le buffer écrit, FichierIntrouvable sinon', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageFichierLocal(baseDir);
+    const buffer = Buffer.from('%PDF-avenant-lecture');
+    const cheminRelatif = await stockage.ecrireAvenant(2026, 'avenant-x.pdf', buffer);
+    const lu = await stockage.lireAvenant(cheminRelatif);
+    expect(lu.equals(buffer)).toBe(true);
+    await expect(stockage.lireAvenant('avenants/2026/inexistant.pdf')).rejects.toThrow(
+      FichierIntrouvable,
+    );
+  });
+
+  it('T26: lireAvenant bloque path traversal (../../../etc/passwd)', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageFichierLocal(baseDir);
+    await expect(stockage.lireAvenant('../../../etc/passwd')).rejects.toThrow(FichierIntrouvable);
+  });
+
   it('ecrireQuittance rejette si le fichier existe déjà (immutabilité D-63)', async () => {
     const baseDir = creerTmpDir();
     const stockage = new StockageFichierLocal(baseDir);

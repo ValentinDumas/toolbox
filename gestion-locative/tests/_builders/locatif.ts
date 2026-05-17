@@ -16,7 +16,8 @@ import {
   type EtatItem,
 } from '../../src/domain/_shared/inventaire-item.js';
 import { EtatDesLieux, type TypeEDL } from '../../src/domain/locatif/etat-des-lieux.js';
-import type { EtatDesLieuxId } from '../../src/domain/_shared/identifiants.js';
+import type { EtatDesLieuxId, BailIndexationId } from '../../src/domain/_shared/identifiants.js';
+import { BailIndexation, type RaisonNonApplication } from '../../src/domain/locatif/bail-indexation.js';
 
 interface OverridesLocataire {
   id?: LocataireId;
@@ -214,6 +215,55 @@ export function unEtatDesLieuxEntreeValide(overrides: OverridesEDL = {}): EtatDe
     inventaire: overrides.inventaire ?? inventaire12ItemsPresentsBon(),
     annuleLe: overrides.annuleLe,
     raisonAnnulation: overrides.raisonAnnulation,
+  });
+}
+
+// ─── BailIndexation builders (Phase 3-04) ─────────────────────────────────────
+
+interface OverridesBailIndexation {
+  id?: BailIndexationId;
+  bailId?: BailId;
+  dateEffet?: Temporal.PlainDate;
+  irlAvant?: IRL;
+  irlApres?: IRL;
+  loyerAvant?: Money;
+  loyerApres?: Money;
+  indexationAppliquee?: boolean;
+  raisonNonApplication?: RaisonNonApplication | null;
+}
+
+export function uneBailIndexationAppliqueeValide(
+  overrides: OverridesBailIndexation = {},
+): BailIndexation {
+  return BailIndexation.creer({
+    id: overrides.id,
+    bailId: overrides.bailId ?? nouveauBailId(),
+    dateEffet: overrides.dateEffet ?? Temporal.PlainDate.from('2026-05-01'),
+    irlAvant: overrides.irlAvant ?? IRL.creer({ trimestre: '2024-T4', valeur: '142.06' }),
+    irlApres: overrides.irlApres ?? IRL.creer({ trimestre: '2025-T4', valeur: '145.47' }),
+    loyerAvant: overrides.loyerAvant ?? Money.fromCentimes(80_000n),
+    loyerApres: overrides.loyerApres ?? Money.fromCentimes(81_920n),
+    indexationAppliquee: overrides.indexationAppliquee ?? true,
+    raisonNonApplication:
+      overrides.raisonNonApplication !== undefined ? overrides.raisonNonApplication : null,
+  });
+}
+
+export function uneBailIndexationRenonceeValide(
+  overrides: OverridesBailIndexation = {},
+): BailIndexation {
+  const loyerAvant = overrides.loyerAvant ?? Money.fromCentimes(80_000n);
+  return BailIndexation.creer({
+    id: overrides.id,
+    bailId: overrides.bailId ?? nouveauBailId(),
+    dateEffet: overrides.dateEffet ?? Temporal.PlainDate.from('2026-05-01'),
+    irlAvant: overrides.irlAvant ?? IRL.creer({ trimestre: '2024-T4', valeur: '142.06' }),
+    irlApres: overrides.irlApres ?? IRL.creer({ trimestre: '2025-T4', valeur: '145.47' }),
+    loyerAvant,
+    loyerApres: overrides.loyerApres ?? loyerAvant,
+    indexationAppliquee: overrides.indexationAppliquee ?? false,
+    raisonNonApplication:
+      overrides.raisonNonApplication !== undefined ? overrides.raisonNonApplication : 'refus_bailleur',
   });
 }
 
