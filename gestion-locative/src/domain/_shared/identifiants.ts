@@ -39,6 +39,13 @@ export function nouveauDiagnosticId(): DiagnosticId {
   return crypto.randomUUID() as DiagnosticId;
 }
 
+// Phase 3 plan 02 — EtatDesLieux agrégat racine (LOC-03)
+export type EtatDesLieuxId = string & { readonly __brand: 'EtatDesLieuxId' };
+
+export function nouveauEtatDesLieuxId(): EtatDesLieuxId {
+  return crypto.randomUUID() as EtatDesLieuxId;
+}
+
 // Phase 2 — identifiants nouveaux agrégats
 export type BailleurId = string & { readonly __brand: 'BailleurId' };
 export type EcheanceLoyerId = string & { readonly __brand: 'EcheanceLoyerId' };

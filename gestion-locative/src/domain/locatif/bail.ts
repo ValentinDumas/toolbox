@@ -6,6 +6,7 @@ import { Money } from '../_shared/money.js';
 import type { IRL } from '../_shared/irl.js';
 
 import type { Cautionnement } from './cautionnement.js';
+import { InventaireItem, TYPES_ITEM_OBLIGATOIRES, type TypeItemInventaire } from '../_shared/inventaire-item.js';
 
 /** Phase 1 : meublé classique seulement. Étudiant/mobilité différés V2 (D-34). */
 export type TypeBail = 'classique';
@@ -31,6 +32,8 @@ interface BailProps {
   actifDepuis?: Temporal.PlainDate | null;
   /** Phase 2 — D-53. Jour du mois de l'échéance, 1..28. Défaut 1. */
   jourEcheance?: number;
+  /** Phase 3 — LOC-06 D-97 : inventaire mobilier obligatoire décret 2015-981 (présence seulement). */
+  mobilier?: InventaireItem[];
 }
 
 export interface ModifierBailPatch {
@@ -48,6 +51,8 @@ export interface ModifierBailPatch {
   /** Phase 2 — D-51. Utiliser `undefined` pour ne pas modifier, `null` pour désactiver. */
   actifDepuis?: Temporal.PlainDate | null;
   jourEcheance?: number;
+  /** Phase 3 — LOC-06 D-97 : inventaire mobilier obligatoire décret 2015-981. */
+  mobilier?: InventaireItem[];
 }
 
 /**
@@ -81,6 +86,8 @@ export class Bail {
   readonly actifDepuis: Temporal.PlainDate | null;
   /** Phase 2 — D-53. Jour du mois de l'échéance, 1..28. Défaut 1. */
   readonly jourEcheance: number;
+  /** Phase 3 — LOC-06 D-97 : inventaire mobilier obligatoire décret 2015-981. Défaut []. */
+  readonly mobilier: ReadonlyArray<InventaireItem>;
 
   private constructor(id: BailId, props: Omit<BailProps, 'id'>) {
     this.id = id;
@@ -98,6 +105,7 @@ export class Bail {
     this.cautionnement = props.cautionnement;
     this.actifDepuis = props.actifDepuis ?? null;
     this.jourEcheance = props.jourEcheance ?? 1;
+    this.mobilier = Object.freeze([...(props.mobilier ?? [])]);
   }
 
   static creer(props: BailProps): Bail {
@@ -156,6 +164,7 @@ export class Bail {
       cautionnement: props.cautionnement,
       actifDepuis: props.actifDepuis,
       jourEcheance: props.jourEcheance,
+      mobilier: props.mobilier,
     });
   }
 
@@ -177,6 +186,7 @@ export class Bail {
       cautionnement: this.cautionnement,
       actifDepuis: this.actifDepuis,
       jourEcheance: this.jourEcheance,
+      mobilier: [...this.mobilier],
     };
   }
 
@@ -199,6 +209,7 @@ export class Bail {
       // actifDepuis : `null` intentionnel (désactivation) distinct de `undefined` (pas de changement)
       ...(patch.actifDepuis !== undefined && { actifDepuis: patch.actifDepuis }),
       ...(patch.jourEcheance !== undefined && { jourEcheance: patch.jourEcheance }),
+      ...(patch.mobilier !== undefined && { mobilier: patch.mobilier }),
     });
   }
 
@@ -223,5 +234,31 @@ export class Bail {
       ...this.toProps(),
       actifDepuis: null,
     });
+  }
+
+  /**
+   * Phase 3 — LOC-06 D-98. Vérifie la checklist mobilier obligatoire (décret 2015-981).
+   * Non bloquant — retourne un warning textuel si des items obligatoires sont absents.
+   */
+  verifierChecklistMobilier(): { manquants: TypeItemInventaire[]; warning: string | null } {
+    if (this.mobilier.length === 0) {
+      return {
+        manquants: [...TYPES_ITEM_OBLIGATOIRES],
+        warning: 'Aucun mobilier renseigné — risque maximum de requalification.',
+      };
+    }
+
+    const manquants = TYPES_ITEM_OBLIGATOIRES.filter(
+      (t) => !this.mobilier.some((i) => i.typeItem === t && i.present),
+    );
+
+    if (manquants.length === 0) {
+      return { manquants: [], warning: null };
+    }
+
+    return {
+      manquants,
+      warning: `Attention : ${manquants.length} élément(s) obligatoire(s) du décret 2015-981 sont marqués absents. Le bail risque d'être requalifié en bail nu, entraînant un changement de régime fiscal (revenus fonciers au lieu de BIC).`,
+    };
   }
 }

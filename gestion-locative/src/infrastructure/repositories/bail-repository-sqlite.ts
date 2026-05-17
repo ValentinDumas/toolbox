@@ -9,6 +9,7 @@ import { IRL } from '../../domain/_shared/irl.js';
 import { Cautionnement } from '../../domain/locatif/cautionnement.js';
 import { Adresse } from '../../domain/_shared/adresse.js';
 import type { BailId, BienId, LotId, LocataireId } from '../../domain/_shared/identifiants.js';
+import { InventaireItem } from '../../domain/_shared/inventaire-item.js';
 
 export class BailRepositorySqlite implements BailRepository {
   constructor(private readonly db: Kysely<DB>) {}
@@ -38,6 +39,7 @@ export class BailRepositorySqlite implements BailRepository {
           cautionnement: cautionnementJson,
           actif_depuis: bail.actifDepuis?.toString() ?? null,
           jour_echeance: bail.jourEcheance,
+          mobilier: bail.mobilier.length > 0 ? JSON.stringify(bail.mobilier.map((i) => i.toJSON())) : null,
         })
         .onConflict((oc) =>
           oc.column('id').doUpdateSet({
@@ -54,6 +56,7 @@ export class BailRepositorySqlite implements BailRepository {
             cautionnement: cautionnementJson,
             actif_depuis: bail.actifDepuis?.toString() ?? null,
             jour_echeance: bail.jourEcheance,
+            mobilier: bail.mobilier.length > 0 ? JSON.stringify(bail.mobilier.map((i) => i.toJSON())) : null,
             modifie_le: new Date().toISOString(),
           }),
         )
@@ -158,6 +161,7 @@ export class BailRepositorySqlite implements BailRepository {
       cautionnement: string | null;
       actif_depuis?: string | null;
       jour_echeance?: number;
+      mobilier?: string | null;
     },
     lotIds: LotId[],
   ): Bail {
@@ -186,6 +190,9 @@ export class BailRepositorySqlite implements BailRepository {
       : null;
     const jourEcheance = row.jour_echeance ?? 1;
 
+    // Phase 3 — LOC-06 D-97 : désérialisation mobilier JSON inline
+    const mobilier = this.mobilierDepuisJson(row.mobilier ?? null);
+
     return Bail.creer({
       id: row.id as BailId,
       locataireId: row.locataire_id as LocataireId,
@@ -202,7 +209,26 @@ export class BailRepositorySqlite implements BailRepository {
       cautionnement,
       actifDepuis,
       jourEcheance,
+      mobilier,
     });
+  }
+
+  private mobilierDepuisJson(json: string | null): InventaireItem[] {
+    if (!json) return [];
+    const data = JSON.parse(json) as Array<{
+      typeItem: string;
+      present: boolean;
+      etat: string | null;
+      note: string | null;
+    }>;
+    return data.map((p) =>
+      InventaireItem.creer({
+        typeItem: p.typeItem as any,
+        present: p.present,
+        etat: p.etat as any,
+        note: p.note,
+      }),
+    );
   }
 
   private cautionnementDepuisJson(json: string): Cautionnement {

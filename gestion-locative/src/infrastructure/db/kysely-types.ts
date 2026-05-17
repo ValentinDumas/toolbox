@@ -73,9 +73,25 @@ export interface BailTable {
   cautionnement: string | null;
   actif_depuis: string | null;
   jour_echeance: number;
+  /** Phase 3 — LOC-06 D-97 : JSON array d'InventaireItem (présence seulement à la création du bail) */
+  mobilier: string | null;
   cree_le: Generated<string>;
   modifie_le: Generated<string>;
   supprime_le: string | null;
+}
+
+// Phase 3 — EtatDesLieux (LOC-03, D-82, D-86, D-89)
+export interface EtatDesLieuxTable {
+  id: string;
+  bail_id: string;
+  type: 'entree' | 'sortie';
+  date_edl: string;
+  contradictoire: 0 | 1;
+  date_signature: string | null;
+  inventaire: string; // JSON array of InventaireItem (D-86)
+  annule_le: string | null; // Soft-delete (D-89)
+  raison_annulation: string | null;
+  cree_le: Generated<string>;
 }
 
 export interface BailleurTable {
@@ -161,4 +177,5 @@ export interface DB {
   quittance: QuittanceTable;
   relance: RelanceTable;
   diagnostics: DiagnosticsTable;
+  etat_des_lieux: EtatDesLieuxTable;
 }
