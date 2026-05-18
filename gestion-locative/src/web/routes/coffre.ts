@@ -49,6 +49,7 @@ import {
   modifierJustificatifSchema,
   uploadJustificatifFormSchema,
 } from '../schemas/justificatif-schemas.js';
+import { encodeFilenameRFC6266 } from '../helpers/content-disposition.js';
 
 interface CoffrePluginOpts {
   justificatifRepo: JustificatifRepository;
@@ -405,10 +406,7 @@ export async function plugin(
       const buffer = await opts.stockage.lire(j.cheminFichier);
       return reply
         .header('Content-Type', j.mimeType)
-        .header(
-          'Content-Disposition',
-          `attachment; filename="${j.nomFichierOriginal}"`,
-        )
+        .header('Content-Disposition', encodeFilenameRFC6266(j.nomFichierOriginal))
         .send(buffer);
     } catch (err) {
       if (err instanceof FichierIntrouvable) {

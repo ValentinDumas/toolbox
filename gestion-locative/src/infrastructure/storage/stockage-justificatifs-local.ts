@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { FichierIntrouvable } from '../../domain/documents/erreurs.js';
+import { CheminInvalide, FichierIntrouvable } from '../../domain/documents/erreurs.js';
 import type { StockageJustificatifs } from '../../domain/documents/stockage-justificatifs.js';
 import type { CheminRelatif, JustificatifId } from '../../domain/_shared/identifiants.js';
 
@@ -23,7 +23,20 @@ export class StockageJustificatifsLocal implements StockageJustificatifs {
     ext: string,
     bytes: Buffer,
   ): Promise<CheminRelatif> {
+    // Validation défensive avant path.join (CR-04 — defense-in-depth path-traversal)
+    const SLUG_RE = /^[a-z0-9-]{1,80}$/;
+    const EXT_RE = /^[a-z0-9]{1,5}$/;
+    if (!Number.isInteger(annee) || annee < 1900 || annee > 2200) {
+      throw new CheminInvalide();
+    }
+    if (!SLUG_RE.test(slug)) {
+      throw new CheminInvalide();
+    }
     const extNetto = ext.startsWith('.') ? ext.slice(1) : ext;
+    if (!EXT_RE.test(extNetto)) {
+      throw new CheminInvalide();
+    }
+
     const cheminRelatif = path.join(
       'documents',
       'justificatifs',
@@ -31,6 +44,17 @@ export class StockageJustificatifsLocal implements StockageJustificatifs {
       `${justificatifId}-${slug}.${extNetto}`,
     );
     const cheminAbsolu = path.join(this.baseDir, cheminRelatif);
+
+    // Vérification path-traversal après path.join — parité avec lire() (WR-03)
+    const baseDirResolu = path.resolve(this.baseDir);
+    const cheminAbsoluResolu = path.resolve(cheminAbsolu);
+    if (
+      !cheminAbsoluResolu.startsWith(baseDirResolu + path.sep) &&
+      cheminAbsoluResolu !== baseDirResolu
+    ) {
+      throw new CheminInvalide();
+    }
+
     await fs.mkdir(path.dirname(cheminAbsolu), { recursive: true });
     await fs.writeFile(cheminAbsolu, bytes, { flag: 'wx' });
     return cheminRelatif as CheminRelatif;

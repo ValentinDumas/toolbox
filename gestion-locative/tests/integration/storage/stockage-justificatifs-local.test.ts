@@ -8,7 +8,7 @@ import type {
   CheminRelatif,
   JustificatifId,
 } from '../../../src/domain/_shared/identifiants.js';
-import { FichierIntrouvable } from '../../../src/domain/documents/erreurs.js';
+import { CheminInvalide, FichierIntrouvable } from '../../../src/domain/documents/erreurs.js';
 import { slugify } from '../../../src/domain/_shared/slug.js';
 import { StockageJustificatifsLocal } from '../../../src/infrastructure/storage/stockage-justificatifs-local.js';
 
@@ -152,5 +152,32 @@ describe('slugify (DP-27) — déplacé dans domain/_shared/slug.ts (CR-06)', ()
     expect(r).not.toContain('/');
     expect(r).not.toContain('..');
     expect(r).toMatch(/^[a-z0-9-]+$/);
+  });
+});
+
+describe('CR-04 — validation défensive ecrire()', () => {
+  it('refuse slug avec ../', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageJustificatifsLocal(baseDir);
+    await expect(
+      stockage.ecrire(2026, idTest, '../etc/passwd', 'pdf', Buffer.from('x')),
+    ).rejects.toBeInstanceOf(CheminInvalide);
+  });
+  it('refuse ext malformée', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageJustificatifsLocal(baseDir);
+    await expect(
+      stockage.ecrire(2026, idTest, 'ok', '../', Buffer.from('x')),
+    ).rejects.toBeInstanceOf(CheminInvalide);
+  });
+  it('refuse annee invalide', async () => {
+    const baseDir = creerTmpDir();
+    const stockage = new StockageJustificatifsLocal(baseDir);
+    await expect(
+      stockage.ecrire(-1, idTest, 'ok', 'pdf', Buffer.from('x')),
+    ).rejects.toBeInstanceOf(CheminInvalide);
+    await expect(
+      stockage.ecrire(NaN, idTest, 'ok', 'pdf', Buffer.from('x')),
+    ).rejects.toBeInstanceOf(CheminInvalide);
   });
 });

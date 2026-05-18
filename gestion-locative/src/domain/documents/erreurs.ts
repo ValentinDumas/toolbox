@@ -68,3 +68,10 @@ export class PurgeAvantDixAnsRefusee extends Error {
     this.name = 'PurgeAvantDixAnsRefusee';
   }
 }
+
+export class CheminInvalide extends Error {
+  constructor() {
+    super('Chemin de stockage invalide.');
+    this.name = 'CheminInvalide';
+  }
+}
