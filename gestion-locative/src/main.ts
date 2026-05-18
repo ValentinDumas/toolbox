@@ -22,6 +22,7 @@ import { formaterRaisonNonApplication } from './helpers/format-raison-non-applic
 import { formaterTypeJustificatif } from './helpers/format-type-justificatif.js';
 import { formaterTailleFichier } from './helpers/format-taille-fichier.js';
 import { formaterAnneeFiscale } from './helpers/format-annee-fiscale.js';
+import { formaterStatutTicket } from './helpers/format-statut-ticket.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
 import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
@@ -60,12 +61,14 @@ import { plugin as diagnosticsPlugin } from './web/routes/diagnostics.js';
 import { plugin as etatsDesLieuxPlugin } from './web/routes/etats-des-lieux.js';
 import { plugin as indexationsPlugin } from './web/routes/indexations.js';
 import { plugin as coffrePlugin } from './web/routes/coffre.js';
+import { plugin as travauxPlugin } from './web/routes/travaux.js';
 import { EtatDesLieuxRepositorySqlite } from './infrastructure/repositories/etat-des-lieux-repository-sqlite.js';
 import { BailIndexationRepositorySqlite } from './infrastructure/repositories/bail-indexation-repository-sqlite.js';
 import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
 import { JustificatifRepositorySqlite } from './infrastructure/repositories/justificatif-repository-sqlite.js';
 import { StockageJustificatifsLocal } from './infrastructure/storage/stockage-justificatifs-local.js';
 import { ConvertisseurImageSharp } from './infrastructure/image/convertisseur-image-sharp.js';
+import { TicketTravauxRepositorySqlite } from './infrastructure/repositories/ticket-travaux-repository-sqlite.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -147,6 +150,8 @@ export async function creerApp(
       path.join(os.homedir(), 'Library', 'Application Support', 'gestion-locative', 'documents'),
   );
   const convertisseurImage = new ConvertisseurImageSharp();
+  // Phase 4 — BC Travaux
+  const ticketRepo = new TicketTravauxRepositorySqlite(db);
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
@@ -167,6 +172,7 @@ export async function creerApp(
       formaterTypeJustificatif,
       formaterTailleFichier,
       formaterAnneeFiscale,
+      formaterStatutTicket,
       today,
     };
   });
@@ -202,7 +208,7 @@ export async function creerApp(
 
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
-  await app.register(biensPlugin, { repo, justificatifRepo });
+  await app.register(biensPlugin, { repo, justificatifRepo, ticketRepo });
   await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo, justificatifRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, bailIndexationRepo, clock });
@@ -280,6 +286,18 @@ export async function creerApp(
     justificatifRepo,
     bienRepo: repo,
     locataireRepo,
+    stockage: stockageJustificatifs,
+    convertisseurImage,
+    clock,
+    db,
+  });
+
+  // Phase 4 — BC Travaux (INC-01)
+  await app.register(travauxPlugin, {
+    ticketRepo,
+    bienRepo: repo,
+    locataireRepo,
+    justificatifRepo,
     stockage: stockageJustificatifs,
     convertisseurImage,
     clock,

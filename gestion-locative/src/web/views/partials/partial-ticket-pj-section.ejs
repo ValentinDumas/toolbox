@@ -1,0 +1,98 @@
+<%
+/*
+ * partial-ticket-pj-section.ejs — Panneau Pièces jointes d'un ticket (UI-5.3).
+ *
+ * Variables attendues :
+ *   - ticket (TicketTravaux)
+ *   - justificatifs (Justificatif[])
+ *   - formatDate, formaterTypeJustificatif (depuis locals)
+ *
+ * UI :
+ *   - Si justificatifs.length === 0 → empty state D-119 verbatim
+ *   - Sinon → table 4 cols (Date | Type | Titre lien | Actions Retirer)
+ *   - Form upload inline (multipart/form-data) sous la table, toujours visible
+ */
+const justifs = locals.justificatifs || [];
+const ticket = locals.ticket;
+%>
+
+<% if (justifs.length === 0) { %>
+  <%- include('empty-state', {
+    heading: 'Aucune pièce jointe',
+    body: 'Ajoutez un devis ou une facture pour ce ticket.',
+  }) %>
+<% } else { %>
+  <table aria-label="Pièces jointes du ticket">
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Type</th>
+        <th scope="col">Titre</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% justifs.forEach(function(j) { %>
+        <tr>
+          <td style="font-variant-numeric: tabular-nums;"><%= locals.formatDate ? locals.formatDate(j.dateDocument) : j.dateDocument.toString() %></td>
+          <td><%= locals.formaterTypeJustificatif ? locals.formaterTypeJustificatif(j.type) : j.type %></td>
+          <td><a href="/justificatifs/<%= j.id %>"><%= j.titre %></a></td>
+          <td>
+            <form method="POST" action="/travaux/<%= ticket.id %>/justificatifs/<%= j.id %>/delier" style="display:inline">
+              <button type="submit" class="destructif" style="min-height: 44px; min-width: 44px;">Retirer</button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+<% } %>
+
+<h3 style="margin-top: 1.5rem;">Ajouter une pièce jointe</h3>
+
+<form enctype="multipart/form-data" method="POST" action="/travaux/<%= ticket.id %>/justificatifs" novalidate>
+  <div class="field">
+    <label for="pj-fichier">Fichier <span aria-hidden="true">*</span></label>
+    <input
+      id="pj-fichier"
+      name="fichier"
+      type="file"
+      accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,image/jpeg,image/jpg,image/png,image/heic,image/heif,image/webp"
+      required
+    />
+    <small>PDF, JPG, PNG, HEIC, WebP — max 50 Mo</small>
+  </div>
+
+  <div class="field">
+    <label for="pj-titre">Titre <span aria-hidden="true">*</span></label>
+    <input id="pj-titre" name="titre" type="text" required maxlength="200" />
+  </div>
+
+  <div class="field">
+    <label for="pj-dateDocument">Date du document <span aria-hidden="true">*</span></label>
+    <input id="pj-dateDocument" name="dateDocument" type="date" required />
+  </div>
+
+  <div class="field">
+    <label for="pj-type">Type <span aria-hidden="true">*</span></label>
+    <select id="pj-type" name="type" required>
+      <option value="">— Choisir —</option>
+      <option value="facture">Facture</option>
+      <option value="ticket_caisse">Ticket de caisse</option>
+      <option value="attestation">Attestation</option>
+      <option value="autre">Autre</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="pj-montantTtcEuros">Montant TTC (€) <small>(optionnel)</small></label>
+    <input id="pj-montantTtcEuros" name="montantTtcEuros" type="number" step="0.01" min="0" />
+  </div>
+
+  <div class="field">
+    <label for="pj-notes">Notes <small>(optionnel)</small></label>
+    <textarea id="pj-notes" name="notes" maxlength="2000"></textarea>
+  </div>
+
+  <button type="submit" style="min-height: 44px;">Ajouter une pièce jointe</button>
+</form>

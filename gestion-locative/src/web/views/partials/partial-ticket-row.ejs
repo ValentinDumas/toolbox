@@ -1,0 +1,32 @@
+<%
+/*
+ * partial-ticket-row.ejs — Ligne de ticket dans la liste (UI-5.2).
+ * Variable attendue : ticket (TicketTravaux), formatMoney, formatDate (depuis locals).
+ *
+ * 7 colonnes : Titre | Statut | Ouverture | Clôture | Coût estimé | Coût réel | Actions
+ */
+const t = locals.ticket;
+%>
+<tr>
+  <td><a href="/travaux/<%= t.id %>"><%= t.titre %></a></td>
+  <td><%- include('partial-badge-statut-ticket', { statut: t.statut }) %></td>
+  <td style="font-variant-numeric: tabular-nums;"><%= locals.formatDate ? locals.formatDate(t.dateOuverture) : t.dateOuverture.toString() %></td>
+  <td style="font-variant-numeric: tabular-nums;">
+    <% if (t.dateCloture) { %>
+      <%= locals.formatDate ? locals.formatDate(t.dateCloture) : t.dateCloture.toString() %>
+    <% } else { %>—<% } %>
+  </td>
+  <td class="numeric">
+    <% if (t.coutEstimeTtc) { %>
+      <%= locals.formatMoney ? locals.formatMoney(t.coutEstimeTtc) : t.coutEstimeTtc.enEuros() %>
+    <% } else { %>—<% } %>
+  </td>
+  <td class="numeric">
+    <% if (t.coutReelTtc) { %>
+      <%= locals.formatMoney ? locals.formatMoney(t.coutReelTtc) : t.coutReelTtc.enEuros() %>
+    <% } else { %>—<% } %>
+  </td>
+  <td class="row-actions">
+    <a href="/travaux/<%= t.id %>">Voir</a>
+  </td>
+</tr>

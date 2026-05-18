@@ -269,7 +269,7 @@ Given(
 // ─── When ────────────────────────────────────────────────────────────────────
 
 When(
-  /^le bailleur soumet POST \/biens\/:id\/travaux avec titre "(.*)" description "(.*)" dateOuverture "(.+)"(?: coutEstimeTtcEuros "(.+)")?$/,
+  /^le bailleur soumet POST \/biens\/:id\/travaux avec titre "([^"]*)" description "([^"]*)" dateOuverture "([^"]+)"(?: coutEstimeTtcEuros "([^"]+)")?$/,
   async function (
     this: MondePhase4Travaux,
     titre: string,
@@ -279,18 +279,22 @@ When(
   ) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.bienId, 'bienId non défini');
-    const payload: Record<string, string> = {
+    const params = new URLSearchParams({
       titre,
       description,
       dateOuverture,
-    };
-    if (coutEstimeTtcEurosRaw !== undefined && coutEstimeTtcEurosRaw.length > 0) {
-      payload['coutEstimeTtcEuros'] = coutEstimeTtcEurosRaw;
+    });
+    if (
+      coutEstimeTtcEurosRaw !== undefined &&
+      coutEstimeTtcEurosRaw !== null &&
+      coutEstimeTtcEurosRaw.length > 0
+    ) {
+      params.set('coutEstimeTtcEuros', coutEstimeTtcEurosRaw);
     }
     const resp = await this.app.inject({
       method: 'POST',
       url: `/biens/${this.bienId}/travaux`,
-      payload,
+      payload: params.toString(),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),
@@ -307,7 +311,7 @@ When(
 );
 
 When(
-  /^le bailleur soumet POST \/biens\/uuid-inconnu\/travaux avec titre "(.*)" description "(.*)" dateOuverture "(.+)"$/,
+  /^le bailleur soumet POST \/biens\/uuid-inconnu\/travaux avec titre "([^"]*)" description "([^"]*)" dateOuverture "([^"]+)"$/,
   async function (
     this: MondePhase4Travaux,
     titre: string,
@@ -316,10 +320,11 @@ When(
   ) {
     assert.ok(this.app, 'App non initialisée');
     const fakeUuid = '00000000-0000-4000-8000-000000000000';
+    const params = new URLSearchParams({ titre, description, dateOuverture });
     const resp = await this.app.inject({
       method: 'POST',
       url: `/biens/${fakeUuid}/travaux`,
-      payload: { titre, description, dateOuverture },
+      payload: params.toString(),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),
@@ -335,7 +340,7 @@ When(
 );
 
 When(
-  /^le bailleur soumet POST \/travaux\/:id\/justificatifs avec multipart PDF "(.+)"$/,
+  /^le bailleur soumet POST \/travaux\/:id\/justificatifs avec multipart PDF "([^"]+)"$/,
   async function (this: MondePhase4Travaux, titre: string) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.ticketId, 'ticketId non défini');
@@ -387,7 +392,7 @@ When(
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),
       },
-    });
+    } as never);
     extraireCookies(
       resp.headers as Record<string, string | string[] | undefined>,
       this.cookies,
@@ -412,7 +417,7 @@ When(
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),
       },
-    });
+    } as never);
     extraireCookies(
       resp.headers as Record<string, string | string[] | undefined>,
       this.cookies,
@@ -424,7 +429,7 @@ When(
 );
 
 When(
-  /^le bailleur soumet POST \/travaux\/:id\/clore avec dateCloture "(.+)" coutReelTtcEuros "(.+)"$/,
+  /^le bailleur soumet POST \/travaux\/:id\/clore avec dateCloture "([^"]+)" coutReelTtcEuros "([^"]+)"$/,
   async function (
     this: MondePhase4Travaux,
     dateCloture: string,
@@ -432,10 +437,11 @@ When(
   ) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.ticketId, 'ticketId non défini');
+    const params = new URLSearchParams({ dateCloture, coutReelTtcEuros });
     const resp = await this.app.inject({
       method: 'POST',
       url: `/travaux/${this.ticketId}/clore`,
-      payload: { dateCloture, coutReelTtcEuros },
+      payload: params.toString(),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),
@@ -452,14 +458,15 @@ When(
 );
 
 When(
-  /^le bailleur soumet POST \/travaux\/:id\/clore avec dateCloture "(.+)" sans coutReel$/,
+  /^le bailleur soumet POST \/travaux\/:id\/clore avec dateCloture "([^"]+)" sans coutReel$/,
   async function (this: MondePhase4Travaux, dateCloture: string) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.ticketId, 'ticketId non défini');
+    const params = new URLSearchParams({ dateCloture });
     const resp = await this.app.inject({
       method: 'POST',
       url: `/travaux/${this.ticketId}/clore`,
-      payload: { dateCloture },
+      payload: params.toString(),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),
@@ -475,14 +482,15 @@ When(
 );
 
 When(
-  /^le bailleur soumet POST \/travaux\/:id\/annuler avec raison "(.+)"$/,
+  /^le bailleur soumet POST \/travaux\/:id\/annuler avec raison "([^"]+)"$/,
   async function (this: MondePhase4Travaux, raison: string) {
     assert.ok(this.app, 'App non initialisée');
     assert.ok(this.ticketId, 'ticketId non défini');
+    const params = new URLSearchParams({ raison });
     const resp = await this.app.inject({
       method: 'POST',
       url: `/travaux/${this.ticketId}/annuler`,
-      payload: { raison },
+      payload: params.toString(),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
         Cookie: cookieHeader(this.cookies),

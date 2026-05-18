@@ -66,6 +66,14 @@ describe('TicketTravaux.creer — invariants', () => {
     expect(t.statut).toBe('ouvert');
   });
 
+  it("statut par défaut = 'ouvert' si statut explicitement undefined (cover ?? fallback)", () => {
+    const props = unTicketTravauxValide();
+    // Cast pour bypasser le typage qui exige statut
+    (props as unknown as { statut?: undefined }).statut = undefined;
+    const t = TicketTravaux.creer(props, TODAY);
+    expect(t.statut).toBe('ouvert');
+  });
+
   it('refuse un statut inconnu', () => {
     expect(() =>
       TicketTravaux.creer(

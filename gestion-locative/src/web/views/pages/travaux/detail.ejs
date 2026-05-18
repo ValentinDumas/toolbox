@@ -1,0 +1,126 @@
+<%- include('../../partials/layout-debut', {
+  titre: ticket.titre,
+  breadcrumbs: [
+    { url: '/biens', label: 'Biens' },
+    bien ? { url: '/biens/' + bien.id, label: bien.adresse.enLigne() } : null,
+    bien ? { url: '/biens/' + bien.id + '/travaux', label: 'Travaux' } : null,
+    { label: ticket.titre }
+  ].filter(function(b) { return b; }),
+  navActive: 'biens'
+}) %>
+
+<h1><%= ticket.titre %> <%- include('../../partials/partial-badge-statut-ticket', { statut: ticket.statut }) %></h1>
+
+<% if (locals.banniereWarning) { %>
+  <aside role="alert" aria-live="polite" style="background: #fef3c7; border-left: 4px solid #d97706; padding: 12px 16px; margin-bottom: 16px;">
+    <%= locals.banniereWarning %>
+  </aside>
+<% } %>
+
+<section aria-labelledby="meta-heading">
+  <h2 id="meta-heading">Méta</h2>
+  <dl>
+    <dt>Description</dt>
+    <dd><pre style="white-space: pre-wrap; margin: 0; font-family: inherit;"><%= ticket.description %></pre></dd>
+
+    <% if (bien) { %>
+      <dt>Bien</dt>
+      <dd><a href="/biens/<%= bien.id %>"><%= bien.adresse.enLigne() %></a></dd>
+    <% } %>
+
+    <dt>Date d'ouverture</dt>
+    <dd><%= locals.formatDate ? locals.formatDate(ticket.dateOuverture) : ticket.dateOuverture.toString() %></dd>
+
+    <% if (ticket.dateCloture) { %>
+      <dt>Date de clôture</dt>
+      <dd><%= locals.formatDate ? locals.formatDate(ticket.dateCloture) : ticket.dateCloture.toString() %></dd>
+    <% } %>
+
+    <dt>Coût estimé TTC</dt>
+    <dd>
+      <% if (ticket.coutEstimeTtc) { %>
+        <%= locals.formatMoney ? locals.formatMoney(ticket.coutEstimeTtc) : ticket.coutEstimeTtc.enEuros() %>
+      <% } else { %>—<% } %>
+    </dd>
+
+    <% if (ticket.coutReelTtc) { %>
+      <dt>Coût réel TTC</dt>
+      <dd><%= locals.formatMoney ? locals.formatMoney(ticket.coutReelTtc) : ticket.coutReelTtc.enEuros() %></dd>
+    <% } %>
+
+    <% if (ticket.notes) { %>
+      <dt>Notes</dt>
+      <dd><pre style="white-space: pre-wrap; margin: 0; font-family: inherit;"><%= ticket.notes %></pre></dd>
+    <% } %>
+
+    <% if (ticket.annuleLe) { %>
+      <dt>Annulé le</dt>
+      <dd><%= locals.formatDate ? locals.formatDate(ticket.annuleLe) : ticket.annuleLe.toString() %></dd>
+      <% if (ticket.raisonAnnulation) { %>
+        <dt>Raison d'annulation</dt>
+        <dd><%= ticket.raisonAnnulation %></dd>
+      <% } %>
+    <% } %>
+  </dl>
+</section>
+
+<section aria-labelledby="pj-heading">
+  <h2 id="pj-heading">Pièces jointes</h2>
+  <%- include('../../partials/partial-ticket-pj-section', { ticket: ticket, justificatifs: justificatifs }) %>
+</section>
+
+<% if (ticket.statut === 'ouvert' || ticket.statut === 'en_cours') { %>
+  <section aria-labelledby="cloture-heading">
+    <h2 id="cloture-heading">Clôture</h2>
+    <form method="POST" action="/travaux/<%= ticket.id %>/clore" novalidate>
+      <div class="field">
+        <label for="dateCloture">Date de clôture <span aria-hidden="true">*</span></label>
+        <input
+          id="dateCloture"
+          name="dateCloture"
+          type="date"
+          required
+          value="<%= locals.today ? locals.today.toString() : '' %>"
+        />
+      </div>
+      <div class="field">
+        <label for="coutReelTtcEuros">Coût réel TTC (€) <span aria-hidden="true">*</span></label>
+        <input
+          id="coutReelTtcEuros"
+          name="coutReelTtcEuros"
+          type="number"
+          step="0.01"
+          min="0"
+          required
+        />
+      </div>
+      <button type="submit" style="min-height: 44px;">Clore le ticket</button>
+    </form>
+  </section>
+<% } %>
+
+<% if (ticket.statut !== 'annule') { %>
+  <section aria-labelledby="actions-heading">
+    <h2 id="actions-heading">Actions</h2>
+    <form method="POST" action="/travaux/<%= ticket.id %>/annuler" novalidate>
+      <div class="field">
+        <label for="raison-annulation">Raison d'annulation <span aria-hidden="true">*</span></label>
+        <input
+          id="raison-annulation"
+          name="raison"
+          type="text"
+          required
+          minlength="1"
+          maxlength="500"
+        />
+      </div>
+      <button
+        type="submit"
+        class="destructif"
+        style="background:#dc2626; color:white; border-color:#dc2626; min-height: 44px;"
+      >Annuler le ticket</button>
+    </form>
+  </section>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

@@ -15,7 +15,7 @@ import {
 
 /**
  * Statuts d'un TicketTravaux (D-112, D-114 workflow).
- * Pas de champ `nature` (D-115 — qualification fiscale différée Phase 5).
+ * Pas de qualification fiscale (D-115 — différée Phase 5).
  */
 export type StatutTicket = 'ouvert' | 'en_cours' | 'clos' | 'annule';
 
@@ -59,8 +59,8 @@ export interface TicketTravauxProps {
  *   - annuler(raison, annuleLe, today) : tout statut → annule + soft-delete via annule_le
  *     - depuis 'annule' → throw TicketDejaAnnule.
  *
- * D-115 strictement honoré : aucun champ `nature` — la qualification fiscale
- * (réparation/entretien/amélioration) arrivera Phase 5 dans un BC Fiscalité séparé.
+ * D-115 strictement honoré : la qualification fiscale (réparation /
+ * entretien / amélioration) arrivera Phase 5 dans un BC Fiscalité séparé.
  */
 export class TicketTravaux {
   readonly id: TicketTravauxId;
