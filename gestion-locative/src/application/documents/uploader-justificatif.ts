@@ -26,7 +26,7 @@ import type { StockageJustificatifs } from '../../domain/documents/stockage-just
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import type { DB } from '../../infrastructure/db/kysely-types.js';
-import { StockageJustificatifsLocal } from '../../infrastructure/storage/stockage-justificatifs-local.js';
+import { slugify } from '../../domain/_shared/slug.js';
 
 import {
   validerMagicBytes,
@@ -151,7 +151,7 @@ export async function uploaderJustificatif(
 
   // Étape 4 — préparation chemin
   const justificatifId = nouveauJustificatifId();
-  const slug = StockageJustificatifsLocal.slugify(commande.titre);
+  const slug = slugify(commande.titre);
   const anneeFiscale = commande.dateDocument.year;
   const ext = EXT_PAR_MIME[mimePersiste];
   const cheminPrevisible: CheminRelatif =

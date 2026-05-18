@@ -664,3 +664,67 @@ Then(
     assert.equal(rows.length, Number(nbStr));
   },
 );
+
+// ─── CR-03 Gap-04 steps ──────────────────────────────────────────────────────
+
+Given(
+  /^un justificatif "([^"]+)" rattaché au ticket et mis en corbeille$/,
+  async function (this: MondePhase4Travaux, nomFichier: string) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    assert.ok(this.ticketId, 'ticketId non défini');
+    const justifRepo = new JustificatifRepositorySqlite(this.db);
+    const ticketRepo = new TicketTravauxRepositorySqlite(this.db);
+    const j = Justificatif.creer({
+      type: 'facture',
+      dateDocument: Temporal.PlainDate.from('2026-05-15'),
+      titre: nomFichier,
+      montantTtc: null,
+      cheminFichier: `documents/justificatifs/2026/${nomFichier}` as CheminRelatif,
+      nomFichierOriginal: nomFichier,
+      mimeType: 'application/pdf',
+      tailleOctets: 1024,
+      bienId: this.bienId,
+      locataireId: null,
+      notes: null,
+      creeLe: Temporal.PlainDate.from('2026-05-15'),
+    });
+    await justifRepo.enregistrer(j);
+    // Mettre en corbeille
+    const jCorbeille = j.mettreEnCorbeille('test', Temporal.PlainDate.from('2026-05-18'));
+    await justifRepo.enregistrer(jCorbeille);
+    // Lier au ticket via pivot (la pivot reste même si la PJ est en corbeille — D-113)
+    await ticketRepo.lierJustificatif(this.ticketId, j.id);
+    this.justificatifId = j.id;
+  },
+);
+
+When(
+  /^le bailleur navigue vers GET \/travaux\/:ticketId$/,
+  async function (this: MondePhase4Travaux) {
+    assert.ok(this.app, 'App non initialisée');
+    assert.ok(this.ticketId, 'ticketId non défini');
+    const resp = await this.app.inject({
+      method: 'GET',
+      url: `/travaux/${this.ticketId}`,
+      headers: { Cookie: cookieHeader(this.cookies) },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.dernierCorps = resp.body;
+  },
+);
+
+Then(
+  /^la fiche du ticket ne liste aucune pièce jointe$/,
+  function (this: MondePhase4Travaux) {
+    assert.ok(this.dernierCorps, 'Corps de réponse vide');
+    assert.ok(
+      this.dernierCorps.includes('Aucune pièce jointe'),
+      `La fiche devrait afficher "Aucune pièce jointe" mais affiche : ${this.dernierCorps.substring(0, 500)}`,
+    );
+  },
+);

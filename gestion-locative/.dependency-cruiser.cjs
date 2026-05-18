@@ -27,6 +27,27 @@ module.exports = {
       },
     },
     {
+      name: 'no-application-to-infra',
+      comment:
+        'La couche application ne doit pas dépendre de la couche infrastructure (ports & adapters strict — CLAUDE.md).\n        Violations pré-existantes trackées dans RISKS.md (Kysely<DB> type leakage + generer-quittance) sont exclues\n        jusqu\'à refactoring dédié.',
+      severity: 'error',
+      from: {
+        path: '^src/application',
+        pathNot: [
+          '^src/application/encaissements/generer-quittance\\.ts$',
+          '^src/application/encaissements/enregistrer-relance\\.ts$',
+          '^src/application/locatif/appliquer-indexation-irl\\.ts$',
+          '^src/application/locatif/renoncer-indexation-irl\\.ts$',
+          '^src/application/travaux/ajouter-pj-ticket\\.ts$',
+          '^src/application/documents/uploader-justificatif\\.ts$',
+          '^src/application/documents/purger-justificatif\\.ts$',
+        ],
+      },
+      to: {
+        path: '^src/infrastructure',
+      },
+    },
+    {
       name: 'no-application-to-web',
       comment: 'La couche application ne doit pas dépendre de la couche web.',
       severity: 'error',

@@ -47,7 +47,7 @@ export async function lireTicket(
   const justificatifs: Justificatif[] = [];
   for (const jid of justificatifIds) {
     const j = await deps.justificatifRepo.trouverParId(jid);
-    if (j) justificatifs.push(j);
+    if (j && j.corbeilleLe === null) justificatifs.push(j);
   }
   return { ticket, bien, justificatifs };
 }

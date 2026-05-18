@@ -13,7 +13,7 @@ import type {
 import { Money } from '../../../src/domain/_shared/money.js';
 import { Justificatif } from '../../../src/domain/documents/justificatif.js';
 import { TicketTravaux } from '../../../src/domain/travaux/ticket-travaux.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { JustificatifRepositorySqlite } from '../../../src/infrastructure/repositories/justificatif-repository-sqlite.js';
@@ -60,6 +60,7 @@ describe('TicketTravauxRepositorySqlite', () => {
 
   beforeEach(async () => {
     sqlite = new Database(':memory:');
+    activerPragmas(sqlite);
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
     repo = new TicketTravauxRepositorySqlite(db);
@@ -264,11 +265,6 @@ describe('TicketTravauxRepositorySqlite', () => {
     await justifRepo.enregistrer(j2);
     await repo.lierJustificatif(t.id, j1.id);
     await repo.lierJustificatif(t.id, j2.id);
-
-    // SQLite ne déclenche pas FK CASCADE sans PRAGMA foreign_keys=ON.
-    // On l'active explicitement pour ce test (cohérent avec la décision D-113
-    // qui repose sur ON DELETE CASCADE côté SQL).
-    sqlite.prepare('PRAGMA foreign_keys = ON').run();
 
     // DELETE direct via SQL (simule un nettoyage admin)
     sqlite

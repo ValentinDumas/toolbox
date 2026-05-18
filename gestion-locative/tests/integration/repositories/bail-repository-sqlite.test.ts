@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { BailRepositorySqlite } from '../../../src/infrastructure/repositories/bail-repository-sqlite.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { LocataireRepositorySqlite } from '../../../src/infrastructure/repositories/locataire-repository-sqlite.js';
@@ -26,6 +26,7 @@ describe('BailRepositorySqlite', () => {
 
   beforeEach(async () => {
     sqlite = new Database(':memory:');
+    activerPragmas(sqlite);
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
     bailRepo = new BailRepositorySqlite(db);

@@ -26,7 +26,7 @@ import {
   JustificatifIntrouvable,
 } from '../../../src/domain/documents/erreurs.js';
 import { Justificatif } from '../../../src/domain/documents/justificatif.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { JustificatifRepositorySqlite } from '../../../src/infrastructure/repositories/justificatif-repository-sqlite.js';
@@ -51,6 +51,7 @@ describe('Use cases Documents Wave 2', () => {
 
   beforeEach(async () => {
     sqlite = new Database(':memory:');
+    activerPragmas(sqlite);
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
     repo = new JustificatifRepositorySqlite(db);

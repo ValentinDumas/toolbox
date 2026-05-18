@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Temporal } from '@js-temporal/polyfill';
 
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { LocataireRepositorySqlite } from '../../../src/infrastructure/repositories/locataire-repository-sqlite.js';
 import { BailRepositorySqlite } from '../../../src/infrastructure/repositories/bail-repository-sqlite.js';
@@ -34,6 +34,7 @@ interface Ctx {
 
 async function setupCtx(dpe: ClasseDpe = 'D'): Promise<Ctx> {
   const sqlite = new Database(':memory:');
+  activerPragmas(sqlite);
   const db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
   await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
 

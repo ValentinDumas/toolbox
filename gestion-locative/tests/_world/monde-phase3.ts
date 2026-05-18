@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
 import { creerApp } from '../../src/main.js';
 import { ClockFixe } from '../../src/domain/_shared/clock.js';
 import type { BienId, BailId, EtatDesLieuxId } from '../../src/domain/_shared/identifiants.js';
@@ -65,6 +65,7 @@ export async function initialiserMondePhase3(monde: MondePhase3, clockIso: strin
   process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
   monde.clockIso = clockIso;
   monde.sqlite = new Database(':memory:');
+  activerPragmas(monde.sqlite);
   monde.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: monde.sqlite }) });
   await appliquerToutesMigrations(monde.db, monde.sqlite, MIGRATIONS_DIR);
   const clock = ClockFixe.du(clockIso);
