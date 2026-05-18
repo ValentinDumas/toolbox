@@ -32,6 +32,16 @@
 - Font size: 16px minimum for body; never below 12px for any visible text
 - All-caps: decorative only, never for sentences
 
+### Negative-space typography
+
+- L'espace *entre* blocs de texte communique la structure **avant** le contenu lui-même — soigner le négatif autant que le positif (taille, graisse, couleur).
+- **Espacement variable, pas uniforme** : la marge supérieure d'un titre doit être nettement plus grande que celle d'un paragraphe ; un sous-titre doit « coller » à son bloc et s'éloigner du précédent (proximité = appartenance).
+- Raisonner en **proportions** liées à la taille de police (ex : `margin-top: 2em` pour H2, `1em` pour paragraphe), pas en pixels arbitraires — reste cohérent avec le système 8 px ci-dessous.
+- Si deux blocs partagent la même marge verticale, le lecteur ne peut pas deviner leur hiérarchie. **Différencier les écarts = différencier les relations.**
+- Ne jamais se contenter des valeurs par défaut du framework/éditeur — auditer le rythme vertical après chaque changement typographique.
+
+Réf. : <https://www.chrbutler.com/negative-space-typography>
+
 ## Spacing System
 
 Use a base unit (e.g. 8px). All spacing is a multiple: 4, 8, 16, 24, 32, 48, 64.
