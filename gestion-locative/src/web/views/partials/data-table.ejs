@@ -8,10 +8,9 @@
   .sticky-thead th { position: sticky; top: 0; background: var(--pico-background-color, #fff); z-index: 1; }
   tbody tr:nth-child(odd) { background: var(--pico-table-row-stripped-background-color, #f3f4f6); }
   .numeric { text-align: right; }
-  .row-actions { visibility: hidden; }
-  tr:hover .row-actions { visibility: visible; }
+  .row-actions { color: var(--pico-muted-color); text-align: right; }
   .row-actions a, .row-actions button { margin-left: 0.5rem; }
-  .row-actions button.destructif { background: none; border: none; color: #dc2626; cursor: pointer; padding: 0; font: inherit; }
+  .row-actions button.destructif { background: none; border: none; color: var(--couleur-destructive); cursor: pointer; padding: 0; font: inherit; }
 </style>
 <table aria-label="<%= tableAriaLabel %>" class="sticky-thead">
   <caption class="sr-only"><%= tableAriaLabel %></caption>

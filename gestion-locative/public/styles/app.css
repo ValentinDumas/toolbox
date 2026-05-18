@@ -1,5 +1,19 @@
 /* app.css — Complète Pico classless avec les classes spécifiques à la gestion locative */
 
+/* Tokens couleur sémantiques (Phase 4 UI-1.3) — source unique de vérité */
+:root {
+  --couleur-accent: #1d4ed8;
+  --couleur-accent-bg: #dbeafe;
+  --couleur-warning: #d97706;
+  --couleur-warning-bg: #fef3c7;
+  --couleur-destructive: #dc2626;
+  --couleur-destructive-bg: #fee2e2;
+  --couleur-success: #16a34a;
+  --couleur-success-bg: #d1fae5;
+  --couleur-neutre: #6b7280;
+  --couleur-neutre-bg: #f3f4f6;
+}
+
 /* Tableau : thead collant pour les listes longues */
 thead {
   position: sticky;
@@ -15,19 +29,10 @@ td.numeric {
   font-variant-numeric: tabular-nums;
 }
 
-/* Actions de ligne : masquées par défaut, visibles au survol */
-.row-actions {
-  visibility: hidden;
-}
-tr:hover .row-actions,
-tr:focus-within .row-actions {
-  visibility: visible;
-}
-
 /* Bannière de succès avec auto-dismiss CSS après 5s */
 .banniere-success {
-  background: #d1fae5;
-  border-left: 4px solid #16a34a;
+  background: var(--couleur-success-bg);
+  border-left: 4px solid var(--couleur-success);
   padding: 16px;
   margin-bottom: 16px;
   animation: disparaitre 0.5s ease-out 5s forwards;
@@ -40,16 +45,16 @@ tr:focus-within .row-actions {
 
 /* Champ invalide */
 .field input[aria-invalid="true"] {
-  border-color: #dc2626;
+  border-color: var(--couleur-destructive);
 }
 .error-msg {
-  color: #dc2626;
+  color: var(--couleur-destructive);
   font-size: 0.875rem;
 }
 
 /* Nav principale : item actif avec accent visuel */
 nav[aria-label="Navigation principale"] a[aria-current="page"] {
-  border-left: 3px solid #1d4ed8;
+  border-left: 3px solid var(--couleur-accent);
   padding-left: 4px;
   font-weight: 600;
 }
@@ -57,41 +62,41 @@ nav[aria-label="Navigation principale"] a[aria-current="page"] {
 /* Wizard : étape active */
 ol[aria-label="Étapes du wizard d'activation"] li[aria-current="step"] {
   font-weight: 700;
-  color: #1d4ed8;
+  color: var(--couleur-accent);
 }
 
 /* Wizard IRL Phase 3 : étape active (UI-SPEC §LOC-04) */
 nav[aria-label="Étapes de la révision IRL"] ol li[aria-current="step"] {
   font-weight: 700;
-  color: #1d4ed8;
+  color: var(--couleur-accent);
 }
 
 /* Bandeau warning (banniere-warning) — diagnostics expirés, gel loyer, etc. */
 .banniere-warning {
-  background: #fef3c7;
-  border-left: 4px solid #d97706;
+  background: var(--couleur-warning-bg);
+  border-left: 4px solid var(--couleur-warning);
   padding: 12px 16px;
   margin-bottom: 16px;
 }
 
 /* Zone de warnings inventaire EDL sortie (delta + warningsTexte) */
 .warning-zone {
-  background: #fef3c7;
-  border-left: 4px solid #d97706;
+  background: var(--couleur-warning-bg);
+  border-left: 4px solid var(--couleur-warning);
   padding: 12px 16px;
   margin-bottom: 16px;
 }
 
 /* Bloc gel loyer (DPE F/G) — page bloquante */
 section[role="alert"][aria-live="assertive"] {
-  background: #fee2e2;
-  border-left: 4px solid #dc2626;
+  background: var(--couleur-destructive-bg);
+  border-left: 4px solid var(--couleur-destructive);
   padding: 16px;
   margin-bottom: 16px;
   outline: none;
 }
 section[role="alert"][aria-live="assertive"]:focus {
-  outline: 3px solid #1d4ed8;
+  outline: 3px solid var(--couleur-accent);
   outline-offset: 2px;
 }
 
