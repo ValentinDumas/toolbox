@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { Temporal } from '@js-temporal/polyfill';
 
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { creerApp } from '../../../src/main.js';
 import { ClockFixe } from '../../../src/domain/_shared/clock.js';
 import type { ClasseDpe } from '../../../src/domain/_shared/duree-validite-diagnostic.js';
@@ -63,6 +63,7 @@ interface Contexte {
 async function setup(): Promise<Contexte> {
   process.env['SESSION_SECRET'] = 'test-secret-snapshots-phase3-32chars!!';
   const sqlite = new Database(':memory:');
+  activerPragmas(sqlite);
   const db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
   await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
 

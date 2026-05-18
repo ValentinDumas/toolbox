@@ -10,11 +10,27 @@ export interface ConnexionDb {
   sqlite: BetterSqlite3.Database;
 }
 
+/**
+ * Active les PRAGMAs SQLite requis par l'application.
+ *
+ * `foreign_keys = ON` doit être appelé PAR CONNEXION — c'est un setting
+ * per-connection en SQLite (cf. https://www.sqlite.org/foreignkeys.html#fk_enable).
+ * Une migration ne peut PAS le persister pour les connexions futures.
+ *
+ * Conséquence : tout code qui ouvre une connexion SQLite (`new BetterSqlite3(...)`)
+ * sans passer par `ouvrirDb` DOIT appeler `activerPragmas` explicitement, sous
+ * peine de désactiver silencieusement la cascade D-113 et tous les CHECK FK.
+ */
+export function activerPragmas(sqlite: BetterSqlite3.Database): void {
+  sqlite.pragma('foreign_keys = ON');
+}
+
 export function ouvrirDb(cheminFichier: string): ConnexionDb {
   const dossier = path.dirname(cheminFichier);
   fs.mkdirSync(dossier, { recursive: true });
 
   const sqlite = new BetterSqlite3(cheminFichier);
+  activerPragmas(sqlite);
   const db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
   return { db, sqlite };
 }

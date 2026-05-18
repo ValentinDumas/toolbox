@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { creerApp } from '../../../src/main.js';
 import { ClockFixe } from '../../../src/domain/_shared/clock.js';
 import type { BailId, EcheanceLoyerId } from '../../../src/domain/_shared/identifiants.js';
@@ -136,6 +136,7 @@ describe('POST /relances (gap G8 — mailto auto-trigger + régression PDF nivea
   beforeEach(async () => {
     process.env['SESSION_SECRET'] = 'test-secret-G8-integration-32chars!!';
     sqlite = new Database(':memory:');
+    activerPragmas(sqlite);
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
 

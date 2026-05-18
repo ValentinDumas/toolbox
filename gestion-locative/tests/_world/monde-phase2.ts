@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
 import { creerApp } from '../../src/main.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,6 +55,7 @@ export function cookieHeader(jar: CookieJar): string {
 export async function initialiserMondePhase2(monde: MondePhase2): Promise<void> {
   process.env['SESSION_SECRET'] = 'test-secret-for-cucumber-tests-32chars!!';
   monde.sqlite = new Database(':memory:');
+  activerPragmas(monde.sqlite);
   monde.db = new Kysely<DB>({ dialect: new SqliteDialect({ database: monde.sqlite }) });
   await appliquerToutesMigrations(monde.db, monde.sqlite, MIGRATIONS_DIR);
   monde.app = await creerApp(monde.db);

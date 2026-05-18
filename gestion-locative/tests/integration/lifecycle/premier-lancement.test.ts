@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerMigrationsBrutes } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerMigrationsBrutes } from '../../../src/infrastructure/db/database.js';
 import {
   estPremierLancement,
   marquerWizardComplete,
@@ -18,6 +18,7 @@ describe('premier-lancement lifecycle', () => {
 
   beforeEach(async () => {
     const sqlite = new Database(':memory:');
+    activerPragmas(sqlite);
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerMigrationsBrutes(db, sqlite, MIGRATIONS_PATH);
   });

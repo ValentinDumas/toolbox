@@ -13,7 +13,7 @@ import type {
   JustificatifId,
   LocataireId,
 } from '../../src/domain/_shared/identifiants.js';
-import { appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../src/infrastructure/db/database.js';
 import type { DB } from '../../src/infrastructure/db/kysely-types.js';
 import { creerApp } from '../../src/main.js';
 
@@ -74,6 +74,7 @@ export async function initialiserMondePhase4(
 
   monde.clockIso = clockIso;
   monde.sqlite = new Database(':memory:');
+  activerPragmas(monde.sqlite);
   monde.db = new Kysely<DB>({
     dialect: new SqliteDialect({ database: monde.sqlite }),
   });

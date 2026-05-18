@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Temporal } from '@js-temporal/polyfill';
 
 import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
-import { appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
+import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { BailIndexationRepositorySqlite } from '../../../src/infrastructure/repositories/bail-indexation-repository-sqlite.js';
 import { BailIndexation } from '../../../src/domain/locatif/bail-indexation.js';
 import { BailRepositorySqlite } from '../../../src/infrastructure/repositories/bail-repository-sqlite.js';
@@ -34,6 +34,7 @@ describe('BailIndexationRepositorySqlite', () => {
 
   beforeEach(async () => {
     sqlite = new Database(':memory:');
+    activerPragmas(sqlite);
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
     repo = new BailIndexationRepositorySqlite(db);
