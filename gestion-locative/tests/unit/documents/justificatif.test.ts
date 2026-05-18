@@ -163,3 +163,34 @@ describe('Justificatif.anneeFiscale — D-107', () => {
     expect(j.anneeFiscale()).toBe(2025);
   });
 });
+
+describe('Justificatif.creer — modifier via creer({...toProps(), patch}) re-valide D-103', () => {
+  it('accepte un patch de métadonnées (titre + notes + montant) si invariants respectés', () => {
+    const j = Justificatif.creer(unJustificatifValide({ titre: 'Avant' }));
+    const modifie = Justificatif.creer({
+      ...j.toProps(),
+      titre: 'Après',
+      notes: 'Nouvelles notes',
+    });
+    expect(modifie.titre).toBe('Après');
+    expect(modifie.notes).toBe('Nouvelles notes');
+    expect(modifie.id).toBe(j.id);
+    // Champs immuables préservés
+    expect(modifie.cheminFichier).toBe(j.cheminFichier);
+    expect(modifie.mimeType).toBe(j.mimeType);
+    expect(modifie.tailleOctets).toBe(j.tailleOctets);
+    expect(modifie.nomFichierOriginal).toBe(j.nomFichierOriginal);
+    expect(modifie.creeLe.equals(j.creeLe)).toBe(true);
+  });
+
+  it("refuse un patch qui mettrait bienId=null ET locataireId=null (re-validation D-103)", () => {
+    const j = Justificatif.creer(unJustificatifAvecBienSeul());
+    expect(() =>
+      Justificatif.creer({
+        ...j.toProps(),
+        bienId: null,
+        locataireId: null,
+      }),
+    ).toThrow(InvariantViolated);
+  });
+});

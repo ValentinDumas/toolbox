@@ -267,4 +267,175 @@ describe('JustificatifRepositorySqlite', () => {
     const r = await repo.trouverParId(j.id);
     expect(r).toBeNull();
   });
+
+  // ───────── Wave 2 extras: filtres facettés combinés + pagination + filtres locataire ─────────
+
+  it('rechercher LIKE case-insensitive sur titre (3 assertions séparées)', async () => {
+    const j1 = Justificatif.creer(
+      unJustificatifAvecBienSeul({
+        bienId,
+        titre: 'Facture peinture salon',
+      }),
+    );
+    const j2 = Justificatif.creer(
+      unJustificatifAvecBienSeul({
+        bienId,
+        titre: 'Bail signé locataire X',
+      }),
+    );
+    const j3 = Justificatif.creer(
+      unJustificatifAvecBienSeul({
+        bienId,
+        titre: 'Diagnostic gaz',
+      }),
+    );
+    await repo.enregistrer(j1);
+    await repo.enregistrer(j2);
+    await repo.enregistrer(j3);
+
+    // 1. Recherche minuscule matche titre capitalisé
+    const r1 = await repo.rechercher({ search: 'peinture' });
+    expect(r1.total).toBe(1);
+    expect(r1.items[0]?.id).toBe(j1.id);
+
+    // 2. Recherche partielle au milieu du titre
+    const r2 = await repo.rechercher({ search: 'gaz' });
+    expect(r2.total).toBe(1);
+    expect(r2.items[0]?.id).toBe(j3.id);
+
+    // 3. Pattern qui ne matche rien
+    const r3 = await repo.rechercher({ search: 'inexistant' });
+    expect(r3.total).toBe(0);
+  });
+
+  it('rechercher filtres facettés combinés (bien + type)', async () => {
+    const facture = Justificatif.creer(
+      unJustificatifAvecBienSeul({ bienId, type: 'facture' }),
+    );
+    const piece = Justificatif.creer(
+      unJustificatifAvecBienSeul({ bienId, type: 'piece_locataire' }),
+    );
+    const autreBienFacture = Justificatif.creer(
+      unJustificatifAvecLocataireSeul({ locataireId, type: 'facture' }),
+    );
+    await repo.enregistrer(facture);
+    await repo.enregistrer(piece);
+    await repo.enregistrer(autreBienFacture);
+
+    const r = await repo.rechercher({ bienId, type: 'facture' });
+    expect(r.total).toBe(1);
+    expect(r.items[0]?.id).toBe(facture.id);
+  });
+
+  it('rechercher filtres facettés combinés (bien + locataire + type)', async () => {
+    const j1 = Justificatif.creer(
+      unJustificatifValide({ bienId, locataireId, type: 'facture' }),
+    );
+    const j2 = Justificatif.creer(
+      unJustificatifAvecBienSeul({ bienId, type: 'facture' }),
+    );
+    await repo.enregistrer(j1);
+    await repo.enregistrer(j2);
+
+    const r = await repo.rechercher({ bienId, locataireId, type: 'facture' });
+    expect(r.total).toBe(1);
+    expect(r.items[0]?.id).toBe(j1.id);
+  });
+
+  it('rechercher pagination 25 items → page=1 size=20 → 20 items + total=25', async () => {
+    for (let i = 0; i < 25; i++) {
+      const num = String(i + 1).padStart(3, '0');
+      const j = Justificatif.creer(
+        unJustificatifAvecBienSeul({
+          bienId,
+          titre: `Document ${num}`,
+          dateDocument: Temporal.PlainDate.from('2026-01-01').add({ days: i }),
+        }),
+      );
+      await repo.enregistrer(j);
+    }
+    const r1 = await repo.rechercher({ page: 1, pageSize: 20 });
+    expect(r1.total).toBe(25);
+    expect(r1.items.length).toBe(20);
+
+    const r2 = await repo.rechercher({ page: 2, pageSize: 20 });
+    expect(r2.total).toBe(25);
+    expect(r2.items.length).toBe(5);
+  });
+
+  it('listerCorbeille retourne ORDER BY corbeille_le DESC', async () => {
+    const j1 = Justificatif.creer(
+      unJustificatifEnCorbeille({
+        bienId,
+        corbeilleLe: Temporal.PlainDate.from('2026-05-10'),
+        titre: 'Plus ancien',
+      }),
+    );
+    const j2 = Justificatif.creer(
+      unJustificatifEnCorbeille({
+        bienId,
+        corbeilleLe: Temporal.PlainDate.from('2026-05-15'),
+        titre: 'Plus récent',
+      }),
+    );
+    await repo.enregistrer(j1);
+    await repo.enregistrer(j2);
+
+    const liste = await repo.listerCorbeille();
+    expect(liste.length).toBe(2);
+    expect(liste[0]?.titre).toBe('Plus récent');
+    expect(liste[1]?.titre).toBe('Plus ancien');
+  });
+
+  it('rechercher avec pageSize=5 sur 7 justificatifs (cas fiche Bien)', async () => {
+    for (let i = 0; i < 7; i++) {
+      const num = String(i + 1).padStart(3, '0');
+      const j = Justificatif.creer(
+        unJustificatifAvecBienSeul({
+          bienId,
+          titre: `Document ${num}`,
+          dateDocument: Temporal.PlainDate.from('2026-01-01').add({ days: i }),
+        }),
+      );
+      await repo.enregistrer(j);
+    }
+    const r = await repo.rechercher({ bienId, pageSize: 5, page: 1 });
+    expect(r.total).toBe(7);
+    expect(r.items.length).toBe(5);
+    // Le plus récent en premier (date_document DESC) — Document 007
+    expect(r.items[0]?.titre).toBe('Document 007');
+  });
+
+  it('rechercher filtre typeIn limite la liste aux 4 types D-120', async () => {
+    const facture = Justificatif.creer(
+      unJustificatifAvecLocataireSeul({ locataireId, type: 'facture' }),
+    );
+    const piece = Justificatif.creer(
+      unJustificatifAvecLocataireSeul({ locataireId, type: 'piece_locataire' }),
+    );
+    const releve = Justificatif.creer(
+      unJustificatifAvecLocataireSeul({ locataireId, type: 'releve_bancaire' }),
+    );
+    const attestation = Justificatif.creer(
+      unJustificatifAvecLocataireSeul({ locataireId, type: 'attestation' }),
+    );
+    const autre = Justificatif.creer(
+      unJustificatifAvecLocataireSeul({ locataireId, type: 'autre' }),
+    );
+    await repo.enregistrer(facture);
+    await repo.enregistrer(piece);
+    await repo.enregistrer(releve);
+    await repo.enregistrer(attestation);
+    await repo.enregistrer(autre);
+
+    const r = await repo.rechercher({
+      locataireId,
+      typeIn: ['piece_locataire', 'releve_bancaire', 'attestation', 'autre'],
+    });
+    expect(r.total).toBe(4);
+    const ids = r.items.map((i) => i.id).sort();
+    expect(ids).toEqual(
+      [piece.id, releve.id, attestation.id, autre.id].sort(),
+    );
+  });
 });
