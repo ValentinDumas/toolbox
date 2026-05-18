@@ -113,6 +113,27 @@ export function unJustificatifAncienDixAns(
   });
 }
 
+/**
+ * Génère N justificatifs avec titres incrémentés "Document 001" → "Document NNN".
+ * Utilisé pour tester la pagination (Wave 2 — D-110).
+ */
+export function desJustificatifsPourPagination(
+  n: number,
+  overrides: OverridesJustificatif = {},
+): JustificatifProps[] {
+  return Array.from({ length: n }, (_, i) => {
+    const num = String(i + 1).padStart(3, '0');
+    // Décale les dates pour garantir un ordre déterministe via date_document DESC
+    const baseDate =
+      overrides.dateDocument ?? Temporal.PlainDate.from('2026-01-01');
+    return unJustificatifValide({
+      ...overrides,
+      titre: `Document ${num}`,
+      dateDocument: baseDate.add({ days: i }),
+    });
+  });
+}
+
 /** Helper d'instanciation directe (utile pour les tests qui veulent l'agrégat). */
 export function instancierJustificatif(
   overrides: OverridesJustificatif = {},

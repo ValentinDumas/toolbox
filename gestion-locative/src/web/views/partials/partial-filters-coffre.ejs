@@ -1,0 +1,116 @@
+<%
+  /*
+   * partial-filters-coffre.ejs (UI-3.2, UI-3.3) — Wave 2 plan 04-02
+   *
+   * Form GET avec 5 filtres facettés : search + bien + locataire + annee + type.
+   * Préserve les autres query params dans l'URL via les attributs <select name=*>.
+   *
+   * locals attendus :
+   *   - filtres : { search?, bien?, locataire?, annee?, type? }
+   *   - biens : Bien[]
+   *   - locataires : Locataire[]
+   *   - today : Temporal.PlainDate
+   */
+  const filtres = locals.filtres || {};
+  const biens = locals.biens || [];
+  const locataires = locals.locataires || [];
+  const today = locals.today;
+  const anneeMax = today ? today.year : 2026;
+  // 6 dernières années + année courante
+  const annees = [];
+  for (let a = anneeMax; a >= anneeMax - 5; a--) annees.push(a);
+
+  const TYPES = [
+    ['facture', 'Facture'],
+    ['ticket_caisse', 'Ticket de caisse'],
+    ['bail_signe', 'Bail signé'],
+    ['edl_signe', 'État des lieux signé'],
+    ['diagnostic_pdf', 'Diagnostic (PDF)'],
+    ['attestation', 'Attestation'],
+    ['piece_locataire', 'Pièce locataire'],
+    ['releve_bancaire', 'Relevé bancaire'],
+    ['autre', 'Autre']
+  ];
+
+  function valEq(a, b) { return a !== undefined && a !== null && String(a) === String(b); }
+
+  // Filtres "actifs" = au moins un des 5 a une valeur non-vide.
+  const filtresActifs =
+    (filtres.search && filtres.search.length > 0) ||
+    (filtres.bien && filtres.bien.length > 0) ||
+    (filtres.locataire && filtres.locataire.length > 0) ||
+    (filtres.annee && String(filtres.annee).length > 0) ||
+    (filtres.type && filtres.type.length > 0);
+%>
+
+<form method="GET" action="/coffre" role="search" class="filtres-coffre" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-bottom: 16px;">
+  <div class="field" style="margin: 0;">
+    <label for="filtre-search" class="sr-only">Recherche</label>
+    <input
+      id="filtre-search"
+      type="search"
+      name="search"
+      placeholder="Titre, notes, nom de fichier…"
+      value="<%= filtres.search || '' %>"
+      maxlength="200"
+    />
+  </div>
+
+  <div class="field" style="margin: 0;">
+    <label for="filtre-bien" class="sr-only">Bien</label>
+    <select id="filtre-bien" name="bien">
+      <option value="">Tous les biens</option>
+      <% biens.forEach(function(b) { %>
+        <option value="<%= b.id %>" <%= valEq(filtres.bien, b.id) ? 'selected' : '' %>>
+          <%= b.adresse.rue %> — <%= b.adresse.ville %>
+        </option>
+      <% }); %>
+    </select>
+  </div>
+
+  <div class="field" style="margin: 0;">
+    <label for="filtre-locataire" class="sr-only">Locataire</label>
+    <select id="filtre-locataire" name="locataire">
+      <option value="">Tous les locataires</option>
+      <% locataires.forEach(function(l) { %>
+        <option value="<%= l.id %>" <%= valEq(filtres.locataire, l.id) ? 'selected' : '' %>>
+          <%= l.prenom %> <%= l.nom %>
+        </option>
+      <% }); %>
+    </select>
+  </div>
+
+  <div class="field" style="margin: 0;">
+    <label for="filtre-annee" class="sr-only">Année fiscale</label>
+    <select id="filtre-annee" name="annee">
+      <option value="">Toutes les années</option>
+      <% annees.forEach(function(a) { %>
+        <option value="<%= a %>" <%= valEq(filtres.annee, a) ? 'selected' : '' %>>
+          <%= a %>
+        </option>
+      <% }); %>
+    </select>
+  </div>
+
+  <div class="field" style="margin: 0;">
+    <label for="filtre-type" class="sr-only">Type</label>
+    <select id="filtre-type" name="type">
+      <option value="">Tous les types</option>
+      <% TYPES.forEach(function(t) { %>
+        <option value="<%= t[0] %>" <%= valEq(filtres.type, t[0]) ? 'selected' : '' %>>
+          <%= t[1] %>
+        </option>
+      <% }); %>
+    </select>
+  </div>
+
+  <div class="field" style="margin: 0;">
+    <button type="submit">Filtrer</button>
+  </div>
+
+  <% if (filtresActifs) { %>
+    <div class="field" style="margin: 0;">
+      <a href="/coffre">Effacer les filtres</a>
+    </div>
+  <% } %>
+</form>

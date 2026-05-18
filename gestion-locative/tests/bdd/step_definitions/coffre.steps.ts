@@ -422,9 +422,20 @@ Then(
       resp.headers as Record<string, string | string[] | undefined>,
       this.cookies,
     );
+    // EJS escape les apostrophes en &#39; — on compare l'original ET la
+    // version HTML-escaped pour rester compatible avec les bannières
+    // contenant des caractères spéciaux français.
+    const escaped = messageAttendu
+      .replace(/&/g, '&amp;')
+      .replace(/'/g, '&#39;')
+      .replace(/"/g, '&#34;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const found =
+      resp.body.includes(messageAttendu) || resp.body.includes(escaped);
     assert.ok(
-      resp.body.includes(messageAttendu),
-      `Bannière "${messageAttendu}" non trouvée dans le corps. Reçu: ${resp.body.slice(0, 500)}`,
+      found,
+      `Bannière "${messageAttendu}" non trouvée dans le corps (testé brut + HTML-escaped). Reçu (extrait): ${resp.body.slice(0, 500)}`,
     );
   },
 );
@@ -529,5 +540,528 @@ Then(
     const j = await repo.trouverParId(this.justificatifId as string);
     assert.ok(j, 'Justificatif non trouvé');
     assert.equal(j.peutEtrePurge(Temporal.PlainDate.from('2026-05-18')), false);
+  },
+);
+
+// ─── Wave 2 steps (Plan 04-02) ──────────────────────────────────────────────
+
+/** Insert N justificatifs avec titres distincts rattachés au Bien. */
+Given(
+  /^(\d+) justificatifs existent avec titres "(.+)" "(.+)" "(.+)"$/,
+  async function (
+    this: MondePhase4,
+    _n: string,
+    t1: string,
+    t2: string,
+    t3: string,
+  ) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const titres = [t1, t2, t3];
+    for (let i = 0; i < titres.length; i++) {
+      const j = Justificatif.creer({
+        type: 'facture',
+        dateDocument: Temporal.PlainDate.from('2026-05-15'),
+        titre: titres[i] as string,
+        montantTtc: null,
+        cheminFichier: `documents/justificatifs/2026/x-${i}.pdf` as CheminRelatif,
+        nomFichierOriginal: `f-${i}.pdf`,
+        mimeType: 'application/pdf',
+        tailleOctets: 1024 + i,
+        bienId: this.bienId,
+        locataireId: null,
+        notes: null,
+        creeLe: Temporal.PlainDate.from('2026-05-15'),
+      });
+      await repo.enregistrer(j);
+    }
+  },
+);
+
+Given(
+  /^un justificatif existe avec notes "(.+)"$/,
+  async function (this: MondePhase4, notes: string) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const j = Justificatif.creer({
+      type: 'facture',
+      dateDocument: Temporal.PlainDate.from('2026-05-15'),
+      titre: 'Doc neutre',
+      montantTtc: null,
+      cheminFichier:
+        'documents/justificatifs/2026/x-notes.pdf' as CheminRelatif,
+      nomFichierOriginal: 'doc-neutre.pdf',
+      mimeType: 'application/pdf',
+      tailleOctets: 1024,
+      bienId: this.bienId,
+      locataireId: null,
+      notes,
+      creeLe: Temporal.PlainDate.from('2026-05-15'),
+    });
+    await repo.enregistrer(j);
+    this.justificatifId = j.id;
+  },
+);
+
+Given(
+  /^un justificatif existe avec nomFichierOriginal "(.+)"$/,
+  async function (this: MondePhase4, nomFichier: string) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const j = Justificatif.creer({
+      type: 'facture',
+      dateDocument: Temporal.PlainDate.from('2026-04-15'),
+      titre: 'Doc fichier',
+      montantTtc: null,
+      cheminFichier: 'documents/justificatifs/2026/x-fn.pdf' as CheminRelatif,
+      nomFichierOriginal: nomFichier,
+      mimeType: 'application/pdf',
+      tailleOctets: 1024,
+      bienId: this.bienId,
+      locataireId: null,
+      notes: null,
+      creeLe: Temporal.PlainDate.from('2026-04-15'),
+    });
+    await repo.enregistrer(j);
+    this.justificatifId = j.id;
+  },
+);
+
+Given(
+  /^3 justificatifs existent avec dates "(.+)" "(.+)" "(.+)"$/,
+  async function (
+    this: MondePhase4,
+    d1: string,
+    d2: string,
+    d3: string,
+  ) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const dates = [d1, d2, d3];
+    for (let i = 0; i < dates.length; i++) {
+      const j = Justificatif.creer({
+        type: 'facture',
+        dateDocument: Temporal.PlainDate.from(dates[i] as string),
+        titre: `Doc ${i + 1}`,
+        montantTtc: null,
+        cheminFichier:
+          `documents/justificatifs/${dates[i]?.slice(0, 4)}/x-dt-${i}.pdf` as CheminRelatif,
+        nomFichierOriginal: `doc-${i}.pdf`,
+        mimeType: 'application/pdf',
+        tailleOctets: 1024,
+        bienId: this.bienId,
+        locataireId: null,
+        notes: null,
+        creeLe: Temporal.PlainDate.from(dates[i] as string),
+      });
+      await repo.enregistrer(j);
+    }
+  },
+);
+
+Given(
+  /^(\d+) justificatifs existent rattachés au Bien$/,
+  async function (this: MondePhase4, nStr: string) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const n = Number(nStr);
+    for (let i = 0; i < n; i++) {
+      const num = String(i + 1).padStart(3, '0');
+      const j = Justificatif.creer({
+        type: 'facture',
+        dateDocument: Temporal.PlainDate.from('2026-01-01').add({ days: i }),
+        titre: `Document ${num}`,
+        montantTtc: null,
+        cheminFichier:
+          `documents/justificatifs/2026/x-pag-${i}.pdf` as CheminRelatif,
+        nomFichierOriginal: `doc-${num}.pdf`,
+        mimeType: 'application/pdf',
+        tailleOctets: 1024 + i,
+        bienId: this.bienId,
+        locataireId: null,
+        notes: null,
+        creeLe: Temporal.PlainDate.from('2026-01-01').add({ days: i }),
+      });
+      await repo.enregistrer(j);
+    }
+  },
+);
+
+Given(
+  /^un Locataire existe$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.db, 'DB non initialisée');
+    const { LocataireRepositorySqlite } = await import(
+      '../../../src/infrastructure/repositories/locataire-repository-sqlite.js'
+    );
+    const { unLocataireValide } = await import(
+      '../../_builders/locatif.js'
+    );
+    const locataireRepo = new LocataireRepositorySqlite(this.db);
+    const locataire = unLocataireValide();
+    await locataireRepo.enregistrer(locataire);
+    this.locataireId = locataire.id;
+  },
+);
+
+Given(
+  /^5 justificatifs existent rattachés au Locataire avec types "(.+)" "(.+)" "(.+)" "(.+)" "(.+)"$/,
+  async function (
+    this: MondePhase4,
+    t1: string,
+    t2: string,
+    t3: string,
+    t4: string,
+    t5: string,
+  ) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.locataireId, 'locataireId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const types = [t1, t2, t3, t4, t5];
+    for (let i = 0; i < types.length; i++) {
+      const j = Justificatif.creer({
+        type: types[i] as
+          | 'facture'
+          | 'ticket_caisse'
+          | 'bail_signe'
+          | 'edl_signe'
+          | 'diagnostic_pdf'
+          | 'attestation'
+          | 'piece_locataire'
+          | 'releve_bancaire'
+          | 'autre',
+        dateDocument: Temporal.PlainDate.from('2026-05-15'),
+        titre: `Doc locataire ${types[i]}`,
+        montantTtc: null,
+        cheminFichier: `documents/justificatifs/2026/x-loc-${i}.pdf` as CheminRelatif,
+        nomFichierOriginal: `doc-${i}.pdf`,
+        mimeType: 'application/pdf',
+        tailleOctets: 1024,
+        bienId: null,
+        locataireId: this.locataireId,
+        notes: null,
+        creeLe: Temporal.PlainDate.from('2026-05-15'),
+      });
+      await repo.enregistrer(j);
+    }
+  },
+);
+
+Given(
+  /^un justificatif existe rattaché au Bien et soft-deleted$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const j = Justificatif.creer({
+      type: 'facture',
+      dateDocument: Temporal.PlainDate.from('2026-05-15'),
+      titre: 'Doc en corbeille',
+      montantTtc: null,
+      cheminFichier:
+        'documents/justificatifs/2026/x-corb.pdf' as CheminRelatif,
+      nomFichierOriginal: 'doc-corb.pdf',
+      mimeType: 'application/pdf',
+      tailleOctets: 1024,
+      bienId: this.bienId,
+      locataireId: null,
+      notes: null,
+      creeLe: Temporal.PlainDate.from('2026-05-18'),
+      corbeilleLe: Temporal.PlainDate.from('2026-05-18'),
+      raisonCorbeille: 'Doublon',
+    });
+    await repo.enregistrer(j);
+    this.justificatifId = j.id;
+  },
+);
+
+Given(
+  /^un justificatif existe rattaché au Bien et soft-deleted avec creeLe "(.+)"$/,
+  async function (this: MondePhase4, creeLeStr: string) {
+    assert.ok(this.db, 'DB non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const repo = new JustificatifRepositorySqlite(this.db);
+    const creeLe = Temporal.PlainDate.from(creeLeStr);
+    const j = Justificatif.creer({
+      type: 'facture',
+      dateDocument: creeLe,
+      titre: 'Doc en corbeille ancien',
+      montantTtc: null,
+      cheminFichier:
+        `documents/justificatifs/${creeLe.year}/x-corb-old.pdf` as CheminRelatif,
+      nomFichierOriginal: 'doc-corb-old.pdf',
+      mimeType: 'application/pdf',
+      tailleOctets: 1024,
+      bienId: this.bienId,
+      locataireId: null,
+      notes: null,
+      creeLe,
+      corbeilleLe: creeLe,
+      raisonCorbeille: 'Doublon',
+    });
+    await repo.enregistrer(j);
+    this.justificatifId = j.id;
+  },
+);
+
+When(
+  /^le bailleur navigue vers GET \/coffre avec query "(.+)"$/,
+  async function (this: MondePhase4, queryString: string) {
+    assert.ok(this.app, 'App non initialisée');
+    const resp = await this.app.inject({
+      method: 'GET',
+      url: `/coffre?${queryString}`,
+      headers: { Cookie: cookieHeader(this.cookies) },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.dernierCorps = resp.body;
+  },
+);
+
+When(
+  /^le bailleur navigue vers GET \/coffre\/corbeille$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.app, 'App non initialisée');
+    const resp = await this.app.inject({
+      method: 'GET',
+      url: '/coffre/corbeille',
+      headers: { Cookie: cookieHeader(this.cookies) },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.dernierCorps = resp.body;
+  },
+);
+
+When(
+  /^le bailleur navigue vers la fiche du Bien$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.app, 'App non initialisée');
+    assert.ok(this.bienId, 'bienId non défini');
+    const resp = await this.app.inject({
+      method: 'GET',
+      url: `/biens/${this.bienId}`,
+      headers: { Cookie: cookieHeader(this.cookies) },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.dernierCorps = resp.body;
+  },
+);
+
+When(
+  /^le bailleur navigue vers la fiche du Locataire$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.app, 'App non initialisée');
+    assert.ok(this.locataireId, 'locataireId non défini');
+    const resp = await this.app.inject({
+      method: 'GET',
+      url: `/locataires/${this.locataireId}`,
+      headers: { Cookie: cookieHeader(this.cookies) },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.dernierCorps = resp.body;
+  },
+);
+
+When(
+  /^le bailleur soumet POST \/justificatifs\/:id\/purger$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.app, 'App non initialisée');
+    assert.ok(this.justificatifId, 'justificatifId non défini');
+    const resp = await this.app.inject({
+      method: 'POST',
+      url: `/justificatifs/${this.justificatifId}/purger`,
+      payload: '',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        Cookie: cookieHeader(this.cookies),
+      },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.derniereUrl = (resp.headers['location'] as string) ?? '';
+    this.dernierCorps = resp.body;
+  },
+);
+
+When(
+  /^le bailleur soumet POST \/justificatifs\/:id\/restaurer$/,
+  async function (this: MondePhase4) {
+    assert.ok(this.app, 'App non initialisée');
+    assert.ok(this.justificatifId, 'justificatifId non défini');
+    const resp = await this.app.inject({
+      method: 'POST',
+      url: `/justificatifs/${this.justificatifId}/restaurer`,
+      payload: '',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        Cookie: cookieHeader(this.cookies),
+      },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.derniereUrl = (resp.headers['location'] as string) ?? '';
+    this.dernierCorps = resp.body;
+  },
+);
+
+When(
+  /^le bailleur soumet POST \/justificatifs\/:id\/modifier avec titre="(.+)" et notes="(.+)"$/,
+  async function (this: MondePhase4, titre: string, notes: string) {
+    assert.ok(this.app, 'App non initialisée');
+    assert.ok(this.justificatifId, 'justificatifId non défini');
+    // Read existing pour obtenir type + date courants
+    const repo = new JustificatifRepositorySqlite(this.db!);
+    const existant = await repo.trouverParId(this.justificatifId as string);
+    assert.ok(existant, 'Justificatif existant non trouvé');
+    const payload = new URLSearchParams({
+      titre,
+      type: existant.type,
+      dateDocument: existant.dateDocument.toString(),
+      notes,
+    }).toString();
+    const resp = await this.app.inject({
+      method: 'POST',
+      url: `/justificatifs/${this.justificatifId}/modifier`,
+      payload,
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        Cookie: cookieHeader(this.cookies),
+      },
+    });
+    extraireCookies(
+      resp.headers as Record<string, string | string[] | undefined>,
+      this.cookies,
+    );
+    this.dernierStatut = resp.statusCode;
+    this.derniereUrl = (resp.headers['location'] as string) ?? '';
+    this.dernierCorps = resp.body;
+  },
+);
+
+Then(
+  /^la page coffre affiche (\d+) ligne(?:s)? de justificatif$/,
+  function (this: MondePhase4, nbStr: string) {
+    // Compte les <tr> dans le <tbody> de la table justificatifs.
+    const match = this.dernierCorps.match(
+      /<tbody>([\s\S]*?)<\/tbody>/,
+    );
+    assert.ok(
+      match,
+      `Aucun <tbody> trouvé dans la page. Extrait: ${this.dernierCorps.substring(0, 500)}`,
+    );
+    const tbody = match[1] ?? '';
+    const trCount = (tbody.match(/<tr\b/g) || []).length;
+    assert.equal(
+      trCount,
+      Number(nbStr),
+      `Attendu ${nbStr} lignes <tr>, trouvé ${trCount}`,
+    );
+  },
+);
+
+Then(
+  /^la page n'affiche pas "(.+)"$/,
+  function (this: MondePhase4, texte: string) {
+    assert.ok(
+      !this.dernierCorps.includes(texte),
+      `La page NE DOIT PAS afficher "${texte}". Trouvé dans le corps.`,
+    );
+  },
+);
+
+Then(
+  /^le justificatif a corbeille_le NULL en base$/,
+  function (this: MondePhase4) {
+    assert.ok(this.sqlite, 'SQLite non initialisée');
+    assert.ok(this.justificatifId, 'justificatifId non défini');
+    const row = this.sqlite
+      .prepare('SELECT corbeille_le FROM justificatifs WHERE id = ?')
+      .get(this.justificatifId) as { corbeille_le: string | null } | undefined;
+    assert.ok(row, 'Justificatif introuvable en base');
+    assert.equal(
+      row.corbeille_le,
+      null,
+      `corbeille_le attendu NULL, reçu ${row.corbeille_le}`,
+    );
+  },
+);
+
+Then(
+  /^le justificatif a titre "(.+)" et notes "(.+)" en base$/,
+  function (this: MondePhase4, titreAttendu: string, notesAttendu: string) {
+    assert.ok(this.sqlite, 'SQLite non initialisée');
+    assert.ok(this.justificatifId, 'justificatifId non défini');
+    const row = this.sqlite
+      .prepare('SELECT titre, notes FROM justificatifs WHERE id = ?')
+      .get(this.justificatifId) as
+      | { titre: string; notes: string | null }
+      | undefined;
+    assert.ok(row, 'Justificatif introuvable en base');
+    assert.equal(row.titre, titreAttendu);
+    assert.equal(row.notes, notesAttendu);
+  },
+);
+
+Then(
+  /^le justificatif a chemin_fichier mime_type taille_octets nom_fichier_original cree_le inchangés en base$/,
+  function (this: MondePhase4) {
+    assert.ok(this.sqlite, 'SQLite non initialisée');
+    assert.ok(this.justificatifId, 'justificatifId non défini');
+    const row = this.sqlite
+      .prepare(
+        'SELECT chemin_fichier, mime_type, taille_octets, nom_fichier_original, cree_le FROM justificatifs WHERE id = ?',
+      )
+      .get(this.justificatifId) as
+      | {
+          chemin_fichier: string;
+          mime_type: string;
+          taille_octets: number;
+          nom_fichier_original: string;
+          cree_le: string;
+        }
+      | undefined;
+    assert.ok(row, 'Justificatif introuvable');
+    // Les valeurs sont celles posées par le Given (cf. "un justificatif existe rattaché au Bien")
+    assert.ok(
+      row.chemin_fichier.endsWith('.pdf'),
+      `chemin_fichier inattendu: ${row.chemin_fichier}`,
+    );
+    assert.equal(row.mime_type, 'application/pdf');
+    assert.equal(row.taille_octets, 1024);
+    assert.ok(
+      row.nom_fichier_original.endsWith('.pdf'),
+      `nom_fichier_original inattendu: ${row.nom_fichier_original}`,
+    );
+    assert.ok(
+      typeof row.cree_le === 'string' && row.cree_le.length === 10,
+      `cree_le inattendu: ${row.cree_le}`,
+    );
   },
 );
