@@ -101,4 +101,4 @@ Items acknowledged and carried forward from previous milestone close:
 
 Last session: 2026-05-18T13:06:15.350Z
 Stopped at: Phase 04 plans verified (iter 2/3)
-Resume file: .planning/phases/04-coffre-documentaire-travaux/04-PLAN-1-walking-enabler.md
+Resume file: .planning/phases/04-coffre-documentaire-travaux/04-01-walking-enabler-PLAN.md
