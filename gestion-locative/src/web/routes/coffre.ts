@@ -14,16 +14,28 @@ import { Money } from '../../domain/_shared/money.js';
 import type { ConvertisseurImage } from '../../domain/documents/convertisseur-image.js';
 import {
   DocumentDejaEnCorbeille,
+  DocumentNonEnCorbeille,
   FichierIntrouvable,
   FichierTropVolumineux,
   FormatNonAccepte,
   JustificatifIntrouvable,
   MimeMismatch,
+  PurgeAvantDixAnsRefusee,
 } from '../../domain/documents/erreurs.js';
-import type { JustificatifRepository } from '../../domain/documents/justificatif-repository.js';
+import type {
+  JustificatifRepository,
+} from '../../domain/documents/justificatif-repository.js';
+import type {
+  TypeJustificatif,
+} from '../../domain/documents/justificatif.js';
 import type { StockageJustificatifs } from '../../domain/documents/stockage-justificatifs.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
+import { listerCorbeille } from '../../application/documents/lister-corbeille.js';
+import { modifierJustificatif } from '../../application/documents/modifier-justificatif.js';
+import { purgerJustificatif } from '../../application/documents/purger-justificatif.js';
+import { rechercherJustificatifs } from '../../application/documents/rechercher-justificatifs.js';
+import { restaurerJustificatif } from '../../application/documents/restaurer-justificatif.js';
 import {
   BienAttacheIntrouvable,
   LocataireAttacheIntrouvable,
@@ -33,6 +45,8 @@ import { mettreJustificatifEnCorbeille } from '../../application/documents/mettr
 import type { DB } from '../../infrastructure/db/kysely-types.js';
 import {
   corbeilleJustificatifFormSchema,
+  filtresCoffreSchema,
+  modifierJustificatifSchema,
   uploadJustificatifFormSchema,
 } from '../schemas/justificatif-schemas.js';
 
@@ -82,27 +96,76 @@ export async function plugin(
   app: FastifyInstance,
   opts: CoffrePluginOpts,
 ): Promise<void> {
-  // GET /coffre — liste des justificatifs (active + future support de filtres en 04-02)
+  // GET /coffre — liste des justificatifs avec 5 filtres facettés (D-110, UI-3.2)
   app.get('/coffre', async (req, reply) => {
     const banniereSuccess = req.session.banniereSuccess ?? null;
     const banniereWarning = req.session.banniereWarning ?? null;
     if (banniereSuccess) req.session.banniereSuccess = undefined;
     if (banniereWarning) req.session.banniereWarning = undefined;
 
-    const { items, total } = await opts.justificatifRepo.rechercher({
-      page: 1,
-      pageSize: 20,
+    const parsed = filtresCoffreSchema.safeParse(req.query);
+    // En cas d'erreur de parse (UUID invalide, etc.), on retombe sur les
+    // valeurs par défaut au lieu de renvoyer 400 — les filtres invalides
+    // sont silencieusement ignorés (UX dégradée mais pas crash).
+    const filtres = parsed.success ? parsed.data : { page: 1 };
+
+    const result = await rechercherJustificatifs(
+      {
+        search: filtres.search,
+        bienId: filtres.bien,
+        locataireId: filtres.locataire,
+        anneeFiscale: filtres.annee,
+        type: filtres.type as TypeJustificatif | undefined,
+        page: filtres.page ?? 1,
+        pageSize: 20,
+      },
+      { justificatifRepo: opts.justificatifRepo },
+    );
+
+    const biens = await opts.bienRepo.listerTous();
+    const locataires = await opts.locataireRepo.listerTous();
+    const corbeille = await listerCorbeille({}, {
+      justificatifRepo: opts.justificatifRepo,
+    });
+
+    return reply.view('pages/coffre/liste.ejs', {
+      items: result.items,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+      biens,
+      locataires,
+      filtres: {
+        search: filtres.search ?? '',
+        bien: filtres.bien ?? '',
+        locataire: filtres.locataire ?? '',
+        annee: filtres.annee ?? '',
+        type: filtres.type ?? '',
+      },
+      nbCorbeille: corbeille.length,
+      navActive: 'coffre',
+      banniereSuccess,
+      banniereWarning,
+    });
+  });
+
+  // GET /coffre/corbeille — liste des justificatifs soft-deleted (UI-5.1)
+  app.get('/coffre/corbeille', async (req, reply) => {
+    const banniereSuccess = req.session.banniereSuccess ?? null;
+    const banniereWarning = req.session.banniereWarning ?? null;
+    if (banniereSuccess) req.session.banniereSuccess = undefined;
+    if (banniereWarning) req.session.banniereWarning = undefined;
+
+    const items = await listerCorbeille({}, {
+      justificatifRepo: opts.justificatifRepo,
     });
     const biens = await opts.bienRepo.listerTous();
     const locataires = await opts.locataireRepo.listerTous();
-    const corbeille = await opts.justificatifRepo.listerCorbeille();
 
-    return reply.view('pages/coffre/liste.ejs', {
+    return reply.view('pages/coffre/corbeille.ejs', {
       items,
-      total,
       biens,
       locataires,
-      nbCorbeille: corbeille.length,
       navActive: 'coffre',
       banniereSuccess,
       banniereWarning,
@@ -387,5 +450,142 @@ export async function plugin(
 
     req.session.banniereSuccess = 'Document déplacé vers la corbeille.';
     return reply.redirect('/coffre');
+  });
+
+  // POST /justificatifs/:id/restaurer — annule un soft-delete (UI-5.1)
+  app.post('/justificatifs/:id/restaurer', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      await restaurerJustificatif(
+        { id: id as JustificatifId },
+        { justificatifRepo: opts.justificatifRepo },
+      );
+    } catch (err) {
+      if (err instanceof JustificatifIntrouvable) {
+        return reply.code(404).send('Document introuvable.');
+      }
+      if (err instanceof DocumentNonEnCorbeille) {
+        req.session.banniereWarning = "Ce document n'est pas en corbeille.";
+        return reply.redirect('/coffre/corbeille');
+      }
+      throw err;
+    }
+    req.session.banniereSuccess = 'Document restauré.';
+    return reply.redirect('/coffre/corbeille');
+  });
+
+  // POST /justificatifs/:id/purger — hard-delete D-109 (gate 10 ans)
+  app.post('/justificatifs/:id/purger', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      await purgerJustificatif(
+        { id: id as JustificatifId },
+        {
+          justificatifRepo: opts.justificatifRepo,
+          stockage: opts.stockage,
+          clock: opts.clock,
+          db: opts.db,
+        },
+      );
+    } catch (err) {
+      if (err instanceof JustificatifIntrouvable) {
+        return reply.code(404).send('Document introuvable.');
+      }
+      if (err instanceof PurgeAvantDixAnsRefusee) {
+        req.session.banniereWarning = err.message;
+        return reply.redirect('/coffre/corbeille');
+      }
+      if (err instanceof InvariantViolated) {
+        req.session.banniereWarning = err.message;
+        return reply.redirect('/coffre/corbeille');
+      }
+      throw err;
+    }
+    req.session.banniereSuccess = 'Document supprimé définitivement.';
+    return reply.redirect('/coffre/corbeille');
+  });
+
+  // GET /justificatifs/:id/modifier — form édition metadata (UI-4.4)
+  app.get('/justificatifs/:id/modifier', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const j = await opts.justificatifRepo.trouverParId(id);
+    if (!j) {
+      return reply.code(404).view('pages/erreur.ejs', {
+        message: 'Document introuvable.',
+        navActive: 'coffre',
+      });
+    }
+    if (j.corbeilleLe !== null) {
+      return reply.code(410).view('pages/erreur.ejs', {
+        message: 'Ce document est en corbeille — restaurez-le pour le modifier.',
+        navActive: 'coffre',
+      });
+    }
+    return reply.view('pages/justificatifs/modifier.ejs', {
+      justificatif: j,
+      erreurs: {},
+      valeurs: {},
+      navActive: 'coffre',
+    });
+  });
+
+  // POST /justificatifs/:id/modifier — patch metadata (UI-4.4)
+  app.post('/justificatifs/:id/modifier', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = (req.body as Record<string, unknown>) ?? {};
+    const parsed = modifierJustificatifSchema.safeParse(body);
+
+    if (!parsed.success) {
+      const j = await opts.justificatifRepo.trouverParId(id);
+      if (!j) {
+        return reply.code(404).send('Document introuvable.');
+      }
+      const erreurs = extraireErreurs(parsed.error.issues);
+      return reply.code(400).view('pages/justificatifs/modifier.ejs', {
+        justificatif: j,
+        erreurs,
+        valeurs: body,
+        navActive: 'coffre',
+      });
+    }
+
+    try {
+      const montantTtc =
+        parsed.data.montantTtcCentimes === undefined
+          ? null
+          : Money.fromCentimes(BigInt(parsed.data.montantTtcCentimes));
+
+      await modifierJustificatif(
+        {
+          id: id as JustificatifId,
+          patch: {
+            titre: parsed.data.titre,
+            type: parsed.data.type as TypeJustificatif,
+            dateDocument: Temporal.PlainDate.from(parsed.data.dateDocument),
+            montantTtc,
+            notes: parsed.data.notes ?? null,
+          },
+        },
+        { justificatifRepo: opts.justificatifRepo },
+      );
+    } catch (err) {
+      if (err instanceof JustificatifIntrouvable) {
+        return reply.code(404).send('Document introuvable.');
+      }
+      if (err instanceof InvariantViolated) {
+        const j = await opts.justificatifRepo.trouverParId(id);
+        if (!j) return reply.code(404).send('Document introuvable.');
+        return reply.code(400).view('pages/justificatifs/modifier.ejs', {
+          justificatif: j,
+          erreurs: { _global: err.message },
+          valeurs: body,
+          navActive: 'coffre',
+        });
+      }
+      throw err;
+    }
+
+    req.session.banniereSuccess = 'Document mis à jour.';
+    return reply.redirect(`/justificatifs/${id}`);
   });
 }

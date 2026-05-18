@@ -1,20 +1,31 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
+import type { JustificatifRepository } from '../../domain/documents/justificatif-repository.js';
+import type { TypeJustificatif } from '../../domain/documents/justificatif.js';
 import type { LocataireId } from '../../domain/_shared/identifiants.js';
 import { creerLocataire } from '../../application/locatif/creer-locataire.js';
 import { modifierLocataire } from '../../application/locatif/modifier-locataire.js';
 import { supprimerLocataire } from '../../application/locatif/supprimer-locataire.js';
 import { listerLocataires } from '../../application/locatif/lister-locataires.js';
+import {
+  TYPES_AUTORISES_LOCATAIRE,
+  listerJustificatifsParLocataire,
+} from '../../application/documents/lister-justificatifs-par-locataire.js';
 import { LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
 import {
   locataireCreationSchema,
   locataireModificationSchema,
 } from '../schemas/locataire-schemas.js';
 import type { Bien } from '../../domain/patrimoine/bien.js';
+
+const filtreTypeLocataireSchema = z
+  .enum(['piece_locataire', 'releve_bancaire', 'attestation', 'autre'])
+  .optional();
 
 /** Formate un Temporal.PlainDate en DD/MM/YYYY pour l'affichage (format légal français). */
 function formatDate(date: Temporal.PlainDate): string {
@@ -29,6 +40,7 @@ export async function plugin(
     repo: LocataireRepository;
     bailRepo?: BailRepository;
     bienRepo?: BienRepository;
+    justificatifRepo?: JustificatifRepository;
   },
 ): Promise<void> {
 
@@ -102,7 +114,7 @@ export async function plugin(
     }
   });
 
-  // GET /locataires/:id — détail
+  // GET /locataires/:id — détail (+ section Documents UI-5.4 + filtre D-120)
   app.get('/locataires/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const locataire = await opts.repo.trouverParId(id as LocataireId);
@@ -123,6 +135,22 @@ export async function plugin(
       for (const b of biens) biensMap[b.id] = b;
     }
 
+    // Phase 4 — UI-5.4 + D-120 : section Documents filtrée par type autorisé
+    const queryType = (req.query as Record<string, unknown>)['type'];
+    const parsedType = filtreTypeLocataireSchema.safeParse(queryType);
+    const filtreTypeCourant = parsedType.success ? parsedType.data : undefined;
+
+    const documentsLocataire = opts.justificatifRepo
+      ? await listerJustificatifsParLocataire(
+          {
+            locataireId: locataire.id,
+            type: filtreTypeCourant as TypeJustificatif | undefined,
+            pageSize: 5,
+          },
+          { justificatifRepo: opts.justificatifRepo },
+        )
+      : { items: [], total: 0 };
+
     return reply.view('pages/locataires/detail.ejs', {
       locataire,
       baux,
@@ -130,6 +158,9 @@ export async function plugin(
       banniereSuccess: null,
       formatDate,
       navActive: 'locataires',
+      documentsLocataire,
+      filtreTypeCourant,
+      typesAutorisesLocataire: TYPES_AUTORISES_LOCATAIRE,
     });
   });
 

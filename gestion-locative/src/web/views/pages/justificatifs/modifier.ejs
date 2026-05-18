@@ -1,0 +1,112 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Modifier ' + justificatif.titre,
+  breadcrumbs: [
+    { label: 'Coffre documentaire', url: '/coffre' },
+    { label: justificatif.titre, url: '/justificatifs/' + justificatif.id },
+    { label: 'Modifier' }
+  ],
+  navActive: 'coffre'
+}) %>
+
+<h1>Modifier le document</h1>
+
+<p>
+  Le fichier original (<strong><%= justificatif.nomFichierOriginal %></strong>,
+  <%= locals.formaterTailleFichier ? locals.formaterTailleFichier(justificatif.tailleOctets) : justificatif.tailleOctets + ' octets' %>,
+  <%= justificatif.mimeType %>) n'est pas modifiable.
+  Pour remplacer le fichier, supprimez ce document et téléversez-en un nouveau.
+</p>
+
+<% if (locals.erreurs && erreurs._global) { %>
+  <aside role="alert" aria-live="assertive" style="color: var(--couleur-destructive, #b91c1c);">
+    <%= erreurs._global %>
+  </aside>
+<% } %>
+
+<%
+  const TYPES = [
+    ['facture', 'Facture'],
+    ['ticket_caisse', 'Ticket de caisse'],
+    ['bail_signe', 'Bail signé'],
+    ['edl_signe', 'État des lieux signé'],
+    ['diagnostic_pdf', 'Diagnostic (PDF)'],
+    ['attestation', 'Attestation'],
+    ['piece_locataire', 'Pièce locataire'],
+    ['releve_bancaire', 'Relevé bancaire'],
+    ['autre', 'Autre']
+  ];
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+  function val(k, fallback) { return valeurs[k] !== undefined ? valeurs[k] : fallback; }
+%>
+
+<form method="POST" action="/justificatifs/<%= justificatif.id %>/modifier" novalidate>
+  <div class="field">
+    <label for="titre">Titre <span aria-hidden="true">*</span></label>
+    <input
+      id="titre"
+      name="titre"
+      type="text"
+      required
+      maxlength="200"
+      value="<%= val('titre', justificatif.titre) %>"
+      <% if (erreurs.titre) { %>aria-invalid="true" aria-describedby="titre-error"<% } %>
+    />
+    <% if (erreurs.titre) { %>
+      <span id="titre-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.titre %></span>
+    <% } %>
+  </div>
+
+  <div class="field">
+    <label for="dateDocument">Date du document <span aria-hidden="true">*</span></label>
+    <input
+      id="dateDocument"
+      name="dateDocument"
+      type="date"
+      required
+      value="<%= val('dateDocument', justificatif.dateDocument.toString()) %>"
+      <% if (erreurs.dateDocument) { %>aria-invalid="true" aria-describedby="dateDocument-error"<% } %>
+    />
+    <% if (erreurs.dateDocument) { %>
+      <span id="dateDocument-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.dateDocument %></span>
+    <% } %>
+  </div>
+
+  <div class="field">
+    <label for="type">Type <span aria-hidden="true">*</span></label>
+    <select id="type" name="type" required <% if (erreurs.type) { %>aria-invalid="true" aria-describedby="type-error"<% } %>>
+      <% TYPES.forEach(function(t) {
+        const isSelected = (valeurs.type !== undefined ? valeurs.type === t[0] : justificatif.type === t[0]);
+      %>
+        <option value="<%= t[0] %>" <%= isSelected ? 'selected' : '' %>><%= t[1] %></option>
+      <% }); %>
+    </select>
+    <% if (erreurs.type) { %>
+      <span id="type-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.type %></span>
+    <% } %>
+  </div>
+
+  <div class="field">
+    <label for="montantTtcCentimes">Montant TTC (en centimes) <small>(optionnel)</small></label>
+    <input
+      id="montantTtcCentimes"
+      name="montantTtcCentimes"
+      type="number"
+      step="1"
+      min="0"
+      value="<%= val('montantTtcCentimes', justificatif.montantTtc ? Number(justificatif.montantTtc.toSqliteInteger()) : '') %>"
+    />
+  </div>
+
+  <div class="field">
+    <label for="notes">Notes <small>(optionnel)</small></label>
+    <textarea id="notes" name="notes" maxlength="2000"><%= val('notes', justificatif.notes || '') %></textarea>
+  </div>
+
+  <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+    <button type="submit">Mettre à jour</button>
+    <a href="/justificatifs/<%= justificatif.id %>" role="button" class="secondary">Annuler</a>
+  </div>
+</form>
+
+<%- include('../../partials/layout-fin') %>

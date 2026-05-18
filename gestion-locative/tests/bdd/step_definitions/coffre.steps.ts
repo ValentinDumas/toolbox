@@ -422,9 +422,20 @@ Then(
       resp.headers as Record<string, string | string[] | undefined>,
       this.cookies,
     );
+    // EJS escape les apostrophes en &#39; — on compare l'original ET la
+    // version HTML-escaped pour rester compatible avec les bannières
+    // contenant des caractères spéciaux français.
+    const escaped = messageAttendu
+      .replace(/&/g, '&amp;')
+      .replace(/'/g, '&#39;')
+      .replace(/"/g, '&#34;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const found =
+      resp.body.includes(messageAttendu) || resp.body.includes(escaped);
     assert.ok(
-      resp.body.includes(messageAttendu),
-      `Bannière "${messageAttendu}" non trouvée dans le corps. Reçu: ${resp.body.slice(0, 500)}`,
+      found,
+      `Bannière "${messageAttendu}" non trouvée dans le corps (testé brut + HTML-escaped). Reçu (extrait): ${resp.body.slice(0, 500)}`,
     );
   },
 );

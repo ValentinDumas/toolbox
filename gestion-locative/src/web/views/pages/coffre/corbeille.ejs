@@ -1,0 +1,121 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Corbeille',
+  breadcrumbs: [
+    { label: 'Coffre documentaire', url: '/coffre' },
+    { label: 'Corbeille' }
+  ],
+  navActive: 'coffre',
+  banniereSuccess: locals.banniereSuccess
+}) %>
+
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
+<h1>Corbeille</h1>
+<p>Les documents soft-deleted sont conservés ici pendant 10 ans (rétention légale fiscale).</p>
+
+<% if (!locals.items || items.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'La corbeille est vide',
+    body: 'Les documents supprimés apparaissent ici avant purge définitive.'
+  }) %>
+<% } else { %>
+  <%
+    const today = locals.today;
+    // Compare deux Temporal.PlainDate via days since epoch (sans importer Temporal en EJS).
+    function peutEtrePurge(date) {
+      if (!today || !date) return false;
+      return today.toString() >= date.toString();
+    }
+  %>
+  <table aria-label="Documents en corbeille">
+    <thead>
+      <tr>
+        <th scope="col">Date corbeille</th>
+        <th scope="col">Type</th>
+        <th scope="col">Titre</th>
+        <th scope="col">Bien</th>
+        <th scope="col">Locataire</th>
+        <th scope="col">Date purge possible</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% items.forEach(function(j) {
+        const datePurgePossible = j.creeLe.add({ years: 10 });
+        const peutPurger = peutEtrePurge(datePurgePossible);
+      %>
+        <tr>
+          <td style="font-variant-numeric: tabular-nums;"><%= locals.formatDate ? locals.formatDate(j.corbeilleLe) : (j.corbeilleLe ? j.corbeilleLe.toString() : '—') %></td>
+          <td><%= locals.formaterTypeJustificatif ? locals.formaterTypeJustificatif(j.type) : j.type %></td>
+          <td><%= j.titre %></td>
+          <td>
+            <% if (j.bienId) {
+              const b = (locals.biens || []).find(function(x) { return x.id === j.bienId; });
+            %>
+              <% if (b) { %>
+                <a href="/biens/<%= b.id %>"><%= b.adresse.rue %></a>
+              <% } else { %>
+                <%= j.bienId %>
+              <% } %>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
+          <td>
+            <% if (j.locataireId) {
+              const loc = (locals.locataires || []).find(function(x) { return x.id === j.locataireId; });
+            %>
+              <% if (loc) { %>
+                <a href="/locataires/<%= loc.id %>"><%= loc.prenom %> <%= loc.nom %></a>
+              <% } else { %>
+                <%= j.locataireId %>
+              <% } %>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
+          <td id="purge-date-<%= j.id %>" style="font-variant-numeric: tabular-nums;">
+            <%= locals.formatDate ? locals.formatDate(datePurgePossible) : datePurgePossible.toString() %>
+          </td>
+          <td class="row-actions">
+            <form method="POST" action="/justificatifs/<%= j.id %>/restaurer" style="display:inline; margin-right: 8px;">
+              <button type="submit">Restaurer</button>
+            </form>
+            <% if (peutPurger) { %>
+              <button
+                type="button"
+                class="destructif"
+                data-open-dialog="dialog-purge-<%= j.id %>"
+                style="min-height: 44px; min-width: 44px;"
+              >Purger définitivement</button>
+            <% } else { %>
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Disponible le <%= locals.formatDate ? locals.formatDate(datePurgePossible) : datePurgePossible.toString() %>"
+                aria-describedby="purge-date-<%= j.id %>"
+                style="min-height: 44px; min-width: 44px;"
+              >Purger définitivement</button>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <% items.forEach(function(j) {
+    const datePurgePossible = j.creeLe.add({ years: 10 });
+    if (peutEtrePurge(datePurgePossible)) { %>
+      <%- include('../../partials/confirm-dialog', {
+        id: 'dialog-purge-' + j.id,
+        formAction: '/justificatifs/' + j.id + '/purger',
+        message: 'Cette action est irréversible. Le fichier sera supprimé définitivement du disque.',
+        confirmLabel: 'Purger définitivement',
+        cancelLabel: 'Annuler'
+      }) %>
+    <% }
+  }); %>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

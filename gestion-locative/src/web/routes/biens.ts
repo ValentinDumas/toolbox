@@ -2,12 +2,14 @@ import type { FastifyInstance } from 'fastify';
 
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BienId, LotId } from '../../domain/_shared/identifiants.js';
+import type { JustificatifRepository } from '../../domain/documents/justificatif-repository.js';
 import { creerBien } from '../../application/patrimoine/creer-bien.js';
 import { modifierBien } from '../../application/patrimoine/modifier-bien.js';
 import { supprimerBien } from '../../application/patrimoine/supprimer-bien.js';
 import { listerBiens } from '../../application/patrimoine/lister-biens.js';
 import { ajouterLot } from '../../application/patrimoine/ajouter-lot.js';
 import { supprimerLot } from '../../application/patrimoine/supprimer-lot.js';
+import { listerJustificatifsParBien } from '../../application/documents/lister-justificatifs-par-bien.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import {
@@ -19,7 +21,7 @@ import {
 
 export async function plugin(
   app: FastifyInstance,
-  opts: { repo: BienRepository },
+  opts: { repo: BienRepository; justificatifRepo?: JustificatifRepository },
 ): Promise<void> {
 
   // GET /biens — liste tabulée
@@ -81,7 +83,7 @@ export async function plugin(
     }
   });
 
-  // GET /biens/:id — détail
+  // GET /biens/:id — détail (+ section Documents UI-5.4 si justificatifRepo dispo)
   app.get('/biens/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const bien = await opts.repo.trouverParId(id as BienId);
@@ -92,7 +94,20 @@ export async function plugin(
     }
     const banniereSuccess = req.session.banniereSuccess ?? null;
     if (banniereSuccess) req.session.banniereSuccess = undefined;
-    return reply.view('pages/biens/detail.ejs', { bien, banniereSuccess });
+
+    // Phase 4 — UI-5.4 : section "Documents" sur la fiche Bien
+    const documentsBien = opts.justificatifRepo
+      ? await listerJustificatifsParBien(
+          { bienId: bien.id, pageSize: 5 },
+          { justificatifRepo: opts.justificatifRepo },
+        )
+      : { items: [], total: 0 };
+
+    return reply.view('pages/biens/detail.ejs', {
+      bien,
+      banniereSuccess,
+      documentsBien,
+    });
   });
 
   // GET /biens/:id/modifier — formulaire édition

@@ -202,9 +202,9 @@ export async function creerApp(
 
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
-  await app.register(biensPlugin, { repo });
+  await app.register(biensPlugin, { repo, justificatifRepo });
   await app.register(diagnosticsPlugin, { bienRepo: repo });
-  await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo });
+  await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo, justificatifRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, bailIndexationRepo, clock });
   await app.register(indexationsPlugin, {
     bailRepo,

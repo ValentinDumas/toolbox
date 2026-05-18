@@ -66,4 +66,68 @@
   <a href="/baux/nouveau?locataireId=<%= locataire.id %>">Créer un bail</a>
 <% } %>
 
+<section aria-labelledby="documents-heading">
+  <h2 id="documents-heading">Documents</h2>
+
+  <%
+    const documentsLocataire = locals.documentsLocataire || { items: [], total: 0 };
+    const filtreTypeCourant = locals.filtreTypeCourant;
+    // Mapping libellé : 4 types autorisés D-120
+    const filtresTypes = [
+      [null, 'Tous'],
+      ['piece_locataire', 'Pièces locataire'],
+      ['releve_bancaire', 'Relevés bancaires'],
+      ['attestation', 'Attestations'],
+      ['autre', 'Autres']
+    ];
+  %>
+
+  <p style="display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 12px;">
+    <% filtresTypes.forEach(function(f) {
+      const courant = (f[0] === filtreTypeCourant) || (f[0] === null && filtreTypeCourant === undefined);
+      const href = f[0] === null
+        ? '/locataires/' + locataire.id
+        : '/locataires/' + locataire.id + '?type=' + f[0];
+    %>
+      <a
+        href="<%= href %>"
+        <%= courant ? 'aria-current="page" style="font-weight: 600;"' : '' %>
+      ><%= f[1] %></a>
+    <% }); %>
+  </p>
+
+  <% if (documentsLocataire.total === 0) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Aucun document rattaché à ce Locataire',
+      body: 'Téléversez CNI, fiches de paie ou attestations depuis le coffre.',
+      ctaUrl: '/coffre/upload',
+      ctaLabel: 'Ajouter un document'
+    }) %>
+  <% } else { %>
+    <table aria-label="Documents du Locataire">
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Type</th>
+          <th scope="col">Titre</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% documentsLocataire.items.forEach(function(j) { %>
+          <tr>
+            <td style="font-variant-numeric: tabular-nums;"><%= locals.formatDate ? locals.formatDate(j.dateDocument) : j.dateDocument.toString() %></td>
+            <td><%= locals.formaterTypeJustificatif ? locals.formaterTypeJustificatif(j.type) : j.type %></td>
+            <td><a href="/justificatifs/<%= j.id %>"><%= j.titre %></a></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <p>
+      <a href="/coffre?locataire=<%= locataire.id %>">
+        Voir tous les documents de ce Locataire (<%= documentsLocataire.total %>)
+      </a>
+    </p>
+  <% } %>
+</section>
+
 <%- include('../../partials/layout-fin') %>

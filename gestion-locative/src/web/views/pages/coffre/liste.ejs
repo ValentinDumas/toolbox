@@ -17,7 +17,47 @@
   </div>
 </header>
 
-<% if (items.length === 0) { %>
+<%- include('../../partials/partial-filters-coffre', {
+  filtres: locals.filtres || {},
+  biens: locals.biens || [],
+  locataires: locals.locataires || [],
+  today: locals.today
+}) %>
+
+<%
+  const filtres = locals.filtres || {};
+  const filtresActifs =
+    (filtres.search && filtres.search.length > 0) ||
+    (filtres.bien && filtres.bien.length > 0) ||
+    (filtres.locataire && filtres.locataire.length > 0) ||
+    (filtres.annee && String(filtres.annee).length > 0) ||
+    (filtres.type && filtres.type.length > 0);
+  const total = locals.total || 0;
+  const items = locals.items || [];
+  const page = locals.page || 1;
+  const pageSize = locals.pageSize || 20;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Helper construction URL pagination en préservant les filtres
+  function paginationUrl(p) {
+    const params = new URLSearchParams();
+    if (filtres.search) params.set('search', filtres.search);
+    if (filtres.bien) params.set('bien', filtres.bien);
+    if (filtres.locataire) params.set('locataire', filtres.locataire);
+    if (filtres.annee) params.set('annee', String(filtres.annee));
+    if (filtres.type) params.set('type', filtres.type);
+    params.set('page', String(p));
+    return '/coffre?' + params.toString();
+  }
+%>
+
+<% if (total === 0 && filtresActifs) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucun document ne correspond à ces filtres',
+    body: 'Modifiez les filtres ou ajoutez de nouveaux documents.'
+  }) %>
+  <p><a href="/coffre">Effacer les filtres</a></p>
+<% } else if (total === 0) { %>
   <%- include('../../partials/empty-state', {
     heading: 'Aucun justificatif pour le moment',
     body: "Commencez par téléverser une facture, un bail signé ou un diagnostic.",
@@ -45,6 +85,22 @@
     </tbody>
   </table>
   <p><small><%= total %> document<%= total > 1 ? 's' : '' %></small></p>
+
+  <% if (totalPages > 1) { %>
+    <nav aria-label="Pagination" style="display: flex; gap: 1rem; align-items: center; margin-top: 8px;">
+      <span>Page <%= page %> de <%= totalPages %></span>
+      <% if (page > 1) { %>
+        <a href="<%= paginationUrl(page - 1) %>">Précédent</a>
+      <% } else { %>
+        <span aria-disabled="true" style="color: var(--couleur-neutre, #6b7280);">Précédent</span>
+      <% } %>
+      <% if (page < totalPages) { %>
+        <a href="<%= paginationUrl(page + 1) %>">Suivant</a>
+      <% } else { %>
+        <span aria-disabled="true" style="color: var(--couleur-neutre, #6b7280);">Suivant</span>
+      <% } %>
+    </nav>
+  <% } %>
 </div>
 <% } %>
 
