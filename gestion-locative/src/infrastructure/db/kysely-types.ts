@@ -180,6 +180,64 @@ export interface BailIndexationsTable {
   cree_le: Generated<string>;
 }
 
+// Phase 4 — BC Documents (DOC-01, D-102, D-104, D-108, D-109)
+export type TypeJustificatifRow =
+  | 'facture'
+  | 'ticket_caisse'
+  | 'bail_signe'
+  | 'edl_signe'
+  | 'diagnostic_pdf'
+  | 'attestation'
+  | 'piece_locataire'
+  | 'releve_bancaire'
+  | 'autre';
+
+export type MimeJustificatifRow =
+  | 'application/pdf'
+  | 'image/jpeg'
+  | 'image/png'
+  | 'image/webp';
+
+export interface JustificatifsTable {
+  id: string;
+  type: TypeJustificatifRow;
+  date_document: string;
+  titre: string;
+  montant_ttc_centimes: number | null;
+  chemin_fichier: string;
+  nom_fichier_original: string;
+  mime_type: MimeJustificatifRow;
+  taille_octets: number;
+  bien_id: string | null;
+  locataire_id: string | null;
+  notes: string | null;
+  cree_le: string;
+  corbeille_le: string | null;
+  raison_corbeille: string | null;
+}
+
+// Phase 4 — BC Travaux scaffolding (utilisé en 04-03 — D-115 : pas de nature)
+export interface TicketsTravauxTable {
+  id: string;
+  bien_id: string;
+  titre: string;
+  description: string;
+  date_ouverture: string;
+  date_cloture: string | null;
+  statut: 'ouvert' | 'en_cours' | 'clos' | 'annule';
+  cout_estime_ttc_centimes: number | null;
+  cout_reel_ttc_centimes: number | null;
+  notes: string | null;
+  cree_le: string;
+  annule_le: string | null;
+  raison_annulation: string | null;
+}
+
+export interface TicketJustificatifsTable {
+  ticket_id: string;
+  justificatif_id: string;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -195,4 +253,7 @@ export interface DB {
   diagnostics: DiagnosticsTable;
   etat_des_lieux: EtatDesLieuxTable;
   bail_indexations: BailIndexationsTable;
+  justificatifs: JustificatifsTable;
+  tickets_travaux: TicketsTravauxTable;
+  ticket_justificatifs: TicketJustificatifsTable;
 }

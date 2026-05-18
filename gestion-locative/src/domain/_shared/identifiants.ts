@@ -53,6 +53,19 @@ export function nouveauBailIndexationId(): BailIndexationId {
   return crypto.randomUUID() as BailIndexationId;
 }
 
+// Phase 4 — BC Documents (DOC-01) + BC Travaux scaffolding
+export type JustificatifId = string & { readonly __brand: 'JustificatifId' };
+export type TicketTravauxId = string & { readonly __brand: 'TicketTravauxId' };
+export type CheminRelatif = string & { readonly __brand: 'CheminRelatif' };
+
+export function nouveauJustificatifId(): JustificatifId {
+  return crypto.randomUUID() as JustificatifId;
+}
+
+export function nouveauTicketTravauxId(): TicketTravauxId {
+  return crypto.randomUUID() as TicketTravauxId;
+}
+
 // Phase 2 — identifiants nouveaux agrégats
 export type BailleurId = string & { readonly __brand: 'BailleurId' };
 export type EcheanceLoyerId = string & { readonly __brand: 'EcheanceLoyerId' };
