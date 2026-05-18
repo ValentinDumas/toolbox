@@ -1,0 +1,69 @@
+/* Print stylesheet — Phase 3 plan 03-05
+ * Sert via fastify-static (prefix '/', root <projectRoot>/public).
+ * Linkée en media="print" depuis layout-debut.ejs.
+ *
+ * Objectif (UI-SPEC §A11y / D-44 Phase 1) :
+ *  - Masquer nav/sidebar/boutons d'action à l'impression.
+ *  - Layout pleine page lisible (EDL, diagnostics, historique IRL).
+ *  - Pas de couleurs background dégradées, contraste max sur papier.
+ *  - Conserver tables, listes de définitions, headings.
+ */
+
+@media print {
+  header nav,
+  aside,
+  details summary,
+  button[type='submit'],
+  button[type='button'],
+  a[role='button']:not(.print-keep),
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  main,
+  main.container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  a {
+    color: black !important;
+    text-decoration: underline;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  table,
+  th,
+  td {
+    border: 1px solid #333;
+    padding: 4px 8px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+
+  dl,
+  table,
+  ul,
+  ol {
+    page-break-inside: avoid;
+  }
+}
+
+@page {
+  margin: 2cm;
+}
