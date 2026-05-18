@@ -100,7 +100,11 @@ Plans:
   2. L'utilisateur peut rechercher et filtrer des documents par `Bien`, `Locataire` ou année fiscale et accéder à la pièce d'origine.
   3. Le système conserve tous les documents au moins 10 ans (rétention légale fiscale) et empêche toute suppression avant ce délai (ou la matérialise comme corbeille).
   4. L'utilisateur peut créer un ticket d'incident / travaux rattaché à un `Bien` avec pièce jointe et coût saisi.
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 04-PLAN-1-walking-enabler.md — Walking enabler + DOC-01 thin slice (Justificatif BC + ports StockageJustificatifs/ConvertisseurImage + upload + view + soft-delete + migration 0010 globale) (wave 1, DOC-01 + DOC-03 gate)
+- [ ] 04-PLAN-2-documents-extras.md — Recherche facettée + Corbeille + Purge gate 10 ans + Modifier metadata + fiches augmentées Bien (Documents) + Locataire (Documents D-120) (wave 2, DOC-01 extras + DOC-02 + DOC-03 UX)
+- [ ] 04-PLAN-3-travaux.md — Travaux BC + N:N PJ ticket_justificatifs + section Travaux fiche Bien (wave 3, INC-01)
 **UI hint:** yes
 
 ### Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement
@@ -153,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Activation — Bien, Locataire, Bail | 8/8 | Complete | 2026-05-16 |
 | 2. Quittancement — Échéances, Encaissements, Relances | 7/7 | Complete | 2026-05-16 |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/5 | Planned | - |
-| 4. Coffre documentaire & Travaux | 0/TBD | Not started | - |
+| 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 0/TBD | Not started | - |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
 | 7. Dashboard & Notifications d'échéances | 0/TBD | Not started | - |
