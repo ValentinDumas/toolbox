@@ -103,7 +103,7 @@ completed: 2026-05-18
 - **Completed:** 2026-05-18T14:10:03Z
 - **Tasks:** 3 (RED foundation + GREEN use cases + Wire UI)
 - **Commits:** 3 task commits + 1 docs metadata
-- **Tests added:** 20 unit (use-cases) + 5 unit (purger 3 branches) + 9 integration (LIKE + facettes + pagination + ORDER BY + typeIn D-120) + 15 BDD (@doc-02 + @doc-03 extras) = **49 nouveaux tests**
+- **Tests added:** 20 unit (use-cases) + 5 unit (purger 3 branches) + 9 integration (LIKE + facettes + pagination + ORDER BY + typeIn D-120) + 14 BDD (@doc-02 + @doc-03 extras) = **48 nouveaux tests**
 - **Files created:** 12 (7 use cases + 3 EJS + 2 tests)
 - **Files modified:** 13 (routes, schemas, EJS, builders, tests)
 
@@ -117,7 +117,7 @@ completed: 2026-05-18
 - **Pagination 20/page** sur `/coffre` préservant les filtres dans les liens précédent/suivant (helper inline `paginationUrl`).
 - **Empty states verbatim D-119** : coffre filtré, corbeille vide, doc Bien vide, doc Locataire vide — 4 contextes.
 - **Bouton "Purger définitivement" disabled** avant 10 ans avec `aria-disabled="true"` + `title="Disponible le {date}"` + `aria-describedby="purge-date-{id}"` + touch ≥ 44x44px (WCAG 2.5.5 + 1.4.13).
-- **15 nouveaux scénarios BDD `@phase4`** verts (@doc-02 + @doc-03) — total Phase 4 = **22 scénarios verts**.
+- **14 nouveaux scénarios BDD `@phase4`** verts (T9–T22, tags @doc-02 + @doc-03) — total Phase 4 = **21 scénarios verts**.
 - **Coverage** : `purger-justificatif.ts` lignes 100% (3 branches D-109 testées en unit), `justificatif.ts` domain reste à 98%.
 
 ## Task Commits
@@ -133,7 +133,7 @@ completed: 2026-05-18
 | `pnpm typecheck` | ✅ 0 erreur |
 | `pnpm depcruise src --config .dependency-cruiser.cjs` | ✅ 0 violation (163 modules, 734 dependencies cruised) |
 | `pnpm vitest run` (unit + integration) | ✅ **525 tests verts** (+34 vs Wave 1 baseline 491→525) |
-| `pnpm test:bdd --tags @phase4` | ✅ **22/22 scénarios verts** (7 Wave 1 + 15 Wave 2) |
+| `pnpm test:bdd --tags @phase4` | ✅ **21/21 scénarios verts** (7 Wave 1 + 14 Wave 2) |
 | `pnpm test:bdd` (tous) | ✅ **96/96 scénarios verts** |
 | `pnpm exec eslint src/application/documents/` (nouveaux files) | ✅ 0 warning |
 | Snapshots EJS Phase 3 | ✅ 17/17 toujours verts (aucune régression) |
@@ -237,7 +237,7 @@ Aucun — pas de service externe à configurer. Toutes les fonctionnalités Wave
 - [x] `pnpm typecheck` exit 0.
 - [x] `pnpm depcruise` exit 0.
 - [x] 525/525 vitest verts.
-- [x] 22/22 BDD `@phase4` verts (7 Wave 1 + 15 Wave 2).
+- [x] 21/21 BDD `@phase4` verts (7 Wave 1 + 14 Wave 2).
 - [x] 96/96 BDD totaux verts (aucune régression Phase 1/2/3).
 
 ---
