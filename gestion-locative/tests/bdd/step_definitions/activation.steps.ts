@@ -211,9 +211,20 @@ Then('il est redirigé vers {string}', function (this: MondeActivation, urlAtten
 });
 
 Then('la page affiche {string}', function (this: MondeActivation, texte: string) {
+  // EJS escape automatique des apostrophes/quotes/HTML → on accepte aussi
+  // la version HTML-escaped pour rester compatible avec les messages contenant
+  // des caractères spéciaux français (verbatim UI-6.2 'd\'ouverture', etc).
+  const escaped = texte
+    .replace(/&/g, '&amp;')
+    .replace(/'/g, '&#39;')
+    .replace(/"/g, '&#34;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const found =
+    this.dernierCorps.includes(texte) || this.dernierCorps.includes(escaped);
   assert.ok(
-    this.dernierCorps.includes(texte),
-    `La page doit afficher "${texte}". Corps reçu (extrait) : ${this.dernierCorps.substring(0, 500)}`,
+    found,
+    `La page doit afficher "${texte}" (testé brut + HTML-escaped). Corps reçu (extrait) : ${this.dernierCorps.substring(0, 500)}`,
   );
 });
 

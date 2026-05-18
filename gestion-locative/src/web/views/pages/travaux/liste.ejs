@@ -1,0 +1,51 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Travaux — ' + bien.adresse.enLigne(),
+  breadcrumbs: [
+    { url: '/biens', label: 'Biens' },
+    { url: '/biens/' + bien.id, label: bien.adresse.enLigne() },
+    { label: 'Travaux' }
+  ],
+  navActive: 'biens'
+}) %>
+
+<h1>Travaux — <%= bien.adresse.enLigne() %></h1>
+
+<p>
+  <a href="/travaux/nouveau?bienId=<%= bien.id %>" role="button" style="min-height: 44px;">Nouveau ticket</a>
+</p>
+
+<% if (locals.banniereWarning) { %>
+  <aside role="alert" aria-live="polite" style="background: #fef3c7; border-left: 4px solid #d97706; padding: 12px 16px; margin-bottom: 16px;">
+    <%= locals.banniereWarning %>
+  </aside>
+<% } %>
+
+<% if (tickets.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucun ticket pour ce Bien',
+    body: 'Le premier ticket sert souvent à tracer la mise en service du logement.',
+    ctaUrl: '/travaux/nouveau?bienId=' + bien.id,
+    ctaLabel: 'Nouveau ticket'
+  }) %>
+<% } else { %>
+  <table aria-label="Tickets travaux" class="sticky-thead">
+    <thead>
+      <tr>
+        <th scope="col">Titre</th>
+        <th scope="col">Statut</th>
+        <th scope="col">Ouverture</th>
+        <th scope="col">Clôture</th>
+        <th scope="col" class="numeric">Coût estimé</th>
+        <th scope="col" class="numeric">Coût réel</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% tickets.forEach(function(t) { %>
+        <%- include('../../partials/partial-ticket-row', { ticket: t }) %>
+      <% }); %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

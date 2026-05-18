@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BienId, LotId } from '../../domain/_shared/identifiants.js';
 import type { JustificatifRepository } from '../../domain/documents/justificatif-repository.js';
+import type { TicketTravauxRepository } from '../../domain/travaux/ticket-travaux-repository.js';
 import { creerBien } from '../../application/patrimoine/creer-bien.js';
 import { modifierBien } from '../../application/patrimoine/modifier-bien.js';
 import { supprimerBien } from '../../application/patrimoine/supprimer-bien.js';
@@ -10,6 +11,7 @@ import { listerBiens } from '../../application/patrimoine/lister-biens.js';
 import { ajouterLot } from '../../application/patrimoine/ajouter-lot.js';
 import { supprimerLot } from '../../application/patrimoine/supprimer-lot.js';
 import { listerJustificatifsParBien } from '../../application/documents/lister-justificatifs-par-bien.js';
+import { listerTicketsParBien } from '../../application/travaux/lister-tickets-par-bien.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import {
@@ -21,7 +23,11 @@ import {
 
 export async function plugin(
   app: FastifyInstance,
-  opts: { repo: BienRepository; justificatifRepo?: JustificatifRepository },
+  opts: {
+    repo: BienRepository;
+    justificatifRepo?: JustificatifRepository;
+    ticketRepo?: TicketTravauxRepository;
+  },
 ): Promise<void> {
 
   // GET /biens — liste tabulée
@@ -103,10 +109,28 @@ export async function plugin(
         )
       : { items: [], total: 0 };
 
+    // Phase 4 — UI-5.4 : section "Travaux" sur la fiche Bien
+    let ticketsBien: { items: unknown[]; total: number } = {
+      items: [],
+      total: 0,
+    };
+    if (opts.ticketRepo) {
+      const ouverts = await listerTicketsParBien(
+        { bienId: bien.id, statuts: ['ouvert', 'en_cours'] },
+        { ticketRepo: opts.ticketRepo },
+      );
+      const tous = await listerTicketsParBien(
+        { bienId: bien.id, inclureAnnules: true },
+        { ticketRepo: opts.ticketRepo },
+      );
+      ticketsBien = { items: ouverts, total: tous.length };
+    }
+
     return reply.view('pages/biens/detail.ejs', {
       bien,
       banniereSuccess,
       documentsBien,
+      ticketsBien,
     });
   });
 

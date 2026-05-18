@@ -1,0 +1,38 @@
+<%
+/*
+ * partial-badge-statut-ticket.ejs — Badge statut ticket coloré (UI-1.4).
+ * Variable attendue : statut (StatutTicket)
+ * aria-label "Statut : {label}" pour A11y (WCAG 1.4.1 + 1.4.3).
+ * Couleurs cohérentes avec design system (couleur-accent / warning / success / neutre).
+ */
+const statutMap = {
+  ouvert: {
+    bg: 'var(--couleur-accent-bg, #dbeafe)',
+    fg: 'var(--couleur-accent, #1d4ed8)',
+    label: 'ouvert',
+  },
+  en_cours: {
+    bg: 'var(--couleur-warning-bg, #fef3c7)',
+    fg: 'var(--couleur-warning, #d97706)',
+    label: 'en cours',
+  },
+  clos: {
+    bg: 'var(--couleur-success-bg, #d1fae5)',
+    fg: 'var(--couleur-success, #065f46)',
+    label: 'clos',
+  },
+  annule: {
+    bg: 'var(--couleur-neutre-bg, #e5e7eb)',
+    fg: 'var(--couleur-neutre, #4b5563)',
+    label: 'annulé',
+  },
+};
+const item = statutMap[locals.statut] || {
+  bg: '#6b7280',
+  fg: '#ffffff',
+  label: 'inconnu',
+};
+%><span
+  style="background: <%= item.bg %>; color: <%= item.fg %>; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; white-space: nowrap;"
+  aria-label="Statut : <%= item.label %>"
+><%= item.label %></span>

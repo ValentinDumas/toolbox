@@ -233,4 +233,54 @@
   <% } %>
 </section>
 
+<section aria-labelledby="travaux-heading">
+  <h2 id="travaux-heading">Travaux</h2>
+
+  <%
+    const ticketsBien = locals.ticketsBien || { items: [], total: 0 };
+  %>
+
+  <% if (ticketsBien.total === 0) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Aucun ticket pour ce Bien',
+      body: 'Le premier ticket sert souvent à tracer la mise en service du logement.',
+      ctaUrl: '/travaux/nouveau?bienId=' + bien.id,
+      ctaLabel: 'Nouveau ticket'
+    }) %>
+  <% } else { %>
+    <p>
+      <a href="/travaux/nouveau?bienId=<%= bien.id %>" role="button" style="min-height: 44px;">Nouveau ticket</a>
+    </p>
+    <% if (ticketsBien.items.length > 0) { %>
+      <table aria-label="Tickets ouverts du Bien">
+        <thead>
+          <tr>
+            <th scope="col">Titre</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Ouverture</th>
+            <th scope="col" class="numeric">Coût estimé</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% ticketsBien.items.slice(0, 5).forEach(function(t) { %>
+            <tr>
+              <td><a href="/travaux/<%= t.id %>"><%= t.titre %></a></td>
+              <td><%- include('../../partials/partial-badge-statut-ticket', { statut: t.statut }) %></td>
+              <td style="font-variant-numeric: tabular-nums;"><%= locals.formatDate ? locals.formatDate(t.dateOuverture) : t.dateOuverture.toString() %></td>
+              <td class="numeric">
+                <% if (t.coutEstimeTtc) { %>
+                  <%= locals.formatMoney ? locals.formatMoney(t.coutEstimeTtc) : t.coutEstimeTtc.enEuros() %>
+                <% } else { %>—<% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+    <p>
+      <a href="/biens/<%= bien.id %>/travaux">Voir tous les tickets (<%= ticketsBien.total %>)</a>
+    </p>
+  <% } %>
+</section>
+
 <%- include('../../partials/layout-fin') %>
