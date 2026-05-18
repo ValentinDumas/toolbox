@@ -8,6 +8,7 @@ import fastifyFormbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
+import fastifyMultipart from '@fastify/multipart';
 import type { Kysely } from 'kysely';
 import { formatDate } from './helpers/format-date.js';
 import { formatMoney } from './helpers/format-money.js';
@@ -18,6 +19,9 @@ import { formaterStatutDiagnostic } from './helpers/format-statut-diagnostic.js'
 import { formaterTypeItemInventaire } from './helpers/format-type-item-inventaire.js';
 import { formaterEtatItem } from './helpers/format-etat-item.js';
 import { formaterRaisonNonApplication } from './helpers/format-raison-non-application.js';
+import { formaterTypeJustificatif } from './helpers/format-type-justificatif.js';
+import { formaterTailleFichier } from './helpers/format-taille-fichier.js';
+import { formaterAnneeFiscale } from './helpers/format-annee-fiscale.js';
 import type { Clock } from './domain/_shared/clock.js';
 import { ClockSysteme } from './domain/_shared/clock.js';
 import type { ActiviteBailDetector } from './domain/locatif/activite-bail-detector.js';
@@ -55,9 +59,13 @@ import { plugin as relancesPlugin } from './web/routes/relances.js';
 import { plugin as diagnosticsPlugin } from './web/routes/diagnostics.js';
 import { plugin as etatsDesLieuxPlugin } from './web/routes/etats-des-lieux.js';
 import { plugin as indexationsPlugin } from './web/routes/indexations.js';
+import { plugin as coffrePlugin } from './web/routes/coffre.js';
 import { EtatDesLieuxRepositorySqlite } from './infrastructure/repositories/etat-des-lieux-repository-sqlite.js';
 import { BailIndexationRepositorySqlite } from './infrastructure/repositories/bail-indexation-repository-sqlite.js';
 import { RelanceRepositorySqlite } from './infrastructure/repositories/relance-repository-sqlite.js';
+import { JustificatifRepositorySqlite } from './infrastructure/repositories/justificatif-repository-sqlite.js';
+import { StockageJustificatifsLocal } from './infrastructure/storage/stockage-justificatifs-local.js';
+import { ConvertisseurImageSharp } from './infrastructure/image/convertisseur-image-sharp.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -101,6 +109,10 @@ export async function creerApp(
   });
 
   await app.register(fastifyFormbody);
+  // Phase 4 — D-105 + D-116 : limits.fileSize 50 Mo / 1 fichier / 20 fields
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: 52_428_800, files: 1, fields: 20 },
+  });
   await app.register(fastifyStatic, {
     root: path.join(__dirname, '../public'),
     prefix: '/',
@@ -128,6 +140,13 @@ export async function creerApp(
   const bailIndexationRepo = new BailIndexationRepositorySqlite(db);
   const relanceRepo = new RelanceRepositorySqlite(db);
   const activiteBailDetector = opts.activiteBailDetector ?? new ActiviteBailDetectorSqlite(db);
+  // Phase 4 — BC Documents
+  const justificatifRepo = new JustificatifRepositorySqlite(db);
+  const stockageJustificatifs = new StockageJustificatifsLocal(
+    process.env['GESTION_LOCATIVE_DATA_DIR'] ??
+      path.join(os.homedir(), 'Library', 'Application Support', 'gestion-locative', 'documents'),
+  );
+  const convertisseurImage = new ConvertisseurImageSharp();
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
@@ -145,6 +164,9 @@ export async function creerApp(
       formaterTypeItemInventaire,
       formaterEtatItem,
       formaterRaisonNonApplication,
+      formaterTypeJustificatif,
+      formaterTailleFichier,
+      formaterAnneeFiscale,
       today,
     };
   });
@@ -251,6 +273,17 @@ export async function creerApp(
     bailleurRepo,
     pdfRenderer,
     clock,
+  });
+
+  // Phase 4 — BC Documents (DOC-01, DOC-03)
+  await app.register(coffrePlugin, {
+    justificatifRepo,
+    bienRepo: repo,
+    locataireRepo,
+    stockage: stockageJustificatifs,
+    convertisseurImage,
+    clock,
+    db,
   });
 
   return app;

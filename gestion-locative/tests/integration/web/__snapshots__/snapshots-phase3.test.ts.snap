@@ -31,6 +31,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
       <a href="/baux" aria-current="page">Baux</a>
     </li>
     <li>
+      <a href="/coffre">Coffre documentaire</a>
+    </li>
+    <li>
       <details>
         <summary>Encaissements</summary>
         <ul>
@@ -481,6 +484,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
     </li>
     <li>
       <a href="/baux" aria-current="page">Baux</a>
+    </li>
+    <li>
+      <a href="/coffre">Coffre documentaire</a>
     </li>
     <li>
       <details>
@@ -935,6 +941,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
       <a href="/baux">Baux</a>
     </li>
     <li>
+      <a href="/coffre">Coffre documentaire</a>
+    </li>
+    <li>
       <details>
         <summary>Encaissements</summary>
         <ul>
@@ -1114,6 +1123,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
       <a href="/baux" aria-current="page">Baux</a>
     </li>
     <li>
+      <a href="/coffre">Coffre documentaire</a>
+    </li>
+    <li>
       <details>
         <summary>Encaissements</summary>
         <ul>
@@ -1229,6 +1241,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
     </li>
     <li>
       <a href="/baux" aria-current="page">Baux</a>
+    </li>
+    <li>
+      <a href="/coffre">Coffre documentaire</a>
     </li>
     <li>
       <details>

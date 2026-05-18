@@ -22,6 +22,9 @@
       <a href="/baux"<% if (locals.navActive === 'baux') { %> aria-current="page"<% } %>>Baux</a>
     </li>
     <li>
+      <a href="/coffre"<% if (locals.navActive === 'coffre') { %> aria-current="page"<% } %>>Coffre documentaire</a>
+    </li>
+    <li>
       <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances' || locals.navActive === 'quittances' || locals.navActive === 'impayes' || locals.navActive === 'relances') { %> open<% } %>>
         <summary>Encaissements</summary>
         <ul>

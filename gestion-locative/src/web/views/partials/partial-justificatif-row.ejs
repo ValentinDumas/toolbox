@@ -1,0 +1,31 @@
+<%
+  const bien = j.bienId ? (locals.biens || []).find(function(b) { return b.id === j.bienId; }) : null;
+  const locataire = j.locataireId ? (locals.locataires || []).find(function(l) { return l.id === j.locataireId; }) : null;
+%>
+<tr>
+  <td style="font-variant-numeric: tabular-nums;"><%= locals.formatDate ? locals.formatDate(j.dateDocument) : j.dateDocument.toString() %></td>
+  <td><%= locals.formaterTypeJustificatif ? locals.formaterTypeJustificatif(j.type) : j.type %></td>
+  <td><a href="/justificatifs/<%= j.id %>"><%= j.titre %></a></td>
+  <td>
+    <% if (bien) { %>
+      <a href="/biens/<%= bien.id %>"><%= bien.adresse.rue %></a>
+    <% } else { %>
+      —
+    <% } %>
+  </td>
+  <td>
+    <% if (locataire) { %>
+      <a href="/locataires/<%= locataire.id %>"><%= locataire.prenom %> <%= locataire.nom %></a>
+    <% } else { %>
+      —
+    <% } %>
+  </td>
+  <td style="text-align: right; font-variant-numeric: tabular-nums;">
+    <%= j.montantTtc ? (locals.formatMoney ? locals.formatMoney(j.montantTtc) : j.montantTtc.enEuros()) : '—' %>
+  </td>
+  <td>
+    <a href="/justificatifs/<%= j.id %>/fichier" target="_blank" rel="noopener noreferrer">Télécharger</a>
+    &nbsp;
+    <a href="/justificatifs/<%= j.id %>">Voir</a>
+  </td>
+</tr>

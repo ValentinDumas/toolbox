@@ -1,0 +1,138 @@
+<%
+  const erreurs = locals.erreurs || {};
+  const valeurs = locals.valeurs || {};
+  const TYPES = [
+    ['facture', 'Facture'],
+    ['ticket_caisse', 'Ticket de caisse'],
+    ['bail_signe', 'Bail signé'],
+    ['edl_signe', 'État des lieux signé'],
+    ['diagnostic_pdf', 'Diagnostic (PDF)'],
+    ['attestation', 'Attestation'],
+    ['piece_locataire', 'Pièce locataire'],
+    ['releve_bancaire', 'Relevé bancaire'],
+    ['autre', 'Autre']
+  ];
+%>
+
+<div class="field">
+  <label for="fichier">Fichier <span aria-hidden="true">*</span></label>
+  <input
+    id="fichier"
+    name="fichier"
+    type="file"
+    accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,image/jpeg,image/jpg,image/png,image/heic,image/heif,image/webp"
+    required
+    aria-describedby="fichier-hint<%= erreurs.fichier ? ' fichier-error' : '' %>"
+    <% if (erreurs.fichier) { %>aria-invalid="true"<% } %>
+  />
+  <small id="fichier-hint">PDF, JPG, PNG, HEIC, WebP — max 50 Mo</small>
+  <% if (erreurs.fichier) { %>
+    <span id="fichier-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.fichier %></span>
+  <% } %>
+</div>
+
+<div class="field">
+  <label for="titre">Titre <span aria-hidden="true">*</span></label>
+  <input
+    id="titre"
+    name="titre"
+    type="text"
+    required
+    maxlength="200"
+    value="<%= valeurs.titre || '' %>"
+    <% if (erreurs.titre) { %>aria-invalid="true" aria-describedby="titre-error"<% } %>
+  />
+  <% if (erreurs.titre) { %>
+    <span id="titre-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.titre %></span>
+  <% } %>
+</div>
+
+<div class="field">
+  <label for="dateDocument">Date du document <span aria-hidden="true">*</span></label>
+  <input
+    id="dateDocument"
+    name="dateDocument"
+    type="date"
+    required
+    value="<%= valeurs.dateDocument || '' %>"
+    <% if (erreurs.dateDocument) { %>aria-invalid="true" aria-describedby="dateDocument-error"<% } %>
+  />
+  <% if (erreurs.dateDocument) { %>
+    <span id="dateDocument-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.dateDocument %></span>
+  <% } %>
+</div>
+
+<div class="field">
+  <label for="type">Type <span aria-hidden="true">*</span></label>
+  <select id="type" name="type" required <% if (erreurs.type) { %>aria-invalid="true" aria-describedby="type-error"<% } %>>
+    <option value="">— Choisir —</option>
+    <% TYPES.forEach(function(t) { %>
+      <option value="<%= t[0] %>" <%= valeurs.type === t[0] ? 'selected' : '' %>><%= t[1] %></option>
+    <% }); %>
+  </select>
+  <% if (erreurs.type) { %>
+    <span id="type-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.type %></span>
+  <% } %>
+</div>
+
+<fieldset>
+  <legend>Rattacher à <span aria-hidden="true">*</span></legend>
+  <label>
+    <input type="radio" name="rattachement" value="bien" required <%= valeurs.rattachement === 'bien' ? 'checked' : '' %>>
+    Un Bien
+  </label>
+  <label>
+    <input type="radio" name="rattachement" value="locataire" required <%= valeurs.rattachement === 'locataire' ? 'checked' : '' %>>
+    Un Locataire
+  </label>
+  <label>
+    <input type="radio" name="rattachement" value="bien_et_locataire" required <%= valeurs.rattachement === 'bien_et_locataire' ? 'checked' : '' %>>
+    Un Bien et un Locataire
+  </label>
+  <% if (erreurs.rattachement) { %>
+    <span role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.rattachement %></span>
+  <% } %>
+</fieldset>
+
+<div class="field field-rattachement-bien">
+  <label for="bienId">Bien</label>
+  <select id="bienId" name="bienId" <% if (erreurs.bienId) { %>aria-invalid="true" aria-describedby="bienId-error"<% } %>>
+    <option value="">— Choisir —</option>
+    <% (biens || []).forEach(function(b) { %>
+      <option value="<%= b.id %>" <%= valeurs.bienId === b.id ? 'selected' : '' %>><%= b.adresse.rue %> — <%= b.adresse.ville %></option>
+    <% }); %>
+  </select>
+  <% if (erreurs.bienId) { %>
+    <span id="bienId-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.bienId %></span>
+  <% } %>
+</div>
+
+<div class="field field-rattachement-locataire">
+  <label for="locataireId">Locataire</label>
+  <select id="locataireId" name="locataireId" <% if (erreurs.locataireId) { %>aria-invalid="true" aria-describedby="locataireId-error"<% } %>>
+    <option value="">— Choisir —</option>
+    <% (locataires || []).forEach(function(l) { %>
+      <option value="<%= l.id %>" <%= valeurs.locataireId === l.id ? 'selected' : '' %>><%= l.prenom %> <%= l.nom %></option>
+    <% }); %>
+  </select>
+  <% if (erreurs.locataireId) { %>
+    <span id="locataireId-error" role="alert" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.locataireId %></span>
+  <% } %>
+</div>
+
+<div class="field">
+  <label for="montantTtcCentimes">Montant TTC (en centimes) <small>(optionnel)</small></label>
+  <input
+    id="montantTtcCentimes"
+    name="montantTtcCentimes"
+    type="number"
+    step="1"
+    min="0"
+    value="<%= valeurs.montantTtcCentimes || '' %>"
+  />
+</div>
+
+<div class="field">
+  <label for="notes">Notes <small>(optionnel)</small></label>
+  <textarea id="notes" name="notes" maxlength="2000"><%= valeurs.notes || '' %></textarea>
+</div>
