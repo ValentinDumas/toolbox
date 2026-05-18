@@ -104,7 +104,7 @@ Plans:
 Plans:
 - [x] 04-01-walking-enabler-PLAN.md — Walking enabler + DOC-01 thin slice (Justificatif BC + ports StockageJustificatifs/ConvertisseurImage + upload + view + soft-delete + migration 0010 globale) (wave 1, DOC-01 + DOC-03 gate)
 - [x] 04-02-documents-extras-PLAN.md — Recherche facettée + Corbeille + Purge gate 10 ans + Modifier metadata + fiches augmentées Bien (Documents) + Locataire (Documents D-120) (wave 2, DOC-01 extras + DOC-02 + DOC-03 UX)
-- [ ] 04-03-travaux-PLAN.md — Travaux BC + N:N PJ ticket_justificatifs + section Travaux fiche Bien (wave 3, INC-01)
+- [x] 04-03-travaux-PLAN.md — Travaux BC + N:N PJ ticket_justificatifs + section Travaux fiche Bien (wave 3, INC-01)
 **UI hint:** yes
 
 ### Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement
