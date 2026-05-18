@@ -123,3 +123,10 @@ Feature: Tickets travaux (INC-01)
     Then la page affiche "Aucun ticket pour ce Bien"
     And la page affiche "Le premier ticket sert souvent à tracer la mise en service du logement."
     And la page affiche "Nouveau ticket"
+
+  @gap-04 @inc-01
+  Scenario: T16 — Une PJ mise en corbeille n'apparaît plus sur la fiche du ticket (CR-03)
+    Given un ticket de travaux existe rattaché au Bien
+    And un justificatif "facture-chaudiere.pdf" rattaché au ticket et mis en corbeille
+    When le bailleur navigue vers GET /travaux/:ticketId
+    Then la fiche du ticket ne liste aucune pièce jointe

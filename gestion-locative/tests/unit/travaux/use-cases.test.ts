@@ -31,7 +31,7 @@ import {
   unTicketTravauxClos,
   unTicketTravauxValide,
 } from '../../_builders/travaux.js';
-import { unJustificatifValide } from '../../_builders/documents.js';
+import { unJustificatifEnCorbeille, unJustificatifValide } from '../../_builders/documents.js';
 
 const CLOCK = ClockFixe.du('2026-05-18');
 
@@ -190,6 +190,32 @@ describe('lireTicket', () => {
     expect(result.bien).not.toBeNull();
     expect(result.justificatifs).toHaveLength(1);
     expect(result.justificatifs[0]?.id).toBe(j.id);
+  });
+
+  it('filtre les Justificatifs en corbeille (CR-03)', async () => {
+    const { repo: ticketRepo, tickets, pivot } = mockTicketRepo();
+    const bienRepo = mockBienRepo();
+    const { repo: justifRepo, docs } = mockJustificatifRepo();
+    const ticket = TicketTravaux.creer(unTicketTravauxValide(), CLOCK.aujourdhui());
+    tickets.set(ticket.id, ticket);
+
+    const jActif = Justificatif.creer(
+      unJustificatifValide({ bienId: ticket.bienId, titre: 'PJ active' }),
+    );
+    const jCorbeille = Justificatif.creer(
+      unJustificatifEnCorbeille({ bienId: ticket.bienId, titre: 'PJ corbeille' }),
+    );
+    docs.set(jActif.id, jActif);
+    docs.set(jCorbeille.id, jCorbeille);
+    pivot.add(`${ticket.id}::${jActif.id}`);
+    pivot.add(`${ticket.id}::${jCorbeille.id}`);
+
+    const result = await lireTicket(
+      { id: ticket.id },
+      { ticketRepo, bienRepo, justificatifRepo: justifRepo },
+    );
+    expect(result.justificatifs).toHaveLength(1);
+    expect(result.justificatifs[0]?.id).toBe(jActif.id);
   });
 });
 
