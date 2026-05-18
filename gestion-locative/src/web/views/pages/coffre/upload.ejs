@@ -1,0 +1,31 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Ajouter un document',
+  breadcrumbs: [
+    { label: 'Coffre documentaire', url: '/coffre' },
+    { label: 'Ajouter un document' }
+  ],
+  navActive: 'coffre'
+}) %>
+
+<h1>Ajouter un document</h1>
+
+<% if (locals.erreurs && erreurs._global) { %>
+  <aside role="alert" aria-live="assertive" style="color: var(--couleur-destructive, #b91c1c);">
+    <%= erreurs._global %>
+  </aside>
+<% } %>
+
+<form enctype="multipart/form-data" method="POST" action="/coffre/upload" novalidate>
+  <%- include('../../partials/partial-upload-form', {
+    biens: locals.biens || [],
+    locataires: locals.locataires || [],
+    erreurs: locals.erreurs || {},
+    valeurs: locals.valeurs || {}
+  }) %>
+  <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+    <button type="submit">Téléverser le document</button>
+    <a href="/coffre" role="button" class="secondary">Annuler</a>
+  </div>
+</form>
+
+<%- include('../../partials/layout-fin') %>

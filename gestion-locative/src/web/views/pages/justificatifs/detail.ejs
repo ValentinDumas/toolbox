@@ -1,0 +1,82 @@
+<%- include('../../partials/layout-debut', {
+  titre: justificatif.titre,
+  breadcrumbs: [
+    { label: 'Coffre documentaire', url: '/coffre' },
+    { label: justificatif.titre }
+  ],
+  navActive: 'coffre',
+  banniereSuccess: locals.banniereSuccess
+}) %>
+
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
+<header style="display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+  <h1><%= justificatif.titre %></h1>
+  <div style="display: flex; gap: 0.75rem;">
+    <a href="/justificatifs/<%= justificatif.id %>/fichier" target="_blank" rel="noopener noreferrer">
+      Télécharger <span class="sr-only">(s'ouvre dans un nouvel onglet)</span>
+    </a>
+    <button type="button" data-open-dialog="dialog-corbeille-<%= justificatif.id %>">Mettre en corbeille</button>
+  </div>
+</header>
+
+<dl>
+  <dt>Type</dt>
+  <dd><%= locals.formaterTypeJustificatif ? locals.formaterTypeJustificatif(justificatif.type) : justificatif.type %></dd>
+
+  <dt>Date du document</dt>
+  <dd><%= locals.formatDate ? locals.formatDate(justificatif.dateDocument) : justificatif.dateDocument.toString() %></dd>
+
+  <dt>Bien</dt>
+  <dd>
+    <% if (locals.bien) { %>
+      <a href="/biens/<%= bien.id %>"><%= bien.adresse.rue %>, <%= bien.adresse.codePostal %> <%= bien.adresse.ville %></a>
+    <% } else { %>
+      —
+    <% } %>
+  </dd>
+
+  <dt>Locataire</dt>
+  <dd>
+    <% if (locals.locataire) { %>
+      <a href="/locataires/<%= locataire.id %>"><%= locataire.prenom %> <%= locataire.nom %></a>
+    <% } else { %>
+      —
+    <% } %>
+  </dd>
+
+  <dt>Montant TTC</dt>
+  <dd>
+    <%= justificatif.montantTtc
+      ? (locals.formatMoney ? locals.formatMoney(justificatif.montantTtc) : justificatif.montantTtc.enEuros())
+      : '—' %>
+  </dd>
+
+  <dt>Taille du fichier</dt>
+  <dd><%= locals.formaterTailleFichier ? locals.formaterTailleFichier(justificatif.tailleOctets) : justificatif.tailleOctets + ' octets' %></dd>
+
+  <dt>Année fiscale</dt>
+  <dd><%= locals.formaterAnneeFiscale ? locals.formaterAnneeFiscale(justificatif.anneeFiscale()) : justificatif.anneeFiscale() %></dd>
+
+  <dt>Notes</dt>
+  <dd><%= justificatif.notes || '—' %></dd>
+</dl>
+
+<section>
+  <h2>Aperçu</h2>
+  <%- include('../../partials/partial-justificatif-preview', {
+    mimeType: justificatif.mimeType,
+    id: justificatif.id,
+    titre: justificatif.titre
+  }) %>
+</section>
+
+<%- include('../../partials/confirm-dialog', {
+  id: 'dialog-corbeille-' + justificatif.id,
+  formAction: '/justificatifs/' + justificatif.id + '/corbeille',
+  message: 'Ce document sera déplacé vers la corbeille. Vous pourrez le restaurer depuis /coffre/corbeille.',
+  confirmLabel: 'Mettre en corbeille',
+  cancelLabel: 'Annuler'
+}) %>
+
+<%- include('../../partials/layout-fin') %>

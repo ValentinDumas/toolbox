@@ -1,0 +1,14 @@
+<%
+  const mt = locals.mimeType;
+  const id = locals.id;
+  const titre = locals.titre || 'document';
+%>
+<% if (mt === 'image/jpeg' || mt === 'image/png') { %>
+  <img src="/justificatifs/<%= id %>/fichier" alt="<%= titre %>" style="max-width: 100%; height: auto;">
+<% } else { %>
+  <p>
+    <a href="/justificatifs/<%= id %>/fichier" target="_blank" rel="noopener noreferrer">
+      Ouvrir le fichier <span class="sr-only">(s'ouvre dans un nouvel onglet)</span>
+    </a>
+  </p>
+<% } %>

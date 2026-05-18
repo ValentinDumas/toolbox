@@ -1,0 +1,51 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Coffre documentaire',
+  breadcrumbs: [{ label: 'Coffre documentaire' }],
+  navActive: 'coffre',
+  banniereSuccess: locals.banniereSuccess
+}) %>
+
+<%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
+
+<header style="display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+  <h1>Coffre documentaire</h1>
+  <div style="display: flex; gap: 1rem; align-items: center;">
+    <% if (locals.nbCorbeille > 0) { %>
+      <a href="/coffre/corbeille">Corbeille (<%= locals.nbCorbeille %>)</a>
+    <% } %>
+    <a href="/coffre/upload" role="button">Ajouter un document</a>
+  </div>
+</header>
+
+<% if (items.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucun justificatif pour le moment',
+    body: "Commencez par téléverser une facture, un bail signé ou un diagnostic.",
+    ctaLabel: 'Ajouter un document',
+    ctaUrl: '/coffre/upload'
+  }) %>
+<% } else { %>
+<div role="region" aria-label="Tableau des justificatifs">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Type</th>
+        <th scope="col">Titre</th>
+        <th scope="col">Bien</th>
+        <th scope="col">Locataire</th>
+        <th scope="col">Montant</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% items.forEach(function(j) { %>
+        <%- include('../../partials/partial-justificatif-row', { j: j, biens: biens, locataires: locataires }) %>
+      <% }); %>
+    </tbody>
+  </table>
+  <p><small><%= total %> document<%= total > 1 ? 's' : '' %></small></p>
+</div>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>
