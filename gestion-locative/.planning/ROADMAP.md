@@ -100,11 +100,12 @@ Plans:
   2. L'utilisateur peut rechercher et filtrer des documents par `Bien`, `Locataire` ou année fiscale et accéder à la pièce d'origine.
   3. Le système conserve tous les documents au moins 10 ans (rétention légale fiscale) et empêche toute suppression avant ce délai (ou la matérialise comme corbeille).
   4. L'utilisateur peut créer un ticket d'incident / travaux rattaché à un `Bien` avec pièce jointe et coût saisi.
-**Plans:** 3 plans
+**Plans:** 4 plans (3 ✓ + 1 gap-closure)
 Plans:
 - [x] 04-01-walking-enabler-PLAN.md — Walking enabler + DOC-01 thin slice (Justificatif BC + ports StockageJustificatifs/ConvertisseurImage + upload + view + soft-delete + migration 0010 globale) (wave 1, DOC-01 + DOC-03 gate)
 - [x] 04-02-documents-extras-PLAN.md — Recherche facettée + Corbeille + Purge gate 10 ans + Modifier metadata + fiches augmentées Bien (Documents) + Locataire (Documents D-120) (wave 2, DOC-01 extras + DOC-02 + DOC-03 UX)
 - [x] 04-03-travaux-PLAN.md — Travaux BC + N:N PJ ticket_justificatifs + section Travaux fiche Bien (wave 3, INC-01)
+- [ ] 04-04-gap-closure-PLAN.md — Gap closure VERIFICATION.md : PRAGMA foreign_keys (CR-01) + filtre corbeilleLe lire-ticket (CR-03) + slugify domain/_shared + depcruise no-application-to-infra (CR-06) + path-traversal défensif + RFC 6266 Content-Disposition (CR-04+CR-05) + magic-bytes WebP/HEIC sub-format (CR-08) (wave 4, gap_closure=true, DOC-01+DOC-03+INC-01)
 **UI hint:** yes
 
 ### Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement
