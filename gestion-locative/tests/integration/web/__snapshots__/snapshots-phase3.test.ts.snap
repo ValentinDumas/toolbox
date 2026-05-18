@@ -1,0 +1,1352 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > snapshot formulaire EDL entrée (vierge) 1`] = `
+"
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>État des lieux d&#39;entrée — UUID — Gestion locative</title>
+    <link rel="stylesheet" href="/styles/pico.min.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
+    <link rel="stylesheet" href="/styles/print.css" media="print" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><strong>Gestion locative</strong></li>
+        </ul>
+        
+<nav aria-label="Navigation principale">
+  <ul>
+    <li>
+      <a href="/biens">Biens</a>
+    </li>
+    <li>
+      <a href="/locataires">Locataires</a>
+    </li>
+    <li>
+      <a href="/baux" aria-current="page">Baux</a>
+    </li>
+    <li>
+      <details>
+        <summary>Encaissements</summary>
+        <ul>
+          <li>
+            <a href="/echeances">Toutes les échéances</a>
+          </li>
+          <li>
+            <a href="/encaissements">Encaissements</a>
+          </li>
+          <li>
+            <a href="/quittances">Quittances</a>
+          </li>
+          <li>
+            <a href="/impayes">Impayés</a>
+          </li>
+          <li>
+            <a href="/relances">Relances</a>
+          </li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <a href="/bailleur">Profil bailleur</a>
+    </li>
+  </ul>
+</nav>
+
+      </nav>
+    </header>
+
+    <main class="container">
+      
+        <nav aria-label="Fil d'Ariane">
+  <ol>
+    
+      <li>
+        
+          <a href="/baux">Baux</a>
+        
+      </li>
+    
+      <li>
+        
+          <a href="/baux/UUID">Bail</a>
+        
+      </li>
+    
+      <li>
+        
+          <span aria-current="page">État des lieux d&#39;entrée</span>
+        
+      </li>
+    
+  </ol>
+</nav>
+
+      
+      
+
+
+
+<h1>État des lieux d&#39;entrée</h1>
+
+
+
+
+
+<form method="POST" action="/baux/UUID/edl/entree" novalidate>
+
+  <fieldset>
+    <legend>Informations générales</legend>
+
+    <div class="field">
+      <label for="date_edl">Date de l'EDL <span aria-hidden="true">*</span></label>
+      <input type="date" id="date_edl" name="date_edl" required
+        value=""
+        aria-describedby="date_edl-error">
+      
+        <span id="date_edl-error" role="alert" class="error-msg" hidden></span>
+      
+    </div>
+
+    <div class="field">
+      <label>
+        <input type="checkbox" name="contradictoire" value="on"
+          >
+        EDL contradictoire (bailleur + locataire présents)
+      </label>
+    </div>
+
+    <div class="field">
+      <label for="date_signature">Date de signature (si contradictoire)</label>
+      <input type="date" id="date_signature" name="date_signature"
+        value=""
+        aria-describedby="date_signature-error">
+      
+        <span id="date_signature-error" role="alert" class="error-msg" hidden></span>
+      
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Inventaire mobilier (décret 2015-981) — 12 items obligatoires</legend>
+    <p><small>Cochez les éléments présents et indiquez leur état.</small></p>
+
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Literie avec couette ou couverture</legend>
+        <input type="hidden" name="inventaire[0].typeItem" value="literie">
+        <label>
+          <input type="checkbox" name="inventaire[0].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-0">État</label>
+          <select id="etat-0" name="inventaire[0].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-0">Note</label>
+          <input type="text" id="note-0" name="inventaire[0].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Dispositif d&#39;occultation des fenêtres (chambres)</legend>
+        <input type="hidden" name="inventaire[1].typeItem" value="volets_occultants">
+        <label>
+          <input type="checkbox" name="inventaire[1].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-1">État</label>
+          <select id="etat-1" name="inventaire[1].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-1">Note</label>
+          <input type="text" id="note-1" name="inventaire[1].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Plaques de cuisson</legend>
+        <input type="hidden" name="inventaire[2].typeItem" value="plaques_cuisson">
+        <label>
+          <input type="checkbox" name="inventaire[2].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-2">État</label>
+          <select id="etat-2" name="inventaire[2].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-2">Note</label>
+          <input type="text" id="note-2" name="inventaire[2].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Four ou four à micro-ondes</legend>
+        <input type="hidden" name="inventaire[3].typeItem" value="four_micro_ondes">
+        <label>
+          <input type="checkbox" name="inventaire[3].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-3">État</label>
+          <select id="etat-3" name="inventaire[3].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-3">Note</label>
+          <input type="text" id="note-3" name="inventaire[3].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Réfrigérateur et congélateur (ou compartiment freezer ≤ -6 °C)</legend>
+        <input type="hidden" name="inventaire[4].typeItem" value="refrigerateur_congelateur">
+        <label>
+          <input type="checkbox" name="inventaire[4].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-4">État</label>
+          <select id="etat-4" name="inventaire[4].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-4">Note</label>
+          <input type="text" id="note-4" name="inventaire[4].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Vaisselle nécessaire à la prise des repas</legend>
+        <input type="hidden" name="inventaire[5].typeItem" value="vaisselle">
+        <label>
+          <input type="checkbox" name="inventaire[5].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-5">État</label>
+          <select id="etat-5" name="inventaire[5].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-5">Note</label>
+          <input type="text" id="note-5" name="inventaire[5].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Ustensiles de cuisine</legend>
+        <input type="hidden" name="inventaire[6].typeItem" value="ustensiles">
+        <label>
+          <input type="checkbox" name="inventaire[6].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-6">État</label>
+          <select id="etat-6" name="inventaire[6].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-6">Note</label>
+          <input type="text" id="note-6" name="inventaire[6].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Table</legend>
+        <input type="hidden" name="inventaire[7].typeItem" value="table">
+        <label>
+          <input type="checkbox" name="inventaire[7].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-7">État</label>
+          <select id="etat-7" name="inventaire[7].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-7">Note</label>
+          <input type="text" id="note-7" name="inventaire[7].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Sièges</legend>
+        <input type="hidden" name="inventaire[8].typeItem" value="sieges">
+        <label>
+          <input type="checkbox" name="inventaire[8].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-8">État</label>
+          <select id="etat-8" name="inventaire[8].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-8">Note</label>
+          <input type="text" id="note-8" name="inventaire[8].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Étagères de rangement</legend>
+        <input type="hidden" name="inventaire[9].typeItem" value="etageres">
+        <label>
+          <input type="checkbox" name="inventaire[9].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-9">État</label>
+          <select id="etat-9" name="inventaire[9].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-9">Note</label>
+          <input type="text" id="note-9" name="inventaire[9].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Luminaires</legend>
+        <input type="hidden" name="inventaire[10].typeItem" value="luminaires">
+        <label>
+          <input type="checkbox" name="inventaire[10].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-10">État</label>
+          <select id="etat-10" name="inventaire[10].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-10">Note</label>
+          <input type="text" id="note-10" name="inventaire[10].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Matériel d&#39;entretien ménager adapté au logement</legend>
+        <input type="hidden" name="inventaire[11].typeItem" value="materiel_entretien">
+        <label>
+          <input type="checkbox" name="inventaire[11].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-11">État</label>
+          <select id="etat-11" name="inventaire[11].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-11">Note</label>
+          <input type="text" id="note-11" name="inventaire[11].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+  </fieldset>
+
+  <button type="submit">Enregistrer l'EDL</button>
+  <a href="/baux/UUID">Annuler</a>
+
+</form>
+
+
+    </main>
+  </body>
+</html>
+
+"
+`;
+
+exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > snapshot formulaire EDL sortie (vierge) 1`] = `
+"
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>État des lieux de sortie — UUID — Gestion locative</title>
+    <link rel="stylesheet" href="/styles/pico.min.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
+    <link rel="stylesheet" href="/styles/print.css" media="print" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><strong>Gestion locative</strong></li>
+        </ul>
+        
+<nav aria-label="Navigation principale">
+  <ul>
+    <li>
+      <a href="/biens">Biens</a>
+    </li>
+    <li>
+      <a href="/locataires">Locataires</a>
+    </li>
+    <li>
+      <a href="/baux" aria-current="page">Baux</a>
+    </li>
+    <li>
+      <details>
+        <summary>Encaissements</summary>
+        <ul>
+          <li>
+            <a href="/echeances">Toutes les échéances</a>
+          </li>
+          <li>
+            <a href="/encaissements">Encaissements</a>
+          </li>
+          <li>
+            <a href="/quittances">Quittances</a>
+          </li>
+          <li>
+            <a href="/impayes">Impayés</a>
+          </li>
+          <li>
+            <a href="/relances">Relances</a>
+          </li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <a href="/bailleur">Profil bailleur</a>
+    </li>
+  </ul>
+</nav>
+
+      </nav>
+    </header>
+
+    <main class="container">
+      
+        <nav aria-label="Fil d'Ariane">
+  <ol>
+    
+      <li>
+        
+          <a href="/baux">Baux</a>
+        
+      </li>
+    
+      <li>
+        
+          <a href="/baux/UUID">Bail</a>
+        
+      </li>
+    
+      <li>
+        
+          <span aria-current="page">État des lieux de sortie</span>
+        
+      </li>
+    
+  </ol>
+</nav>
+
+      
+      
+
+
+
+<h1>État des lieux de sortie</h1>
+
+
+
+
+
+<form method="POST" action="/baux/UUID/edl/sortie" novalidate>
+
+  <fieldset>
+    <legend>Informations générales</legend>
+
+    <div class="field">
+      <label for="date_edl">Date de l'EDL <span aria-hidden="true">*</span></label>
+      <input type="date" id="date_edl" name="date_edl" required
+        value=""
+        aria-describedby="date_edl-error">
+      
+        <span id="date_edl-error" role="alert" class="error-msg" hidden></span>
+      
+    </div>
+
+    <div class="field">
+      <label>
+        <input type="checkbox" name="contradictoire" value="on"
+          >
+        EDL contradictoire (bailleur + locataire présents)
+      </label>
+    </div>
+
+    <div class="field">
+      <label for="date_signature">Date de signature (si contradictoire)</label>
+      <input type="date" id="date_signature" name="date_signature"
+        value=""
+        aria-describedby="date_signature-error">
+      
+        <span id="date_signature-error" role="alert" class="error-msg" hidden></span>
+      
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Inventaire mobilier (décret 2015-981) — 12 items obligatoires</legend>
+    <p><small>Cochez les éléments présents et indiquez leur état.</small></p>
+
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Literie avec couette ou couverture</legend>
+        <input type="hidden" name="inventaire[0].typeItem" value="literie">
+        <label>
+          <input type="checkbox" name="inventaire[0].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-0">État</label>
+          <select id="etat-0" name="inventaire[0].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-0">Note</label>
+          <input type="text" id="note-0" name="inventaire[0].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Dispositif d&#39;occultation des fenêtres (chambres)</legend>
+        <input type="hidden" name="inventaire[1].typeItem" value="volets_occultants">
+        <label>
+          <input type="checkbox" name="inventaire[1].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-1">État</label>
+          <select id="etat-1" name="inventaire[1].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-1">Note</label>
+          <input type="text" id="note-1" name="inventaire[1].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Plaques de cuisson</legend>
+        <input type="hidden" name="inventaire[2].typeItem" value="plaques_cuisson">
+        <label>
+          <input type="checkbox" name="inventaire[2].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-2">État</label>
+          <select id="etat-2" name="inventaire[2].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-2">Note</label>
+          <input type="text" id="note-2" name="inventaire[2].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Four ou four à micro-ondes</legend>
+        <input type="hidden" name="inventaire[3].typeItem" value="four_micro_ondes">
+        <label>
+          <input type="checkbox" name="inventaire[3].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-3">État</label>
+          <select id="etat-3" name="inventaire[3].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-3">Note</label>
+          <input type="text" id="note-3" name="inventaire[3].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Réfrigérateur et congélateur (ou compartiment freezer ≤ -6 °C)</legend>
+        <input type="hidden" name="inventaire[4].typeItem" value="refrigerateur_congelateur">
+        <label>
+          <input type="checkbox" name="inventaire[4].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-4">État</label>
+          <select id="etat-4" name="inventaire[4].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-4">Note</label>
+          <input type="text" id="note-4" name="inventaire[4].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Vaisselle nécessaire à la prise des repas</legend>
+        <input type="hidden" name="inventaire[5].typeItem" value="vaisselle">
+        <label>
+          <input type="checkbox" name="inventaire[5].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-5">État</label>
+          <select id="etat-5" name="inventaire[5].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-5">Note</label>
+          <input type="text" id="note-5" name="inventaire[5].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Ustensiles de cuisine</legend>
+        <input type="hidden" name="inventaire[6].typeItem" value="ustensiles">
+        <label>
+          <input type="checkbox" name="inventaire[6].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-6">État</label>
+          <select id="etat-6" name="inventaire[6].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-6">Note</label>
+          <input type="text" id="note-6" name="inventaire[6].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Table</legend>
+        <input type="hidden" name="inventaire[7].typeItem" value="table">
+        <label>
+          <input type="checkbox" name="inventaire[7].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-7">État</label>
+          <select id="etat-7" name="inventaire[7].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-7">Note</label>
+          <input type="text" id="note-7" name="inventaire[7].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Sièges</legend>
+        <input type="hidden" name="inventaire[8].typeItem" value="sieges">
+        <label>
+          <input type="checkbox" name="inventaire[8].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-8">État</label>
+          <select id="etat-8" name="inventaire[8].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-8">Note</label>
+          <input type="text" id="note-8" name="inventaire[8].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Étagères de rangement</legend>
+        <input type="hidden" name="inventaire[9].typeItem" value="etageres">
+        <label>
+          <input type="checkbox" name="inventaire[9].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-9">État</label>
+          <select id="etat-9" name="inventaire[9].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-9">Note</label>
+          <input type="text" id="note-9" name="inventaire[9].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Luminaires</legend>
+        <input type="hidden" name="inventaire[10].typeItem" value="luminaires">
+        <label>
+          <input type="checkbox" name="inventaire[10].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-10">État</label>
+          <select id="etat-10" name="inventaire[10].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-10">Note</label>
+          <input type="text" id="note-10" name="inventaire[10].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+      
+      <fieldset style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ccc;">
+        <legend>Matériel d&#39;entretien ménager adapté au logement</legend>
+        <input type="hidden" name="inventaire[11].typeItem" value="materiel_entretien">
+        <label>
+          <input type="checkbox" name="inventaire[11].present" value="on"
+            >
+          Présent
+        </label>
+        <div class="field">
+          <label for="etat-11">État</label>
+          <select id="etat-11" name="inventaire[11].etat">
+            <option value="">—</option>
+            <option value="bon">Bon</option>
+            <option value="moyen">Moyen</option>
+            <option value="degrade">Dégradé</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="note-11">Note</label>
+          <input type="text" id="note-11" name="inventaire[11].note"
+            value="" maxlength="500" placeholder="Remarque éventuelle">
+        </div>
+      </fieldset>
+    
+  </fieldset>
+
+  <button type="submit">Enregistrer l'EDL</button>
+  <a href="/baux/UUID">Annuler</a>
+
+</form>
+
+
+    </main>
+  </body>
+</html>
+
+"
+`;
+
+exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > snapshot formulaire diagnostic (vierge) 1`] = `
+"
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ajouter un diagnostic — 1 rue Test, 75001 Paris — Gestion locative</title>
+    <link rel="stylesheet" href="/styles/pico.min.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
+    <link rel="stylesheet" href="/styles/print.css" media="print" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><strong>Gestion locative</strong></li>
+        </ul>
+        
+<nav aria-label="Navigation principale">
+  <ul>
+    <li>
+      <a href="/biens" aria-current="page">Biens</a>
+    </li>
+    <li>
+      <a href="/locataires">Locataires</a>
+    </li>
+    <li>
+      <a href="/baux">Baux</a>
+    </li>
+    <li>
+      <details>
+        <summary>Encaissements</summary>
+        <ul>
+          <li>
+            <a href="/echeances">Toutes les échéances</a>
+          </li>
+          <li>
+            <a href="/encaissements">Encaissements</a>
+          </li>
+          <li>
+            <a href="/quittances">Quittances</a>
+          </li>
+          <li>
+            <a href="/impayes">Impayés</a>
+          </li>
+          <li>
+            <a href="/relances">Relances</a>
+          </li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <a href="/bailleur">Profil bailleur</a>
+    </li>
+  </ul>
+</nav>
+
+      </nav>
+    </header>
+
+    <main class="container">
+      
+        <nav aria-label="Fil d'Ariane">
+  <ol>
+    
+      <li>
+        
+          <a href="/biens">Biens</a>
+        
+      </li>
+    
+      <li>
+        
+          <a href="/biens/UUID">1 rue Test, 75001 Paris</a>
+        
+      </li>
+    
+      <li>
+        
+          <span aria-current="page">Ajouter un diagnostic</span>
+        
+      </li>
+    
+  </ol>
+</nav>
+
+      
+      
+
+
+
+<h1>Ajouter un diagnostic — 1 rue Test, 75001 Paris</h1>
+
+
+
+<form method="POST" action="/biens/UUID/diagnostics" novalidate>
+
+  <div class="field">
+    <label for="type">Type de diagnostic <span aria-hidden="true">*</span></label>
+    <select
+      id="type"
+      name="type"
+      required
+      aria-describedby="type-error"
+      
+    >
+      <option value="">— Sélectionner —</option>
+      <option value="dpe" >DPE</option>
+      <option value="gaz" >Gaz</option>
+      <option value="elec" >Électricité</option>
+      <option value="erp" >ERP (risques et pollutions)</option>
+    </select>
+    <span id="type-error" role="alert" class="error-msg" hidden></span>
+  </div>
+
+  
+<div class="field">
+  <label for="date_emission">Date d&#39;émission <span aria-hidden="true">*</span></label>
+  <input
+    id="date_emission"
+    name="date_emission"
+    type="date"
+    value=""
+    required
+    aria-describedby="date_emission-error"
+    
+  />
+  
+  <span
+    id="date_emission-error"
+    role="alert"
+    class="error-msg"
+    hidden
+  ></span>
+</div>
+
+
+  <div class="field">
+    <label for="classe_dpe">Classe DPE</label>
+    <select
+      id="classe_dpe"
+      name="classe_dpe"
+      aria-describedby="classe_dpe-hint classe_dpe-error"
+      
+    >
+      <option value="">— Sélectionner —</option>
+      
+        <option value="A" >A</option>
+      
+        <option value="B" >B</option>
+      
+        <option value="C" >C</option>
+      
+        <option value="D" >D</option>
+      
+        <option value="E" >E</option>
+      
+        <option value="F" >F</option>
+      
+        <option value="G" >G</option>
+      
+    </select>
+    <small id="classe_dpe-hint">Obligatoire si type = DPE.</small>
+    <span id="classe_dpe-error" role="alert" class="error-msg" hidden></span>
+  </div>
+
+  <button type="submit">Enregistrer le diagnostic</button>
+  &nbsp;
+  <a href="/biens/UUID" role="button" class="secondary">Annuler</a>
+
+</form>
+
+    </main>
+  </body>
+</html>
+
+"
+`;
+
+exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > snapshot gel-loyer (bail DPE F) 1`] = `
+"<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Révision IRL — indexation impossible — Gestion locative</title>
+    <link rel="stylesheet" href="/styles/pico.min.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
+    <link rel="stylesheet" href="/styles/print.css" media="print" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><strong>Gestion locative</strong></li>
+        </ul>
+        
+<nav aria-label="Navigation principale">
+  <ul>
+    <li>
+      <a href="/biens">Biens</a>
+    </li>
+    <li>
+      <a href="/locataires">Locataires</a>
+    </li>
+    <li>
+      <a href="/baux" aria-current="page">Baux</a>
+    </li>
+    <li>
+      <details>
+        <summary>Encaissements</summary>
+        <ul>
+          <li>
+            <a href="/echeances">Toutes les échéances</a>
+          </li>
+          <li>
+            <a href="/encaissements">Encaissements</a>
+          </li>
+          <li>
+            <a href="/quittances">Quittances</a>
+          </li>
+          <li>
+            <a href="/impayes">Impayés</a>
+          </li>
+          <li>
+            <a href="/relances">Relances</a>
+          </li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <a href="/bailleur">Profil bailleur</a>
+    </li>
+  </ul>
+</nav>
+
+      </nav>
+    </header>
+
+    <main class="container">
+      
+        <nav aria-label="Fil d'Ariane">
+  <ol>
+    
+      <li>
+        
+          <a href="/baux">Baux</a>
+        
+      </li>
+    
+      <li>
+        
+          <a href="/baux/UUID">Bail</a>
+        
+      </li>
+    
+      <li>
+        
+          <span aria-current="page">Révision IRL</span>
+        
+      </li>
+    
+  </ol>
+</nav>
+
+      
+      
+
+
+
+<nav aria-label="Étapes de la révision IRL">
+  <ol>
+    <li>1. Banner</li>
+    <li aria-current="step">2. Saisie IRL</li>
+    <li>3. Simulation</li>
+    <li>4. Confirmation</li>
+    <li>5. Résultat</li>
+  </ol>
+</nav>
+<p><small>Étape 2 sur 5</small></p>
+
+
+<section id="gel-loyer-bloc" role="alert" aria-live="assertive" tabindex="-1" autofocus>
+  <h1>Indexation impossible</h1>
+  <p>Gel loyer Climat actif (DPE F). Toute hausse de loyer est interdite par le décret n° 2022-1313, prorogé. L'indexation ne peut pas être appliquée.</p>
+  <p><small>Référence : décret n° 2022-1313 du 13/10/2022, classes énergétiques F et G (Code de l'énergie L173-1-1).</small></p>
+  <p><a href="/baux/UUID" role="button">Compris</a></p>
+</section>
+
+    </main>
+  </body>
+</html>
+
+"
+`;
+
+exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > snapshot wizard saisie IRL (étape 2 / bail DPE D) 1`] = `
+"<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Révision IRL — saisie — Gestion locative</title>
+    <link rel="stylesheet" href="/styles/pico.min.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
+    <link rel="stylesheet" href="/styles/print.css" media="print" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><strong>Gestion locative</strong></li>
+        </ul>
+        
+<nav aria-label="Navigation principale">
+  <ul>
+    <li>
+      <a href="/biens">Biens</a>
+    </li>
+    <li>
+      <a href="/locataires">Locataires</a>
+    </li>
+    <li>
+      <a href="/baux" aria-current="page">Baux</a>
+    </li>
+    <li>
+      <details>
+        <summary>Encaissements</summary>
+        <ul>
+          <li>
+            <a href="/echeances">Toutes les échéances</a>
+          </li>
+          <li>
+            <a href="/encaissements">Encaissements</a>
+          </li>
+          <li>
+            <a href="/quittances">Quittances</a>
+          </li>
+          <li>
+            <a href="/impayes">Impayés</a>
+          </li>
+          <li>
+            <a href="/relances">Relances</a>
+          </li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <a href="/bailleur">Profil bailleur</a>
+    </li>
+  </ul>
+</nav>
+
+      </nav>
+    </header>
+
+    <main class="container">
+      
+        <nav aria-label="Fil d'Ariane">
+  <ol>
+    
+      <li>
+        
+          <a href="/baux">Baux</a>
+        
+      </li>
+    
+      <li>
+        
+          <a href="/baux/UUID">Bail</a>
+        
+      </li>
+    
+      <li>
+        
+          <span aria-current="page">Révision IRL</span>
+        
+      </li>
+    
+  </ol>
+</nav>
+
+      
+      
+
+
+
+<nav aria-label="Étapes de la révision IRL">
+  <ol>
+    <li>1. Banner</li>
+    <li aria-current="step">2. Saisie IRL</li>
+    <li>3. Simulation</li>
+    <li>4. Confirmation</li>
+    <li>5. Résultat</li>
+  </ol>
+</nav>
+<p><small>Étape 2 sur 5</small></p>
+
+
+<h1>Saisir le nouvel IRL</h1>
+<p>Récupérez la valeur IRL sur <a href="https://www.insee.fr/" target="_blank" rel="noopener">insee.fr</a>.</p>
+
+
+
+<form method="POST" action="/baux/UUID/indexer/simuler" novalidate>
+  <label for="irl_trimestre">Trimestre IRL <span aria-hidden="true">*</span></label>
+  <input
+    id="irl_trimestre"
+    name="irl_trimestre"
+    type="text"
+    pattern="(\\d{4}-T[1-4]|[1-4]T\\d{4})"
+    required
+    autofocus
+    value=""
+    aria-describedby="hint-trimestre"
+  />
+  <small id="hint-trimestre">Format : 2026-T1 ou 1T2026.</small>
+  
+
+  <label for="irl_valeur">Valeur IRL <span aria-hidden="true">*</span></label>
+  <input
+    id="irl_valeur"
+    name="irl_valeur"
+    type="number"
+    step="0.01"
+    min="1"
+    required
+    value=""
+    aria-describedby="hint-valeur"
+  />
+  <small id="hint-valeur">Valeur publiée par l'INSEE (ex 145.47).</small>
+  
+
+  <p>
+    <button type="submit">Simuler la révision</button>
+    <a href="/baux/UUID" role="button" class="secondary">Annuler</a>
+  </p>
+</form>
+
+    </main>
+  </body>
+</html>
+
+"
+`;
