@@ -66,9 +66,9 @@ function detecterMagic(bytes: Buffer): MimeDetecte | null {
     return 'image/png';
   }
 
-  // WebP : "RIFF" (0..3) + "WEBP" (8..11)
+  // WebP : "RIFF" (0..3) + "WEBP" (8..11) + subType (12..15) ∈ {'VP8 ', 'VP8L', 'VP8X'}
   if (
-    bytes.length >= 12 &&
+    bytes.length >= 16 &&
     bytes[0] === 0x52 && // R
     bytes[1] === 0x49 && // I
     bytes[2] === 0x46 && // F
@@ -76,22 +76,31 @@ function detecterMagic(bytes: Buffer): MimeDetecte | null {
     bytes[8] === 0x57 && // W
     bytes[9] === 0x45 && // E
     bytes[10] === 0x42 && // B
-    bytes[11] === 0x50 // P
+    bytes[11] === 0x50   // P
   ) {
-    return 'image/webp';
+    const subType = bytes.subarray(12, 16).toString('ascii');
+    if (subType === 'VP8 ' || subType === 'VP8L' || subType === 'VP8X') {
+      return 'image/webp';
+    }
+    // RIFF...WEBP sans sous-format VP8 valide → null (rejeté)
+    return null;
   }
 
-  // HEIC : "ftyp" (4..7) + brand (8..11) ∈ HEIC_BRANDS
-  if (
-    bytes.length >= 12 &&
-    bytes[4] === 0x66 && // f
-    bytes[5] === 0x74 && // t
-    bytes[6] === 0x79 && // y
-    bytes[7] === 0x70 // p
-  ) {
-    const brand = bytes.subarray(8, 12).toString('ascii');
-    if (HEIC_BRANDS.has(brand)) {
-      return 'image/heic';
+  // HEIC : box_size (0..3 UInt32BE) >= 16 && <= bytes.length, puis "ftyp" (4..7) + brand (8..11) ∈ HEIC_BRANDS
+  if (bytes.length >= 12) {
+    const boxSize = bytes.readUInt32BE(0);
+    if (
+      boxSize >= 16 &&
+      boxSize <= bytes.length &&
+      bytes[4] === 0x66 && // f
+      bytes[5] === 0x74 && // t
+      bytes[6] === 0x79 && // y
+      bytes[7] === 0x70    // p
+    ) {
+      const brand = bytes.subarray(8, 12).toString('ascii');
+      if (HEIC_BRANDS.has(brand)) {
+        return 'image/heic';
+      }
     }
   }
 

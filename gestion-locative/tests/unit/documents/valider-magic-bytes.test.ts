@@ -14,17 +14,22 @@ function magicPng(): Buffer {
   return Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
 }
 
-function magicWebp(): Buffer {
-  // RIFF....WEBP
-  return Buffer.from([
-    0x52, 0x49, 0x46, 0x46,
-    0x00, 0x00, 0x00, 0x00,
-    0x57, 0x45, 0x42, 0x50,
+function magicWebp(subType: 'VP8 ' | 'VP8L' | 'VP8X' = 'VP8 '): Buffer {
+  // RIFF....WEBP + subType (12..15) — CR-08 : sous-format obligatoire
+  return Buffer.concat([
+    Buffer.from([
+      0x52, 0x49, 0x46, 0x46, // RIFF
+      0x00, 0x00, 0x00, 0x00, // taille placeholder
+      0x57, 0x45, 0x42, 0x50, // WEBP
+    ]),
+    Buffer.from(subType, 'ascii'), // VP8 / VP8L / VP8X
   ]);
 }
 
 function magicHeic(brand: string): Buffer {
-  const buffer = Buffer.alloc(12);
+  // box_size = 24 (0x00000018) — plausible, >= 16 && <= bytes.length
+  const buffer = Buffer.alloc(24);
+  buffer.writeUInt32BE(24, 0); // box_size
   // ftyp at offset 4
   buffer[4] = 0x66;
   buffer[5] = 0x74;
@@ -86,5 +91,47 @@ describe('validerMagicBytes — rejets', () => {
   it("retourne format-non-accepte pour un buffer trop court", () => {
     const r = validerMagicBytes(Buffer.from([0x25, 0x50]), 'application/pdf');
     expect(r).toEqual({ ok: false, raison: 'format-non-accepte' });
+  });
+});
+
+describe('CR-08 — WebP sous-format', () => {
+  const RIFF = Buffer.from([0x52, 0x49, 0x46, 0x46]);
+  const SIZE = Buffer.from([0x00, 0x00, 0x00, 0x10]); // 16 bytes placeholder
+  const WEBP = Buffer.from('WEBP', 'ascii');
+
+  it('accepte VP8  (lossy)', () => {
+    const buf = Buffer.concat([RIFF, SIZE, WEBP, Buffer.from('VP8 ', 'ascii')]);
+    expect(validerMagicBytes(buf, 'image/webp')).toEqual({ ok: true, mimeFinal: 'image/webp' });
+  });
+  it('accepte VP8L (lossless)', () => {
+    const buf = Buffer.concat([RIFF, SIZE, WEBP, Buffer.from('VP8L', 'ascii')]);
+    expect(validerMagicBytes(buf, 'image/webp')).toEqual({ ok: true, mimeFinal: 'image/webp' });
+  });
+  it('accepte VP8X (extended)', () => {
+    const buf = Buffer.concat([RIFF, SIZE, WEBP, Buffer.from('VP8X', 'ascii')]);
+    expect(validerMagicBytes(buf, 'image/webp')).toEqual({ ok: true, mimeFinal: 'image/webp' });
+  });
+  it('rejette RIFF+WEBP sans sous-format VP8 valide (CR-08 hybride)', () => {
+    const buf = Buffer.concat([RIFF, SIZE, WEBP, Buffer.from('XXXX', 'ascii'), Buffer.alloc(1024)]);
+    expect(validerMagicBytes(buf, 'image/webp')).toEqual({ ok: false, raison: 'format-non-accepte' });
+  });
+});
+
+describe('CR-08 — HEIC box_size', () => {
+  const FTYP = Buffer.from([0x66, 0x74, 0x79, 0x70]); // 'ftyp'
+  const BRAND_HEIC = Buffer.from('heic', 'ascii');
+
+  it('rejette box_size = 0 (anormal)', () => {
+    const buf = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x00]), FTYP, BRAND_HEIC]);
+    expect(validerMagicBytes(buf, 'image/heic')).toEqual({ ok: false, raison: 'format-non-accepte' });
+  });
+  it('rejette box_size > bytes.length', () => {
+    // box_size = 9999 mais buffer ne fait que 12 bytes
+    const buf = Buffer.concat([Buffer.from([0x00, 0x00, 0x27, 0x0F]), FTYP, BRAND_HEIC]);
+    expect(validerMagicBytes(buf, 'image/heic')).toEqual({ ok: false, raison: 'format-non-accepte' });
+  });
+  it('accepte box_size = 24 plausible (HEIC valide)', () => {
+    const buf = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), FTYP, BRAND_HEIC, Buffer.alloc(12)]);
+    expect(validerMagicBytes(buf, 'image/heic')).toEqual({ ok: true, mimeFinal: 'image/heic' });
   });
 });
