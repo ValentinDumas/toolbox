@@ -102,7 +102,7 @@ Plans:
   4. L'utilisateur peut créer un ticket d'incident / travaux rattaché à un `Bien` avec pièce jointe et coût saisi.
 **Plans:** 3 plans
 Plans:
-- [ ] 04-01-walking-enabler-PLAN.md — Walking enabler + DOC-01 thin slice (Justificatif BC + ports StockageJustificatifs/ConvertisseurImage + upload + view + soft-delete + migration 0010 globale) (wave 1, DOC-01 + DOC-03 gate)
+- [x] 04-01-walking-enabler-PLAN.md — Walking enabler + DOC-01 thin slice (Justificatif BC + ports StockageJustificatifs/ConvertisseurImage + upload + view + soft-delete + migration 0010 globale) (wave 1, DOC-01 + DOC-03 gate)
 - [ ] 04-02-documents-extras-PLAN.md — Recherche facettée + Corbeille + Purge gate 10 ans + Modifier metadata + fiches augmentées Bien (Documents) + Locataire (Documents D-120) (wave 2, DOC-01 extras + DOC-02 + DOC-03 UX)
 - [ ] 04-03-travaux-PLAN.md — Travaux BC + N:N PJ ticket_justificatifs + section Travaux fiche Bien (wave 3, INC-01)
 **UI hint:** yes
