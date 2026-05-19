@@ -106,12 +106,16 @@ Si DB vide, créer d'abord **1 Bien + 1 Locataire + 1 Bail** via le wizard d'act
    ```
    Attendu : la row existe encore (rétention D-113 prime).
 
-### Résultat partiel (2026-05-19)
+### Résultat partiel (2026-05-19 09:21)
 
 - Étape 1-2 (création ticket) : **OK**
-- Étape 3 (attache PJ via upload nouveau HEIC) : **ÉCHEC** — voir bugs ci-dessous (même problème que Test 1)
-- Étape 3 bis (attache PJ existante, caractères spéciaux) : **OK**
-- Étapes 4-8 (filtre corbeille) : non testé (bloqué)
+- Étape 3 (attache PJ via upload nouveau HEIC) : ✅ **OK** après G-HEIC-01/02 + brew vips
+- Étape 3 bis (attache PJ existante, caractères spéciaux) : ✅ OK
+- Étapes 4-8 (filtre corbeille) : **pending** — non encore testé (étapes détaillées section "Suite — Comment tester le filtre corbeille E2E" ci-dessous)
+
+**Bugs supplémentaires remontés pendant Test 2 (à ajouter en gaps) :**
+- **G-UX-02-bis** : le form d'upload PJ sur fiche ticket (`POST /travaux/:id/justificatifs` mode `upload nouveau`) souffre du même bug G-UX-02 — pas de garde "fichier vide" + pas de message d'erreur visible côté UI. Extension du fix G-UX-02 au form ticket.
+- **G-DATE-01** : `dateOuverture` du form création ticket accepte une date future (futur > today). Doit être bloqué côté validation Zod serveur ET côté HTML5 (`<input type="date" max="<today>">`) pour feedback immédiat. Cohérent avec les autres dates métier qui ne sont jamais > aujourd'hui (échéance, encaissement…).
 
 ---
 
@@ -244,15 +248,91 @@ Non démarré.
 - Inspecter `liste.ejs` et `partial-coffre-*.ejs` — supprimer le doublon ou conditionner l'affichage (header seulement OU empty-state seulement).
 - Snapshot test pour éviter régression.
 
+### G-UX-02-bis — Pas de message d'erreur fichier vide sur form ticket PJ (extension G-UX-02)
+
+**Severity :** minor (UX, validation — extension)
+**Source :** Test 2 (2026-05-19)
+**Symptôme observé :** "Même comportement de validation que Test1 pour le coffre upload de fichier (pas d'ajout sans fichier importé possible, affichage du message d'erreur)" — sur le form ticket PJ dual-mode.
+**Surface suspectée :**
+- Route `POST /travaux/:id/justificatifs` mode `upload nouveau` n'a pas la garde `fichierBuffer.length === 0` ajoutée par 04-05 sur `POST /coffre/upload`.
+- Partial `src/web/views/partials/partial-ticket-pj-section.ejs` ne rend probablement pas `erreurs.fichier` sous l'input.
+
+**Action proposée :**
+- Appliquer le même pattern 04-05 T3 : durcir la route `travaux.ts:323+` (`fichierBuffer.length === 0` → 400 + `erreurs.fichier = 'Aucun fichier reçu.'`).
+- Vérifier que le partial `partial-ticket-pj-section.ejs` rend `erreurs.fichier` sous l'input fichier.
+- Tests : 2 integration analogues à `coffre-upload-erreurs.test.ts` (POST `/travaux/:id/justificatifs` sans fichier + fichier vide).
+
+### G-DATE-01 — Date future acceptée sur form création ticket
+
+**Severity :** minor (validation métier manquante)
+**Source :** Test 2 (2026-05-19)
+**Symptôme observé :** "Future date doit être un message d'erreur de validation, ou bien de warning pré-validation. Ne pas permettre l'enregistrement / validation du form si la date n'est pas conforme."
+**Surface suspectée :**
+- Schema Zod `ticket-travaux-schemas.ts` accepte `dateOuverture` sans contrainte `<= today`.
+- Form `src/web/views/pages/travaux/creer.ejs` (ou nom équivalent) : `<input type="date">` sans attribut `max`.
+
+**Action proposée :**
+- **Domain** : ajouter invariant `TicketTravaux.creer()` qui rejette `dateOuverture > clock.today()` (lever `DateFutureInterdite` ou règle existante).
+- **Application** : `creer-ticket-travaux.ts` propage l'erreur domain.
+- **HTTP (Zod)** : raffinement schema `dateOuverture: z.string().refine(d => Temporal.PlainDate.from(d).since(clock.today()).days <= 0, { message: '...' })`.
+- **HTML5 front** : `<input type="date" max="<%= today %>">` pour feedback immédiat navigateur.
+- **Tests** : 1 BDD `@gap-uat-date @inc-01` ("Un ticket avec dateOuverture future est rejeté") + 1 integration HTTP (POST date future → 400 + erreur visible).
+- **Cohérence** : appliquer le même pattern à `dateCloture` (`POST /travaux/:id/clore`) si pas déjà fait, et auditer les autres formulaires de date métier (échéance, encaissement) — déjà couverts probablement, à vérifier.
+
 ---
 
-## Suite recommandée
+## Suite — Comment tester le filtre corbeille E2E (CR-03, étapes 4-8 du Test 2)
 
-1. **Ne PAS avancer sur Phase 5 tant que G-HEIC-01 et G-HEIC-02 ne sont pas tranchés** — SC-1 "uploader des Justificatifs" est partiellement cassé en E2E.
-2. Décision à prendre :
-   - **Option A** : créer un plan `04-05-gap-closure-uat` qui fixe les 5 gaps ci-dessus (HEIC + 3 UX).
-   - **Option B** : déclarer HEIC hors-périmètre V1 (cf. RISKS.md), ajouter un message clair "HEIC non supporté" dans l'UI, fixer uniquement les 3 gaps UX.
-3. Une fois fixé, reprendre les étapes pending des 3 tests :
-   - Test 1 : étapes 1-8 (accents + RFC 6266) + 10 (WebP corrompu)
-   - Test 2 : étape 3 (attache PJ via upload) + étapes 4-8 (corbeille)
-   - Test 3 : intégralement
+Pré-requis : avoir au moins **1 Bien**, **1 ticket travaux** sur ce Bien, **2 Justificatifs uploadés** dont au moins un sera attaché au ticket. Si tu n'as pas encore créé le ticket :
+
+### Pas-à-pas (≈ 5 minutes)
+
+1. **Créer un Justificatif "test corbeille"** :
+   - Ouvre `http://127.0.0.1:7878/coffre/upload`
+   - Upload un PDF quelconque (titre : `Test corbeille CR-03`, type : `facture`, rattacher au Bien)
+   - Soumettre → tu arrives sur la fiche du Justificatif. **Note l'ID dans l'URL** (`/justificatifs/<JUSTIF_ID>`).
+
+2. **Créer un ticket travaux + attacher la PJ existante** :
+   - Ouvre `/biens/<BIEN_ID>` (fiche du Bien)
+   - Section "Travaux" → "Nouveau ticket" (ou directement `/travaux/nouveau?bienId=<BIEN_ID>`)
+   - Titre : `Test CR-03 — filtre corbeille`, description : `Smoke test`, coût estimé : `100`
+   - Soumettre → tu arrives sur la fiche ticket. **Note l'ID dans l'URL** (`/travaux/<TICKET_ID>`).
+   - Sur la fiche ticket, descend à la section "Pièces jointes" → bouton "Ajouter PJ"
+   - Mode "Attacher PJ existante" → sélectionne le Justificatif `Test corbeille CR-03`
+   - Soumettre → la PJ apparaît dans la section "Pièces jointes" du ticket. ✅ **Baseline confirmée**.
+
+3. **Mettre le Justificatif en corbeille** :
+   - Ouvre `/justificatifs/<JUSTIF_ID>` (fiche du Justificatif)
+   - Clique sur "Mettre en corbeille" (POST `/justificatifs/:id/corbeille`)
+   - Tu es redirigé vers `/coffre` ou `/coffre/corbeille` selon UI → vérifie que le doc est bien dans la corbeille (`/coffre/corbeille` doit lister le Justificatif).
+
+4. **Recharger la fiche ticket** :
+   - Retourne sur `/travaux/<TICKET_ID>` (recharge la page, Cmd+R)
+   - **Attendu (CR-03 fix appliqué)** : la section "Pièces jointes" du ticket n'affiche **plus** le Justificatif en corbeille.
+   - **Si avant le fix** : la PJ resterait visible avec un lien `/justificatifs/<JUSTIF_ID>/fichier` qui renvoie 410 Gone → UX cassée. C'est exactement ce que `04-04` CR-03 a fermé.
+
+5. **Vérification DB (la pivot reste intacte — D-113 inverse : rétention prime)** :
+   ```bash
+   sqlite3 ~/Library/Application\ Support/gestion-locative/gestion-locative.db \
+     "SELECT ticket_id, justificatif_id FROM ticket_justificatifs WHERE ticket_id='<TICKET_ID>';"
+   ```
+   - **Attendu** : la row existe encore (le lien pivot N:N n'est pas supprimé quand la PJ est soft-deleted ; c'est cohérent avec D-113 — la rétention 10 ans prime sur la cascade pivot).
+   - Si tu restores le Justificatif depuis la corbeille (`POST /justificatifs/<JUSTIF_ID>/restaurer`), il réapparaît automatiquement sur la fiche ticket grâce au filtre `corbeilleLe === null` côté `lire-ticket.ts:50`.
+
+### Comment ça marche techniquement
+
+- Le filtre est dans `src/application/travaux/lire-ticket.ts:50` : `if (j && j.corbeilleLe === null) justificatifs.push(j);` (ajouté par commit `2b63e70`).
+- La pivot SQL `ticket_justificatifs` n'est PAS modifiée par `mettreJustificatifEnCorbeille` — seul le champ `corbeille_le` du Justificatif est rempli.
+- Lecture `lire-ticket` : N:N → boucle sur les IDs liés → pour chaque ID, `justificatifRepo.trouverParId()` → filtre `corbeilleLe === null` côté applicatif.
+- Test BDD : `tests/bdd/features/travaux.feature` scénario `@gap-04 @inc-01` (ajouté par 04-04).
+
+---
+
+## Suite recommandée (post Test 2 partiel)
+
+1. ✅ Phase 4 SC-1 désormais E2E validé pour HEIC iPhone (Test 1).
+2. **Reste à fermer** : 2 nouveaux gaps remontés (G-UX-02-bis, G-DATE-01) — créer un mini plan `04-06-gap-closure-uat-test2` ou les rouler dans un plan futur. Sévérité minor → pas bloquant Phase 5 si l'utilisateur les tolère temporairement (les 2 sont des durcissements de validation, pas des fonctionnalités cassées).
+3. **À tester encore** :
+   - Test 2 étapes 4-8 : filtre corbeille (cf. § "Comment tester le filtre corbeille E2E" ci-dessus, ~5 min)
+   - Test 3 : cascade D-113 SQL en prod (cf. UAT §Test 3, ~10 min)
+4. **Une fois Test 2 + Test 3 verts** : Phase 4 totalement bouclée. Phase 5 (Fiscalité LMNP) débloquée.
