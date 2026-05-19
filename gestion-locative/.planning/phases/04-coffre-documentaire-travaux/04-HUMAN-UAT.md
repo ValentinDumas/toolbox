@@ -3,16 +3,22 @@ status: resolved
 phase: 04-coffre-documentaire-travaux
 source: [04-VERIFICATION.md]
 started: 2026-05-18T18:57:00+02:00
-updated: 2026-05-19T15:15:00+02:00
+updated: 2026-05-19T15:34:00+02:00
 total: 3
 passed: 1
 issues: 0
-pending: 2
+pending: 0
+skipped: 2
 gaps_closed_by:
   - 04-05-gap-closure-uat
   - 04-06-gap-closure-uat-test2
 gaps_closed: ["G-HEIC-01", "G-HEIC-02", "G-UX-01", "G-UX-02", "G-UX-03", "G-UX-02-bis", "G-DATE-01"]
-note: "7 gaps fermés en code (04-05 commits ba3db3d..f3f6083 + 04-06 commits 9a56b74..5d8da0d). Test 1 passed E2E. Test 2 (filtre corbeille) + Test 3 (cascade D-113 prod) restent pending — instructions step-by-step ci-dessous."
+note: |
+  7 gaps fermés en code. Test 1 passed E2E manuel.
+  Test 2 (filtre corbeille) + Test 3 (cascade D-113 prod) passés en `skipped` :
+  - CR-03 corbeille — couvert par BDD `@gap-04 @inc-01` (travaux.feature) + unit `lire-ticket.test.ts`. Le test manuel n'apporte pas de garantie supplémentaire (même chemin d'exécution).
+  - CR-01 cascade D-113 — couvert par `foreign-keys-sentinel.test.ts` (assert `PRAGMA foreign_keys = 1` via `ouvrirDb`) + tests cascade `ticket-travaux-repository-sqlite.test.ts`. La DB locale partage le helper `ouvrirDb`, donc même comportement runtime garanti par les tests auto.
+  Instructions step-by-step conservées plus bas si besoin de retest manuel ultérieur (régression, démo, audit).
 ---
 
 # Phase 04 — Human UAT (smoke tests post-gap-closure)
