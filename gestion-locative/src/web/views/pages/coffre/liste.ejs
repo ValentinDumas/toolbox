@@ -7,23 +7,6 @@
 
 <%- include('../../partials/warning-live', { warning: locals.banniereWarning }) %>
 
-<header style="display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-  <h1>Coffre documentaire</h1>
-  <div style="display: flex; gap: 1rem; align-items: center;">
-    <% if (locals.nbCorbeille > 0) { %>
-      <a href="/coffre/corbeille">Corbeille (<%= locals.nbCorbeille %>)</a>
-    <% } %>
-    <a href="/coffre/upload" role="button">Ajouter un document</a>
-  </div>
-</header>
-
-<%- include('../../partials/partial-filters-coffre', {
-  filtres: locals.filtres || {},
-  biens: locals.biens || [],
-  locataires: locals.locataires || [],
-  today: locals.today
-}) %>
-
 <%
   const filtres = locals.filtres || {};
   const filtresActifs =
@@ -37,7 +20,28 @@
   const page = locals.page || 1;
   const pageSize = locals.pageSize || 20;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+%>
 
+<header style="display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+  <h1>Coffre documentaire</h1>
+  <div style="display: flex; gap: 1rem; align-items: center;">
+    <% if (locals.nbCorbeille > 0) { %>
+      <a href="/coffre/corbeille">Corbeille (<%= locals.nbCorbeille %>)</a>
+    <% } %>
+    <% if (total > 0 || filtresActifs) { %>
+      <a href="/coffre/upload" role="button">Ajouter un document</a>
+    <% } %>
+  </div>
+</header>
+
+<%- include('../../partials/partial-filters-coffre', {
+  filtres: locals.filtres || {},
+  biens: locals.biens || [],
+  locataires: locals.locataires || [],
+  today: locals.today
+}) %>
+
+<%
   // Helper construction URL pagination en préservant les filtres
   function paginationUrl(p) {
     const params = new URLSearchParams();
