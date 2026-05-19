@@ -28,4 +28,37 @@
   </div>
 </form>
 
+<style>
+  .field-disabled { opacity: 0.5; pointer-events: none; }
+</style>
+<script>
+  (function () {
+    var $bien = document.getElementById('bienId');
+    var $locataire = document.getElementById('locataireId');
+    var $fieldBien = $bien ? $bien.closest('.field') : null;
+    var $fieldLocataire = $locataire ? $locataire.closest('.field') : null;
+    var radios = document.querySelectorAll('input[name="rattachement"]');
+
+    function applyState(value) {
+      var bienActif = value === 'bien' || value === 'bien_et_locataire';
+      var locataireActif = value === 'locataire' || value === 'bien_et_locataire';
+      if ($bien) {
+        $bien.disabled = !bienActif;
+        if ($fieldBien) $fieldBien.classList.toggle('field-disabled', !bienActif);
+      }
+      if ($locataire) {
+        $locataire.disabled = !locataireActif;
+        if ($fieldLocataire) $fieldLocataire.classList.toggle('field-disabled', !locataireActif);
+      }
+    }
+
+    radios.forEach(function (radio) {
+      radio.addEventListener('change', function (e) { applyState(e.target.value); });
+    });
+
+    var checked = Array.from(radios).find(function (r) { return r.checked; });
+    applyState(checked ? checked.value : null);
+  })();
+</script>
+
 <%- include('../../partials/layout-fin') %>
