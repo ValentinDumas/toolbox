@@ -229,10 +229,10 @@ export async function plugin(
 
     if (!parsed.success) {
       const erreurs = extraireErreurs(parsed.error.issues);
-      // re-render la fiche détail avec erreurs (verbatim UI-6.2 dans bannière)
+      // G-DATE-01 : on passe les erreurs Zod à la vue pour affichage inline
+      // (dateCloture → span#dateCloture-error, coutReelTtcEuros → bannière)
       const messageVerbatim =
-        erreurs['coutReelTtcEuros'] ?? erreurs['_global'] ?? 'Données invalides.';
-      // Pour le test : on renvoie 400 + corps contenant le message verbatim
+        erreurs['coutReelTtcEuros'] ?? erreurs['_global'] ?? undefined;
       try {
         const { ticket, bien, justificatifs } = await lireTicket(
           { id },
@@ -248,6 +248,8 @@ export async function plugin(
           justificatifs,
           navActive: 'biens',
           banniereWarning: messageVerbatim,
+          erreurs,
+          valeurs: body,
         });
       } catch (err) {
         if (err instanceof TicketIntrouvable) {

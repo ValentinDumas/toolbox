@@ -115,11 +115,12 @@ describe('TicketTravaux.creer — invariants', () => {
 describe('TicketTravaux.clore — transitions (D-114)', () => {
   it("depuis 'ouvert' → nouvelle instance statut='clos' + dateCloture + coutReelTtc", () => {
     const t = TicketTravaux.creer(unTicketTravauxValide(), TODAY);
-    const dateCloture = Temporal.PlainDate.from('2026-06-01');
+    // G-DATE-01 : dateCloture doit être <= today (2026-05-18)
+    const dateCloture = TODAY;
     const coutReel = Money.fromEuros(1250);
     const clos = t.clore(coutReel, dateCloture, TODAY);
     expect(clos.statut).toBe('clos');
-    expect(clos.dateCloture?.toString()).toBe('2026-06-01');
+    expect(clos.dateCloture?.toString()).toBe('2026-05-18');
     expect(clos.coutReelTtc?.toCentimes()).toBe(125000n);
     expect(clos.id).toBe(t.id);
     // L'original reste intact
@@ -129,9 +130,10 @@ describe('TicketTravaux.clore — transitions (D-114)', () => {
 
   it("depuis 'en_cours' → idem 'clos'", () => {
     const t = TicketTravaux.creer(unTicketTravauxEnCours(), TODAY);
+    // G-DATE-01 : dateCloture doit être <= today (2026-05-18)
     const clos = t.clore(
       Money.fromEuros(800),
-      Temporal.PlainDate.from('2026-06-15'),
+      TODAY,
       TODAY,
     );
     expect(clos.statut).toBe('clos');
@@ -139,17 +141,18 @@ describe('TicketTravaux.clore — transitions (D-114)', () => {
 
   it("depuis 'clos' → throw TransitionInvalide('Ticket déjà clos.')", () => {
     const t = TicketTravaux.creer(unTicketTravauxClos(), TODAY);
+    // G-DATE-01 : utilise today pour ne pas déclencher l'invariant date future
     expect(() =>
       t.clore(
         Money.fromEuros(100),
-        Temporal.PlainDate.from('2026-06-20'),
+        TODAY,
         TODAY,
       ),
     ).toThrow(TransitionInvalide);
     expect(() =>
       t.clore(
         Money.fromEuros(100),
-        Temporal.PlainDate.from('2026-06-20'),
+        TODAY,
         TODAY,
       ),
     ).toThrow('Ticket déjà clos.');
@@ -157,10 +160,11 @@ describe('TicketTravaux.clore — transitions (D-114)', () => {
 
   it("depuis 'annule' → throw TransitionInvalide('Ticket annulé — impossible de clore.')", () => {
     const t = TicketTravaux.creer(unTicketTravauxAnnule(), TODAY);
+    // G-DATE-01 : utilise today pour ne pas déclencher l'invariant date future
     expect(() =>
       t.clore(
         Money.fromEuros(100),
-        Temporal.PlainDate.from('2026-06-20'),
+        TODAY,
         TODAY,
       ),
     ).toThrow('Ticket annulé — impossible de clore.');
@@ -202,6 +206,30 @@ describe('TicketTravaux.clore — transitions (D-114)', () => {
       TODAY,
     );
     expect(clos.statut).toBe('clos');
+  });
+
+  it('G-DATE-01 — clore() rejette dateCloture future (parité avec creer)', () => {
+    const today = Temporal.PlainDate.from('2026-05-19');
+    const t = TicketTravaux.creer(
+      unTicketTravauxValide({ dateOuverture: Temporal.PlainDate.from('2026-05-10') }),
+      today,
+    );
+    expect(() =>
+      t.clore(
+        Money.fromEuros(100),
+        Temporal.PlainDate.from('2026-05-20'), // futur > today
+        today,
+      ),
+    ).toThrow('La date de clôture ne peut pas être dans le futur.');
+  });
+
+  it('G-DATE-01 — clore() accepte dateCloture === today', () => {
+    const today = Temporal.PlainDate.from('2026-05-19');
+    const t = TicketTravaux.creer(
+      unTicketTravauxValide({ dateOuverture: Temporal.PlainDate.from('2026-05-10') }),
+      today,
+    );
+    expect(() => t.clore(Money.fromEuros(100), today, today)).not.toThrow();
   });
 });
 

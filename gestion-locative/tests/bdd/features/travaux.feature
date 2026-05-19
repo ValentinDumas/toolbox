@@ -80,7 +80,7 @@ Feature: Tickets travaux (INC-01)
   @phase4 @inc-01
   Scenario: T10 — Clôture happy path
     Given un ticket de travaux existe rattaché au Bien
-    When le bailleur soumet POST /travaux/:id/clore avec dateCloture "2026-06-01" coutReelTtcEuros "1250"
+    When le bailleur soumet POST /travaux/:id/clore avec dateCloture "2026-05-18" coutReelTtcEuros "1250"
     Then la réponse a le statut 302
     And la session porte la bannière "Ticket clôturé."
     And la table tickets_travaux contient 1 ligne avec statut "clos"
@@ -89,7 +89,7 @@ Feature: Tickets travaux (INC-01)
   @phase4 @inc-01
   Scenario: T11 — Refus clôture sans coût réel
     Given un ticket de travaux existe rattaché au Bien
-    When le bailleur soumet POST /travaux/:id/clore avec dateCloture "2026-06-01" sans coutReel
+    When le bailleur soumet POST /travaux/:id/clore avec dateCloture "2026-05-18" sans coutReel
     Then la réponse a le statut 400
     And la page affiche "Le coût réel TTC est obligatoire pour clore le ticket."
     And la table tickets_travaux contient 1 ligne avec statut "ouvert"
@@ -130,3 +130,11 @@ Feature: Tickets travaux (INC-01)
     And un justificatif "facture-chaudiere.pdf" rattaché au ticket et mis en corbeille
     When le bailleur navigue vers GET /travaux/:ticketId
     Then la fiche du ticket ne liste aucune pièce jointe
+
+  @gap-uat-date @inc-01
+  Scenario: T17 — Refus clôture si dateCloture future (G-DATE-01)
+    Given un ticket de travaux existe rattaché au Bien
+    When le bailleur soumet POST /travaux/:id/clore avec dateCloture "2099-12-31" coutReelTtcEuros "100"
+    Then la réponse a le statut 400
+    And la page affiche "La date de clôture ne peut pas être dans le futur."
+    And la table tickets_travaux contient 1 ligne avec statut "ouvert"
