@@ -94,33 +94,50 @@ Certaines fonctionnalités reposent sur des bibliothèques natives non installé
 
 ### Conversion HEIC → JPEG
 
-La conversion HEIC (photos iPhone) en JPEG côté serveur (D-105) utilise `sharp` → `libvips` → `libheif`. Sur macOS (Homebrew) et la plupart des distributions Linux, `libheif` est livré **sans** plugin de décodage HEVC par défaut.
+La conversion HEIC (photos iPhone) en JPEG côté serveur (D-105) utilise `sharp` → `libvips` → `libheif` + plugin de décodage HEVC (`libde265`).
 
-**macOS (Homebrew) :**
+> ⚠️ **Important** : le binaire `sharp` prebuilt embarque **son propre** `libvips` qui inclut `libheif` (AVIF via AOM) mais **PAS** le plugin HEVC nécessaire pour HEIC. Installer `libheif`/`libde265` côté système ne suffit pas — il faut **forcer `sharp` à utiliser le `libvips` du système** (qui, lui, est lié contre `libde265`).
+
+**Procédure complète (macOS Homebrew) :**
 
 ```bash
-brew install libheif libde265
+# 1. Installer libvips + libheif + libde265 (HEVC decoder) via brew
+brew install vips libheif libde265
+
+# 2. Forcer sharp à utiliser le libvips système (au lieu du prebuilt bundled)
+SHARP_FORCE_GLOBAL_LIBVIPS=1 pnpm rebuild sharp
 ```
 
 **Debian / Ubuntu :**
 
 ```bash
-sudo apt install libheif1 libheif-dev libde265-0
+sudo apt install libvips-dev libheif1 libheif-dev libde265-0
+SHARP_FORCE_GLOBAL_LIBVIPS=1 pnpm rebuild sharp
 ```
 
 **Fedora / RHEL :**
 
 ```bash
-sudo dnf install libheif libheif-devel libde265
+sudo dnf install vips-devel libheif libheif-devel libde265
+SHARP_FORCE_GLOBAL_LIBVIPS=1 pnpm rebuild sharp
 ```
 
-Si ces dépendances sont absentes, l'upload d'un HEIC retournera **HTTP 503** avec un message indiquant la procédure d'installation.
+Vérifier que `sharp` utilise bien le `libvips` du système :
 
-Smoke test post-installation :
+```bash
+node -e "const s = require('sharp'); console.log('vips:', s.versions.vips); console.log('heif input:', s.format.heif.input.fileSuffix);"
+```
+
+Sortie attendue : `vips: 8.18.x` (ou plus récent) + `heif input: [ '.heic', '.heif', '.avif' ]`.
+Sortie KO (prebuilt sans HEVC) : `vips: 8.15.x` + `heif input: [ '.avif' ]` (seulement AVIF, pas HEIC).
+
+Smoke test post-installation avec un vrai HEIC :
 
 ```bash
 pnpm tsx -e "import sharp from 'sharp'; import fs from 'node:fs'; const buf = fs.readFileSync('/chemin/vers/photo.heic'); sharp(buf).jpeg().toBuffer().then(() => console.log('OK')).catch(e => console.error('KO:', e.message));"
 ```
+
+Si la procédure n'est pas suivie, l'upload d'un HEIC retournera **HTTP 503** avec un message indiquant la procédure (fallback `ConversionHeicIndisponible` — l'utilisateur peut toujours convertir manuellement via Aperçu/Photos macOS).
 
 Voir `RISKS.md` §R6.1 pour la mitigation détaillée et l'analyse de risque.
 

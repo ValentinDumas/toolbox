@@ -68,11 +68,13 @@ Si DB vide, créer d'abord **1 Bien + 1 Locataire + 1 Bail** via le wizard d'act
     ```
     Upload → doit être **rejeté** avec message magic-bytes.
 
-### Résultat partiel (2026-05-19)
+### Résultat (2026-05-19 09:05)
 
-- Étapes 1-8 (caractères spéciaux + RFC 6266) : non confirmé (bloqué par bug import)
-- Étape 9 (HEIC) : **ÉCHEC** — voir bugs ci-dessous
-- Étape 10 (WebP corrompu) : non testé
+**Statut final : ✅ PASSED après G-HEIC-01/02 + UX fixes (commits ba3db3d → ab121a7) + rebuild sharp avec libvips global (brew vips 8.18.2 + SHARP_FORCE_GLOBAL_LIBVIPS=1).**
+
+- Étapes 1-8 (caractères spéciaux + RFC 6266) : ✅ confirmé
+- Étape 9 (HEIC iPhone réel) : ✅ converti en JPEG sans erreur (G-HEIC-01 + G-HEIC-02 E2E)
+- Étape 10 (WebP corrompu) : ✅ rejeté magic-bytes
 
 ---
 
@@ -165,11 +167,11 @@ Non démarré.
 
 | Test | Statut | Note |
 |------|--------|------|
-| 1. Upload PJ accents + HEIC + WebP corrompu | issues | HEIC E2E cassé, accents non vérifiés (bloqué par étape 3 form upload) |
-| 2. Ticket travaux + PJ + corbeille | pending | Création OK ; attache PJ via upload HEIC cassée (même bug que Test 1) ; filtre corbeille non vérifié |
+| 1. Upload PJ accents + HEIC + WebP corrompu | ✅ passed | E2E OK après brew vips + SHARP_FORCE_GLOBAL_LIBVIPS=1 |
+| 2. Ticket travaux + PJ + corbeille | pending | Re-tester après fix 04-05 |
 | 3. Cascade D-113 SQL en prod | pending | Non démarré |
 
-**total :** 3 | **passed :** 0 | **issues :** 2 | **pending :** 1 | **skipped :** 0 | **blocked :** 0
+**total :** 3 | **passed :** 1 | **issues :** 0 | **pending :** 2 | **skipped :** 0 | **blocked :** 0
 
 ---
 
