@@ -5,6 +5,8 @@
  * Variables attendues :
  *   - ticket (TicketTravaux)
  *   - justificatifs (Justificatif[])
+ *   - erreurs (Record<string, string>) — optionnel, erreurs inline (ex: erreurs.fichier)
+ *   - valeurs (Record<string, string>) — optionnel, valeurs préservées du formulaire
  *   - formatDate, formaterTypeJustificatif (depuis locals)
  *
  * UI :
@@ -14,6 +16,14 @@
  */
 const justifs = locals.justificatifs || [];
 const ticket = locals.ticket;
+const erreurs = locals.erreurs || {};
+const valeurs = locals.valeurs || {};
+const TYPES_TICKET = [
+  ['facture', 'Facture'],
+  ['ticket_caisse', 'Ticket de caisse'],
+  ['attestation', 'Attestation'],
+  ['autre', 'Autre'],
+];
 %>
 
 <% if (justifs.length === 0) { %>
@@ -59,39 +69,43 @@ const ticket = locals.ticket;
       type="file"
       accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,image/jpeg,image/jpg,image/png,image/heic,image/heif,image/webp"
       required
+      aria-describedby="pj-fichier-hint<%= erreurs.fichier ? ' fichier-error-ticket' : '' %>"
+      <% if (erreurs.fichier) { %>aria-invalid="true"<% } %>
     />
-    <small>PDF, JPG, PNG, HEIC, WebP — max 50 Mo</small>
+    <small id="pj-fichier-hint">PDF, JPG, PNG, HEIC, WebP — max 50 Mo</small>
+    <% if (erreurs.fichier) { %>
+      <span id="fichier-error-ticket" role="alert" aria-live="polite" class="error-msg" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.fichier %></span>
+    <% } %>
   </div>
 
   <div class="field">
     <label for="pj-titre">Titre <span aria-hidden="true">*</span></label>
-    <input id="pj-titre" name="titre" type="text" required maxlength="200" />
+    <input id="pj-titre" name="titre" type="text" required maxlength="200" value="<%= valeurs.titre || '' %>" />
   </div>
 
   <div class="field">
     <label for="pj-dateDocument">Date du document <span aria-hidden="true">*</span></label>
-    <input id="pj-dateDocument" name="dateDocument" type="date" required />
+    <input id="pj-dateDocument" name="dateDocument" type="date" required value="<%= valeurs.dateDocument || '' %>" />
   </div>
 
   <div class="field">
     <label for="pj-type">Type <span aria-hidden="true">*</span></label>
     <select id="pj-type" name="type" required>
       <option value="">— Choisir —</option>
-      <option value="facture">Facture</option>
-      <option value="ticket_caisse">Ticket de caisse</option>
-      <option value="attestation">Attestation</option>
-      <option value="autre">Autre</option>
+      <% TYPES_TICKET.forEach(function(t) { %>
+        <option value="<%= t[0] %>" <%= valeurs.type === t[0] ? 'selected' : '' %>><%= t[1] %></option>
+      <% }); %>
     </select>
   </div>
 
   <div class="field">
     <label for="pj-montantTtcEuros">Montant TTC (€) <small>(optionnel)</small></label>
-    <input id="pj-montantTtcEuros" name="montantTtcEuros" type="number" step="0.01" min="0" />
+    <input id="pj-montantTtcEuros" name="montantTtcEuros" type="number" step="0.01" min="0" value="<%= valeurs.montantTtcEuros || '' %>" />
   </div>
 
   <div class="field">
     <label for="pj-notes">Notes <small>(optionnel)</small></label>
-    <textarea id="pj-notes" name="notes" maxlength="2000"></textarea>
+    <textarea id="pj-notes" name="notes" maxlength="2000"><%= valeurs.notes || '' %></textarea>
   </div>
 
   <button type="submit" style="min-height: 44px;">Ajouter une pièce jointe</button>

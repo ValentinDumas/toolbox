@@ -66,7 +66,7 @@
 
 <section aria-labelledby="pj-heading">
   <h2 id="pj-heading">Pièces jointes</h2>
-  <%- include('../../partials/partial-ticket-pj-section', { ticket: ticket, justificatifs: justificatifs }) %>
+  <%- include('../../partials/partial-ticket-pj-section', { ticket: ticket, justificatifs: justificatifs, erreurs: locals.erreurs || {}, valeurs: locals.valeurs || {} }) %>
 </section>
 
 <% if (ticket.statut === 'ouvert' || ticket.statut === 'en_cours') { %>
