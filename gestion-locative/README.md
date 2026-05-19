@@ -85,8 +85,44 @@ Les fichiers physiques (PDF, images converties JPEG, quittances) sont stockés s
 La base SQLite est stockée à part :
 
 ```
-~/Library/Application Support/gestion-locative/gestion-locative.sqlite
+~/Library/Application Support/gestion-locative/db.sqlite
 ```
+
+## Dépendances système
+
+Certaines fonctionnalités reposent sur des bibliothèques natives non installées par `pnpm install`.
+
+### Conversion HEIC → JPEG
+
+La conversion HEIC (photos iPhone) en JPEG côté serveur (D-105) utilise `sharp` → `libvips` → `libheif`. Sur macOS (Homebrew) et la plupart des distributions Linux, `libheif` est livré **sans** plugin de décodage HEVC par défaut.
+
+**macOS (Homebrew) :**
+
+```bash
+brew install libheif libde265
+```
+
+**Debian / Ubuntu :**
+
+```bash
+sudo apt install libheif1 libheif-dev libde265-0
+```
+
+**Fedora / RHEL :**
+
+```bash
+sudo dnf install libheif libheif-devel libde265
+```
+
+Si ces dépendances sont absentes, l'upload d'un HEIC retournera **HTTP 503** avec un message indiquant la procédure d'installation.
+
+Smoke test post-installation :
+
+```bash
+pnpm tsx -e "import sharp from 'sharp'; import fs from 'node:fs'; const buf = fs.readFileSync('/chemin/vers/photo.heic'); sharp(buf).jpeg().toBuffer().then(() => console.log('OK')).catch(e => console.error('KO:', e.message));"
+```
+
+Voir `RISKS.md` §R6.1 pour la mitigation détaillée et l'analyse de risque.
 
 ## Rétention légale
 
