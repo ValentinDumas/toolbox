@@ -3,14 +3,16 @@ status: resolved
 phase: 04-coffre-documentaire-travaux
 source: [04-VERIFICATION.md]
 started: 2026-05-18T18:57:00+02:00
-updated: 2026-05-19T08:32:00+02:00
+updated: 2026-05-19T15:15:00+02:00
 total: 3
-passed: 0
-issues: 2
-pending: 1
-gaps_closed_by: 04-05-gap-closure-uat
-gaps_closed: ["G-HEIC-01", "G-HEIC-02", "G-UX-01", "G-UX-02", "G-UX-03"]
-note: "5 gaps fermés en code par plan 04-05 (commits ba3db3d, e7845d3, 3eed2e8, ab121a7, f3f6083). Re-smoke test manuel des étapes pending recommandé pour confirmer E2E sur HEIC iPhone réel."
+passed: 1
+issues: 0
+pending: 2
+gaps_closed_by:
+  - 04-05-gap-closure-uat
+  - 04-06-gap-closure-uat-test2
+gaps_closed: ["G-HEIC-01", "G-HEIC-02", "G-UX-01", "G-UX-02", "G-UX-03", "G-UX-02-bis", "G-DATE-01"]
+note: "7 gaps fermés en code (04-05 commits ba3db3d..f3f6083 + 04-06 commits 9a56b74..5d8da0d). Test 1 passed E2E. Test 2 (filtre corbeille) + Test 3 (cascade D-113 prod) restent pending — instructions step-by-step ci-dessous."
 ---
 
 # Phase 04 — Human UAT (smoke tests post-gap-closure)
