@@ -138,6 +138,7 @@ export class TicketTravaux {
    * Throw :
    *   - TransitionInvalide('Ticket déjà clos.') si statut === 'clos'.
    *   - TransitionInvalide('Ticket annulé — impossible de clore.') si statut === 'annule'.
+   *   - InvariantViolated('La date de clôture ne peut pas être dans le futur.') si dateCloture > today.
    *   - InvariantViolated si dateCloture < dateOuverture.
    */
   clore(
@@ -150,6 +151,12 @@ export class TicketTravaux {
     }
     if (this.statut === 'annule') {
       throw new TransitionInvalide('Ticket annulé — impossible de clore.');
+    }
+    // G-DATE-01 : parité avec creer() — date métier toujours <= today
+    if (Temporal.PlainDate.compare(dateCloture, today) > 0) {
+      throw new InvariantViolated(
+        'La date de clôture ne peut pas être dans le futur.',
+      );
     }
     if (Temporal.PlainDate.compare(dateCloture, this.dateOuverture) < 0) {
       throw new InvariantViolated(

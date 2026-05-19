@@ -229,10 +229,10 @@ export async function plugin(
 
     if (!parsed.success) {
       const erreurs = extraireErreurs(parsed.error.issues);
-      // re-render la fiche détail avec erreurs (verbatim UI-6.2 dans bannière)
+      // G-DATE-01 : on passe les erreurs Zod à la vue pour affichage inline
+      // (dateCloture → span#dateCloture-error, coutReelTtcEuros → bannière)
       const messageVerbatim =
-        erreurs['coutReelTtcEuros'] ?? erreurs['_global'] ?? 'Données invalides.';
-      // Pour le test : on renvoie 400 + corps contenant le message verbatim
+        erreurs['coutReelTtcEuros'] ?? erreurs['_global'] ?? undefined;
       try {
         const { ticket, bien, justificatifs } = await lireTicket(
           { id },
@@ -248,6 +248,8 @@ export async function plugin(
           justificatifs,
           navActive: 'biens',
           banniereWarning: messageVerbatim,
+          erreurs,
+          valeurs: body,
         });
       } catch (err) {
         if (err instanceof TicketIntrouvable) {
@@ -371,11 +373,40 @@ export async function plugin(
     let fichierMimeAnnonce = '';
     const fields: Record<string, string> = {};
 
+    // G-UX-02-bis : re-render fiche ticket avec erreur inline sous l'input fichier
+    // (pattern identique à coffre.ts:199-222 — pas de session.banniereWarning + redirect)
+    const renderErreurFichier = async (
+      collectedFields: Record<string, string>,
+    ) => {
+      try {
+        const { ticket, bien, justificatifs } = await lireTicket(
+          { id },
+          {
+            ticketRepo: opts.ticketRepo,
+            bienRepo: opts.bienRepo,
+            justificatifRepo: opts.justificatifRepo,
+          },
+        );
+        return reply.code(400).view('pages/travaux/detail.ejs', {
+          ticket,
+          bien,
+          justificatifs,
+          navActive: 'biens',
+          erreurs: { fichier: 'Aucun fichier reçu.' },
+          valeurs: collectedFields,
+        });
+      } catch (lireErr) {
+        if (lireErr instanceof TicketIntrouvable) {
+          return reply.code(404).send('Ticket introuvable.');
+        }
+        throw lireErr;
+      }
+    };
+
     try {
       const data = await req.file();
       if (!data) {
-        req.session.banniereWarning = 'Aucun fichier reçu.';
-        return reply.redirect(`/travaux/${id}`);
+        return await renderErreurFichier({});
       }
       fichierBuffer = await data.toBuffer();
       fichierNom = data.filename;
@@ -386,6 +417,10 @@ export async function plugin(
         if (value !== undefined && k !== 'fichier') {
           fields[k] = value;
         }
+      }
+      // G-UX-02-bis : fichier présent mais 0 octet (multipart sans sélection réelle)
+      if (fichierBuffer.length === 0) {
+        return await renderErreurFichier(fields);
       }
     } catch (err) {
       const errMsg = (err as Error & { code?: string }).code;

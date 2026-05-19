@@ -77,7 +77,19 @@ export const VERBATIM_COUT_REEL_REQUIS =
 export const cloreTicketSchema = z.object({
   dateCloture: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date attendu : AAAA-MM-JJ.'),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date attendu : AAAA-MM-JJ.')
+    .refine(
+      (s) => {
+        try {
+          const d = Temporal.PlainDate.from(s);
+          const today = Temporal.Now.plainDateISO();
+          return Temporal.PlainDate.compare(d, today) <= 0;
+        } catch {
+          return false;
+        }
+      },
+      'La date de clôture ne peut pas être dans le futur.',
+    ),
   coutReelTtcEuros: z.preprocess(
     (v) => {
       // Convertit "" / null / undefined en NaN pour faire échouer le coerce

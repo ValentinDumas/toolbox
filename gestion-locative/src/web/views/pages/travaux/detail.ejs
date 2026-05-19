@@ -66,7 +66,7 @@
 
 <section aria-labelledby="pj-heading">
   <h2 id="pj-heading">Pièces jointes</h2>
-  <%- include('../../partials/partial-ticket-pj-section', { ticket: ticket, justificatifs: justificatifs }) %>
+  <%- include('../../partials/partial-ticket-pj-section', { ticket: ticket, justificatifs: justificatifs, erreurs: locals.erreurs || {}, valeurs: locals.valeurs || {} }) %>
 </section>
 
 <% if (ticket.statut === 'ouvert' || ticket.statut === 'en_cours') { %>
@@ -80,8 +80,13 @@
           name="dateCloture"
           type="date"
           required
-          value="<%= locals.today ? locals.today.toString() : '' %>"
+          max="<%= locals.today ? locals.today.toString() : '' %>"
+          value="<%= (locals.valeurs && locals.valeurs.dateCloture) || (locals.today ? locals.today.toString() : '') %>"
+          <% if (locals.erreurs && erreurs.dateCloture) { %>aria-invalid="true" aria-describedby="dateCloture-error"<% } %>
         />
+        <% if (locals.erreurs && erreurs.dateCloture) { %>
+          <span id="dateCloture-error" role="alert" style="color: var(--couleur-destructive, #b91c1c);"><%= erreurs.dateCloture %></span>
+        <% } %>
       </div>
       <div class="field">
         <label for="coutReelTtcEuros">Coût réel TTC (€) <span aria-hidden="true">*</span></label>

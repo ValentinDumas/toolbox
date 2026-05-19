@@ -241,7 +241,8 @@ describe('cloreTicketTravaux', () => {
     const result = await cloreTicketTravaux(
       {
         id: ticket.id,
-        dateCloture: Temporal.PlainDate.from('2026-06-01'),
+        // Utilise today du clock (2026-05-18) pour respecter l'invariant G-DATE-01
+        dateCloture: CLOCK.aujourdhui(),
         coutReelTtc: Money.fromEuros(1250),
       },
       { ticketRepo, clock: CLOCK },
@@ -432,11 +433,35 @@ describe('cloreTicketTravaux — propage TransitionInvalide depuis ticket clos',
       cloreTicketTravaux(
         {
           id: ticket.id,
-          dateCloture: Temporal.PlainDate.from('2026-06-02'),
+          // Utilise today du clock (2026-05-18) pour respecter l'invariant G-DATE-01
+          dateCloture: CLOCK.aujourdhui(),
           coutReelTtc: Money.fromEuros(100),
         },
         { ticketRepo, clock: CLOCK },
       ),
     ).rejects.toThrow('Ticket déjà clos.');
+  });
+});
+
+describe('cloreTicketTravaux — G-DATE-01 propage InvariantViolated dateCloture future', () => {
+  it('dateCloture future → throw InvariantViolated via ClockFixe', async () => {
+    const clockTest = ClockFixe.du('2026-05-19');
+    const today = clockTest.aujourdhui();
+    const { repo: ticketRepo, tickets } = mockTicketRepo();
+    const ticket = TicketTravaux.creer(
+      unTicketTravauxValide({ dateOuverture: Temporal.PlainDate.from('2026-05-10') }),
+      today,
+    );
+    tickets.set(ticket.id, ticket);
+    await expect(
+      cloreTicketTravaux(
+        {
+          id: ticket.id,
+          dateCloture: Temporal.PlainDate.from('2026-06-01'), // > today fixe 2026-05-19
+          coutReelTtc: Money.fromEuros(100),
+        },
+        { ticketRepo, clock: clockTest },
+      ),
+    ).rejects.toThrow('La date de clôture ne peut pas être dans le futur.');
   });
 });

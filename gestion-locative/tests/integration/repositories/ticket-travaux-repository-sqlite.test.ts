@@ -126,9 +126,10 @@ describe('TicketTravauxRepositorySqlite', () => {
   it('upsert via onConflict id — change statut + dateCloture + coutReel sans dupliquer', async () => {
     const t = TicketTravaux.creer(unTicketTravauxValide({ bienId }), TODAY);
     await repo.enregistrer(t);
+    // G-DATE-01 : dateCloture doit être <= today (2026-05-18)
     const clos = t.clore(
       Money.fromEuros(900),
-      Temporal.PlainDate.from('2026-06-01'),
+      TODAY,
       TODAY,
     );
     await repo.enregistrer(clos);
