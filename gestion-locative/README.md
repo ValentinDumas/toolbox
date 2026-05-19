@@ -27,7 +27,7 @@ DDD hexagonal strict — le domaine est pur (aucun import infrastructure / web /
 - **Domaine** : `@js-temporal/polyfill` pour les dates (PlainDate, deterministic via Clock port)
 - **Validation** : Zod côté HTTP (défense en profondeur avec invariants domaine)
 - **Tests** : Vitest (unit + integration) + Cucumber.js (BDD outside-in)
-- **Fichiers** : `sharp` (conversion HEIC → JPEG) + `@fastify/multipart` (upload)
+- **Fichiers** : `sharp` (conversion HEIC → JPEG, requiert `libheif` + plugin HEVC — cf. [§Dépendances système](#dépendances-système)) + `@fastify/multipart` (upload)
 - **Documents** : `pdfmake` (génération PDF)
 
 ## Features V1
