@@ -13,6 +13,7 @@ import type {
 import { Money } from '../../domain/_shared/money.js';
 import type { ConvertisseurImage } from '../../domain/documents/convertisseur-image.js';
 import {
+  ConversionHeicIndisponible,
   DocumentDejaEnCorbeille,
   DocumentNonEnCorbeille,
   FichierIntrouvable,
@@ -207,6 +208,18 @@ export async function plugin(
         });
       }
       fichierBuffer = await data.toBuffer();
+      // G-UX-02 : fichier vide (0 octet) envoyé par multipart sans sélection
+      if (fichierBuffer.length === 0) {
+        const biens = await opts.bienRepo.listerTous();
+        const locataires = await opts.locataireRepo.listerTous();
+        return reply.code(400).view('pages/coffre/upload.ejs', {
+          biens,
+          locataires,
+          navActive: 'coffre',
+          erreurs: { fichier: 'Aucun fichier reçu.' },
+          valeurs: {},
+        });
+      }
       fichierNom = data.filename;
       fichierMimeAnnonce = data.mimetype;
       // Récupère les fields (texte) du multipart
@@ -347,6 +360,19 @@ export async function plugin(
           locataires,
           navActive: 'coffre',
           erreurs: { _global: err.message },
+          valeurs,
+        });
+      }
+      // G-HEIC-02 : libheif présent sans plugin HEVC — 503 avec message actionable
+      if (err instanceof ConversionHeicIndisponible) {
+        return reply.code(503).view('pages/coffre/upload.ejs', {
+          biens,
+          locataires,
+          navActive: 'coffre',
+          erreurs: {
+            fichier:
+              "HEIC non supporté sur ce poste. Convertissez votre fichier en JPEG (Aperçu/Photos sur macOS) avant l'upload, ou installez le plugin libheif (cf. README §Dépendances système).",
+          },
           valeurs,
         });
       }

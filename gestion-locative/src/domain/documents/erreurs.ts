@@ -75,3 +75,13 @@ export class CheminInvalide extends Error {
     this.name = 'CheminInvalide';
   }
 }
+
+export class ConversionHeicIndisponible extends Error {
+  constructor(detailTechnique: string) {
+    super(
+      'HEIC non supporté sur ce poste — installez libheif + libde265 (cf. README §Dépendances système). Détail : ' +
+        detailTechnique,
+    );
+    this.name = 'ConversionHeicIndisponible';
+  }
+}

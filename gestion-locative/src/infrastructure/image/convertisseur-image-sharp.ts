@@ -5,6 +5,7 @@ import type {
   MimeTypeImage,
   MimeTypeImagePersiste,
 } from '../../domain/documents/convertisseur-image.js';
+import { ConversionHeicIndisponible } from '../../domain/documents/erreurs.js';
 
 /**
  * Adapter sharp pour `ConvertisseurImage` (D-105).
@@ -32,6 +33,10 @@ export class ConvertisseurImageSharp implements ConvertisseurImage {
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Erreur inconnue de conversion HEIC';
+      // G-HEIC-02 : libheif présent sans plugin HEVC → erreur 503 actionable
+      if (/No decoding plugin installed|bad seek|libheif: Error while loading plugin/i.test(message)) {
+        throw new ConversionHeicIndisponible(message);
+      }
       throw new Error(`Conversion HEIC → JPEG échouée : ${message}`);
     }
   }

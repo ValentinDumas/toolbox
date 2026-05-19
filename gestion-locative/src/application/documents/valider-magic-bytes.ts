@@ -29,10 +29,25 @@ const HEIC_BRANDS: ReadonlySet<string> = new Set([
   'heis',
   'hevc',
   'hevx',
+  // G-HEIC-01 : brands ISOBMFF supplémentaires (iPhone récents + AVIF / MIF2)
+  'mif2',
+  'msf2',
+  'avif',
+  'avis',
+  '1pic',
+  'mfsm',
+  'j2ki',
+  'j2is',
 ]);
 
 function detecterMagic(bytes: Buffer): MimeDetecte | null {
   if (bytes.length < 4) return null;
+
+  // G-HEIC-01 : logger empreinte hex pour débogage (GSD_DEBUG_MAGIC_BYTES=1)
+  if (process.env['GSD_DEBUG_MAGIC_BYTES'] === '1') {
+    // eslint-disable-next-line no-console
+    console.error('[magic-bytes] empreinte=', bytes.subarray(0, 24).toString('hex'));
+  }
 
   // %PDF- = 0x25 0x50 0x44 0x46 0x2D
   if (
@@ -86,20 +101,29 @@ function detecterMagic(bytes: Buffer): MimeDetecte | null {
     return null;
   }
 
-  // HEIC : box_size (0..3 UInt32BE) >= 16 && <= bytes.length, puis "ftyp" (4..7) + brand (8..11) ∈ HEIC_BRANDS
+  // HEIC : ftyp box ISO/IEC 14496-12.
+  // Cas standard  : box_size (UInt32BE offset 0) >= 16 && <= bytes.length, "ftyp" (4-7), brand (8-11).
+  // Cas large box : box_size === 1 → largesize sur UInt64BE (8-15), brand à l'offset 16-19.
+  //                 (ISO/IEC 14496-12 §4.2 — largeur 64 bits, signalée par box_size = 1)
   if (bytes.length >= 12) {
     const boxSize = bytes.readUInt32BE(0);
-    if (
-      boxSize >= 16 &&
-      boxSize <= bytes.length &&
+    const ftypMatch =
       bytes[4] === 0x66 && // f
       bytes[5] === 0x74 && // t
       bytes[6] === 0x79 && // y
-      bytes[7] === 0x70    // p
-    ) {
-      const brand = bytes.subarray(8, 12).toString('ascii');
-      if (HEIC_BRANDS.has(brand)) {
-        return 'image/heic';
+      bytes[7] === 0x70;   // p
+
+    if (ftypMatch) {
+      if (boxSize === 1 && bytes.length >= 20) {
+        // G-HEIC-01 : large box — largesize en UInt64BE offset 8, brand offset 16
+        const largeSize = bytes.readBigUInt64BE(8);
+        if (largeSize >= 16n && largeSize <= BigInt(bytes.length)) {
+          const brand = bytes.subarray(16, 20).toString('ascii');
+          if (HEIC_BRANDS.has(brand)) return 'image/heic';
+        }
+      } else if (boxSize >= 16 && boxSize <= bytes.length) {
+        const brand = bytes.subarray(8, 12).toString('ascii');
+        if (HEIC_BRANDS.has(brand)) return 'image/heic';
       }
     }
   }

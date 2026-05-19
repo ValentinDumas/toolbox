@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { validerMagicBytes } from '../../../src/application/documents/valider-magic-bytes.js';
 
@@ -133,5 +133,84 @@ describe('CR-08 — HEIC box_size', () => {
   it('accepte box_size = 24 plausible (HEIC valide)', () => {
     const buf = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), FTYP, BRAND_HEIC, Buffer.alloc(12)]);
     expect(validerMagicBytes(buf, 'image/heic')).toEqual({ ok: true, mimeFinal: 'image/heic' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// G-HEIC-01 — brands ISOBMFF élargis
+// ---------------------------------------------------------------------------
+
+function magicHeicBrand(brand: string, boxSize = 24): Buffer {
+  const buffer = Buffer.alloc(Math.max(boxSize, 24));
+  buffer.writeUInt32BE(boxSize, 0);
+  buffer[4] = 0x66; // f
+  buffer[5] = 0x74; // t
+  buffer[6] = 0x79; // y
+  buffer[7] = 0x70; // p
+  buffer.write(brand, 8, 'ascii');
+  return buffer;
+}
+
+describe('G-HEIC-01 — brands ISOBMFF élargis', () => {
+  it.each(['mif2', 'msf2', 'avif', 'avis', '1pic', 'mfsm', 'j2ki', 'j2is'] as const)(
+    'accepte brand %s',
+    (brand) => {
+      const r = validerMagicBytes(magicHeicBrand(brand), 'image/heic');
+      expect(r).toEqual({ ok: true, mimeFinal: 'image/heic' });
+    },
+  );
+});
+
+describe('G-HEIC-01 — large box (box_size === 1, largesize UInt64BE offset 8)', () => {
+  const FTYP = Buffer.from([0x66, 0x74, 0x79, 0x70]); // 'ftyp'
+
+  it('accepte large box avec largesize valide', () => {
+    // box_size = 1 → large box ; largesize = 32 (fits in buffer)
+    const buf = Buffer.alloc(32);
+    buf.writeUInt32BE(1, 0);    // box_size = 1 (large box signal)
+    FTYP.copy(buf, 4);          // ftyp
+    buf.writeBigUInt64BE(32n, 8); // largesize = 32 (= buffer length)
+    buf.write('heic', 16, 'ascii'); // brand at offset 16
+    expect(validerMagicBytes(buf, 'image/heic')).toEqual({ ok: true, mimeFinal: 'image/heic' });
+  });
+
+  it('rejette large box avec largesize > bytes.length', () => {
+    const buf = Buffer.alloc(32);
+    buf.writeUInt32BE(1, 0);
+    FTYP.copy(buf, 4);
+    buf.writeBigUInt64BE(9999n, 8); // largesize dépasse le buffer
+    buf.write('heic', 16, 'ascii');
+    expect(validerMagicBytes(buf, 'image/heic')).toEqual({ ok: false, raison: 'format-non-accepte' });
+  });
+});
+
+describe('G-HEIC-01 — logger empreinte GSD_DEBUG_MAGIC_BYTES', () => {
+  const originalEnv = process.env['GSD_DEBUG_MAGIC_BYTES'];
+
+  beforeEach(() => {
+    delete process.env['GSD_DEBUG_MAGIC_BYTES'];
+  });
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env['GSD_DEBUG_MAGIC_BYTES'];
+    } else {
+      process.env['GSD_DEBUG_MAGIC_BYTES'] = originalEnv;
+    }
+  });
+
+  it('appelle console.error quand GSD_DEBUG_MAGIC_BYTES=1', () => {
+    process.env['GSD_DEBUG_MAGIC_BYTES'] = '1';
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    validerMagicBytes(magicHeicBrand('heic'), 'image/heic');
+    expect(spy).toHaveBeenCalledWith('[magic-bytes] empreinte=', expect.any(String));
+    spy.mockRestore();
+  });
+
+  it('ne appelle pas console.error quand GSD_DEBUG_MAGIC_BYTES non défini', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    validerMagicBytes(magicHeicBrand('heic'), 'image/heic');
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

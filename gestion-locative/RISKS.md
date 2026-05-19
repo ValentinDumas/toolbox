@@ -129,7 +129,7 @@
 **Mitigation** :
 - Périmètre V1 explicitement limité au **bailleur unique, lots distincts, locataire principal**.
 - Document `LOGICIEL_GESTION_LOCATIVE.md` (section périmètre étendu) liste ces cas comme V2.
-- Modèle de données conçu pour permettre l'extension (cf. [DDD.md](DDD.md) — bounded contexts).
+- Modèle de données conçu pour permettre l'extension (cf. [practices/DDD.md](practices/DDD.md) — bounded contexts).
 
 **Statut** : V1 = hors périmètre documenté ; **V2** = support.
 
@@ -299,6 +299,28 @@
 - Documentation transparente des sources (CGI, BOFIP, etc.) directement dans l'UI.
 
 **Statut** : **V1** (disclaimers + traçabilité) ; mode EC **V2**.
+
+---
+
+## 6. Risques dépendances système
+
+### R6.1 — libheif sans plugin de décodage HEVC (HEIC iPhone)
+
+**Description** : la conversion HEIC → JPEG côté serveur (D-105) repose sur `sharp` → `libvips` → `libheif`. Sur macOS (Homebrew) et certaines distributions Linux, `libheif` est livré **sans** plugin de décodage HEVC (`libheif-plugin-libde265` ou `libheif-plugin-aom`). Tout upload HEIC échoue alors avec `"No decoding plugin installed for this compression format (11.6003)"`.
+
+**Source UAT** : G-HEIC-02 (smoke test 2026-05-19).
+
+**Impact si ignoré** : SC-1 « uploader des Justificatifs » partiellement cassé pour les utilisateurs iPhone (HEIC format par défaut sur les iPhone depuis iOS 11).
+
+**Mitigation** :
+- `ConvertisseurImageSharp` catche l'erreur regex `/No decoding plugin installed|bad seek|libheif: Error while loading plugin/i` et lève `ConversionHeicIndisponible` (classe domaine).
+- Route `POST /coffre/upload` répond HTTP 503 avec message actionable : *"HEIC non supporté sur ce poste. Convertissez en JPEG (Aperçu/Photos) avant l'upload, ou installez libheif (cf. README §Dépendances système)."*
+- `README.md` section « Dépendances système » documente les commandes d'installation par OS :
+  - macOS : `brew install libheif libde265`
+  - Debian/Ubuntu : `sudo apt install libheif1 libheif-dev libde265-0`
+  - Fedora/RHEL : `sudo dnf install libheif libheif-devel libde265`
+
+**Statut** : **V1** (mitigation 503 + doc). Installation automatique des plugins hors périmètre (postinstall requiert sudo / interactivité).
 
 ---
 
