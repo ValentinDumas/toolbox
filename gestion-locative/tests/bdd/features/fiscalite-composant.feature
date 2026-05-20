@@ -22,7 +22,7 @@ Fonctionnalité: Gestion des composants de la ValorisationFiscale (D-FIS-G1.1, G
       | composant_installations    | 12000  |
       | composant_agencements      | 8000   |
       | composant_mobilier         | 5000   |
-    Alors 6 composants sont créés (1 terrain + 5 amortissables)
+    Alors 6 composants sont créés incluant le terrain et les amortissables
     Et la valorisation fiscale est persistée avec le prix d'acquisition de 200 000 €
     Et je suis redirigé vers la page détail de la fiscalité du bien
 

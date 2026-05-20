@@ -2,6 +2,37 @@ import { z } from 'zod';
 import { QUALIFICATIONS_VALIDES } from '../../domain/fiscalite/qualification-fiscale.js';
 
 /**
+ * POST /biens/:bienId/fiscalite/activer
+ *
+ * Validation Zod côté serveur (source de vérité).
+ * T-05-03-02 : Σ composants validé en use case (ComposantsSommeIncoherente) — pas ici.
+ * T-05-03-03 : quotePartTerrainRatio validé [0, 0.30] côté serveur + domain invariant.
+ * T-05-03-07 : schema fixe 5 composants — pas de répétition.
+ */
+export const activerFiscaliteSchema = z.object({
+  prixAcquisitionEuros: z.coerce
+    .number()
+    .refine((n) => n > 0, 'Le prix d\'acquisition doit être supérieur à 0'),
+  dateAcquisition: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format AAAA-MM-JJ requis'),
+  fraisNotaireEuros: z.coerce.number().min(0, 'Les frais ne peuvent pas être négatifs'),
+  fraisAgenceEuros: z.coerce.number().min(0, 'Les frais ne peuvent pas être négatifs'),
+  quotePartTerrainRatio: z.coerce
+    .number()
+    .min(0, 'La quote-part terrain doit être ≥ 0')
+    .max(0.30, 'La quote-part terrain ne peut pas dépasser 30 % (D-FIS-G1.8)'),
+  /** Montants HT des 5 composants amortissables en euros */
+  gros_oeuvre: z.coerce.number().min(0),
+  toiture_facade: z.coerce.number().min(0),
+  installations_techniques: z.coerce.number().min(0),
+  agencements_interieurs: z.coerce.number().min(0),
+  mobilier: z.coerce.number().min(0),
+});
+
+export type ActiverFiscaliteData = z.infer<typeof activerFiscaliteSchema>;
+
+/**
  * Schémas Zod pour les routes de qualification fiscale (Plan 02 — D-FIS-G2.1 à G2.6).
  *
  * Validation Zod uniquement aux frontières HTTP (adapters Fastify) — jamais dans le domaine.

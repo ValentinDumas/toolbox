@@ -1,0 +1,35 @@
+<%
+  /**
+   * Partial — ligne composant amortissable (D-FIS-G1.1, BOFIP-BIC-AMT-20-40).
+   *
+   * Variables attendues :
+   *   - composantType {string} : TypeComposantBofip (ex: 'gros_oeuvre')
+   *   - label {string} : libellé français affiché
+   *   - dureeAns {number} : durée d'amortissement en années (0 = terrain non amortissable)
+   *   - valeurInitiale {string|number} : valeur pré-remplie du champ (défaut '')
+   */
+  const _valeur = typeof valeurInitiale !== 'undefined' ? valeurInitiale : '';
+  const _idChamp = composantType + '-montant';
+  const _nameChamp = composantType;
+%>
+<div class="form-field">
+  <label for="<%= _idChamp %>">
+    <%= label %>
+    <% if (dureeAns > 0) { %>
+      <span class="form-field-hint" aria-hidden="true">(<%= dureeAns %> ans — BOFIP-BIC-AMT-20-40)</span>
+    <% } else { %>
+      <span class="form-field-hint" aria-hidden="true">(non amortissable — CGI art. 39)</span>
+    <% } %>
+  </label>
+  <input
+    type="number"
+    step="0.01"
+    min="0"
+    id="<%= _idChamp %>"
+    name="<%= _nameChamp %>"
+    value="<%= _valeur %>"
+    aria-label="<%= label %> en euros HT"
+    class="composant-input"
+    data-composant-type="<%= composantType %>"
+  />
+</div>

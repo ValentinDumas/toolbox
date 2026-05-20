@@ -72,6 +72,11 @@ import { TicketTravauxRepositorySqlite } from './infrastructure/repositories/tic
 import { RecettesRepositorySqlite } from './infrastructure/repositories/recettes-repository-sqlite.js';
 import { ChargesRepositorySqlite } from './infrastructure/repositories/charges-repository-sqlite.js';
 import { registerFiscaliteQualificationRoutes } from './web/routes/fiscalite/qualification.js';
+import { registerFiscaliteComposantsRoutes } from './web/routes/fiscalite/composants.js';
+import {
+  ComposantRepositorySqlite,
+  ValorisationFiscaleRepositorySqlite,
+} from './infrastructure/repositories/composant-repository-sqlite.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -313,6 +318,17 @@ export async function creerApp(
   await registerFiscaliteQualificationRoutes(app, {
     justificatifRepo: justificatifRepo as never,
     ticketRepo,
+    clock,
+    db,
+  });
+
+  // Phase 5 — BC Fiscalité (FIS-04, Plan 03) : composants + valorisation fiscale
+  const composantRepo = new ComposantRepositorySqlite(db);
+  const valorisationFiscaleRepo = new ValorisationFiscaleRepositorySqlite(db);
+  await registerFiscaliteComposantsRoutes(app, {
+    bienRepo: repo,
+    composantRepo,
+    valorisationRepo: valorisationFiscaleRepo,
     clock,
     db,
   });
