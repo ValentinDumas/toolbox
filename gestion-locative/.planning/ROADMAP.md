@@ -121,13 +121,28 @@ Plans:
   5. Toute la logique fiscale de cette phase est couverte à 100 % par des scénarios BDD (chaque exception du droit a son scénario dédié) — vérifiable via le rapport de couverture du domaine `fiscalite/`.
 **Plans:** 8 plans
 Plans:
+**Wave 1**
 - [ ] 05-01-PLAN.md — Walking enabler fiscal : regles-2026 + RegleFiscaleProvider + Bailleur étendu + migrations 0014/0015/0021 + brand types (wave 1, walking enabler)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 05-02-PLAN.md — Vertical slice qualification charges (FIS-02 + FIS-03 partiel) : Justificatif/Ticket étendus + calculer-micro-bic + recettes/charges repos + S5 + 3 widgets pédagogiques (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 05-03-PLAN.md — Vertical slice Composant + ValorisationFiscale (FIS-04 structure) : migrations 0018+0020 + activer-fiscalite-bien + S3 (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 05-04-PLAN.md — TDD calculerAmortissement (FIS-04 calcul pur) : prorata jour près + ARD + plafond résultat + migration 0019 + S4 (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 05-05-PLAN.md — Vertical slice FIS-01 détection LMP : tri-état verdict + wizard revenus foyer + partial S7 (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 05-06-PLAN.md — Vertical slice clôture exercice (G4) : DeclarationAnnuelle + DeclarationCorrigee append-only + migrations 0016+0017 + wizard S8 5 étapes + récap annuel + page racine /fiscalite (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 05-07-PLAN.md — Vertical slice G5 : vue consolidée S12 + sortie composant + exports CSV/PDF + onboarding S1 (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 05-08-PLAN.md — UI polish + a11y WCAG 2.1 AA + tests d'intégration end-to-end + couverture 100 % cas limites locked + checkpoint humain (wave 8)
 **UI hint:** yes
 
