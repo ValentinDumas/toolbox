@@ -34,6 +34,7 @@ declare module 'fastify' {
     wizard?: WizardSession;
     banniereSuccess?: string;
     banniereWarning?: string;
+    banniereErreur?: string;
   }
 }
 

@@ -265,10 +265,10 @@ describe('TicketTravaux.annuler — soft-delete (D-114)', () => {
   });
 });
 
-describe('TicketTravaux — pas de champ nature (D-115)', () => {
-  it("l'instance n'expose AUCUN champ `nature`", () => {
+describe('TicketTravaux — champ nature Phase 5 (D-FIS-G1.2 remplace D-115)', () => {
+  it("l'instance expose `nature` nullable (null par défaut si non fourni)", () => {
     const t = TicketTravaux.creer(unTicketTravauxValide(), TODAY);
-    expect((t as unknown as Record<string, unknown>)['nature']).toBeUndefined();
+    expect((t as unknown as Record<string, unknown>)['nature']).toBeNull();
   });
 });
 

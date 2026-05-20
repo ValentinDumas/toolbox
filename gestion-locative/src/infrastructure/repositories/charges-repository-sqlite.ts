@@ -9,7 +9,7 @@ import { Money } from '../../domain/_shared/money.js';
 import type { BailleurId } from '../../domain/_shared/identifiants.js';
 
 /** Valeurs de qualification exclues de l'agrégation (non qualifié = pas encore traité). */
-const QUALIFICATIONS_EXCLUES: readonly string[] = ['non_qualifie'];
+const QUALIFICATIONS_EXCLUES = ['non_qualifie'] as const;
 
 /**
  * Adapter SQLite — ChargesRepository (FIS-03, D-FIS-G2.2).
