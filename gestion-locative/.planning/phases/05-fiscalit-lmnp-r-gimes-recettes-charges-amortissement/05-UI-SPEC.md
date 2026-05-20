@@ -1,10 +1,11 @@
 ---
 phase: 5
 slug: fiscalit-lmnp-r-gimes-recettes-charges-amortissement
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-20
+reviewed_at: 2026-05-20
 ---
 
 # Phase 5 — UI Design Contract
@@ -94,6 +95,8 @@ Source unique : `public/styles/app.css` lignes 4–15. NE PAS redéfinir. Docume
 ---
 
 ## Surfaces et interactions Phase 5
+
+**Ancre visuelle principale (page récap fiscal)** : le bandeau verdict tri-état (S7) positionné en tête de page — c'est l'élément qui oriente toute la lecture descendante (verdict couleur + lien d'action). Sur les écrans d'action (S3 activation, S5 qualification, S8 wizard clôture), l'ancre devient le CTA primaire en couleur accent (un seul par écran).
 
 Liste des 12 surfaces avec leurs éléments d'interaction prescrits.
 
@@ -326,11 +329,11 @@ Source : practices/ACCESSIBILITY.md. Obligations spécifiques Phase 5 :
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS (FLAG initial sur focal point — corrigé par ajout du paragraphe « Ancre visuelle principale » dans la section Surfaces)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-05-20 (gsd-ui-checker, agentId a882736537c2e8eeb, 6/6 PASS après correction FLAG dim. 2)
