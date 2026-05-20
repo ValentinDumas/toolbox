@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-05-20T18:37:42.359Z"
-last_activity: 2026-05-20 -- Phase 5 planning complete
+last_updated: "2026-05-20T19:17:28.943Z"
+last_activity: 2026-05-20 -- Phase 5 execution started
 progress:
   total_phases: 7
   completed_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13)
 
 **Core value:** Centraliser factures, quittances, baux et échéances pour simplifier les obligations fiscales LMNP (liasse 2031, 2042 C PRO, CFE, amortissements, plus-value LF 2025) — sans cloud, sans délégation.
-**Current focus:** Phase 04 — coffre-documentaire-travaux
+**Current focus:** Phase 5 — fiscalit-lmnp-r-gimes-recettes-charges-amortissement
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-20 -- Phase 5 planning complete
+Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 5
+Last activity: 2026-05-20 -- Phase 5 execution started
 
 Progress: [█████████░] 85%
 

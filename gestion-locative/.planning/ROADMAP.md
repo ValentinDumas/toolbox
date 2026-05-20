@@ -119,10 +119,10 @@ Plans:
   3. Le système calcule l'amortissement par composant en régime réel : terrain exclu, prorata temporis à l'acquisition, ARD reportable, **plafonné au résultat avant amortissement**.
   4. Le système détecte le risque de bascule LMP (recettes annuelles > 23 000 € **ET** > revenus actifs du foyer) et alerte explicitement l'utilisateur.
   5. Toute la logique fiscale de cette phase est couverte à 100 % par des scénarios BDD (chaque exception du droit a son scénario dédié) — vérifiable via le rapport de couverture du domaine `fiscalite/`.
-**Plans:** 8 plans
+**Plans:** 1/8 plans executed
 Plans:
 **Wave 1**
-- [ ] 05-01-PLAN.md — Walking enabler fiscal : regles-2026 + RegleFiscaleProvider + Bailleur étendu + migrations 0014/0015/0021 + brand types (wave 1, walking enabler)
+- [x] 05-01-PLAN.md — Walking enabler fiscal : regles-2026 + RegleFiscaleProvider + Bailleur étendu + migrations 0014/0015/0021 + brand types (wave 1, walking enabler)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 05-02-PLAN.md — Vertical slice qualification charges (FIS-02 + FIS-03 partiel) : Justificatif/Ticket étendus + calculer-micro-bic + recettes/charges repos + S5 + 3 widgets pédagogiques (wave 2)
@@ -183,6 +183,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Quittancement — Échéances, Encaissements, Relances | 7/7 | Complete | 2026-05-16 |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/5 | Planned | - |
 | 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
-| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 0/8 | Planned | - |
+| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 1/8 | In Progress|  |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
 | 7. Dashboard & Notifications d'échéances | 0/TBD | Not started | - |
