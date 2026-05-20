@@ -1,9 +1,11 @@
+import { Temporal } from '@js-temporal/polyfill';
 import type { Kysely } from 'kysely';
 
 import type { DB } from '../db/kysely-types.js';
 import type { BailleurRepository } from '../../domain/identite/bailleur-repository.js';
-import { Bailleur } from '../../domain/identite/bailleur.js';
+import { Bailleur, type RegimeFiscal } from '../../domain/identite/bailleur.js';
 import { Adresse } from '../../domain/_shared/adresse.js';
+import { Money } from '../../domain/_shared/money.js';
 import type { BailleurId } from '../../domain/_shared/identifiants.js';
 
 export class BailleurRepositorySqlite implements BailleurRepository {
@@ -33,6 +35,11 @@ export class BailleurRepositorySqlite implements BailleurRepository {
         rue: bailleur.adresse.rue,
         code_postal: bailleur.adresse.codePostal,
         ville: bailleur.adresse.ville,
+        // Phase 5 — champs fiscaux (D-LOCK-2, D-FIS-G3.1, D-FIS-G5.4)
+        regime_fiscal: bailleur.regimeFiscal ?? null,
+        revenus_actifs_annuels_courant_centimes:
+          bailleur.revenusActifsAnnuelsCourant?.toSqliteInteger() ?? null,
+        fiscalite_premier_acces: bailleur.fiscalitePremierAcces?.toString() ?? null,
       })
       .onConflict((oc) =>
         oc.column('singleton_marker').doUpdateSet({
@@ -41,6 +48,11 @@ export class BailleurRepositorySqlite implements BailleurRepository {
           code_postal: bailleur.adresse.codePostal,
           ville: bailleur.adresse.ville,
           modifie_le: new Date().toISOString(),
+          // Phase 5 — mise à jour champs fiscaux (D-LOCK-2)
+          regime_fiscal: bailleur.regimeFiscal ?? null,
+          revenus_actifs_annuels_courant_centimes:
+            bailleur.revenusActifsAnnuelsCourant?.toSqliteInteger() ?? null,
+          fiscalite_premier_acces: bailleur.fiscalitePremierAcces?.toString() ?? null,
         }),
       )
       .execute();
@@ -55,6 +67,11 @@ export class BailleurRepositorySqlite implements BailleurRepository {
         code_postal: bailleur.adresse.codePostal,
         ville: bailleur.adresse.ville,
         modifie_le: new Date().toISOString(),
+        // Phase 5 — mise à jour champs fiscaux (D-LOCK-2)
+        regime_fiscal: bailleur.regimeFiscal ?? null,
+        revenus_actifs_annuels_courant_centimes:
+          bailleur.revenusActifsAnnuelsCourant?.toSqliteInteger() ?? null,
+        fiscalite_premier_acces: bailleur.fiscalitePremierAcces?.toString() ?? null,
       })
       .where('id', '=', bailleur.id)
       .execute();
@@ -66,6 +83,9 @@ export class BailleurRepositorySqlite implements BailleurRepository {
     rue: string;
     code_postal: string;
     ville: string;
+    regime_fiscal?: string | null;
+    revenus_actifs_annuels_courant_centimes?: number | null;
+    fiscalite_premier_acces?: string | null;
   }): Bailleur {
     return Bailleur.creer({
       id: row.id as BailleurId,
@@ -75,6 +95,14 @@ export class BailleurRepositorySqlite implements BailleurRepository {
         codePostal: row.code_postal,
         ville: row.ville,
       }),
+      // Phase 5 — champs fiscaux (D-LOCK-2, D-FIS-G3.1, D-FIS-G5.4)
+      regimeFiscal: (row.regime_fiscal as RegimeFiscal | null) ?? null,
+      revenusActifsAnnuelsCourant: row.revenus_actifs_annuels_courant_centimes != null
+        ? Money.fromCentimes(BigInt(row.revenus_actifs_annuels_courant_centimes))
+        : null,
+      fiscalitePremierAcces: row.fiscalite_premier_acces != null
+        ? Temporal.PlainDateTime.from(row.fiscalite_premier_acces)
+        : null,
     });
   }
 }

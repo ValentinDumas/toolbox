@@ -25,6 +25,9 @@
       <a href="/coffre"<% if (locals.navActive === 'coffre') { %> aria-current="page"<% } %>>Coffre documentaire</a>
     </li>
     <li>
+      <a href="/fiscalite"<% if (locals.navActive === 'fiscalite') { %> aria-current="page"<% } %>>Fiscalité</a>
+    </li>
+    <li>
       <details<% if (locals.navActive === 'encaissements' || locals.navActive === 'echeances' || locals.navActive === 'quittances' || locals.navActive === 'impayes' || locals.navActive === 'relances') { %> open<% } %>>
         <summary>Encaissements</summary>
         <ul>
