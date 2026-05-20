@@ -277,6 +277,22 @@ export interface BienValorisationFiscaleTable {
   active_le: string;
 }
 
+// Phase 5 — BC Fiscalité : AmortissementExercice read-model (migration 0019)
+// Append-only strict (D-FIS-G1.7, T-05-04-02) : UNIQUE (bien_id, composant_id, exercice)
+export interface AmortissementExerciceTable {
+  id: string;
+  bien_id: string;
+  composant_id: string | null;  // null si type_ligne = 'SYNTHESE_BIEN'
+  exercice: number;
+  type_ligne: 'COMPOSANT' | 'SYNTHESE_BIEN';
+  dotation_theorique_centimes: number;
+  dotation_appliquee_centimes: number;
+  ard_genere_centimes: number;
+  ard_cumule_disponible_centimes: number | null;  // non null si SYNTHESE_BIEN
+  ard_consomme_centimes: number | null;            // non null si SYNTHESE_BIEN
+  cree_le: string;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -295,7 +311,8 @@ export interface DB {
   justificatifs: JustificatifsTable;
   tickets_travaux: TicketsTravauxTable;
   ticket_justificatifs: TicketJustificatifsTable;
-  // Phase 5 — BC Fiscalité (migrations 0018, 0020)
+  // Phase 5 — BC Fiscalité (migrations 0018, 0019, 0020)
   bien_composant: BienComposantTable;
   bien_valorisation_fiscale: BienValorisationFiscaleTable;
+  amortissement_exercice: AmortissementExerciceTable;
 }
