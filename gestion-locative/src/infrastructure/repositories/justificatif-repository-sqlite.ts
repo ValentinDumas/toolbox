@@ -18,6 +18,7 @@ import type {
   JustificatifRechercheFiltres,
   JustificatifRepository,
 } from '../../domain/documents/justificatif-repository.js';
+import { type QualificationFiscale } from '../../domain/fiscalite/qualification-fiscale.js';
 import type { DB, JustificatifsTable } from '../db/kysely-types.js';
 
 type DbOrTrx = Kysely<DB> | Transaction<DB>;
@@ -38,6 +39,11 @@ type Row = {
   cree_le: string;
   corbeille_le: string | null;
   raison_corbeille: string | null;
+  // Phase 5 — migration 0014
+  qualification_fiscale: JustificatifsTable['qualification_fiscale'];
+  qualifie_le: string | null;
+  date_paiement: string | null;
+  parent_justificatif_id: string | null;
 };
 
 export class JustificatifRepositorySqlite implements JustificatifRepository {
@@ -57,6 +63,11 @@ export class JustificatifRepositorySqlite implements JustificatifRepository {
           notes: row.notes,
           corbeille_le: row.corbeille_le,
           raison_corbeille: row.raison_corbeille,
+          // Phase 5 — champs mutables
+          qualification_fiscale: row.qualification_fiscale,
+          qualifie_le: row.qualifie_le,
+          date_paiement: row.date_paiement,
+          parent_justificatif_id: row.parent_justificatif_id,
         }),
       )
       .execute();
@@ -186,6 +197,41 @@ export class JustificatifRepositorySqlite implements JustificatifRepository {
     await db.deleteFrom('justificatifs').where('id', '=', id).execute();
   }
 
+  /**
+   * Lister les justificatifs non qualifiés pour une année donnée (D-FIS-G2.1).
+   * Filtre : qualification_fiscale = 'non_qualifie' OR NULL ; corbeille_le IS NULL ;
+   * coalesce(date_paiement, date_document) year = annee.
+   */
+  async listerNonQualifiesPourAnnee(
+    annee: number,
+    trxArg?: unknown,
+  ): Promise<Justificatif[]> {
+    const db = (trxArg as DbOrTrx | undefined) ?? this.db;
+    const rows = await (db as Kysely<DB>)
+      .selectFrom('justificatifs')
+      .selectAll()
+      .where('corbeille_le', 'is', null)
+      .where((eb) =>
+        eb.or([
+          eb('qualification_fiscale', 'is', null),
+          eb('qualification_fiscale', '=', 'non_qualifie'),
+        ]),
+      )
+      .where(
+        (eb) =>
+          eb.fn('substr', [
+            eb.fn('coalesce', ['date_paiement', 'date_document']),
+            eb.val(1),
+            eb.val(4),
+          ]),
+        '=',
+        String(annee),
+      )
+      .orderBy('date_document', 'desc')
+      .execute();
+    return rows.map((r) => this.versDomaine(r as Row));
+  }
+
   private versDomaine(row: Row): Justificatif {
     return Justificatif.creer({
       id: row.id as JustificatifId,
@@ -208,6 +254,11 @@ export class JustificatifRepositorySqlite implements JustificatifRepository {
         ? Temporal.PlainDate.from(row.corbeille_le)
         : null,
       raisonCorbeille: row.raison_corbeille,
+      // Phase 5
+      qualificationFiscale: (row.qualification_fiscale as QualificationFiscale | null) ?? null,
+      qualifieLe: row.qualifie_le ? Temporal.PlainDate.from(row.qualifie_le) : null,
+      datePaiement: row.date_paiement ? Temporal.PlainDate.from(row.date_paiement) : null,
+      parentJustificatifId: (row.parent_justificatif_id as JustificatifId | null) ?? null,
     });
   }
 
@@ -229,6 +280,11 @@ export class JustificatifRepositorySqlite implements JustificatifRepository {
       cree_le: j.creeLe.toString(),
       corbeille_le: j.corbeilleLe?.toString() ?? null,
       raison_corbeille: j.raisonCorbeille,
+      // Phase 5
+      qualification_fiscale: j.qualificationFiscale as JustificatifsTable['qualification_fiscale'],
+      qualifie_le: j.qualifieLe?.toString() ?? null,
+      date_paiement: j.datePaiement?.toString() ?? null,
+      parent_justificatif_id: j.parentJustificatifId ?? null,
     };
   }
 }

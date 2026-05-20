@@ -10,8 +10,10 @@ import { Money } from '../../domain/_shared/money.js';
 import {
   TicketTravaux,
   type StatutTicket,
+  type NatureTicket,
 } from '../../domain/travaux/ticket-travaux.js';
 import type { TicketTravauxRepository } from '../../domain/travaux/ticket-travaux-repository.js';
+import type { QualificationFiscale } from '../../domain/fiscalite/qualification-fiscale.js';
 import type {
   DB,
   TicketsTravauxTable,
@@ -33,19 +35,25 @@ type Row = {
   cree_le: string;
   annule_le: string | null;
   raison_annulation: string | null;
+  // Phase 5 — migration 0021
+  nature: TicketsTravauxTable['nature'];
+  nature_fiscale: TicketsTravauxTable['nature_fiscale'];
+  qualifie_le_ticket?: string | null;
 };
 
 /**
  * Adapter SQLite pour TicketTravauxRepository (D-112 + D-113).
  *
+ * Phase 5 extensions (migration 0021) :
+ *   - versDomaine lit nature, nature_fiscale
+ *   - versRow écrit nature, nature_fiscale
+ *   - listerJustificatifsLies retourne Justificatif[] (au lieu de JustificatifId[])
+ *     pour permettre au use case qualifier-ticket-travaux de les modifier
+ *
  * - upsert via onConflict('id') sur les champs mutables (statut, dateCloture,
- *   coutEstime, coutReel, notes, annuleLe, raisonAnnulation). Immuables :
- *   bienId, titre, description, dateOuverture, creeLe.
- * - listerParBien : exclut par défaut annule_le NOT NULL (UI fiche Bien).
+ *   coutEstime, coutReel, notes, annuleLe, raisonAnnulation, nature, natureFiscale).
  * - N:N pivot `ticket_justificatifs` : lier (idempotent onConflict doNothing) /
  *   delier (DELETE) / lister (JOIN justificatifs ORDER BY date_document DESC).
- * - Cascade asymétrique D-113 : SQL fait DELETE pivot quand ticket supprimé,
- *   mais aucune cascade sur DELETE justificatif (rétention 10 ans D-109 prime).
  */
 export class TicketTravauxRepositorySqlite implements TicketTravauxRepository {
   constructor(private readonly db: Kysely<DB>) {}
@@ -68,6 +76,9 @@ export class TicketTravauxRepositorySqlite implements TicketTravauxRepository {
           notes: row.notes,
           annule_le: row.annule_le,
           raison_annulation: row.raison_annulation,
+          // Phase 5
+          nature: row.nature,
+          nature_fiscale: row.nature_fiscale,
         }),
       )
       .execute();
@@ -170,12 +181,13 @@ export class TicketTravauxRepositorySqlite implements TicketTravauxRepository {
           ? Temporal.PlainDate.from(row.annule_le)
           : null,
         raisonAnnulation: row.raison_annulation,
+        // Phase 5
+        nature: (row.nature as NatureTicket) ?? null,
+        natureFiscale: (row.nature_fiscale as QualificationFiscale | null) ?? null,
+        qualifieLeTicket: row.qualifie_le_ticket
+          ? Temporal.PlainDate.from(row.qualifie_le_ticket)
+          : null,
       },
-      // Reconstruit depuis la DB → on neutralise l'invariant dateOuverture ≤ today
-      // en passant un today très ancien (impossible que dateOuverture soit avant).
-      // Pattern habituel des `versDomaine` qui chargent un état déjà validé en
-      // amont (cf. EtatDesLieux, Justificatif — pas d'invariant chronologique
-      // sur le load).
       row.date_ouverture
         ? Temporal.PlainDate.from(row.date_ouverture)
         : Temporal.PlainDate.from('1900-01-01'),
@@ -199,6 +211,10 @@ export class TicketTravauxRepositorySqlite implements TicketTravauxRepository {
       cree_le: t.creeLe.toString(),
       annule_le: t.annuleLe?.toString() ?? null,
       raison_annulation: t.raisonAnnulation,
+      // Phase 5
+      nature: t.nature as TicketsTravauxTable['nature'],
+      nature_fiscale: t.natureFiscale as TicketsTravauxTable['nature_fiscale'],
+      qualifie_le_ticket: t.qualifieLeTicket?.toString() ?? null,
     };
   }
 }
