@@ -3,7 +3,10 @@ import { Justificatif } from '../../src/domain/documents/justificatif.js';
 import { TicketTravaux } from '../../src/domain/travaux/ticket-travaux.js';
 import { Money } from '../../src/domain/_shared/money.js';
 import type { QualificationFiscale } from '../../src/domain/fiscalite/qualification-fiscale.js';
-import type { BienId, CheminRelatif, JustificatifId } from '../../src/domain/_shared/identifiants.js';
+import type { BienId, CheminRelatif, JustificatifId, TicketTravauxId } from '../../src/domain/_shared/identifiants.js';
+import { Composant } from '../../src/domain/fiscalite/composant.js';
+import type { OrigineKindComposant, MotifSortieComposant } from '../../src/domain/fiscalite/composant.js';
+import { ValorisationFiscale } from '../../src/domain/fiscalite/valorisation-fiscale.js';
 
 const TODAY = Temporal.PlainDate.from('2026-05-20');
 const DEFAULT_BIEN_ID = crypto.randomUUID() as BienId;
@@ -116,6 +119,80 @@ export function unTicketAmelioration(overrides: OverridesTicket = {}): TicketTra
     },
     TODAY,
   );
+}
+
+// ─── Composant Builders ───────────────────────────────────────────────────────
+
+interface OverridesComposant {
+  bienId?: BienId;
+  montantHt?: Money;
+  dateAcquisition?: Temporal.PlainDate;
+  origineKind?: OrigineKindComposant;
+  ticketId?: TicketTravauxId | null;
+  dateSortie?: Temporal.PlainDate | null;
+  motifSortie?: MotifSortieComposant | null;
+}
+
+/**
+ * Builder Composant gros_oeuvre valide (initial, sans sortie).
+ * Montant par défaut : 200 000 € — cas de référence CONTEXT.md L249.
+ */
+export function unComposantGrosOeuvre(overrides: OverridesComposant = {}): Composant {
+  return Composant.creer({
+    bienId: overrides.bienId ?? (crypto.randomUUID() as BienId),
+    type: 'gros_oeuvre',
+    montantHt: overrides.montantHt ?? Money.fromEuros(200_000),
+    dateAcquisition: overrides.dateAcquisition ?? Temporal.PlainDate.from('2026-01-01'),
+    origineKind: overrides.origineKind ?? 'initial',
+    ticketId: overrides.ticketId !== undefined ? overrides.ticketId : null,
+    dateSortie: overrides.dateSortie !== undefined ? overrides.dateSortie : null,
+    motifSortie: overrides.motifSortie !== undefined ? overrides.motifSortie : null,
+  });
+}
+
+/**
+ * Builder Composant mobilier valide (initial, sans sortie).
+ * Mobilier = durée 7 ans, dernier dans l'ordre stable de répartition.
+ */
+export function unComposantMobilier(overrides: OverridesComposant = {}): Composant {
+  return Composant.creer({
+    bienId: overrides.bienId ?? (crypto.randomUUID() as BienId),
+    type: 'mobilier',
+    montantHt: overrides.montantHt ?? Money.fromEuros(5_000),
+    dateAcquisition: overrides.dateAcquisition ?? Temporal.PlainDate.from('2026-01-01'),
+    origineKind: overrides.origineKind ?? 'initial',
+    ticketId: overrides.ticketId !== undefined ? overrides.ticketId : null,
+    dateSortie: overrides.dateSortie !== undefined ? overrides.dateSortie : null,
+    motifSortie: overrides.motifSortie !== undefined ? overrides.motifSortie : null,
+  });
+}
+
+// ─── ValorisationFiscale Builders ─────────────────────────────────────────────
+
+interface OverridesValorisationFiscale {
+  bienId?: BienId;
+  prixAcquisition?: Money;
+  dateAcquisition?: Temporal.PlainDate;
+  fraisNotaire?: Money;
+  fraisAgence?: Money;
+  quotePartTerrainRatio?: number;
+  activeLe?: Temporal.PlainDateTime;
+}
+
+/**
+ * Builder ValorisationFiscale valide.
+ * Valeurs par défaut : cas de référence PLAN 03 (prix 216k, frais notaire 16k, agence 8k).
+ */
+export function uneValorisationFiscale(overrides: OverridesValorisationFiscale = {}): ValorisationFiscale {
+  return ValorisationFiscale.creer({
+    bienId: overrides.bienId ?? (crypto.randomUUID() as BienId),
+    prixAcquisition: overrides.prixAcquisition ?? Money.fromEuros(216_000),
+    dateAcquisition: overrides.dateAcquisition ?? Temporal.PlainDate.from('2026-03-15'),
+    fraisNotaire: overrides.fraisNotaire ?? Money.fromEuros(16_000),
+    fraisAgence: overrides.fraisAgence ?? Money.fromEuros(8_000),
+    quotePartTerrainRatio: overrides.quotePartTerrainRatio ?? 0.10,
+    activeLe: overrides.activeLe ?? Temporal.PlainDateTime.from('2026-03-15T10:00:00'),
+  });
 }
 
 /**
