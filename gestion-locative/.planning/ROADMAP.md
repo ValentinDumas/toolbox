@@ -119,7 +119,16 @@ Plans:
   3. Le système calcule l'amortissement par composant en régime réel : terrain exclu, prorata temporis à l'acquisition, ARD reportable, **plafonné au résultat avant amortissement**.
   4. Le système détecte le risque de bascule LMP (recettes annuelles > 23 000 € **ET** > revenus actifs du foyer) et alerte explicitement l'utilisateur.
   5. Toute la logique fiscale de cette phase est couverte à 100 % par des scénarios BDD (chaque exception du droit a son scénario dédié) — vérifiable via le rapport de couverture du domaine `fiscalite/`.
-**Plans**: TBD
+**Plans:** 8 plans
+Plans:
+- [ ] 05-01-PLAN.md — Walking enabler fiscal : regles-2026 + RegleFiscaleProvider + Bailleur étendu + migrations 0014/0015/0021 + brand types (wave 1, walking enabler)
+- [ ] 05-02-PLAN.md — Vertical slice qualification charges (FIS-02 + FIS-03 partiel) : Justificatif/Ticket étendus + calculer-micro-bic + recettes/charges repos + S5 + 3 widgets pédagogiques (wave 2)
+- [ ] 05-03-PLAN.md — Vertical slice Composant + ValorisationFiscale (FIS-04 structure) : migrations 0018+0020 + activer-fiscalite-bien + S3 (wave 3)
+- [ ] 05-04-PLAN.md — TDD calculerAmortissement (FIS-04 calcul pur) : prorata jour près + ARD + plafond résultat + migration 0019 + S4 (wave 4)
+- [ ] 05-05-PLAN.md — Vertical slice FIS-01 détection LMP : tri-état verdict + wizard revenus foyer + partial S7 (wave 5)
+- [ ] 05-06-PLAN.md — Vertical slice clôture exercice (G4) : DeclarationAnnuelle + DeclarationCorrigee append-only + migrations 0016+0017 + wizard S8 5 étapes + récap annuel + page racine /fiscalite (wave 6)
+- [ ] 05-07-PLAN.md — Vertical slice G5 : vue consolidée S12 + sortie composant + exports CSV/PDF + onboarding S1 (wave 7)
+- [ ] 05-08-PLAN.md — UI polish + a11y WCAG 2.1 AA + tests d'intégration end-to-end + couverture 100 % cas limites locked + checkpoint humain (wave 8)
 **UI hint:** yes
 
 ### Phase 6: Liasse 2031 & CFE
@@ -159,6 +168,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Quittancement — Échéances, Encaissements, Relances | 7/7 | Complete | 2026-05-16 |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/5 | Planned | - |
 | 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
-| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 0/TBD | Not started | - |
+| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 0/8 | Planned | - |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
 | 7. Dashboard & Notifications d'échéances | 0/TBD | Not started | - |
