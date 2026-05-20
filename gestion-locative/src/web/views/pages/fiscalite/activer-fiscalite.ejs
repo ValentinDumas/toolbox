@@ -1,0 +1,263 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Activer la fiscalité réelle — ' + bien.adresse.enLigne(),
+  breadcrumbs: breadcrumbs,
+  navActive: navActive ?? 'fiscalite'
+}) %>
+
+<%- include('../../partials/banniere-success', { message: locals.banniereSuccess ?? null }) %>
+<% if (locals.banniereErreur) { %>
+  <div role="alert" style="background: var(--couleur-warning-bg, #fef3c7); color: var(--couleur-warning, #d97706); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem;">
+    ⚠ <%= banniereErreur %>
+  </div>
+<% } %>
+
+<h1>Activer la fiscalité réelle pour <span><%= bien.adresse.enLigne() %></span></h1>
+
+<p>
+  Cette saisie est requise pour le régime réel LMNP. Le micro-BIC fonctionne sans valorisation
+  et ne nécessite pas cette étape. (<a href="https://bofip.impots.gouv.fr/bofip/8038-PGP.html" target="_blank" rel="noopener noreferrer">BOFIP-BIC-AMT-10-20 §110</a>, D-FIS-G1.4)
+</p>
+
+<% if (erreurSomme) { %>
+  <div role="alert" style="background: var(--couleur-destructive-bg, #fef2f2); color: var(--couleur-destructive, #ef4444); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+    Le total des composants ne correspond pas au prix d'acquisition. Ajustez les montants avant d'activer.
+    <br />
+    <strong><%= erreurSomme %></strong>
+  </div>
+<% } %>
+
+<form method="POST" action="/biens/<%= bien.id %>/fiscalite/activer" novalidate>
+
+  <fieldset>
+    <legend>Prix d'acquisition</legend>
+
+    <div class="form-field">
+      <label for="prixAcquisitionEuros">Prix d'acquisition (€ HT) <abbr title="Obligatoire">*</abbr></label>
+      <% if (erreurs && erreurs.prixAcquisitionEuros) { %>
+        <p class="form-error" role="alert"><%= erreurs.prixAcquisitionEuros %></p>
+      <% } %>
+      <input
+        type="number"
+        step="0.01"
+        min="0.01"
+        id="prixAcquisitionEuros"
+        name="prixAcquisitionEuros"
+        value="<%= valeurs.prixAcquisitionEuros ?? '' %>"
+        required
+        aria-required="true"
+        aria-describedby="aide-prix"
+      />
+      <p class="form-field-hint" id="aide-prix">Prix total d'acquisition hors taxes, hors frais de notaire et d'agence.</p>
+    </div>
+
+    <div class="form-field">
+      <label for="dateAcquisition">Date d'acquisition <abbr title="Obligatoire">*</abbr></label>
+      <% if (erreurs && erreurs.dateAcquisition) { %>
+        <p class="form-error" role="alert"><%= erreurs.dateAcquisition %></p>
+      <% } %>
+      <input
+        type="date"
+        id="dateAcquisition"
+        name="dateAcquisition"
+        value="<%= valeurs.dateAcquisition ?? '' %>"
+        required
+        aria-required="true"
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="fraisNotaireEuros">Frais de notaire (€)</label>
+      <% if (erreurs && erreurs.fraisNotaireEuros) { %>
+        <p class="form-error" role="alert"><%= erreurs.fraisNotaireEuros %></p>
+      <% } %>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        id="fraisNotaireEuros"
+        name="fraisNotaireEuros"
+        value="<%= valeurs.fraisNotaireEuros ?? '0' %>"
+        aria-describedby="aide-frais-notaire"
+      />
+      <p class="form-field-hint" id="aide-frais-notaire">Répartis au prorata sur les composants amortissables (BOFIP-BIC-AMT-10-20 §110, D-FIS-G1.3).</p>
+    </div>
+
+    <div class="form-field">
+      <label for="fraisAgenceEuros">Frais d'agence (€)</label>
+      <% if (erreurs && erreurs.fraisAgenceEuros) { %>
+        <p class="form-error" role="alert"><%= erreurs.fraisAgenceEuros %></p>
+      <% } %>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        id="fraisAgenceEuros"
+        name="fraisAgenceEuros"
+        value="<%= valeurs.fraisAgenceEuros ?? '0' %>"
+      />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Quote-part terrain</legend>
+
+    <div class="form-field">
+      <label for="quotePartTerrainRatioRange">Quote-part terrain [0 % – 30 %]</label>
+      <% if (erreurs && erreurs.quotePartTerrainRatio) { %>
+        <p class="form-error" role="alert"><%= erreurs.quotePartTerrainRatio %></p>
+      <% } %>
+      <input
+        type="range"
+        min="0"
+        max="0.30"
+        step="0.01"
+        id="quotePartTerrainRatioRange"
+        name="quotePartTerrainRatio"
+        value="<%= valeurs.quotePartTerrainRatio ?? '0.10' %>"
+        aria-controls="quotePartTerrainRatioNum"
+        aria-label="Quote-part terrain (slider)"
+      />
+      <input
+        type="number"
+        min="0"
+        max="0.30"
+        step="0.01"
+        id="quotePartTerrainRatioNum"
+        name="quotePartTerrainRatio"
+        value="<%= valeurs.quotePartTerrainRatio ?? '0.10' %>"
+        aria-label="Quote-part terrain (valeur numérique)"
+        style="width: 6rem;"
+      />
+      <details>
+        <summary>Aide — quote-part terrain</summary>
+        <p>
+          Le terrain n'est pas amortissable (CGI art. 39). Sa valeur est déterminée par une quote-part
+          du prix d'acquisition. Typiquement entre 10 % et 25 % selon la localisation.
+          (<a href="https://bofip.impots.gouv.fr/bofip/8038-PGP.html" target="_blank" rel="noopener noreferrer">BOFIP-BIC-AMT-20-40</a>)
+        </p>
+      </details>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Répartition par composant</legend>
+    <p class="form-field-hint">
+      Saisir le montant HT de chaque composant. Σ terrain + composants = prix d'acquisition.
+      Les frais notaire + agence seront répartis au prorata par le système.
+    </p>
+
+    <%- include('../../partials/partial-composant-row', {
+      composantType: 'gros_oeuvre',
+      label: 'Gros-oeuvre',
+      dureeAns: regleFiscale.DUREES_AMORTISSEMENT_ANS.gros_oeuvre,
+      valeurInitiale: valeurs.gros_oeuvre ?? ''
+    }) %>
+
+    <%- include('../../partials/partial-composant-row', {
+      composantType: 'toiture_facade',
+      label: 'Toiture et façade',
+      dureeAns: regleFiscale.DUREES_AMORTISSEMENT_ANS.toiture_facade,
+      valeurInitiale: valeurs.toiture_facade ?? ''
+    }) %>
+
+    <%- include('../../partials/partial-composant-row', {
+      composantType: 'installations_techniques',
+      label: 'Installations techniques',
+      dureeAns: regleFiscale.DUREES_AMORTISSEMENT_ANS.installations_techniques,
+      valeurInitiale: valeurs.installations_techniques ?? ''
+    }) %>
+
+    <%- include('../../partials/partial-composant-row', {
+      composantType: 'agencements_interieurs',
+      label: 'Agencements intérieurs',
+      dureeAns: regleFiscale.DUREES_AMORTISSEMENT_ANS.agencements_interieurs,
+      valeurInitiale: valeurs.agencements_interieurs ?? ''
+    }) %>
+
+    <%- include('../../partials/partial-composant-row', {
+      composantType: 'mobilier',
+      label: 'Mobilier',
+      dureeAns: regleFiscale.DUREES_AMORTISSEMENT_ANS.mobilier,
+      valeurInitiale: valeurs.mobilier ?? ''
+    }) %>
+  </fieldset>
+
+  <fieldset aria-label="Contrôle de cohérence Σ composants">
+    <legend>Vérification de cohérence</legend>
+    <p>
+      Σ composants saisis : <strong id="affichage-somme">—</strong>
+      &nbsp;/&nbsp;
+      Prix d'acquisition : <strong id="affichage-prix">—</strong>
+    </p>
+    <p
+      id="erreur-somme"
+      role="alert"
+      aria-live="polite"
+      style="color: var(--couleur-destructive, #ef4444); display: none;"
+    >
+      ⚠ Σ composants ≠ prix d'acquisition. Ajustez les montants.
+    </p>
+  </fieldset>
+
+  <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+    <button type="submit" id="cta-activer">
+      Activer la fiscalité réelle
+    </button>
+    <a href="/biens/<%= bien.id %>" class="secondary">Annuler</a>
+  </div>
+
+</form>
+
+<script>
+(function () {
+  'use strict';
+
+  var prixInput = document.getElementById('prixAcquisitionEuros');
+  var quotePartSlider = document.getElementById('quotePartTerrainRatioRange');
+  var quotePartNum = document.getElementById('quotePartTerrainRatioNum');
+  var affichageSomme = document.getElementById('affichage-somme');
+  var affichagePrix = document.getElementById('affichage-prix');
+  var erreurSomme = document.getElementById('erreur-somme');
+  var ctaActiver = document.getElementById('cta-activer');
+  var composantInputs = document.querySelectorAll('.composant-input');
+
+  // Sync slider ↔ number
+  if (quotePartSlider && quotePartNum) {
+    quotePartSlider.addEventListener('input', function () {
+      quotePartNum.value = quotePartSlider.value;
+      recalculer();
+    });
+    quotePartNum.addEventListener('input', function () {
+      quotePartSlider.value = quotePartNum.value;
+      recalculer();
+    });
+  }
+
+  function recalculer() {
+    var prix = parseFloat(prixInput ? prixInput.value : '0') || 0;
+    var quotePartRatio = parseFloat(quotePartNum ? quotePartNum.value : '0') || 0;
+    var terrainMontant = prix * quotePartRatio;
+
+    var sommeComposants = terrainMontant;
+    composantInputs.forEach(function (inp) {
+      sommeComposants += parseFloat(inp.value) || 0;
+    });
+
+    var sommeArrondie = Math.round(sommeComposants * 100) / 100;
+    var prixArrondi = Math.round(prix * 100) / 100;
+
+    if (affichageSomme) affichageSomme.textContent = sommeArrondie.toFixed(2) + ' €';
+    if (affichagePrix) affichagePrix.textContent = prixArrondi.toFixed(2) + ' €';
+
+    var incoherent = prix > 0 && Math.abs(sommeArrondie - prixArrondi) > 0.01;
+    if (erreurSomme) erreurSomme.style.display = incoherent ? 'block' : 'none';
+    if (ctaActiver) ctaActiver.disabled = incoherent;
+  }
+
+  if (prixInput) prixInput.addEventListener('input', recalculer);
+  composantInputs.forEach(function (inp) { inp.addEventListener('input', recalculer); });
+  recalculer();
+}());
+</script>
+
+<%- include('../../partials/layout-fin') %>
