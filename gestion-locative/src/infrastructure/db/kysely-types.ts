@@ -103,6 +103,10 @@ export interface BailleurTable {
   ville: string;
   cree_le: Generated<string>;
   modifie_le: Generated<string>;
+  // Phase 5 — données fiscales (migration 0015)
+  regime_fiscal: 'micro_bic' | 'reel' | null;
+  revenus_actifs_annuels_courant_centimes: number | null;
+  fiscalite_premier_acces: string | null;
 }
 
 export interface BailLotsTable {
@@ -214,9 +218,15 @@ export interface JustificatifsTable {
   cree_le: string;
   corbeille_le: string | null;
   raison_corbeille: string | null;
+  // Phase 5 — qualification fiscale (migration 0014)
+  qualification_fiscale: 'non_qualifie' | 'entretien_reparation' | 'amelioration' | 'charge_courante_periodique' | 'non_deductible' | null;
+  qualifie_le: string | null;
+  date_paiement: string | null;
+  parent_justificatif_id: string | null;
 }
 
-// Phase 4 — BC Travaux scaffolding (utilisé en 04-03 — D-115 : pas de nature)
+// Phase 4 — BC Travaux scaffolding (utilisé en 04-03 — D-115 : pas de nature, différé Phase 5)
+// Phase 5 — extension nature + nature_fiscale (migration 0021)
 export interface TicketsTravauxTable {
   id: string;
   bien_id: string;
@@ -231,6 +241,9 @@ export interface TicketsTravauxTable {
   cree_le: string;
   annule_le: string | null;
   raison_annulation: string | null;
+  // Phase 5 — D-FIS-G1.2 + D-FIS-G2.3
+  nature: 'acquisition_mobilier' | 'entretien' | 'amelioration' | 'autre' | null;
+  nature_fiscale: 'non_qualifie' | 'entretien_reparation' | 'amelioration' | 'charge_courante_periodique' | 'non_deductible' | null;
 }
 
 export interface TicketJustificatifsTable {

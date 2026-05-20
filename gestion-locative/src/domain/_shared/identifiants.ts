@@ -92,3 +92,30 @@ export function nouveauQuittanceId(): QuittanceId {
 export function nouveauRelanceId(): RelanceId {
   return crypto.randomUUID() as RelanceId;
 }
+
+// Phase 5 — identifiants nouveaux agrégats Fiscalité
+export type ComposantId = string & { readonly __brand: 'ComposantId' };
+export type DeclarationAnnuelleId = string & { readonly __brand: 'DeclarationAnnuelleId' };
+export type DeclarationCorrigeeId = string & { readonly __brand: 'DeclarationCorrigeeId' };
+export type AmortissementExerciceId = string & { readonly __brand: 'AmortissementExerciceId' };
+export type ValorisationFiscaleId = string & { readonly __brand: 'ValorisationFiscaleId' };
+
+export function nouveauComposantId(): ComposantId {
+  return crypto.randomUUID() as ComposantId;
+}
+
+export function nouveauDeclarationAnnuelleId(): DeclarationAnnuelleId {
+  return crypto.randomUUID() as DeclarationAnnuelleId;
+}
+
+export function nouveauDeclarationCorrigeeId(): DeclarationCorrigeeId {
+  return crypto.randomUUID() as DeclarationCorrigeeId;
+}
+
+export function nouveauAmortissementExerciceId(): AmortissementExerciceId {
+  return crypto.randomUUID() as AmortissementExerciceId;
+}
+
+export function nouveauValorisationFiscaleId(): ValorisationFiscaleId {
+  return crypto.randomUUID() as ValorisationFiscaleId;
+}
