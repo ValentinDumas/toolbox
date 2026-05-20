@@ -34,6 +34,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
       <a href="/coffre">Coffre documentaire</a>
     </li>
     <li>
+      <a href="/fiscalite">Fiscalité</a>
+    </li>
+    <li>
       <details>
         <summary>Encaissements</summary>
         <ul>
@@ -487,6 +490,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
     </li>
     <li>
       <a href="/coffre">Coffre documentaire</a>
+    </li>
+    <li>
+      <a href="/fiscalite">Fiscalité</a>
     </li>
     <li>
       <details>
@@ -944,6 +950,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
       <a href="/coffre">Coffre documentaire</a>
     </li>
     <li>
+      <a href="/fiscalite">Fiscalité</a>
+    </li>
+    <li>
       <details>
         <summary>Encaissements</summary>
         <ul>
@@ -1126,6 +1135,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
       <a href="/coffre">Coffre documentaire</a>
     </li>
     <li>
+      <a href="/fiscalite">Fiscalité</a>
+    </li>
+    <li>
       <details>
         <summary>Encaissements</summary>
         <ul>
@@ -1244,6 +1256,9 @@ exports[`snapshots Phase 3 — détection régression visuelle (plan 03-05) > sn
     </li>
     <li>
       <a href="/coffre">Coffre documentaire</a>
+    </li>
+    <li>
+      <a href="/fiscalite">Fiscalité</a>
     </li>
     <li>
       <details>
