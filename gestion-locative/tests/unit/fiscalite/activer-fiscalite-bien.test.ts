@@ -33,9 +33,8 @@ function creerStubs() {
   const bienRepo: BienRepository = {
     trouverParId: vi.fn().mockResolvedValue(bien),
     enregistrer: vi.fn().mockResolvedValue(undefined),
-    lister: vi.fn().mockResolvedValue([]),
+    listerTous: vi.fn().mockResolvedValue([]),
     supprimer: vi.fn().mockResolvedValue(undefined),
-    rechercherParBailleur: vi.fn().mockResolvedValue([]),
   } as unknown as BienRepository;
 
   const valorisationRepo: ValorisationFiscaleRepository = {
@@ -66,6 +65,9 @@ function creerStubs() {
 }
 
 function cmdValide(bienId: BienId): ActiverFiscaliteBienCommande {
+  // prixAcquisition = 200k
+  // terrain = 10% × 200k = 20k
+  // 5 amortissables Σ = 180k → total = 20k + 180k = 200k OK
   return {
     bienId,
     prixAcquisition: Money.fromEuros(200_000),
@@ -74,11 +76,12 @@ function cmdValide(bienId: BienId): ActiverFiscaliteBienCommande {
     fraisAgence: Money.fromEuros(8_000),
     quotePartTerrainRatio: 0.10,
     composantsAmortissables: [
-      { type: 'gros_oeuvre', montantHt: Money.fromEuros(150_000) },
-      { type: 'toiture_facade', montantHt: Money.fromEuros(30_000) },
-      { type: 'installations_techniques', montantHt: Money.fromEuros(10_000) },
-      { type: 'agencements_interieurs', montantHt: Money.fromEuros(5_000) },
+      { type: 'gros_oeuvre', montantHt: Money.fromEuros(130_000) },
+      { type: 'toiture_facade', montantHt: Money.fromEuros(25_000) },
+      { type: 'installations_techniques', montantHt: Money.fromEuros(12_000) },
+      { type: 'agencements_interieurs', montantHt: Money.fromEuros(8_000) },
       { type: 'mobilier', montantHt: Money.fromEuros(5_000) },
+      // Σ = 180_000 + terrain(20_000) = 200_000 = prixAcquisition OK
     ],
   };
 }
@@ -136,6 +139,8 @@ describe('activerFiscaliteBien — cas G1.3 (D-FIS-G1.3, D-FIS-G1.4)', () => {
   it('Test 4 : quotePartTerrainRatio = 0.10 + prix 220k → terrain = 22k ; 5 amortissables Σ = 198k ; total 220k OK', async () => {
     const { bienId, bienRepo, valorisationRepo, composantRepo, db, clock } = creerStubs();
 
+    // prixAcquisition = 220k, quotePartTerrain = 10% → terrain = 22k
+    // 5 amortissables Σ = 198k → total = 22k + 198k = 220k OK
     const cmd: ActiverFiscaliteBienCommande = {
       bienId,
       prixAcquisition: Money.fromEuros(220_000),
@@ -145,11 +150,11 @@ describe('activerFiscaliteBien — cas G1.3 (D-FIS-G1.3, D-FIS-G1.4)', () => {
       quotePartTerrainRatio: 0.10,
       composantsAmortissables: [
         { type: 'gros_oeuvre', montantHt: Money.fromEuros(140_000) },
-        { type: 'toiture_facade', montantHt: Money.fromEuros(30_000) },
+        { type: 'toiture_facade', montantHt: Money.fromEuros(28_000) },
         { type: 'installations_techniques', montantHt: Money.fromEuros(15_000) },
-        { type: 'agencements_interieurs', montantHt: Money.fromEuros(8_000) },
+        { type: 'agencements_interieurs', montantHt: Money.fromEuros(10_000) },
         { type: 'mobilier', montantHt: Money.fromEuros(5_000) },
-        // Σ amortissables = 198_000 + terrain (10% × 220k) = 22_000 → total = 220_000 OK
+        // Σ = 198_000 + terrain(22_000) = 220_000 = prixAcquisition OK
       ],
     };
 

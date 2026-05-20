@@ -251,6 +251,32 @@ export interface TicketJustificatifsTable {
   justificatif_id: string;
 }
 
+// Phase 5 — BC Fiscalité : Composant sub-aggregate (migration 0018)
+export interface BienComposantTable {
+  id: string;
+  bien_id: string;
+  type: 'terrain' | 'gros_oeuvre' | 'toiture_facade' | 'installations_techniques' | 'agencements_interieurs' | 'mobilier';
+  montant_ht_centimes: number;
+  date_acquisition: string;
+  origine_kind: 'initial' | 'amelioration' | 'acquisition_mobilier';
+  ticket_id: string | null;
+  date_sortie: string | null;
+  motif_sortie: 'vente' | 'mise_au_rebut' | 'sinistre' | 'autre' | null;
+  cree_le: string;
+}
+
+// Phase 5 — BC Fiscalité : ValorisationFiscale 1-1 avec Bien (migration 0020)
+export interface BienValorisationFiscaleTable {
+  id: string;
+  bien_id: string;
+  prix_acquisition_centimes: number;
+  date_acquisition: string;
+  frais_notaire_centimes: number;
+  frais_agence_centimes: number;
+  quote_part_terrain_ratio: number;
+  active_le: string;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -269,4 +295,7 @@ export interface DB {
   justificatifs: JustificatifsTable;
   tickets_travaux: TicketsTravauxTable;
   ticket_justificatifs: TicketJustificatifsTable;
+  // Phase 5 — BC Fiscalité (migrations 0018, 0020)
+  bien_composant: BienComposantTable;
+  bien_valorisation_fiscale: BienValorisationFiscaleTable;
 }

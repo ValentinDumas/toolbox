@@ -41,6 +41,7 @@ module.exports = {
           '^src/application/travaux/ajouter-pj-ticket\\.ts$',
           '^src/application/documents/uploader-justificatif\\.ts$',
           '^src/application/documents/purger-justificatif\\.ts$',
+          '^src/application/fiscalite/activer-fiscalite-bien\\.ts$',
         ],
       },
       to: {
