@@ -93,10 +93,10 @@ describe('Justificatif.decomposerEnEnfants', () => {
       { bienId: autresBienId, montantTtc: Money.fromEuros(400), titre: 'Part bien B' },
     ]);
     expect(enfants).toHaveLength(2);
-    expect(enfants[0].parentJustificatifId).toBe(parent.id);
-    expect(enfants[1].parentJustificatifId).toBe(parent.id);
-    expect(enfants[0].bienId).toBe(BIEN_ID);
-    expect(enfants[1].bienId).toBe(autresBienId);
+    expect(enfants[0]!.parentJustificatifId).toBe(parent.id);
+    expect(enfants[1]!.parentJustificatifId).toBe(parent.id);
+    expect(enfants[0]!.bienId).toBe(BIEN_ID);
+    expect(enfants[1]!.bienId).toBe(autresBienId);
   });
 
   it('Σ enfants ≠ parent → lève ComposantsSommeIncoherente (D-FIS-G2.6)', () => {
