@@ -1,0 +1,132 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Fiscalité — Qualifier les charges ' + annee,
+  breadcrumbs: [
+    { label: 'Fiscalité', url: '/fiscalite' },
+    { label: 'Qualifier les charges' }
+  ],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../partials/banniere-success', { message: banniereSuccess ?? null }) %>
+<% if (locals.banniereErreur) { %>
+  <div role="alert" style="background: var(--couleur-warning-bg, #fef3c7); color: var(--couleur-warning, #d97706); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem;">
+    ⚠ <%= banniereErreur %>
+  </div>
+<% } %>
+
+<header style="display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+  <h1>Qualifier les charges <%= annee %></h1>
+  <nav aria-label="Navigation par année" style="display: flex; gap: 0.75rem;">
+    <a href="/fiscalite/qualification?annee=<%= annee - 1 %>" aria-label="Année précédente (<%= annee - 1 %>)">&larr; <%= annee - 1 %></a>
+    <a href="/fiscalite/qualification?annee=<%= annee + 1 %>" aria-label="Année suivante (<%= annee + 1 %>)"><%= annee + 1 %> &rarr;</a>
+  </nav>
+</header>
+
+<% if (justificatifs.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: 'Aucun justificatif à qualifier',
+    body: 'Tous les justificatifs de ' + annee + ' ont déjà une qualification fiscale, ou aucun justificatif n\'a été saisi pour cette année.',
+    ctaLabel: 'Retour fiscalité',
+    ctaUrl: '/fiscalite'
+  }) %>
+<% } else { %>
+
+  <p role="status" aria-live="polite">
+    <strong><%= justificatifs.length %> justificatif<%= justificatifs.length > 1 ? 's' : '' %> à qualifier</strong> pour l'exercice <%= annee %>.
+  </p>
+
+  <% for (const [type, items] of justificatifsParType) { %>
+  <section aria-label="<%= LABELS_TYPE_JUSTIFICATIF[type] %>">
+    <h2><%= LABELS_TYPE_JUSTIFICATIF[type] %></h2>
+
+    <% for (const item of items) { %>
+    <article style="border: 1px solid var(--couleur-neutre-bg, #e5e7eb); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+        <div>
+          <strong><%= item.titre %></strong>
+          <%- include('../../partials/partial-badge-qualification', { statut: item.qualificationFiscale ?? 'non_qualifie' }) %>
+          <% if (item.cheminFichier === 'manual' || item.cheminFichier === null) { %>
+            <%- include('../../partials/partial-badge-sans-pj') %>
+          <% } %>
+        </div>
+        <div style="text-align: right; font-size: 0.9em; color: var(--couleur-neutre, #6b7280);">
+          <% const dateLigne = item.datePaiement ?? item.dateDocument; %>
+          <time datetime="<%= dateLigne.toString() %>"><%= locals.formatDate ? locals.formatDate(dateLigne) : dateLigne.toString() %></time>
+          <br />
+          <% if (item.montantTtc) { %>
+            <strong><%= locals.formatMoney ? locals.formatMoney(item.montantTtc) : item.montantTtc.enEuros() %> TTC</strong>
+          <% } else { %>
+            <span>Montant non renseigné</span>
+          <% } %>
+        </div>
+      </header>
+
+      <%# Widget TF/TEOM (D-FIS-G2.9) : si titre contient "taxe foncière" %>
+      <% if (type === 'facture' && /taxe.fonci.re/i.test(item.titre)) { %>
+        <%- include('../../partials/partial-widget-tf-teom', { item }) %>
+      <% } %>
+
+      <%# Widget Syndic (D-FIS-G2.15) : si titre contient "syndic" ou "charges commune" %>
+      <% if (/syndic|charges.commune/i.test(item.titre)) { %>
+        <%- include('../../partials/partial-widget-syndic', { item }) %>
+      <% } %>
+
+      <%# Formulaire de qualification individuelle %>
+      <form method="POST" action="/fiscalite/qualification/justificatif/<%= item.id %>" aria-label="Qualifier <%= item.titre %>">
+        <fieldset>
+          <legend style="font-weight: 600; margin-bottom: 0.5rem;">Qualification fiscale</legend>
+
+          <% const suggestion = suggestions.get(item.id); %>
+
+          <label>
+            <input type="radio" name="qualification" value="entretien_reparation"
+              <%= suggestion === 'entretien_reparation' ? 'checked' : '' %> />
+            Entretien / Réparation
+          </label>
+
+          <label>
+            <input type="radio" name="qualification" value="amelioration"
+              <%= suggestion === 'amelioration' ? 'checked' : '' %> />
+            Amélioration
+          </label>
+
+          <label>
+            <input type="radio" name="qualification" value="charge_courante_periodique"
+              <%= suggestion === 'charge_courante_periodique' ? 'checked' : '' %> />
+            Charge courante / Périodique
+          </label>
+
+          <label>
+            <input type="radio" name="qualification" value="non_deductible"
+              <%= suggestion === 'non_deductible' ? 'checked' : '' %> />
+            Non déductible
+            <details style="display: inline-block; margin-left: 0.5rem;">
+              <summary style="font-size: 0.85em; color: var(--couleur-accent, #1d4ed8); cursor: pointer;">Pourquoi non déductible ?</summary>
+              <p style="font-size: 0.85em; margin-top: 0.5rem; padding: 0.5rem; background: var(--couleur-neutre-bg, #f3f4f6); border-radius: 4px; max-width: 400px;">
+                Dépense personnelle ou non liée à l'activité de location meublée.
+                Référence : BOFIP-BIC-CHAMP-40-20.
+              </p>
+            </details>
+          </label>
+        </fieldset>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
+          <button type="submit">Valider</button>
+
+          <%# Widget split multi-biens (D-FIS-G2.6) %>
+          <details>
+            <summary style="cursor: pointer; font-size: 0.9em; color: var(--couleur-accent, #1d4ed8);">
+              Justificatif partagé entre plusieurs biens ?
+            </summary>
+            <%- include('../../partials/partial-widget-split-biens', { item }) %>
+          </details>
+        </div>
+      </form>
+    </article>
+    <% } %>
+  </section>
+  <% } %>
+
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

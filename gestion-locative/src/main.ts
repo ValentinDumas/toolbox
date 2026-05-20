@@ -69,6 +69,9 @@ import { JustificatifRepositorySqlite } from './infrastructure/repositories/just
 import { StockageJustificatifsLocal } from './infrastructure/storage/stockage-justificatifs-local.js';
 import { ConvertisseurImageSharp } from './infrastructure/image/convertisseur-image-sharp.js';
 import { TicketTravauxRepositorySqlite } from './infrastructure/repositories/ticket-travaux-repository-sqlite.js';
+import { RecettesRepositorySqlite } from './infrastructure/repositories/recettes-repository-sqlite.js';
+import { ChargesRepositorySqlite } from './infrastructure/repositories/charges-repository-sqlite.js';
+import { registerFiscaliteQualificationRoutes } from './web/routes/fiscalite/qualification.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -300,6 +303,16 @@ export async function creerApp(
     justificatifRepo,
     stockage: stockageJustificatifs,
     convertisseurImage,
+    clock,
+    db,
+  });
+
+  // Phase 5 — BC Fiscalité (FIS-02, FIS-03) : qualification charges
+  const _recettesRepo = new RecettesRepositorySqlite(db);
+  const _chargesRepo = new ChargesRepositorySqlite(db);
+  await registerFiscaliteQualificationRoutes(app, {
+    justificatifRepo: justificatifRepo as never,
+    ticketRepo,
     clock,
     db,
   });

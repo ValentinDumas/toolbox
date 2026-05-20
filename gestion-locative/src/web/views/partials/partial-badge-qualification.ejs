@@ -1,0 +1,44 @@
+<%
+/*
+ * partial-badge-qualification.ejs — Badge qualification fiscale (D-FIS-G2.2).
+ * Variable attendue : statut (QualificationFiscale)
+ * aria-label "Qualification fiscale : {label}" pour A11y (WCAG 1.4.1 + 1.4.3).
+ * Couleurs alignées sur les tokens app.css du design system.
+ */
+const qualifMap = {
+  non_qualifie: {
+    bg: 'var(--couleur-neutre-bg, #e5e7eb)',
+    fg: 'var(--couleur-neutre, #4b5563)',
+    icone: '⚠',
+    label: 'À qualifier',
+  },
+  entretien_reparation: {
+    bg: 'var(--couleur-success-bg, #d1fae5)',
+    fg: 'var(--couleur-success, #065f46)',
+    icone: '✓',
+    label: 'Entretien / Réparation',
+  },
+  amelioration: {
+    bg: 'var(--couleur-warning-bg, #fef3c7)',
+    fg: 'var(--couleur-warning, #d97706)',
+    icone: '⚑',
+    label: 'Amélioration',
+  },
+  charge_courante_periodique: {
+    bg: 'var(--couleur-success-bg, #d1fae5)',
+    fg: 'var(--couleur-success, #065f46)',
+    icone: '✓',
+    label: 'Charge courante',
+  },
+  non_deductible: {
+    bg: 'var(--couleur-neutre-bg, #e5e7eb)',
+    fg: 'var(--couleur-neutre, #4b5563)',
+    icone: '✕',
+    label: 'Non déductible',
+  },
+};
+const item = qualifMap[locals.statut] || qualifMap.non_qualifie;
+%><span
+  style="background: <%= item.bg %>; color: <%= item.fg %>; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; white-space: nowrap; font-size: 0.85em;"
+  aria-label="Qualification fiscale : <%= item.label %>"
+><span aria-hidden="true"><%= item.icone %></span> <%= item.label %></span>

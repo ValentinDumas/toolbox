@@ -1,0 +1,101 @@
+<%
+/*
+ * partial-widget-split-biens.ejs — Widget split multi-biens (D-FIS-G2.6).
+ * Variable attendue : item (Justificatif)
+ *
+ * Permet de décomposer un justificatif commun à plusieurs biens en N enfants.
+ * Chaque enfant = quote-part pour un bien donné (bienId + montant + titre).
+ * Version V1 simplifiée : 2 lignes statiques (ajout dynamique hors périmètre V1).
+ */
+%>
+<div
+  style="background: var(--couleur-neutre-bg, #f3f4f6); border-left: 4px solid var(--couleur-neutre, #9ca3af); padding: 1rem; border-radius: 0 6px 6px 0; margin-top: 0.75rem;"
+  aria-label="Décomposition multi-biens"
+>
+  <p style="font-size: 0.85em; margin-bottom: 0.75rem; color: var(--couleur-neutre, #4b5563);">
+    Répartissez ce justificatif entre plusieurs biens. La somme doit correspondre
+    au montant total. (D-FIS-G2.6)
+  </p>
+
+  <form method="POST" action="/fiscalite/qualification/decomposer/<%= item.id %>" aria-label="Décomposer entre plusieurs biens">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 0.5rem; margin-bottom: 0.75rem; font-size: 0.9em;">
+      <div><strong>Bien (ID UUID)</strong></div>
+      <div><strong>Montant TTC (€)</strong></div>
+      <div><strong>Titre de la part</strong></div>
+
+      <%# Ligne 1 — bien courant par défaut %>
+      <div>
+        <input
+          type="text"
+          name="enfants[0].bienId"
+          value="<%= item.bienId %>"
+          placeholder="UUID du bien"
+          required
+          style="width: 100%; font-size: 0.85em;"
+          aria-label="Bien 1 : identifiant UUID"
+        />
+      </div>
+      <div>
+        <input
+          type="number"
+          name="enfants[0].montantTtcEuros"
+          min="0.01"
+          step="0.01"
+          placeholder="0.00"
+          required
+          style="width: 100%;"
+          aria-label="Montant TTC bien 1 en euros"
+        />
+      </div>
+      <div>
+        <input
+          type="text"
+          name="enfants[0].titre"
+          value="Part 1 — <%= item.titre %>"
+          required
+          style="width: 100%; font-size: 0.85em;"
+          aria-label="Titre de la part 1"
+        />
+      </div>
+
+      <%# Ligne 2 — second bien %>
+      <div>
+        <input
+          type="text"
+          name="enfants[1].bienId"
+          placeholder="UUID du second bien"
+          required
+          style="width: 100%; font-size: 0.85em;"
+          aria-label="Bien 2 : identifiant UUID"
+        />
+      </div>
+      <div>
+        <input
+          type="number"
+          name="enfants[1].montantTtcEuros"
+          min="0.01"
+          step="0.01"
+          placeholder="0.00"
+          required
+          style="width: 100%;"
+          aria-label="Montant TTC bien 2 en euros"
+        />
+      </div>
+      <div>
+        <input
+          type="text"
+          name="enfants[1].titre"
+          value="Part 2 — <%= item.titre %>"
+          required
+          style="width: 100%; font-size: 0.85em;"
+          aria-label="Titre de la part 2"
+        />
+      </div>
+    </div>
+
+    <p style="font-size: 0.8em; color: var(--couleur-neutre, #6b7280); margin-bottom: 0.5rem;">
+      La somme des montants doit être égale au montant total du justificatif.
+    </p>
+    <button type="submit" style="font-size: 0.9em;">Confirmer la répartition</button>
+  </form>
+</div>

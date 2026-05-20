@@ -1,0 +1,12 @@
+<%
+/*
+ * partial-badge-sans-pj.ejs — Badge "Sans PJ" (D-FIS-G2.8).
+ * Affiché si cheminFichier === 'manual' OR cheminFichier === null.
+ * Aucune variable requise — badge fixe.
+ * aria-label texte visible (WCAG 1.4.1 : info non transmise par la couleur seule).
+ */
+%><span
+  class="badge-sans-pj"
+  style="background: var(--couleur-neutre-bg, #e5e7eb); color: var(--couleur-neutre, #4b5563); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; white-space: nowrap; margin-left: 8px;"
+  aria-label="Justificatif sans pièce jointe"
+><span aria-hidden="true">⚠</span> Sans PJ</span>
