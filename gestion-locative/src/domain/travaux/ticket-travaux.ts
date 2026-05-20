@@ -7,6 +7,10 @@ import {
   type TicketTravauxId,
 } from '../_shared/identifiants.js';
 import { Money } from '../_shared/money.js';
+import {
+  QUALIFICATIONS_VALIDES,
+  type QualificationFiscale,
+} from '../fiscalite/qualification-fiscale.js';
 
 import {
   TicketDejaAnnule,
@@ -15,7 +19,6 @@ import {
 
 /**
  * Statuts d'un TicketTravaux (D-112, D-114 workflow).
- * Pas de qualification fiscale (D-115 — différée Phase 5).
  */
 export type StatutTicket = 'ouvert' | 'en_cours' | 'clos' | 'annule';
 
@@ -24,6 +27,21 @@ export const STATUTS_TICKET_VALIDES: readonly StatutTicket[] = [
   'en_cours',
   'clos',
   'annule',
+] as const;
+
+/**
+ * Nature du ticket (D-FIS-G1.2, Phase 5).
+ * - acquisition_mobilier : force natureFiscale = 'amelioration'
+ * - entretien, amelioration, autre : natureFiscale libre
+ * - null : non catégorisé (Phase 4 legacy)
+ */
+export type NatureTicket = 'acquisition_mobilier' | 'entretien' | 'amelioration' | 'autre' | null;
+
+export const NATURES_TICKET_VALIDES: readonly NonNullable<NatureTicket>[] = [
+  'acquisition_mobilier',
+  'entretien',
+  'amelioration',
+  'autre',
 ] as const;
 
 export interface TicketTravauxProps {
@@ -40,6 +58,10 @@ export interface TicketTravauxProps {
   creeLe: Temporal.PlainDate;
   annuleLe: Temporal.PlainDate | null;
   raisonAnnulation: string | null;
+  // Phase 5 — D-FIS-G1.2 + D-FIS-G2.3
+  nature?: NatureTicket;
+  natureFiscale?: QualificationFiscale | null;
+  qualifieLeTicket?: Temporal.PlainDate | null;
 }
 
 /**
@@ -50,17 +72,16 @@ export interface TicketTravauxProps {
  *   - description.trim() non vide → "La description est obligatoire."
  *   - dateOuverture ≤ today → "La date d'ouverture ne peut pas être dans le futur."
  *   - statut ∈ STATUTS_TICKET_VALIDES.
+ *   - [Phase 5] nature = 'acquisition_mobilier' → natureFiscale = 'amelioration' (D-FIS-G1.2).
  *
  * Workflow (D-114 transitions manuelles, pas d'auto-transition) :
  *   - clore(coutReelTtc, dateCloture, today) : ouvert|en_cours → clos
- *     - depuis 'clos' → throw TransitionInvalide('Ticket déjà clos.')
- *     - depuis 'annule' → throw TransitionInvalide('Ticket annulé — impossible de clore.')
- *     - dateCloture < dateOuverture → throw InvariantViolated
- *   - annuler(raison, annuleLe, today) : tout statut → annule + soft-delete via annule_le
- *     - depuis 'annule' → throw TicketDejaAnnule.
+ *   - annuler(raison, annuleLe, today) : tout statut → annule
  *
- * D-115 strictement honoré : la qualification fiscale (réparation /
- * entretien / amélioration) arrivera Phase 5 dans un BC Fiscalité séparé.
+ * Phase 5 extensions :
+ *   - `nature` : catégorie travaux (D-FIS-G1.2)
+ *   - `natureFiscale` : qualification fiscale héritée par les justificatifs liés (D-FIS-G2.3)
+ *   - `qualifier()` : copy-on-write qualification fiscale du ticket entier
  */
 export class TicketTravaux {
   readonly id: TicketTravauxId;
@@ -76,6 +97,10 @@ export class TicketTravaux {
   readonly creeLe: Temporal.PlainDate;
   readonly annuleLe: Temporal.PlainDate | null;
   readonly raisonAnnulation: string | null;
+  // Phase 5
+  readonly nature: NatureTicket;
+  readonly natureFiscale: QualificationFiscale | null;
+  readonly qualifieLeTicket: Temporal.PlainDate | null;
 
   private constructor(id: TicketTravauxId, props: Omit<TicketTravauxProps, 'id'>) {
     this.id = id;
@@ -91,6 +116,9 @@ export class TicketTravaux {
     this.creeLe = props.creeLe;
     this.annuleLe = props.annuleLe;
     this.raisonAnnulation = props.raisonAnnulation;
+    this.nature = props.nature ?? null;
+    this.natureFiscale = props.natureFiscale ?? null;
+    this.qualifieLeTicket = props.qualifieLeTicket ?? null;
   }
 
   static creer(
@@ -114,6 +142,14 @@ export class TicketTravaux {
         `Statut de ticket invalide : "${statut}". Valeurs acceptées : ${STATUTS_TICKET_VALIDES.join(', ')}`,
       );
     }
+
+    // D-FIS-G1.2 : nature 'acquisition_mobilier' force natureFiscale = 'amelioration'
+    const nature: NatureTicket = props.nature ?? null;
+    let natureFiscale = props.natureFiscale ?? null;
+    if (nature === 'acquisition_mobilier') {
+      natureFiscale = 'amelioration';
+    }
+
     const id = props.id ?? nouveauTicketTravauxId();
     return new TicketTravaux(id, {
       bienId: props.bienId,
@@ -128,6 +164,9 @@ export class TicketTravaux {
       creeLe: props.creeLe,
       annuleLe: props.annuleLe,
       raisonAnnulation: props.raisonAnnulation,
+      nature,
+      natureFiscale,
+      qualifieLeTicket: props.qualifieLeTicket ?? null,
     });
   }
 
@@ -152,7 +191,6 @@ export class TicketTravaux {
     if (this.statut === 'annule') {
       throw new TransitionInvalide('Ticket annulé — impossible de clore.');
     }
-    // G-DATE-01 : parité avec creer() — date métier toujours <= today
     if (Temporal.PlainDate.compare(dateCloture, today) > 0) {
       throw new InvariantViolated(
         'La date de clôture ne peut pas être dans le futur.',
@@ -199,6 +237,40 @@ export class TicketTravaux {
     );
   }
 
+  /**
+   * Copy-on-write — qualifie fiscalement ce ticket entier (D-FIS-G2.3).
+   *
+   * Les justificatifs liés héritent de cette qualification via le use case
+   * qualifier-ticket-travaux (orchestration en transaction).
+   *
+   * @throws InvariantViolated si ticket annulé
+   * @throws InvariantViolated si qualification invalide
+   */
+  qualifier(
+    natureFiscale: QualificationFiscale,
+    qualifieLe: Temporal.PlainDate,
+    today: Temporal.PlainDate,
+  ): TicketTravaux {
+    if (this.annuleLe !== null) {
+      throw new InvariantViolated(
+        'Impossible de qualifier un ticket annulé.',
+      );
+    }
+    if (!(QUALIFICATIONS_VALIDES as readonly string[]).includes(natureFiscale)) {
+      throw new InvariantViolated(
+        `Qualification fiscale invalide : "${natureFiscale}". Valeurs acceptées : ${QUALIFICATIONS_VALIDES.join(', ')}`,
+      );
+    }
+    return TicketTravaux.creer(
+      {
+        ...this.toProps(),
+        natureFiscale,
+        qualifieLeTicket: qualifieLe,
+      },
+      today,
+    );
+  }
+
   toProps(): TicketTravauxProps {
     return {
       id: this.id,
@@ -214,6 +286,9 @@ export class TicketTravaux {
       creeLe: this.creeLe,
       annuleLe: this.annuleLe,
       raisonAnnulation: this.raisonAnnulation,
+      nature: this.nature,
+      natureFiscale: this.natureFiscale,
+      qualifieLeTicket: this.qualifieLeTicket,
     };
   }
 }
