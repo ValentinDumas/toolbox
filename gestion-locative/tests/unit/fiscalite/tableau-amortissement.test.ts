@@ -13,7 +13,9 @@
 import { describe, it, expect } from 'vitest';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { TableauAmortissementExercice } from '../../../src/domain/fiscalite/tableau-amortissement.js';
-import type { ComposantId } from '../../../src/domain/_shared/identifiants.js';
+import { AmortissementExercice } from '../../../src/domain/fiscalite/amortissement-exercice.js';
+import { InvariantViolated } from '../../../src/domain/_shared/erreurs.js';
+import type { BienId, ComposantId } from '../../../src/domain/_shared/identifiants.js';
 
 // Helpers pour les tests
 function makeComposantId(): ComposantId {
@@ -132,5 +134,74 @@ describe('TableauAmortissementExercice — VO collection immutable (D-FIS-G1.7)'
 
     expect(tableau.dotationParComposant).toHaveLength(1);
     expect(tableau.dotationParComposant[0]!.composantId).toBe(id1);
+  });
+});
+
+// ─── Couverture domaine : AmortissementExercice invariants (lignes 84-96) ────────
+
+describe('AmortissementExercice.creer — invariants (D-FIS-G1.7)', () => {
+  const BIEN_ID = crypto.randomUUID() as BienId;
+  const COMPOSANT_ID = crypto.randomUUID() as ComposantId;
+
+  function baseProps() {
+    return {
+      bienId: BIEN_ID,
+      composantId: COMPOSANT_ID,
+      exercice: 2026,
+      typeLigne: 'COMPOSANT' as const,
+      dotationTheorique: Money.fromEuros(5_000),
+      dotationAppliquee: Money.fromEuros(5_000),
+      ardGenere: Money.zero(),
+    };
+  }
+
+  it('exercice <= 0 → throw InvariantViolated (ligne 84-86)', () => {
+    expect(() =>
+      AmortissementExercice.creer({ ...baseProps(), exercice: 0 }),
+    ).toThrow(InvariantViolated);
+  });
+
+  it('SYNTHESE_BIEN avec composantId non null → throw InvariantViolated (lignes 89-91)', () => {
+    expect(() =>
+      AmortissementExercice.creer({
+        ...baseProps(),
+        typeLigne: 'SYNTHESE_BIEN',
+        composantId: COMPOSANT_ID, // doit être null pour SYNTHESE_BIEN
+      }),
+    ).toThrow(InvariantViolated);
+  });
+
+  it('COMPOSANT avec composantId null → throw InvariantViolated (lignes 93-96)', () => {
+    expect(() =>
+      AmortissementExercice.creer({
+        ...baseProps(),
+        typeLigne: 'COMPOSANT',
+        composantId: null, // doit être non null pour COMPOSANT
+      }),
+    ).toThrow(InvariantViolated);
+  });
+
+  it('SYNTHESE_BIEN valide (composantId=null) → crée sans erreur', () => {
+    expect(() =>
+      AmortissementExercice.creer({
+        bienId: BIEN_ID,
+        composantId: null,
+        exercice: 2026,
+        typeLigne: 'SYNTHESE_BIEN',
+        dotationTheorique: Money.fromEuros(5_000),
+        dotationAppliquee: Money.fromEuros(5_000),
+        ardGenere: Money.zero(),
+        ardCumuleDisponible: Money.fromEuros(2_000),
+        ardConsomme: Money.zero(),
+      }),
+    ).not.toThrow();
+  });
+
+  it('COMPOSANT valide → crée et expose l\'id généré', () => {
+    const ae = AmortissementExercice.creer(baseProps());
+    expect(ae.id).toBeTruthy();
+    expect(ae.bienId).toBe(BIEN_ID);
+    expect(ae.exercice).toBe(2026);
+    expect(ae.typeLigne).toBe('COMPOSANT');
   });
 });

@@ -205,6 +205,94 @@ describe('listerVueConsolidee — use case (D-FIS-G5.1)', () => {
     expect(result.verdictLmp).toBe('lmp_probable');
   });
 
+  it('Test 7b : bien avec valorisation + composant actif → dotation calculée (lignes 134-144)', async () => {
+    // Couvre le chemin : valorisation != null → composants lookupés + calculerAmortissement
+    const b1 = unBienSimple(BIEN_ID_1);
+    const recettesBien = new Map<BienId, Money>([[BIEN_ID_1, Money.fromEuros(50_000)]]);
+    const clock = { aujourdhui: () => Temporal.PlainDate.from('2026-12-31') };
+
+    const { Composant } = await import('../../../src/domain/fiscalite/composant.js');
+    const { Temporal: T } = await import('@js-temporal/polyfill');
+    const composantActif = Composant.creer({
+      bienId: BIEN_ID_1,
+      type: 'gros_oeuvre',
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: T.PlainDate.from('2026-01-01'),
+      origineKind: 'initial',
+      ticketId: null,
+      dateSortie: null,
+      motifSortie: null,
+    });
+
+    const { ValorisationFiscale: VF } = await import('../../../src/domain/fiscalite/valorisation-fiscale.js');
+    const vf = VF.creer({
+      bienId: BIEN_ID_1,
+      prixAcquisition: Money.fromEuros(200_000),
+      dateAcquisition: T.PlainDate.from('2026-01-01'),
+      fraisNotaire: Money.fromEuros(16_000),
+      fraisAgence: Money.zero(),
+      quotePartTerrainRatio: 0.10,
+      activeLe: T.PlainDateTime.from('2026-01-01T00:00:00'),
+    });
+
+    const deps = makeDeps({ biens: [b1], recettesBien, chargesBien: new Map() });
+    // Override valorisation → non null pour déclencher le chemin lignes 134-144
+    (deps.valorisationRepo as { trouverParBien: ReturnType<typeof vi.fn> }).trouverParBien =
+      vi.fn().mockResolvedValue(vf);
+    // Fournir le composant actif
+    (deps.composantRepo as { listerActifsParBien: ReturnType<typeof vi.fn> }).listerActifsParBien =
+      vi.fn().mockResolvedValue([composantActif]);
+
+    const result = await listerVueConsolidee(BAILLEUR_ID, EXERCICE, deps, clock);
+
+    // Avec 1 composant gros_oeuvre 200k, annuité 5k → dotation > 0
+    expect(result.biens[0]!.dotation.toCentimes()).toBeGreaterThan(0n);
+  });
+
+  it('Test 7c : bien avec valorisation + charges >= recettes → resultatAvantAmort = Money.zero() (ligne 136 branch)', async () => {
+    // Couvre la branche chargesBien >= recettesBien dans le bloc valorisation non-null (ligne 136)
+    const b1 = unBienSimple(BIEN_ID_1);
+    // Charges = 60k > recettes = 50k → branch Money.zero()
+    const recettesBien = new Map<BienId, Money>([[BIEN_ID_1, Money.fromEuros(50_000)]]);
+    const chargesBien = new Map<BienId, Money>([[BIEN_ID_1, Money.fromEuros(60_000)]]);
+    const clock = { aujourdhui: () => Temporal.PlainDate.from('2026-12-31') };
+
+    const { Composant } = await import('../../../src/domain/fiscalite/composant.js');
+    const { Temporal: T } = await import('@js-temporal/polyfill');
+    const composantActif = Composant.creer({
+      bienId: BIEN_ID_1,
+      type: 'gros_oeuvre',
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: T.PlainDate.from('2026-01-01'),
+      origineKind: 'initial',
+      ticketId: null,
+      dateSortie: null,
+      motifSortie: null,
+    });
+
+    const { ValorisationFiscale: VF } = await import('../../../src/domain/fiscalite/valorisation-fiscale.js');
+    const vf = VF.creer({
+      bienId: BIEN_ID_1,
+      prixAcquisition: Money.fromEuros(200_000),
+      dateAcquisition: T.PlainDate.from('2026-01-01'),
+      fraisNotaire: Money.fromEuros(16_000),
+      fraisAgence: Money.zero(),
+      quotePartTerrainRatio: 0.10,
+      activeLe: T.PlainDateTime.from('2026-01-01T00:00:00'),
+    });
+
+    const deps = makeDeps({ biens: [b1], recettesBien, chargesBien });
+    (deps.valorisationRepo as { trouverParBien: ReturnType<typeof vi.fn> }).trouverParBien =
+      vi.fn().mockResolvedValue(vf);
+    (deps.composantRepo as { listerActifsParBien: ReturnType<typeof vi.fn> }).listerActifsParBien =
+      vi.fn().mockResolvedValue([composantActif]);
+
+    const result = await listerVueConsolidee(BAILLEUR_ID, EXERCICE, deps, clock);
+
+    // Charges > recettes → resultatAvantAmort = 0 → dotation non limitée mais resultatFiscalBien = 0
+    expect(result.biens[0]!.resultatFiscal.toCentimes()).toBe(0n);
+  });
+
   it('Test 8 : sommeRecettesAnnuellesParBien appelé 1x par bien (pas la version totale)', async () => {
     const b1 = unBienSimple(BIEN_ID_1);
     const b2 = unBienSimple(BIEN_ID_2);

@@ -139,6 +139,7 @@ export async function cloturerExercice(
 
   // (3) Bailleur (garanti présent — prérequis (a) aurait bloqué sinon)
   const bailleur = await repos.bailleurRepo.trouver();
+  /* v8 ignore next 3 */
   if (!bailleur) {
     throw new Error('Bailleur absent — état incohérent (prérequis aurait dû bloquer)');
   }
@@ -200,6 +201,7 @@ export async function cloturerExercice(
 
     for (const ligne of tableau.dotationParComposant) {
       const composant = composants.find((c) => c.id === ligne.composantId);
+      /* v8 ignore next */
       if (!composant) continue;
       amortissementExercicesLignes.push(
         AmortissementExercice.creer({

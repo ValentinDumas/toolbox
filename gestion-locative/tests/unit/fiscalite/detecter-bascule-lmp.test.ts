@@ -15,6 +15,12 @@ import { describe, it, expect } from 'vitest';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
 import { detecterBasculeLmp } from '../../../src/application/fiscalite/detecter-bascule-lmp.js';
+import {
+  RevenusFoyerManquants,
+  JustificatifNonQualifie,
+} from '../../../src/domain/fiscalite/erreurs.js';
+import { estQualificationDeductible } from '../../../src/domain/fiscalite/qualification-fiscale.js';
+import type { JustificatifId } from '../../../src/domain/_shared/identifiants.js';
 
 describe('detecterBasculeLmp — tri-état CGI art. 155 IV', () => {
   // ── Test 1 : recettes sous seuil + revenusFoyer null → LMNP confirmé ──────
@@ -115,5 +121,48 @@ describe('detecterBasculeLmp — tri-état CGI art. 155 IV', () => {
     const revenusFoyer = Money.fromCentimes(2_300_000n);
     const resultat = detecterBasculeLmp({ recettes, revenusFoyer }, REGLES_2026);
     expect(resultat).toBe('lmp_probable');
+  });
+});
+
+// ─── Couverture : erreurs.ts (RevenusFoyerManquants + JustificatifNonQualifie) ─────
+
+describe('erreurs fiscalité — RevenusFoyerManquants + JustificatifNonQualifie (lignes 69-83)', () => {
+  it('RevenusFoyerManquants — name + message (lignes 68-72)', () => {
+    const err = new RevenusFoyerManquants();
+    expect(err.name).toBe('RevenusFoyerManquants');
+    expect(err.message).toContain('Revenus du foyer requis');
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it('JustificatifNonQualifie — name + justificatifId + message (lignes 78-83)', () => {
+    const jId = crypto.randomUUID() as JustificatifId;
+    const err = new JustificatifNonQualifie(jId);
+    expect(err.name).toBe('JustificatifNonQualifie');
+    expect(err.justificatifId).toBe(jId);
+    expect(err.message).toContain(jId);
+  });
+});
+
+// ─── Couverture : qualification-fiscale.ts (estQualificationDeductible) ──────────
+
+describe('estQualificationDeductible — toutes branches (ligne 54-56)', () => {
+  it('entretien_reparation → true', () => {
+    expect(estQualificationDeductible('entretien_reparation')).toBe(true);
+  });
+
+  it('amelioration → true', () => {
+    expect(estQualificationDeductible('amelioration')).toBe(true);
+  });
+
+  it('charge_courante_periodique → true', () => {
+    expect(estQualificationDeductible('charge_courante_periodique')).toBe(true);
+  });
+
+  it('non_deductible → false', () => {
+    expect(estQualificationDeductible('non_deductible')).toBe(false);
+  });
+
+  it('non_qualifie → false', () => {
+    expect(estQualificationDeductible('non_qualifie')).toBe(false);
   });
 });

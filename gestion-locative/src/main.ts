@@ -390,10 +390,13 @@ export async function creerApp(
     db,
   });
 
-  // Phase 5 — BC Fiscalité (Plan 06) : page racine /fiscalite (PLACEHOLDER — index.ejs locked Plan 08)
+  // Phase 5 — BC Fiscalité (Plan 08) : page racine /fiscalite (index.ejs locked Plan 08 — placeholder Plan 06 remplacé)
   await registerFiscaliteRacineRoute(app, {
     bailleurRepo,
     declRepo: declAnnuelleRepo,
+    justificatifRepo,
+    recettesRepo,
+    regleFiscale,
     clock,
   });
 

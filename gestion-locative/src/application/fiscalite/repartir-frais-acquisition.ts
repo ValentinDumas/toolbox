@@ -52,8 +52,10 @@ export function repartirFraisAcquisition(input: RepartirFraisInput): Map<Composa
   const ordonnes = [...amortissables].sort((a, b) => {
     const iA = ORDRE_COMPOSANTS_AMORTISSABLES.indexOf(a.type);
     const iB = ORDRE_COMPOSANTS_AMORTISSABLES.indexOf(b.type);
-    // Types inconnus (future extension) à la fin
+    // Types inconnus (future extension) à la fin — défensif, Composant.creer valide les types
+    /* v8 ignore next */
     const posA = iA === -1 ? ORDRE_COMPOSANTS_AMORTISSABLES.length : iA;
+    /* v8 ignore next */
     const posB = iB === -1 ? ORDRE_COMPOSANTS_AMORTISSABLES.length : iB;
     return posA - posB;
   });
@@ -66,6 +68,7 @@ export function repartirFraisAcquisition(input: RepartirFraisInput): Map<Composa
 
   // Si Σ = 0 (tous à zéro — impossible en pratique car Composant creer throw si 0 pour amortissable)
   // Mais par défense en profondeur : retourner Map vide
+  /* v8 ignore next 3 */
   if (somme.egale(Money.zero())) {
     return new Map();
   }

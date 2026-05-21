@@ -167,7 +167,8 @@ export async function activerFiscaliteBien(
   // 8. MAJ montantHt des composants amortissables avec leur quote-part de frais
   const composantsEnrichisFrais = composantsAmortissables.map((c) => {
     const quotePart = repartition.get(c.id);
-    if (!quotePart) return c; // Si frais = 0, pas de quote-part
+    /* v8 ignore next */
+    if (!quotePart) return c; // Défensif : unreachable — repartirFraisAcquisition couvre tous les amortissables
     // Recréer via creer avec montantHt enrichi (copy-on-write)
     return Composant.creer({
       ...c.toProps(),

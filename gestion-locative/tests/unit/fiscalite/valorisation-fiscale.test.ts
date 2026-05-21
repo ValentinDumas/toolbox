@@ -120,4 +120,26 @@ describe('ValorisationFiscale.creer (D-FIS-G1.4, G1.8)', () => {
     });
     expect(vf.fraisAcquisitionTotal().egale(Money.zero())).toBe(true);
   });
+
+  it('toProps() retourne toutes les propriétés pour persistance SQLite (lignes 117-128)', () => {
+    const vf = ValorisationFiscale.creer({
+      bienId: BIEN_ID,
+      prixAcquisition: Money.fromEuros(216_000),
+      dateAcquisition: DATE_ACQ,
+      fraisNotaire: Money.fromEuros(16_000),
+      fraisAgence: Money.fromEuros(8_000),
+      quotePartTerrainRatio: 0.10,
+      activeLe: ACTIVE_LE,
+    });
+
+    const props = vf.toProps();
+    expect(props.id).toBe(vf.id);
+    expect(props.bienId).toBe(BIEN_ID);
+    expect(props.prixAcquisition.egale(Money.fromEuros(216_000))).toBe(true);
+    expect(props.dateAcquisition).toBe(DATE_ACQ);
+    expect(props.fraisNotaire.egale(Money.fromEuros(16_000))).toBe(true);
+    expect(props.fraisAgence.egale(Money.fromEuros(8_000))).toBe(true);
+    expect(props.quotePartTerrainRatio).toBe(0.10);
+    expect(props.activeLe).toBe(ACTIVE_LE);
+  });
 });
