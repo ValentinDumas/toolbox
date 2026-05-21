@@ -136,6 +136,28 @@ describe('activerFiscaliteBien — cas G1.3 (D-FIS-G1.3, D-FIS-G1.4)', () => {
     ).rejects.toBeInstanceOf(BienDejaActifFiscalement);
   });
 
+  it('Test 3b : bien introuvable → throw BienIntrouvable', async () => {
+    const { bienId, bienRepo, valorisationRepo, composantRepo, db, clock } = creerStubs();
+    bienRepo.trouverParId = vi.fn().mockResolvedValue(null);
+
+    await expect(
+      activerFiscaliteBien(cmdValide(bienId), { bienRepo, valorisationRepo, composantRepo }, clock, REGLES_2026, db),
+    ).rejects.toThrow(/bien.*introuvable/i);
+  });
+
+  it('Test 3c : frais notaire+agence = 0 → quotePart undefined → composants pas enrichis (ligne 170)', async () => {
+    const { bienId, bienRepo, valorisationRepo, composantRepo, db, clock } = creerStubs();
+
+    const cmd: ActiverFiscaliteBienCommande = {
+      ...cmdValide(bienId),
+      fraisNotaire: Money.zero(),  // frais = 0 → repartirFraisAcquisition retourne Map vide
+      fraisAgence: Money.zero(),   // → quotePart undefined → branch `if (!quotePart) return c`
+    };
+
+    const result = await activerFiscaliteBien(cmd, { bienRepo, valorisationRepo, composantRepo }, clock, REGLES_2026, db);
+    expect(result.composantIds).toHaveLength(6);
+  });
+
   it('Test 4 : quotePartTerrainRatio = 0.10 + prix 220k → terrain = 22k ; 5 amortissables Σ = 198k ; total 220k OK', async () => {
     const { bienId, bienRepo, valorisationRepo, composantRepo, db, clock } = creerStubs();
 

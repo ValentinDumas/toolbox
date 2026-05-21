@@ -15,14 +15,20 @@
  * @tags @phase5 @fis-04-amortissement
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Temporal } from '@js-temporal/polyfill';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
 import { calculerAmortissement } from '../../../src/application/fiscalite/calculer-amortissement.js';
+import { recalculerTableauAmortissement } from '../../../src/application/fiscalite/recalculer-tableau-amortissement.js';
+import { RegleFiscaleProviderEnMemoire } from '../../../src/domain/fiscalite/regles/regle-fiscale-provider.js';
 import { unComposantGrosOeuvre, unComposantMobilier } from '../../_builders/fiscalite.js';
-import type { BienId } from '../../../src/domain/_shared/identifiants.js';
+import type { BienId, BailleurId } from '../../../src/domain/_shared/identifiants.js';
 import { Composant } from '../../../src/domain/fiscalite/composant.js';
+// L'import direct (non-type) du module déclenche l'exécution de la ligne 13 (import Temporal)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import * as _composantRepoModule from '../../../src/domain/fiscalite/composant-repository.js';
+import type { ComposantRepository } from '../../../src/domain/fiscalite/composant-repository.js';
 
 const BIEN_ID = crypto.randomUUID() as BienId;
 
@@ -307,6 +313,80 @@ describe('calculerAmortissement — prorata temporis (D-FIS-G1.6, CGI art. 39)',
 });
 
 // Test indépendant : composant acquis ET sorti même exercice (sortie = 31 déc → inclus)
+describe('calculerAmortissement — estActifPourExercice + joursDansExercice branches', () => {
+  it('composant acquis en 2027 → exclu du calcul 2026 (dateAcquisition > finExercice)', () => {
+    // Couvre estActifPourExercice ligne "return false" (dateAcquisition > finExercice)
+    const composant = unComposantGrosOeuvre({
+      dateAcquisition: Temporal.PlainDate.from('2027-01-15'),
+      dateSortie: null,
+    });
+
+    const tableau = calculerAmortissement(
+      [composant],
+      2026,
+      REGLES_2026,
+      {
+        resultatAvantAmortissement: Money.fromEuros(50_000),
+        ardCumuleEnEntree: Money.zero(),
+      },
+    );
+
+    // Composant post-exercice → exclu
+    expect(tableau.dotationParComposant).toHaveLength(0);
+  });
+
+  it('dateSortie APRÈS fin exercice (2027-01-15) → traité comme sortie 31/12/2026 (ligne 101 branch finExercice)', () => {
+    // Couvre joursDansExercice : dateSortie > finExercice → utilise finExercice (branch `finExercice`)
+    const composant = unComposantGrosOeuvre({
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: Temporal.PlainDate.from('2026-01-01'),
+      dateSortie: Temporal.PlainDate.from('2027-01-15'), // après fin exercice 2026
+      motifSortie: 'vente',
+    });
+
+    const tableau = calculerAmortissement(
+      [composant],
+      2026,
+      REGLES_2026,
+      {
+        resultatAvantAmortissement: Money.fromEuros(50_000),
+        ardCumuleEnEntree: Money.zero(),
+      },
+    );
+
+    // Composant inclus dans 2026 (dateSortie 2027 > fin exercice → traité comme actif toute l'année)
+    expect(tableau.dotationParComposant).toHaveLength(1);
+    // Annuité pleine : 200k / 40 ans = 5 000 €
+    expect(tableau.dotationParComposant[0]!.dotationTheorique.toCentimes()).toBe(500_000n);
+  });
+
+  it('composant avec dateSortie dans l\'exercice (2026-09-30) → prorata 273 jours', () => {
+    // Couvre joursDansExercice : dateSortie != null && dateSortie <= finExercice → composant.dateSortie
+    const composant = unComposantGrosOeuvre({
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: Temporal.PlainDate.from('2026-01-01'),
+      dateSortie: Temporal.PlainDate.from('2026-09-30'),
+      motifSortie: 'vente',
+    });
+
+    const tableau = calculerAmortissement(
+      [composant],
+      2026,
+      REGLES_2026,
+      {
+        resultatAvantAmortissement: Money.fromEuros(50_000),
+        ardCumuleEnEntree: Money.zero(),
+      },
+    );
+
+    expect(tableau.dotationParComposant).toHaveLength(1);
+    const dot = tableau.dotationParComposant[0]!.dotationTheorique;
+    // Prorata 273/365 de 5 000€ annuité → entre 3 700 et 3 750 €
+    expect(Number(dot.toCentimes())).toBeGreaterThanOrEqual(370_000);
+    expect(Number(dot.toCentimes())).toBeLessThanOrEqual(375_000);
+  });
+});
+
 describe('calculerAmortissement — cas bord de périmètre', () => {
   it('composant sorti 31-12-2026 pour exercice 2026 → inclus dans le calcul', () => {
     const composant = unComposantGrosOeuvre({
@@ -346,5 +426,205 @@ describe('calculerAmortissement — cas bord de périmètre', () => {
     // Avec aucune dotation et ARD entrée = 5k, résultat = 50k → ardConsomme = min(5k, 50k) = 5k
     expect(tableau.ardConsomme.toCentimes()).toBe(500_000n);
     expect(tableau.ardCumuleEnSortie.toCentimes()).toBe(0n); // (5k-5k) + 0 = 0
+  });
+});
+
+// ─── Couverture : recalculerTableauAmortissement (use case lecture-seule) ────────
+
+describe('recalculerTableauAmortissement — use case orchestration (lignes 58-102)', () => {
+  const BIEN_ID_RECALC = crypto.randomUUID() as BienId;
+  const BAILLEUR_ID_RECALC = crypto.randomUUID() as BailleurId;
+  const EXERCICE_RECALC = 2026;
+  const REGLE = new RegleFiscaleProviderEnMemoire();
+  const CLOCK = { aujourdhui: () => Temporal.PlainDate.from('2026-12-31') };
+
+  it('0 composants → tableau vide, ARD cross-exercice lu depuis dernierArdCumule', async () => {
+    const composantRepo: ComposantRepository = {
+      enregistrer: vi.fn(),
+      enregistrerBatch: vi.fn(),
+      trouverParId: vi.fn(),
+      listerActifsParBien: vi.fn().mockResolvedValue([]),
+      listerParBien: vi.fn().mockResolvedValue([]),
+      listerActifsPourBailleur: vi.fn().mockResolvedValue([]),
+    };
+
+    const repos = {
+      composantRepo,
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn().mockResolvedValue(Money.fromEuros(30_000)) },
+      chargesRepo: {
+        sommeChargesParCategorie: vi.fn().mockResolvedValue({
+          entretien_reparation: Money.fromEuros(5_000),
+          amelioration: Money.zero(),
+          charge_courante_periodique: Money.zero(),
+          non_deductible: Money.zero(),
+          non_qualifie: Money.zero(),
+        }),
+      },
+      tableauAmortissementRepo: {
+        enregistrerBatch: vi.fn(),
+        listerParBienExercice: vi.fn().mockResolvedValue([]),
+        dernierArdCumule: vi.fn().mockResolvedValue(Money.zero()),
+        dernierArdCumuleBailleur: vi.fn().mockResolvedValue(Money.zero()),
+      },
+    };
+
+    const tableau = await recalculerTableauAmortissement(
+      BIEN_ID_RECALC,
+      BAILLEUR_ID_RECALC,
+      EXERCICE_RECALC,
+      repos,
+      REGLE,
+      CLOCK,
+    );
+
+    expect(tableau.dotationParComposant).toHaveLength(0);
+    expect(tableau.dotationAppliqueeTotale.toCentimes()).toBe(0n);
+    // listerParBien appelé (pas listerActifsParBien — le use case filtre par exercice)
+    expect(composantRepo.listerParBien).toHaveBeenCalledWith(BIEN_ID_RECALC);
+    // ARD cross-exercice : dernierArdCumule(bienId, exercice)
+    expect(repos.tableauAmortissementRepo.dernierArdCumule).toHaveBeenCalledWith(
+      BIEN_ID_RECALC,
+      EXERCICE_RECALC,
+    );
+  });
+
+  it('charges >= recettes → Money.zero() + catégories absentes → ?? Money.zero() (lignes 84-90)', async () => {
+    // Couvre : (1) ?? Money.zero() quand catégorie absente (lignes 84-86)
+    //          (2) chargesDeductibles >= recettes → Money.zero() (ligne 90)
+    const composantRepo: ComposantRepository = {
+      enregistrer: vi.fn(),
+      enregistrerBatch: vi.fn(),
+      trouverParId: vi.fn(),
+      listerActifsParBien: vi.fn().mockResolvedValue([]),
+      listerParBien: vi.fn().mockResolvedValue([]),
+      listerActifsPourBailleur: vi.fn().mockResolvedValue([]),
+    };
+
+    const repos = {
+      composantRepo,
+      // recettes 5k < charges — catégories partiellement absentes (undefined → ?? Money.zero())
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn().mockResolvedValue(Money.fromEuros(5_000)) },
+      chargesRepo: {
+        // Retourner un objet sans les 3 clés déductibles → toutes prennent la branche ?? Money.zero()
+        sommeChargesParCategorie: vi.fn().mockResolvedValue({
+          non_deductible: Money.fromEuros(50_000),
+          non_qualifie: Money.zero(),
+          // entretien_reparation, charge_courante_periodique, amelioration : absents → undefined → ??
+        }),
+      },
+      tableauAmortissementRepo: {
+        enregistrerBatch: vi.fn(),
+        listerParBienExercice: vi.fn().mockResolvedValue([]),
+        dernierArdCumule: vi.fn().mockResolvedValue(Money.zero()),
+        dernierArdCumuleBailleur: vi.fn().mockResolvedValue(Money.zero()),
+      },
+    };
+
+    const tableau = await recalculerTableauAmortissement(
+      BIEN_ID_RECALC,
+      BAILLEUR_ID_RECALC,
+      EXERCICE_RECALC,
+      repos,
+      REGLE,
+      CLOCK,
+    );
+
+    // chargesDeductibles = 0 (toutes ?? Money.zero()) < recettes 5k → recettes.soustraire = 5k
+    // 0 composants → dotation nulle
+    expect(tableau.dotationAppliqueeTotale.toCentimes()).toBe(0n);
+  });
+
+  it('charges > recettes (catégories présentes) → resultatAvantAmortissement = Money.zero() (ligne 90)', async () => {
+    // Couvre la branche chargesDeductibles > recettes → Money.zero() — catégories toutes présentes
+    const composantRepo: ComposantRepository = {
+      enregistrer: vi.fn(),
+      enregistrerBatch: vi.fn(),
+      trouverParId: vi.fn(),
+      listerActifsParBien: vi.fn().mockResolvedValue([]),
+      listerParBien: vi.fn().mockResolvedValue([]),
+      listerActifsPourBailleur: vi.fn().mockResolvedValue([]),
+    };
+
+    const repos = {
+      composantRepo,
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn().mockResolvedValue(Money.fromEuros(10_000)) },
+      chargesRepo: {
+        sommeChargesParCategorie: vi.fn().mockResolvedValue({
+          entretien_reparation: Money.fromEuros(30_000),
+          amelioration: Money.fromEuros(10_000),
+          charge_courante_periodique: Money.fromEuros(10_000), // total = 50k > recettes 10k
+          non_deductible: Money.zero(),
+          non_qualifie: Money.zero(),
+        }),
+      },
+      tableauAmortissementRepo: {
+        enregistrerBatch: vi.fn(),
+        listerParBienExercice: vi.fn().mockResolvedValue([]),
+        dernierArdCumule: vi.fn().mockResolvedValue(Money.zero()),
+        dernierArdCumuleBailleur: vi.fn().mockResolvedValue(Money.zero()),
+      },
+    };
+
+    const tableau = await recalculerTableauAmortissement(
+      BIEN_ID_RECALC,
+      BAILLEUR_ID_RECALC,
+      EXERCICE_RECALC,
+      repos,
+      REGLE,
+      CLOCK,
+    );
+
+    expect(tableau.dotationAppliqueeTotale.toCentimes()).toBe(0n);
+  });
+
+  it('1 composant gros_oeuvre 200k → dotation calculée + aucune persistance (lecture-seule)', async () => {
+    const composant = unComposantGrosOeuvre({
+      bienId: BIEN_ID_RECALC,
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: Temporal.PlainDate.from('2026-01-01'),
+    });
+
+    const enregistrerBatch = vi.fn();
+    const repos = {
+      composantRepo: {
+        enregistrer: vi.fn(),
+        enregistrerBatch,
+        trouverParId: vi.fn(),
+        listerActifsParBien: vi.fn(),
+        listerParBien: vi.fn().mockResolvedValue([composant]),
+        listerActifsPourBailleur: vi.fn(),
+      } as ComposantRepository,
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn().mockResolvedValue(Money.fromEuros(50_000)) },
+      chargesRepo: {
+        sommeChargesParCategorie: vi.fn().mockResolvedValue({
+          entretien_reparation: Money.fromEuros(5_000),
+          amelioration: Money.zero(),
+          charge_courante_periodique: Money.zero(),
+          non_deductible: Money.zero(),
+          non_qualifie: Money.zero(),
+        }),
+      },
+      tableauAmortissementRepo: {
+        enregistrerBatch,
+        listerParBienExercice: vi.fn().mockResolvedValue([]),
+        dernierArdCumule: vi.fn().mockResolvedValue(Money.zero()),
+        dernierArdCumuleBailleur: vi.fn().mockResolvedValue(Money.zero()),
+      },
+    };
+
+    const tableau = await recalculerTableauAmortissement(
+      BIEN_ID_RECALC,
+      BAILLEUR_ID_RECALC,
+      EXERCICE_RECALC,
+      repos,
+      REGLE,
+      CLOCK,
+    );
+
+    // Gros oeuvre 200k annuité 5k → dotation > 0
+    expect(tableau.dotationParComposant).toHaveLength(1);
+    expect(tableau.dotationAppliqueeTotale.toCentimes()).toBeGreaterThan(0n);
+    // LECTURE-SEULE : pas de persistance
+    expect(enregistrerBatch).not.toHaveBeenCalled();
   });
 });

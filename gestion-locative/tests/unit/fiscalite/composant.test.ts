@@ -227,6 +227,21 @@ describe('Composant.estAmortissable (D-FIS-G1.1)', () => {
   });
 });
 
+describe('Composant.creer — ticketId undefined (branche ||undefined ligne 148)', () => {
+  it('origineKind amelioration + ticketId undefined → throw InvariantViolated', () => {
+    expect(() =>
+      Composant.creer({
+        bienId: BIEN_ID,
+        type: 'gros_oeuvre',
+        montantHt: Money.fromEuros(50_000),
+        dateAcquisition: DATE_ACQ,
+        origineKind: 'amelioration',
+        ticketId: undefined as unknown as null, // undefined explicite — couvre la branche || undefined
+      }),
+    ).toThrow(/ticketId/i);
+  });
+});
+
 describe('Composant.toProps — round-trip', () => {
   it('toProps retourne tous les champs pour reconstruction', () => {
     const c = Composant.creer({

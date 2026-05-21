@@ -11,6 +11,7 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { describe, it, expect, vi } from 'vitest';
 import { qualifierJustificatif } from '../../../src/application/fiscalite/qualifier-justificatif.js';
+import { listerJustificatifsNonQualifies } from '../../../src/application/fiscalite/lister-justificatifs-non-qualifies.js';
 import { JustificatifIntrouvable } from '../../../src/domain/documents/erreurs.js';
 import { DeclarationFigeeException } from '../../../src/domain/fiscalite/erreurs.js';
 import type { BailleurId, JustificatifId } from '../../../src/domain/_shared/identifiants.js';
@@ -39,6 +40,27 @@ describe('qualifierJustificatif', () => {
         makeClock(),
       ),
     ).rejects.toThrow(JustificatifIntrouvable);
+
+    expect(repos.declRepo.trouverParBailleurExercice).not.toHaveBeenCalled();
+  });
+
+  it('Test 1b : bailleur absent → throw BailleurAbsent (lignes 62-65)', async () => {
+    const { BailleurAbsent } = await import('../../../src/domain/identite/erreurs.js');
+    const justificatif = unJustificatifNonQualifie({ dateDocument: Temporal.PlainDate.from('2026-03-01') });
+
+    const repos = {
+      justificatifRepo: { trouverParId: vi.fn().mockResolvedValue(justificatif), enregistrer: vi.fn() },
+      declRepo: { trouverParBailleurExercice: vi.fn() },
+      bailleurRepo: { trouver: vi.fn().mockResolvedValue(null) },
+    };
+
+    await expect(
+      qualifierJustificatif(
+        { justificatifId: justificatif.id as JustificatifId, qualification: 'entretien_reparation' },
+        repos as never,
+        makeClock(),
+      ),
+    ).rejects.toThrow(BailleurAbsent);
 
     expect(repos.declRepo.trouverParBailleurExercice).not.toHaveBeenCalled();
   });
@@ -114,5 +136,39 @@ describe('qualifierJustificatif', () => {
 
     // Vérifie que le check figée est fait sur exercice 2026 (datePaiement.year)
     expect(repos.declRepo.trouverParBailleurExercice).toHaveBeenCalledWith(BAILLEUR_ID, 2026);
+  });
+});
+
+// ─── Couverture : listerJustificatifsNonQualifies (fichier 100% non couvert) ────
+
+describe('listerJustificatifsNonQualifies — use case (D-FIS-G2.1)', () => {
+  it('délègue au repo et retourne la liste brute (lignes 14-19)', async () => {
+    const j1 = unJustificatifNonQualifie({ dateDocument: Temporal.PlainDate.from('2026-03-01') });
+    const j2 = unJustificatifNonQualifie({ dateDocument: Temporal.PlainDate.from('2026-06-15') });
+
+    const justificatifRepo = {
+      listerNonQualifiesPourAnnee: vi.fn().mockResolvedValue([j1, j2]),
+    };
+
+    const result = await listerJustificatifsNonQualifies(
+      { annee: 2026 },
+      { justificatifRepo },
+    );
+
+    expect(result).toHaveLength(2);
+    expect(justificatifRepo.listerNonQualifiesPourAnnee).toHaveBeenCalledWith(2026);
+  });
+
+  it('retourne liste vide si aucun non-qualifié', async () => {
+    const justificatifRepo = {
+      listerNonQualifiesPourAnnee: vi.fn().mockResolvedValue([]),
+    };
+
+    const result = await listerJustificatifsNonQualifies(
+      { annee: 2026 },
+      { justificatifRepo },
+    );
+
+    expect(result).toHaveLength(0);
   });
 });

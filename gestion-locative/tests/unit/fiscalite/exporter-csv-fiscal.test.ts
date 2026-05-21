@@ -23,6 +23,7 @@ import type { BailleurId, DeclarationAnnuelleId } from '../../../src/domain/_sha
 import { DeclarationAnnuelle } from '../../../src/domain/fiscalite/declaration-annuelle.js';
 import type { DeclarationAnnuelleRepository } from '../../../src/domain/fiscalite/declaration-annuelle-repository.js';
 import { exporterCsvFiscal, DeclarationIntrouvable } from '../../../src/application/fiscalite/exporter-csv-fiscal.js';
+import { DeclarationIntrouvablePdf, BailleurIntrouvable } from '../../../src/application/fiscalite/exporter-pdf-recap.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
 
 const BAILLEUR_ID = crypto.randomUUID() as BailleurId;
@@ -117,6 +118,41 @@ describe('exporterCsvFiscal — use case (D-FIS-G5.3)', () => {
     expect(nomFichier).toBe('declaration-fiscale-2026.csv');
   });
 
+  it('Test 2b : réel avec charges > recettes → pas de ligne Résultat fiscal (null branch ligne 102)', async () => {
+    // régime réel, charges totales + dotation > recettes → resultat null → pas ajouté au CSV
+    const decl = DeclarationAnnuelle.creer({
+      id: DECL_ID,
+      bailleurId: BAILLEUR_ID,
+      exercice: 2026,
+      regimeApplique: 'reel',
+      recettesTotales: Money.fromEuros(10_000), // 10k recettes
+      chargesQualifieesParCategorie: {
+        entretien_reparation: Money.fromEuros(8_000), // 8k
+        amelioration: Money.fromEuros(5_000),        // 5k
+        charge_courante_periodique: Money.fromEuros(3_000), // 3k → charges=16k > recettes=10k
+        non_deductible: Money.zero(),
+        non_qualifie: Money.zero(),
+      },
+      dotationAmortissement: Money.fromEuros(2_000),
+      ardGenere: Money.zero(),
+      ardConsomme: Money.zero(),
+      revenusFoyerSnapshot: null,
+      statutLmnpLmp: 'lmnp_confirme',
+      composantsSnapshot: '[{"type":"gros_oeuvre"}]',
+      clotureLe: Temporal.PlainDate.from('2026-12-31'),
+      seuilLmpRecettes: REGLES_2026.SEUIL_LMP_RECETTES,
+    });
+    const repo = makeDeclRepo(decl);
+
+    const { contenu } = await exporterCsvFiscal({ declarationId: DECL_ID }, { declRepo: repo });
+
+    // Résultat fiscal négatif → pas de ligne Résultat fiscal
+    expect(contenu).not.toContain('Résultat fiscal');
+    // Les autres lignes sont présentes
+    expect(contenu).toContain('Recettes annuelles;');
+    expect(contenu).toContain('reel');
+  });
+
   it('Test 3 : déclaration réel 100k → CSV contient toutes les colonnes + UTF-8 BOM', async () => {
     const decl = uneDeclReel();
     const repo = makeDeclRepo(decl);
@@ -139,5 +175,54 @@ describe('exporterCsvFiscal — use case (D-FIS-G5.3)', () => {
     expect(contenu).toContain('reel');
     // Nom fichier
     expect(nomFichier).toBe('declaration-fiscale-2026.csv');
+  });
+});
+
+// ─── Couverture : exporter-pdf-recap.ts — classes d'erreur (lignes 28-39) ────────
+
+describe('exporter-pdf-recap — erreurs et use case (lignes 28-82)', () => {
+  it('DeclarationIntrouvablePdf — name + message (lignes 29-33)', () => {
+    const err = new DeclarationIntrouvablePdf('decl-test-id');
+    expect(err.name).toBe('DeclarationIntrouvablePdf');
+    expect(err.message).toContain('decl-test-id');
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it('BailleurIntrouvable — name + message (lignes 35-39)', () => {
+    const err = new BailleurIntrouvable();
+    expect(err.name).toBe('BailleurIntrouvable');
+    expect(err.message).toContain('Bailleur introuvable');
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it('exporterPdfRecap — déclaration introuvable → throw DeclarationIntrouvablePdf (ligne 74-76)', async () => {
+    const { exporterPdfRecap } = await import('../../../src/application/fiscalite/exporter-pdf-recap.js');
+    const deps = {
+      declRepo: { trouverParId: vi.fn().mockResolvedValue(null) },
+      bailleurRepo: { trouver: vi.fn() },
+      bienRepo: { listerTous: vi.fn() },
+      tableauAmortRepo: { listerParBienExercice: vi.fn() },
+    };
+    const pdfRenderer = { genererBuffer: vi.fn() };
+
+    await expect(
+      exporterPdfRecap({ declarationId: DECL_ID }, deps as never, pdfRenderer as never),
+    ).rejects.toThrow(DeclarationIntrouvablePdf);
+  });
+
+  it('exporterPdfRecap — bailleur introuvable → throw BailleurIntrouvable (lignes 80-82)', async () => {
+    const { exporterPdfRecap } = await import('../../../src/application/fiscalite/exporter-pdf-recap.js');
+    const decl = uneDeclMicroBic();
+    const deps = {
+      declRepo: { trouverParId: vi.fn().mockResolvedValue(decl) },
+      bailleurRepo: { trouver: vi.fn().mockResolvedValue(null) },
+      bienRepo: { listerTous: vi.fn() },
+      tableauAmortRepo: { listerParBienExercice: vi.fn() },
+    };
+    const pdfRenderer = { genererBuffer: vi.fn() };
+
+    await expect(
+      exporterPdfRecap({ declarationId: DECL_ID }, deps as never, pdfRenderer as never),
+    ).rejects.toThrow(BailleurIntrouvable);
   });
 });

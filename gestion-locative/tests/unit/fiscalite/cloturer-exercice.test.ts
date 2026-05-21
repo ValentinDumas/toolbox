@@ -13,13 +13,15 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { describe, it, expect, vi } from 'vitest';
 import { cloturerExercice, DeclarationDejaExiste } from '../../../src/application/fiscalite/cloturer-exercice.js';
+import { collecterPrerequisCloture } from '../../../src/application/fiscalite/collecter-prerequis-cloture.js';
 import { PrerequisCloturalNonSatisfaits } from '../../../src/domain/fiscalite/erreurs.js';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
 import { RegleFiscaleProviderEnMemoire } from '../../../src/domain/fiscalite/regles/regle-fiscale-provider.js';
-import type { BailleurId } from '../../../src/domain/_shared/identifiants.js';
+import type { BailleurId, BienId } from '../../../src/domain/_shared/identifiants.js';
 import { unBailleurValide } from '../../_builders/identite.js';
-import { unComposantGrosOeuvre } from '../../_builders/fiscalite.js';
+import { unComposantGrosOeuvre, uneValorisationFiscale } from '../../_builders/fiscalite.js';
+import { unBienValide } from '../../_builders/patrimoine.js';
 
 const TODAY = Temporal.PlainDate.from('2026-05-20');
 const BAILLEUR_ID = crypto.randomUUID() as BailleurId;
@@ -207,5 +209,104 @@ describe('cloturerExercice', () => {
       BAILLEUR_ID,
       2025,
     );
+  });
+
+  it('Test 7 : réel avec charges > recettes → resultatAvantAmortissement = 0 (ligne 185)', async () => {
+    // Couvre la branche : recettes (10k) < charges (20k) → resultat = Money.zero()
+    const composant = unComposantGrosOeuvre({ bienId: BIEN_ID as never });
+    const repos = makeRepos({
+      recettes: Money.fromEuros(100_000),
+      chargesDeductibles: Money.fromEuros(110_000), // charges > recettes
+      revenusActifs: Money.fromEuros(150_000),
+    });
+    repos.composantRepo.listerActifsPourBailleur = vi.fn().mockResolvedValue([composant]);
+
+    const resultat = await cloturerExercice(
+      { bailleurId: BAILLEUR_ID, exercice: 2026, regimeChoisi: 'reel' },
+      repos as never,
+      makeClock(),
+      REGLE,
+      makeDb() as never,
+    );
+
+    expect(resultat.regimeApplique).toBe('reel');
+    // Pas de résultat avant amortissement : les deux branches sont testées, la clôture réussit
+    expect(resultat.declarationId).toBeTruthy();
+  });
+});
+
+// ─── Couverture : collecterPrerequisCloture branches manquantes ──────────────────
+
+describe('collecterPrerequisCloture — branches non couvertes (lignes 67-109)', () => {
+  const BAILLEUR_ID_PR = crypto.randomUUID() as BailleurId;
+  const REGLE_PROVIDER = new RegleFiscaleProviderEnMemoire();
+
+  it('bailleur absent → bloquant + retour anticipé (lignes 66-69)', async () => {
+    const repos = {
+      bailleurRepo: { trouver: vi.fn().mockResolvedValue(null) },
+      justificatifRepo: { compterNonQualifiesPourAnnee: vi.fn() },
+      ticketRepo: { compterStatutsActifs: vi.fn() },
+      valorisationRepo: { trouverParBien: vi.fn() },
+      bienRepo: { listerTous: vi.fn() },
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn() },
+    };
+
+    const result = await collecterPrerequisCloture(
+      BAILLEUR_ID_PR,
+      2026,
+      repos as never,
+      REGLE_PROVIDER,
+    );
+
+    expect(result.bloquants).toHaveLength(1);
+    expect(result.bloquants[0]).toContain('bailleur');
+    // Retour anticipé : autres repos pas appelés
+    expect(repos.justificatifRepo.compterNonQualifiesPourAnnee).not.toHaveBeenCalled();
+  });
+
+  it('tickets actifs → bloquant tickets ajouté (lignes 80-85)', async () => {
+    const bailleur = unBailleurValide();
+    const repos = {
+      bailleurRepo: { trouver: vi.fn().mockResolvedValue(bailleur) },
+      justificatifRepo: { compterNonQualifiesPourAnnee: vi.fn().mockResolvedValue(0) },
+      ticketRepo: { compterStatutsActifs: vi.fn().mockResolvedValue(2) }, // 2 tickets actifs
+      valorisationRepo: { trouverParBien: vi.fn() },
+      bienRepo: { listerTous: vi.fn().mockResolvedValue([]) },
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn().mockResolvedValue(Money.fromEuros(10_000)) },
+    };
+
+    const result = await collecterPrerequisCloture(
+      BAILLEUR_ID_PR,
+      2026,
+      repos as never,
+      REGLE_PROVIDER,
+    );
+
+    expect(result.bloquants.some((b) => b.includes('ticket'))).toBe(true);
+  });
+
+  it('bien actif sans valorisation + recettes > seuil micro → bloquant valorisation (lignes 101-109)', async () => {
+    const bailleur = { ...unBailleurValide(), revenusActifsAnnuelsCourant: Money.fromEuros(200_000) };
+    const BIEN_ID_NV = crypto.randomUUID() as BienId;
+    const bien = unBienValide({ id: BIEN_ID_NV });
+
+    const repos = {
+      bailleurRepo: { trouver: vi.fn().mockResolvedValue(bailleur) },
+      justificatifRepo: { compterNonQualifiesPourAnnee: vi.fn().mockResolvedValue(0) },
+      ticketRepo: { compterStatutsActifs: vi.fn().mockResolvedValue(0) },
+      valorisationRepo: { trouverParBien: vi.fn().mockResolvedValue(null) }, // pas de valorisation
+      bienRepo: { listerTous: vi.fn().mockResolvedValue([bien]) },
+      recettesRepo: { sommeRecettesAnnuelles: vi.fn().mockResolvedValue(Money.fromEuros(90_000)) }, // > 83.6k
+    };
+
+    const result = await collecterPrerequisCloture(
+      BAILLEUR_ID_PR,
+      2026,
+      repos as never,
+      REGLE_PROVIDER,
+    );
+
+    // Bloquant valorisation ajouté
+    expect(result.bloquants.some((b) => b.includes('fiscalement'))).toBe(true);
   });
 });

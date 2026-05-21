@@ -23,6 +23,25 @@ function makeClock() {
 }
 
 describe('decomposerJustificatif', () => {
+  it('parent introuvable → throw Error sans écriture (lignes 43-45)', async () => {
+    const justificatifRepo = {
+      trouverParId: vi.fn().mockResolvedValue(null),
+      enregistrer: vi.fn(),
+    };
+    const db = { transaction: () => ({ execute: vi.fn() }) };
+
+    await expect(
+      decomposerJustificatif(
+        { parentId: 'jus-inexistant' as JustificatifId, enfants: [] },
+        { justificatifRepo: justificatifRepo as never },
+        makeClock(),
+        db as never,
+      ),
+    ).rejects.toThrow('Justificatif introuvable');
+
+    expect(justificatifRepo.enregistrer).not.toHaveBeenCalled();
+  });
+
   it('Σ correct → N+1 persistés en transaction (parent non_deductible + N enfants)', async () => {
     const parent = unJustificatifNonQualifie({
       bienId: BIEN_A,
