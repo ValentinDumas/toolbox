@@ -111,15 +111,15 @@ describe('ChargesRepositorySqlite.sommeChargesParBien (D-FIS-G5.1)', () => {
     expect(somme.centimes).toBe(50_000n);
   });
 
-  it('Test 3 : justificatif bien_id=null EXCLU de la ventilation par bien', async () => {
-    // Charge sans bien_id (charge générale bailleur)
-    await insertJustificatif({ bienId: null, montant: 100_000, qualification: 'charge_courante_periodique' });
+  it('Test 3 : justificatif bien_id=B2 EXCLU de la ventilation pour B1', async () => {
+    // Charge appartenant à B2 (pas à B1)
+    await insertJustificatif({ bienId: bienId2, montant: 100_000, qualification: 'charge_courante_periodique' });
     // Charge de B1
     await insertJustificatif({ bienId: bienId1, montant: 40_000, qualification: 'entretien_reparation' });
 
     const sommeB1 = await repo.sommeChargesParBien(bienId1, 2026);
 
-    // La charge sans bien_id est exclue de la ventilation par bien
+    // La charge de B2 est exclue de la ventilation pour B1
     expect(sommeB1.centimes).toBe(40_000n);
   });
 });

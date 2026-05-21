@@ -6,7 +6,7 @@ import {
   type QualificationFiscale,
 } from '../../domain/fiscalite/qualification-fiscale.js';
 import { Money } from '../../domain/_shared/money.js';
-import type { BailleurId } from '../../domain/_shared/identifiants.js';
+import type { BailleurId, BienId } from '../../domain/_shared/identifiants.js';
 
 /** Valeurs de qualification exclues de l'agrégation (non qualifié = pas encore traité). */
 const QUALIFICATIONS_EXCLUES = ['non_qualifie'] as const;
@@ -68,5 +68,46 @@ export class ChargesRepositorySqlite implements ChargesRepository {
     }
 
     return result;
+  }
+
+  /**
+   * Somme des charges déductibles pour un bien donné (D-FIS-G5.1).
+   *
+   * Catégories déductibles : entretien_reparation, amelioration, charge_courante_periodique.
+   * Les justificatifs avec bien_id=null (charges générales bailleur) sont exclus.
+   *
+   * @param bienId - identifiant du bien (filtrage direct par colonne bien_id)
+   * @param annee - exercice fiscal (ex: 2026)
+   */
+  async sommeChargesParBien(bienId: BienId, annee: number): Promise<Money> {
+    const CATEGORIES_DEDUCTIBLES = [
+      'entretien_reparation',
+      'amelioration',
+      'charge_courante_periodique',
+    ] as const;
+
+    const result = await this.db
+      .selectFrom('justificatifs')
+      .select((eb) => eb.fn.sum<number>('montant_ttc_centimes').as('total'))
+      .where('bien_id', '=', bienId)
+      .where('corbeille_le', 'is', null)
+      .where('qualification_fiscale', 'in', CATEGORIES_DEDUCTIBLES)
+      .where(
+        (eb) =>
+          eb.fn('substr', [
+            eb.fn('coalesce', ['date_paiement', 'date_document']),
+            eb.val(1),
+            eb.val(4),
+          ]),
+        '=',
+        String(annee),
+      )
+      .executeTakeFirst();
+
+    const total = result?.total ?? 0;
+    if (total <= 0) {
+      return Money.zero();
+    }
+    return Money.fromCentimes(BigInt(Math.round(total)));
   }
 }

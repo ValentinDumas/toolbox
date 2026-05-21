@@ -1,8 +1,8 @@
 import type { Money } from '../_shared/money.js';
-import type { BailleurId } from '../_shared/identifiants.js';
+import type { BailleurId, BienId } from '../_shared/identifiants.js';
 
 /**
- * Port — agrégation des recettes annuelles (FIS-02, FIS-03).
+ * Port — agrégation des recettes annuelles (FIS-02, FIS-03, D-FIS-G5.1).
  *
  * Chaîne : Encaissement → EcheanceLoyer → Bail → Bailleur (single-bailleur V1, D-LOCK-2).
  *
@@ -24,4 +24,20 @@ export interface RecettesRepository {
    * @param annee - exercice fiscal (ex: 2026)
    */
   sommeRecettesAnnuelles(bailleurId: BailleurId, annee: number): Promise<Money>;
+
+  /**
+   * Retourne la somme des encaissements actifs pour un bien donné et une année donnée.
+   *
+   * Ventilation par bien (D-FIS-G5.1) — utilisée par listerVueConsolidee.
+   * Chaîne JOIN : encaissement → echeance_loyer → bail → lot WHERE lot.bien_id = bienId.
+   *
+   * Règles :
+   *   - Filtre `annule_le IS NULL` (compensateurs inclus dans la somme algébrique)
+   *   - Rattachement par `date` de l'encaissement (D-FIS-G2.11)
+   *   - Retourne Money ≥ 0 (clamp à zero si somme négative)
+   *
+   * @param bienId - identifiant du bien (filtrage via JOIN bail → lot → bien)
+   * @param annee - exercice fiscal (ex: 2026)
+   */
+  sommeRecettesAnnuellesParBien(bienId: BienId, annee: number): Promise<Money>;
 }

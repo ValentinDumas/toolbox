@@ -59,7 +59,7 @@ describe('listerVueConsolidee — intégration in-memory (D-FIS-G5.1)', () => {
       valorisationRepo: new ValorisationFiscaleRepositorySqlite(db),
       tableauAmortRepo: new TableauAmortissementRepositorySqlite(db),
       bailleurRepo: new BailleurRepositorySqlite(db),
-      regleFiscale: regleFiscale.obtenirPourAnnee(EXERCICE),
+      regleFiscale: regleFiscale.pour(EXERCICE),
     };
   }
 
@@ -73,9 +73,9 @@ describe('listerVueConsolidee — intégration in-memory (D-FIS-G5.1)', () => {
     const bailleurRow = await db.selectFrom('bailleur').selectAll().executeTakeFirst();
     if (bailleurRow) {
       bailleurId = bailleurRow.id as BailleurId;
-      // Mettre à jour avec les revenus foyer pour les tests LMP
+      // Mettre à jour avec les revenus foyer pour les tests LMP (100k en centimes)
       await db.updateTable('bailleur').set({
-        revenus_actifs_annuels_courant: 100_000_00, // 100k en centimes
+        revenus_actifs_annuels_courant_centimes: 10_000_000,
       }).where('id', '=', bailleurId).execute();
     } else {
       const bailleur = unBailleurValide();
@@ -88,7 +88,7 @@ describe('listerVueConsolidee — intégration in-memory (D-FIS-G5.1)', () => {
         ville: bailleur.adresse.ville,
         singleton_marker: 1,
         regime_fiscal: null,
-        revenus_actifs_annuels_courant: 10_000_000, // 100k en centimes
+        revenus_actifs_annuels_courant_centimes: 10_000_000,
         fiscalite_premier_acces: null,
       }).execute();
     }
