@@ -34,10 +34,10 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 
 ### Fiscalité
 
-- [ ] **FIS-01** : Le système détecte le risque de bascule LMP (recettes annuelles > 23 000 € ET > revenus actifs du foyer) et alerte l'utilisateur.
-- [ ] **FIS-02** : Le système calcule l'abattement micro-BIC (50 % longue durée, 30 % tourisme non classé, plancher 305 €) et vérifie le seuil 83 600 €.
-- [ ] **FIS-03** : Le système agrège recettes et charges pour le `RegimeFiscal` réel.
-- [ ] **FIS-04** : Le système calcule l'amortissement par composant (terrain exclu, ARD reportable, prorata temporis à l'acquisition, plafond résultat avant amortissement).
+- [x] **FIS-01** : Le système détecte le risque de bascule LMP (recettes annuelles > 23 000 € ET > revenus actifs du foyer) et alerte l'utilisateur.
+- [x] **FIS-02** : Le système calcule l'abattement micro-BIC (50 % longue durée, 30 % tourisme non classé, plancher 305 €) et vérifie le seuil 83 600 €.
+- [x] **FIS-03** : Le système agrège recettes et charges pour le `RegimeFiscal` réel.
+- [x] **FIS-04** : Le système calcule l'amortissement par composant (terrain exclu, ARD reportable, prorata temporis à l'acquisition, plafond résultat avant amortissement).
 - [ ] **FIS-05** : Le système prépare le brouillon de la liasse 2031-SD et des annexes 2033-A à G (régime réel).
 - [ ] **FIS-06** : Le système trace la déclaration CFE (formulaire 1447-C-SD initial) et alerte sur l'échéance de paiement décembre.
 
@@ -140,10 +140,10 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 | ENC-03 | Phase 2 | Pending |
 | ENC-04 | Phase 2 | Pending |
 | ENC-05 | Phase 2 | Pending |
-| FIS-01 | Phase 5 | Pending |
-| FIS-02 | Phase 5 | Pending |
-| FIS-03 | Phase 5 | Pending |
-| FIS-04 | Phase 5 | Pending |
+| FIS-01 | Phase 5 | Complete |
+| FIS-02 | Phase 5 | Complete |
+| FIS-03 | Phase 5 | Complete |
+| FIS-04 | Phase 5 | Complete |
 | FIS-05 | Phase 6 | Pending |
 | FIS-06 | Phase 6 | Pending |
 | DOC-01 | Phase 4 | Pending |
