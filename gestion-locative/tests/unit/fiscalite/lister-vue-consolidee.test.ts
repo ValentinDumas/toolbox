@@ -237,10 +237,10 @@ describe('listerVueConsolidee — use case (D-FIS-G5.1)', () => {
 
     const deps = makeDeps({ biens: [b1], recettesBien, chargesBien: new Map() });
     // Override valorisation → non null pour déclencher le chemin lignes 134-144
-    (deps.valorisationRepo as { trouverParBien: ReturnType<typeof vi.fn> }).trouverParBien =
+    (deps.valorisationRepo as unknown as { trouverParBien: ReturnType<typeof vi.fn> }).trouverParBien =
       vi.fn().mockResolvedValue(vf);
     // Fournir le composant actif
-    (deps.composantRepo as { listerActifsParBien: ReturnType<typeof vi.fn> }).listerActifsParBien =
+    (deps.composantRepo as unknown as { listerActifsParBien: ReturnType<typeof vi.fn> }).listerActifsParBien =
       vi.fn().mockResolvedValue([composantActif]);
 
     const result = await listerVueConsolidee(BAILLEUR_ID, EXERCICE, deps, clock);
@@ -282,9 +282,9 @@ describe('listerVueConsolidee — use case (D-FIS-G5.1)', () => {
     });
 
     const deps = makeDeps({ biens: [b1], recettesBien, chargesBien });
-    (deps.valorisationRepo as { trouverParBien: ReturnType<typeof vi.fn> }).trouverParBien =
+    (deps.valorisationRepo as unknown as { trouverParBien: ReturnType<typeof vi.fn> }).trouverParBien =
       vi.fn().mockResolvedValue(vf);
-    (deps.composantRepo as { listerActifsParBien: ReturnType<typeof vi.fn> }).listerActifsParBien =
+    (deps.composantRepo as unknown as { listerActifsParBien: ReturnType<typeof vi.fn> }).listerActifsParBien =
       vi.fn().mockResolvedValue([composantActif]);
 
     const result = await listerVueConsolidee(BAILLEUR_ID, EXERCICE, deps, clock);

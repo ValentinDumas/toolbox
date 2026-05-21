@@ -20,7 +20,7 @@ import { Temporal } from '@js-temporal/polyfill';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
 import { calculerAmortissement } from '../../../src/application/fiscalite/calculer-amortissement.js';
-import { recalculerTableauAmortissement } from '../../../src/application/fiscalite/recalculer-tableau-amortissement.js';
+import { recalculerTableauAmortissement, type RecalculerTableauAmortissementRepos } from '../../../src/application/fiscalite/recalculer-tableau-amortissement.js';
 import { RegleFiscaleProviderEnMemoire } from '../../../src/domain/fiscalite/regles/regle-fiscale-provider.js';
 import { unComposantGrosOeuvre, unComposantMobilier } from '../../_builders/fiscalite.js';
 import type { BienId, BailleurId } from '../../../src/domain/_shared/identifiants.js';
@@ -472,7 +472,7 @@ describe('recalculerTableauAmortissement — use case orchestration (lignes 58-1
       BIEN_ID_RECALC,
       BAILLEUR_ID_RECALC,
       EXERCICE_RECALC,
-      repos,
+      repos as unknown as RecalculerTableauAmortissementRepos,
       REGLE,
       CLOCK,
     );
@@ -524,7 +524,7 @@ describe('recalculerTableauAmortissement — use case orchestration (lignes 58-1
       BIEN_ID_RECALC,
       BAILLEUR_ID_RECALC,
       EXERCICE_RECALC,
-      repos,
+      repos as unknown as RecalculerTableauAmortissementRepos,
       REGLE,
       CLOCK,
     );
@@ -569,7 +569,7 @@ describe('recalculerTableauAmortissement — use case orchestration (lignes 58-1
       BIEN_ID_RECALC,
       BAILLEUR_ID_RECALC,
       EXERCICE_RECALC,
-      repos,
+      repos as unknown as RecalculerTableauAmortissementRepos,
       REGLE,
       CLOCK,
     );
@@ -616,7 +616,7 @@ describe('recalculerTableauAmortissement — use case orchestration (lignes 58-1
       BIEN_ID_RECALC,
       BAILLEUR_ID_RECALC,
       EXERCICE_RECALC,
-      repos,
+      repos as unknown as RecalculerTableauAmortissementRepos,
       REGLE,
       CLOCK,
     );

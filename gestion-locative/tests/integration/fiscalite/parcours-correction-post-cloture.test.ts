@@ -181,9 +181,9 @@ describe('parcours-correction-post-cloture — append-only strict', () => {
     // Vérifier que la correction est persistée avec les bonnes valeurs
     const corrections = await declCorrRepo.listerParDeclarationOriginale(declarationId);
     expect(corrections).toHaveLength(1);
-    expect(corrections[0].recettesTotales.centimes).toBe(5_000_000n); // 50 000 €
-    expect(corrections[0].declarationOriginaleId).toBe(declarationId);
-    expect(corrections[0].motif).toBe('Justificatif TF oublié');
+    expect(corrections[0]?.recettesTotales.centimes).toBe(5_000_000n); // 50 000 €
+    expect(corrections[0]?.declarationOriginaleId).toBe(declarationId);
+    expect(corrections[0]?.motif).toBe('Justificatif TF oublié');
   });
 
   it('N corrections successives : 3 corrections → 3 lignes, originale toujours intacte', async () => {
