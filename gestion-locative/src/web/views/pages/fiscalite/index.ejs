@@ -1,0 +1,85 @@
+<%#
+  Vue racine fiscalité — GET /fiscalite
+  Ownership : Plan 08 (locked depuis Plan 06 qui avait posé un placeholder inline)
+
+  Locals attendus :
+    bailleur           : Bailleur (singleton)
+    declarations       : DeclarationAnnuelle[]
+    anneeCourante      : number
+    verdictLmp         : VerdictLmp | null
+    compteurNonQualifies : number
+    afficherOnboardingBanner : boolean (bailleur.fiscalitePremierAcces === null)
+
+  Surfaces couvertes (UI-SPEC) :
+    S1 — onboarding conditionnel
+    S2 — bandeau compteur justificatifs à qualifier
+    S7 — bandeau verdict tri-état LMNP/LMP
+%>
+<%- include('../../partials/layout-debut', {
+  titre: 'Fiscalité LMNP',
+  breadcrumbs: [
+    { label: 'Accueil', url: '/' },
+    { label: 'Fiscalité' }
+  ],
+  navActive: 'fiscalite',
+  afficherOnboardingBanner: typeof afficherOnboardingBanner !== 'undefined'
+    ? afficherOnboardingBanner
+    : (bailleur.fiscalitePremierAcces === null)
+}) %>
+
+<% if (compteurNonQualifies > 0) { %>
+  <%- include('../../partials/banniere-warning', {
+    message: compteurNonQualifies + ' justificatif(s) à qualifier pour ' + anneeCourante,
+    lienUrl: '/fiscalite/qualification?annee=' + anneeCourante,
+    lienLabel: 'Qualifier maintenant'
+  }) %>
+<% } %>
+
+<% if (verdictLmp) { %>
+  <%- include('../../partials/partial-verdict-fiscal', {
+    statut: verdictLmp,
+    annee: anneeCourante
+  }) %>
+<% } %>
+
+<h1>Fiscalité LMNP — Exercice <%= anneeCourante %></h1>
+
+<section>
+  <h2>Actions</h2>
+  <p>
+    <a class="primary" href="/fiscalite/cloturer/<%= anneeCourante %>/etape/1"
+       style="padding: 12px 16px; display: inline-block;">Clôturer l'exercice <%= anneeCourante %></a>
+  </p>
+  <p>
+    <a href="/fiscalite/multi-bien?annee=<%= anneeCourante %>">Vue consolidée multi-bien</a>
+  </p>
+  <p>
+    <a href="/fiscalite/revenus-foyer">Revenus du foyer</a>
+  </p>
+</section>
+
+<section>
+  <h2>Déclarations clôturées</h2>
+  <% if (declarations.length === 0) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Aucune déclaration clôturée',
+      body: "Activez la fiscalité d'un bien, puis clôturez votre premier exercice à la fin de l'année civile.",
+      ctaUrl: '/biens',
+      ctaLabel: "Activer la fiscalité d'un bien"
+    }) %>
+  <% } else { %>
+    <ul>
+      <% declarations.forEach(function(decl) { %>
+        <li>
+          <a href="/fiscalite/declarations/<%= decl.id %>">Exercice <%= decl.exercice %></a>
+          — <%= decl.statutLmnpLmp === 'lmnp_confirme' ? 'LMNP confirmé'
+               : decl.statutLmnpLmp === 'lmp_probable' ? 'LMP probable'
+               : 'Indéterminé (revenus foyer manquants)' %>
+          — <%= decl.recettesTotales.enEuros() %> recettes
+        </li>
+      <% }); %>
+    </ul>
+  <% } %>
+</section>
+
+<%- include('../../partials/layout-fin') %>

@@ -122,3 +122,71 @@ section[role="alert"][aria-live="assertive"]:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Phase 5 — Fiscalité LMNP ──────────────────────────────────────────────── */
+
+/* Bannière onboarding fiscal (D-FIS-G5.4 — premier accès à la fiscalité) */
+.banniere-onboarding {
+  background: var(--couleur-accent-bg);
+  color: var(--couleur-accent);
+  padding: 16px;
+  border-left: 4px solid var(--couleur-accent);
+  margin-bottom: 16px;
+}
+
+/* Badge "Sans pièce justificative" (D-FIS-G2.8) — toujours visible même en non_deductible */
+.badge-sans-pj {
+  background: var(--couleur-neutre-bg);
+  color: var(--couleur-neutre);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+/* Wizard de clôture fiscale S8 (UI-SPEC §S8) */
+.wizard-fiscalite ol {
+  list-style: none;
+  display: flex;
+  gap: 16px;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.wizard-fiscalite ol li[aria-current="step"] {
+  font-weight: 600;
+  color: var(--couleur-accent);
+}
+
+/* Sélecteur ARIA imposé UI-SPEC §Accessibilité WCAG 2.1 AA */
+ol[aria-label="Étapes de la clôture fiscale"] li[aria-current="step"] {
+  font-weight: 600;
+  color: var(--couleur-accent);
+}
+
+/* ── Print stylesheet — PDF récap fiscal (D-FIS-G5.3 + Plan 08) ─────────── */
+
+@media print {
+  nav,
+  .sidebar-nav,
+  button,
+  a.button,
+  a[role="button"],
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}
