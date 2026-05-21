@@ -1,0 +1,48 @@
+<%- include('../../../../partials/layout-debut', {
+  titre: 'Clôture exercice ' + exercice + ' — Comparatif régimes',
+  breadcrumbs: [{ url: '/fiscalite', label: 'Fiscalité' }, { label: 'Clôturer ' + exercice }],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../../../partials/wizard-fiscalite-layout', { currentStep: 3 }) %>
+
+<h1>Étape 3 — Comparatif micro-BIC / régime réel</h1>
+
+<% if (regimeForce === 'reel') { %>
+  <aside role="alert" style="background: var(--couleur-warning-bg, #fef3c7); padding: 12px; margin-bottom: 16px;">
+    <span aria-hidden="true">⚠</span>
+    <strong>Régime réel forcé</strong> — vos recettes dépassent le seuil micro-BIC (83 600 €).
+    Le régime réel s'applique obligatoirement.
+  </aside>
+<% } %>
+
+<%- include('../../../../partials/partial-comparatif-regime', {
+  recettes,
+  micro,
+  chargesParCategorie,
+  dotationEstimee,
+  regles
+}) %>
+
+<form action="/fiscalite/cloturer/<%= exercice %>/etape/4" method="GET">
+  <% if (!regimeForce) { %>
+    <fieldset>
+      <legend>Choisir votre régime fiscal</legend>
+      <label>
+        <input type="radio" name="regimeChoisi" value="micro_bic" checked> Micro-BIC
+      </label>
+      <label>
+        <input type="radio" name="regimeChoisi" value="reel"> Régime réel
+      </label>
+    </fieldset>
+  <% } else { %>
+    <input type="hidden" name="regimeChoisi" value="reel">
+  <% } %>
+
+  <p>
+    <a href="/fiscalite/cloturer/<%= exercice %>/etape/2" role="button" class="secondary">← Précédent</a>
+    <button type="submit">Suivant →</button>
+  </p>
+</form>
+
+<%- include('../../../../partials/layout-fin') %>

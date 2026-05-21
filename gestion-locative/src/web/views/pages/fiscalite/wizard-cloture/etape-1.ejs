@@ -1,0 +1,27 @@
+<%- include('../../../../partials/layout-debut', {
+  titre: 'Clôture exercice ' + exercice + ' — Prérequis',
+  breadcrumbs: [{ url: '/fiscalite', label: 'Fiscalité' }, { label: 'Clôturer ' + exercice }],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../../../partials/wizard-fiscalite-layout', { currentStep: 1 }) %>
+
+<h1>Étape 1 — Vérification des prérequis</h1>
+<p>Avant de clôturer l'exercice <strong><%= exercice %></strong>, vérifiez que tous les éléments ci-dessous sont en ordre.</p>
+
+<% if (banniereErreur) { %>
+  <aside role="alert" aria-live="assertive" class="banniere-warning"><%= banniereErreur %></aside>
+<% } %>
+
+<%- include('../../../../partials/partial-prerequis-cloture', { prerequis }) %>
+
+<p>
+  <% if (!ctaSuivantDisabled) { %>
+    <a href="/fiscalite/cloturer/<%= exercice %>/etape/2" role="button">Suivant →</a>
+  <% } else { %>
+    <button type="button" disabled aria-disabled="true">Suivant → (prérequis non satisfaits)</button>
+  <% } %>
+  <a href="/fiscalite" role="button" class="secondary">Annuler</a>
+</p>
+
+<%- include('../../../../partials/layout-fin') %>

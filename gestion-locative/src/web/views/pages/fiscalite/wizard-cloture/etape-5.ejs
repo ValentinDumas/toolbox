@@ -1,0 +1,28 @@
+<%- include('../../../../partials/layout-debut', {
+  titre: 'Clôture exercice ' + exercice + ' — Clôturer',
+  breadcrumbs: [{ url: '/fiscalite', label: 'Fiscalité' }, { label: 'Clôturer ' + exercice }],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../../../partials/wizard-fiscalite-layout', { currentStep: 5 }) %>
+
+<h1>Étape 5 — Clôturer l'exercice <%= exercice %></h1>
+
+<p>
+  <strong>Attention :</strong> Cette action est irréversible. Une fois l'exercice clôturé,
+  les données sont figées. Toute correction ultérieure devra passer par une
+  <em>déclaration corrigée</em>.
+</p>
+
+<form method="POST" action="/fiscalite/cloturer/<%= exercice %>">
+  <% if (regimeChoisi) { %>
+    <input type="hidden" name="regimeChoisi" value="<%= regimeChoisi %>">
+  <% } %>
+
+  <p>
+    <a href="/fiscalite/cloturer/<%= exercice %>/etape/4<% if (regimeChoisi) { %>?regimeChoisi=<%= regimeChoisi %><% } %>" role="button" class="secondary">← Précédent</a>
+    <button type="submit" class="accent">Clôturer l'exercice <%= exercice %></button>
+  </p>
+</form>
+
+<%- include('../../../../partials/layout-fin') %>

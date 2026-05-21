@@ -1,0 +1,77 @@
+<%
+/*
+ * partial-comparatif-regime.ejs — Comparatif micro-BIC vs régime réel (D-FIS-G4.3).
+ *
+ * Variables attendues :
+ *   - recettes: Money
+ *   - micro: { resultatImposable: Money, abattementApplique: Money, seuilDepasse: boolean }
+ *   - chargesParCategorie: Record<QualificationFiscale, Money>
+ *   - dotationEstimee: number | null (centimes, null si non calculée)
+ *   - regimes: { SEUIL_MICRO_BIC_LONGUE_DUREE: Money, SEUIL_LMP_RECETTES: Money }
+ *
+ * Sources :
+ *   D-FIS-G4.3 — choisirRegime use case pur
+ *   CGI art. 50-0 — micro-BIC : abattement 50 % (location meublée)
+ *   BOFIP-BIC-DECLA-10-30 — choix libre régime si recettes < seuil ; option réel 1 an tacitement renouvelé
+ */
+
+function formatEuros(centimes) {
+  return (centimes / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+}
+
+const recettesCentimes = recettes ? recettes.toSqliteInteger() : 0;
+const microResultatCentimes = micro ? micro.resultatImposable.toSqliteInteger() : 0;
+const microAbattementCentimes = micro ? micro.abattementApplique.toSqliteInteger() : 0;
+
+const chargesDeductiblesCentimes = chargesParCategorie
+  ? (chargesParCategorie.entretien_reparation?.toSqliteInteger() || 0)
+    + (chargesParCategorie.amelioration?.toSqliteInteger() || 0)
+    + (chargesParCategorie.charge_courante_periodique?.toSqliteInteger() || 0)
+  : 0;
+
+const dotationCentimes = dotationEstimee ?? 0;
+const reelResultatCentimes = Math.max(0, recettesCentimes - chargesDeductiblesCentimes - dotationCentimes);
+%>
+<table aria-label="Comparatif micro-BIC vs régime réel">
+  <thead>
+    <tr>
+      <th scope="col">Critère</th>
+      <th scope="col">Micro-BIC</th>
+      <th scope="col">Régime réel</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">Recettes</th>
+      <td><%= formatEuros(recettesCentimes) %></td>
+      <td><%= formatEuros(recettesCentimes) %></td>
+    </tr>
+    <tr>
+      <th scope="row">Abattement / Charges déductibles</th>
+      <td>Abattement 50 % = <%= formatEuros(microAbattementCentimes) %></td>
+      <td>Charges = <%= formatEuros(chargesDeductiblesCentimes) %></td>
+    </tr>
+    <tr>
+      <th scope="row">Amortissement</th>
+      <td>Non applicable</td>
+      <td>
+        <% if (dotationEstimee !== null) { %>
+          <%= formatEuros(dotationCentimes) %>
+        <% } else { %>
+          <em>Non calculé (activez la fiscalité du bien)</em>
+        <% } %>
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">Résultat fiscal estimé</th>
+      <td><strong><%= formatEuros(microResultatCentimes) %></strong></td>
+      <td><strong><%= formatEuros(reelResultatCentimes) %></strong></td>
+    </tr>
+  </tbody>
+</table>
+<p>
+  <small>
+    Note (D-FIS-G4.3, BOFIP-BIC-DECLA-10-30) : Le choix du régime réel est libre tant que les recettes
+    sont inférieures au seuil micro-BIC. L'option pour le régime réel est valable 1 an, tacitement renouvelée.
+  </small>
+</p>

@@ -108,6 +108,32 @@ export const saisirRevenusFoyerSchema = z.object({
 export type SaisirRevenusFoyerData = z.infer<typeof saisirRevenusFoyerSchema>;
 
 /**
+ * POST /fiscalite/cloturer/:exercice (étape 5 wizard — submission finale).
+ * Body : { regimeChoisi?: 'micro_bic' | 'reel' }
+ *
+ * T-05-06-06 : exercice borné pour éviter injection.
+ * T-05-06-08 : regimeChoisi override ignoré si recettes > SEUIL (choisirRegime use case).
+ */
+export const cloturerExerciceSchema = z.object({
+  regimeChoisi: z.enum(['micro_bic', 'reel']).optional(),
+});
+export type CloturerExerciceData = z.infer<typeof cloturerExerciceSchema>;
+
+/**
+ * POST /fiscalite/declarations/:id/corriger
+ * Body : { motif, recettesTotalesEuros?, ... }
+ *
+ * T-05-06-06 : motif limité à 2000 chars pour éviter DoS.
+ */
+export const creerDeclarationCorrigeeSchema = z.object({
+  motif: z.string().min(1, 'Le motif est requis').max(2000, 'Motif trop long'),
+  recettesTotalesEuros: z.coerce.number().min(0).optional(),
+  chargesEntretienEuros: z.coerce.number().min(0).optional(),
+  dotationAmortissementEuros: z.coerce.number().min(0).optional(),
+});
+export type CreerDeclarationCorrigeeData = z.infer<typeof creerDeclarationCorrigeeSchema>;
+
+/**
  * Reconstruit le tableau d'enfants depuis un body FormData plat.
  * Les champs sont encodés enfants[0].bienId, enfants[0].montantTtcEuros, etc.
  * (fast-querystring ne parse pas le bracket-dot notation imbriqué)

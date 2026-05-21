@@ -1,0 +1,45 @@
+<%
+/*
+ * partial-prerequis-cloture.ejs — Liste des prérequis de clôture (D-FIS-G4.1).
+ *
+ * Variables attendues :
+ *   - prerequis: { bloquants: string[], avertissements: string[] }
+ *
+ * Accessibilité WCAG 2.1 AA :
+ *   - aria-hidden="true" sur l'icône (texte adjacent visible toujours)
+ *   - role="list" + role="listitem" pour semantique correcte
+ *   - Couleurs tokens : couleur-success / couleur-destructive
+ */
+%>
+<section aria-label="Prérequis de clôture">
+  <% if (prerequis.bloquants.length === 0 && prerequis.avertissements.length === 0) { %>
+    <p style="color: var(--couleur-success, #16a34a);">
+      <span aria-hidden="true">✓</span>
+      Tous les prérequis sont satisfaits. Vous pouvez procéder à la clôture.
+    </p>
+  <% } %>
+
+  <% if (prerequis.bloquants.length > 0) { %>
+    <h3 style="color: var(--couleur-destructive, #dc2626);">Points bloquants</h3>
+    <ul role="list">
+      <% prerequis.bloquants.forEach(function(item) { %>
+        <li role="listitem" style="color: var(--couleur-destructive, #dc2626); margin-bottom: 8px;">
+          <span aria-hidden="true">✕</span>
+          <%= item %>
+        </li>
+      <% }); %>
+    </ul>
+  <% } %>
+
+  <% if (prerequis.avertissements.length > 0) { %>
+    <h3 style="color: var(--couleur-warning, #d97706);">Avertissements</h3>
+    <ul role="list">
+      <% prerequis.avertissements.forEach(function(item) { %>
+        <li role="listitem" style="color: var(--couleur-warning, #d97706); margin-bottom: 8px;">
+          <span aria-hidden="true">⚠</span>
+          <%= item %>
+        </li>
+      <% }); %>
+    </ul>
+  <% } %>
+</section>

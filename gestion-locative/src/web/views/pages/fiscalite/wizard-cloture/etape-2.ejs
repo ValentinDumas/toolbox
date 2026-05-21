@@ -1,0 +1,39 @@
+<%- include('../../../../partials/layout-debut', {
+  titre: 'Clôture exercice ' + exercice + ' — Revenus du foyer',
+  breadcrumbs: [{ url: '/fiscalite', label: 'Fiscalité' }, { label: 'Clôturer ' + exercice }],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../../../partials/wizard-fiscalite-layout', { currentStep: 2 }) %>
+
+<h1>Étape 2 — Revenus du foyer</h1>
+<p>
+  Les revenus actifs du foyer permettent de déterminer si vous êtes en statut
+  <abbr title="Loueur Meublé Non Professionnel">LMNP</abbr> ou
+  <abbr title="Loueur Meublé Professionnel">LMP</abbr> (CGI art. 155 IV).
+</p>
+
+<% if (revenusActifsCourant) { %>
+  <p>
+    Revenus actuellement enregistrés :
+    <strong><%= (revenusActifsCourant.toSqliteInteger() / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) %></strong>
+  </p>
+<% } else { %>
+  <p>
+    <em>Revenus du foyer non renseignés.</em>
+    Si vos recettes dépassent 23 000 €, ils sont obligatoires pour déterminer votre statut.
+  </p>
+<% } %>
+
+<p>
+  <a href="<%= lienModifier %>?redirect=/fiscalite/cloturer/<%= exercice %>/etape/2" role="button" class="secondary">
+    Modifier les revenus du foyer
+  </a>
+</p>
+
+<p>
+  <a href="/fiscalite/cloturer/<%= exercice %>/etape/1" role="button" class="secondary">← Précédent</a>
+  <a href="/fiscalite/cloturer/<%= exercice %>/etape/3" role="button">Suivant →</a>
+</p>
+
+<%- include('../../../../partials/layout-fin') %>

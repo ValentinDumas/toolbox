@@ -1,0 +1,71 @@
+<%- include('../../../partials/layout-debut', {
+  titre: 'Déclaration fiscale ' + declaration.exercice,
+  breadcrumbs: breadcrumbs,
+  navActive: 'fiscalite'
+}) %>
+
+<% if (banniereSuccess) { %>
+  <aside role="status" aria-live="polite" class="banniere-success"><%= banniereSuccess %></aside>
+<% } %>
+
+<%- include('../../../partials/partial-verdict-fiscal', {
+  statut: declaration.statutLmnpLmp,
+  annee: declaration.exercice
+}) %>
+
+<h1>Déclaration fiscale — Exercice <%= declaration.exercice %></h1>
+<p>Clôturée le <strong><%= declaration.clotureLe.toString() %></strong></p>
+
+<section aria-label="Montants de l'exercice">
+  <h2>Récapitulatif</h2>
+  <table>
+    <caption>Données figées (snapshot par valeur — D-FIS-G4.2)</caption>
+    <tbody>
+      <tr>
+        <th scope="row">Régime appliqué</th>
+        <td><%= declaration.regimeApplique === 'micro_bic' ? 'Micro-BIC' : 'Régime réel' %></td>
+      </tr>
+      <tr>
+        <th scope="row">Recettes totales</th>
+        <td><%= (declaration.recettesTotales.toSqliteInteger() / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) %></td>
+      </tr>
+      <tr>
+        <th scope="row">Dotation amortissement</th>
+        <td><%= (declaration.dotationAmortissement.toSqliteInteger() / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) %></td>
+      </tr>
+      <% if (declaration.ardGenere.toSqliteInteger() > 0) { %>
+        <tr>
+          <th scope="row">ARD généré (CGI art. 39 B)</th>
+          <td><%= (declaration.ardGenere.toSqliteInteger() / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) %></td>
+        </tr>
+      <% } %>
+      <% if (declaration.ardConsomme.toSqliteInteger() > 0) { %>
+        <tr>
+          <th scope="row">ARD consommé</th>
+          <td><%= (declaration.ardConsomme.toSqliteInteger() / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>
+
+<section aria-label="Liens">
+  <h2>Actions</h2>
+  <ul>
+    <li>
+      <a href="/fiscalite/declarations/<%= declaration.id %>/corriger">
+        Créer une déclaration corrigée
+      </a>
+    </li>
+  </ul>
+</section>
+
+<section aria-label="Exports">
+  <h2>Exports</h2>
+  <p>
+    <button type="button" disabled aria-disabled="true">Télécharger CSV (disponible Plan 07)</button>
+    <button type="button" disabled aria-disabled="true">Télécharger PDF (disponible Plan 07)</button>
+  </p>
+</section>
+
+<%- include('../../../partials/layout-fin') %>

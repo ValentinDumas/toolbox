@@ -1,0 +1,38 @@
+<%- include('../../../../partials/layout-debut', {
+  titre: 'Clôture exercice ' + exercice + ' — Confirmation',
+  breadcrumbs: [{ url: '/fiscalite', label: 'Fiscalité' }, { label: 'Clôturer ' + exercice }],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../../../partials/wizard-fiscalite-layout', { currentStep: 4 }) %>
+
+<h1>Étape 4 — Confirmation</h1>
+<p>Vérifiez les informations avant de procéder à la clôture définitive.</p>
+
+<dl>
+  <dt>Exercice</dt>
+  <dd><strong><%= exercice %></strong></dd>
+
+  <dt>Recettes totales</dt>
+  <dd><strong><%= (recettes.toSqliteInteger() / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) %></strong></dd>
+
+  <dt>Régime fiscal</dt>
+  <dd>
+    <strong>
+      <% if (regimeForce) { %>
+        Réel (forcé — recettes > seuil micro-BIC)
+      <% } else if (regimeFinal === 'reel') { %>
+        Régime réel (choix utilisateur)
+      <% } else { %>
+        Micro-BIC
+      <% } %>
+    </strong>
+  </dd>
+</dl>
+
+<p>
+  <a href="/fiscalite/cloturer/<%= exercice %>/etape/3<% if (regimeChoisi) { %>?regimeChoisi=<%= regimeChoisi %><% } %>" role="button" class="secondary">← Précédent</a>
+  <a href="/fiscalite/cloturer/<%= exercice %>/etape/5<% if (regimeChoisi) { %>?regimeChoisi=<%= regimeChoisi %><% } %>" role="button">Confirmer et clôturer →</a>
+</p>
+
+<%- include('../../../../partials/layout-fin') %>

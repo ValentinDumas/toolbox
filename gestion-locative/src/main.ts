@@ -75,6 +75,8 @@ import { registerFiscaliteQualificationRoutes } from './web/routes/fiscalite/qua
 import { registerFiscaliteComposantsRoutes } from './web/routes/fiscalite/composants.js';
 import { registerFiscaliteAmortissementRoutes } from './web/routes/fiscalite/amortissement.js';
 import { registerFiscaliteRevenusFoyerRoutes } from './web/routes/fiscalite/revenus-foyer.js';
+import { registerFiscaliteClotureRoutes } from './web/routes/fiscalite/cloture.js';
+import { registerFiscaliteRacineRoute } from './web/routes/fiscalite/racine.js';
 import {
   ComposantRepositorySqlite,
   ValorisationFiscaleRepositorySqlite,
@@ -82,6 +84,7 @@ import {
 import { TableauAmortissementRepositorySqlite } from './infrastructure/repositories/tableau-amortissement-repository-sqlite.js';
 import { RegleFiscaleProviderEnMemoire } from './domain/fiscalite/regles/regle-fiscale-provider.js';
 import { DeclarationAnnuelleRepositorySqlite } from './infrastructure/repositories/declaration-annuelle-repository-sqlite.js';
+import { DeclarationCorrigeeRepositorySqlite } from './infrastructure/repositories/declaration-corrigee-repository-sqlite.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -361,6 +364,32 @@ export async function creerApp(
     bailleurRepo,
     recettesRepo,
     regleFiscale,
+    clock,
+  });
+
+  // Phase 5 — BC Fiscalité (Plan 06) : wizard clôture S8 + récap annuel + déclaration corrigée
+  const declCorrRepo = new DeclarationCorrigeeRepositorySqlite(db);
+  await registerFiscaliteClotureRoutes(app, {
+    bailleurRepo,
+    bienRepo: repo,
+    recettesRepo,
+    chargesRepo,
+    composantRepo,
+    valorisationRepo: valorisationFiscaleRepo,
+    tableauAmortRepo: tableauAmortissementRepo,
+    justificatifRepo,
+    ticketRepo,
+    declRepo: declAnnuelleRepo,
+    declCorrRepo,
+    regleFiscale,
+    clock,
+    db,
+  });
+
+  // Phase 5 — BC Fiscalité (Plan 06) : page racine /fiscalite (PLACEHOLDER — index.ejs locked Plan 08)
+  await registerFiscaliteRacineRoute(app, {
+    bailleurRepo,
+    declRepo: declAnnuelleRepo,
     clock,
   });
 
