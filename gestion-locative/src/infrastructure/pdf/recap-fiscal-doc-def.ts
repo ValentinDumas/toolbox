@@ -12,7 +12,7 @@
  *   - CGI art. 50-0, 39, 39 B
  */
 
-import type { TDocumentDefinitions } from 'pdfmake/interfaces.js';
+import type { TDocumentDefinitions, TableCell } from 'pdfmake/interfaces.js';
 
 import type { Bailleur } from '../../domain/identite/bailleur.js';
 import type { Bien } from '../../domain/patrimoine/bien.js';
@@ -71,7 +71,7 @@ export function construireRecapFiscal(
     ['Date de clôture', decl.clotureLe.toString()],
   );
 
-  const tableauBody: unknown[][] = [
+  const tableauBody: TableCell[][] = [
     [
       { text: 'Élément', bold: true, fillColor: '#f3f4f6' },
       { text: 'Valeur', bold: true, fillColor: '#f3f4f6', alignment: 'right' as const },
@@ -89,7 +89,7 @@ export function construireRecapFiscal(
 
   // Lignes amortissement (lignes SYNTHESE_BIEN uniquement)
   const syntheseAmort = tableauxAmort.filter((l) => l.typeLigne === 'SYNTHESE_BIEN');
-  const amortBody: unknown[][] = syntheseAmort.length > 0
+  const amortBody: TableCell[][] = syntheseAmort.length > 0
     ? [
         [
           { text: 'Bien', bold: true, fillColor: '#f3f4f6' },

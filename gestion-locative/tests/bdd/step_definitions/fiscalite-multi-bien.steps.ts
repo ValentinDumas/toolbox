@@ -173,6 +173,7 @@ async function insererEncaissementPourBien(
     jour_echeance_attendue: `${annee}-01-01`,
     loyer_hc: montantCentimes, montant_charges: 0, mode_charges: 'forfait',
     total: montantCentimes,
+    statut: 'payee',
     cree_le: `${annee}-01-01`,
   }).execute();
 

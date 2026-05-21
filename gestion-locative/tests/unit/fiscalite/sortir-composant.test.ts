@@ -80,7 +80,7 @@ describe('sortirComposant — use case (D-FIS-G5.2)', () => {
     );
 
     expect(repo.enregistrer).toHaveBeenCalledTimes(1);
-    const composantEnregistre = (repo.enregistrer as ReturnType<typeof vi.fn>).mock.calls[0][0] as Composant;
+    const composantEnregistre = (repo.enregistrer as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as Composant;
     expect(composantEnregistre.dateSortie?.toString()).toBe('2026-06-30');
     expect(composantEnregistre.motifSortie).toBe('vente');
     expect(composantEnregistre.id).toBe(COMPOSANT_ID);

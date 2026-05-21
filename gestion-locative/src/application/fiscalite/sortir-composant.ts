@@ -26,7 +26,8 @@
  */
 
 import { Temporal } from '@js-temporal/polyfill';
-import type { ComposantId, MotifSortieComposant } from '../../domain/fiscalite/composant.js';
+import type { ComposantId } from '../../domain/_shared/identifiants.js';
+import type { MotifSortieComposant } from '../../domain/fiscalite/composant.js';
 import type { ComposantRepository } from '../../domain/fiscalite/composant-repository.js';
 
 // Re-export depuis le domaine pour que les routes puissent importer MotifSortieComposant

@@ -115,6 +115,7 @@ function makeDeps(opts: {
   const bailleurRepo: BailleurRepository = {
     enregistrer: vi.fn(),
     trouver: vi.fn().mockResolvedValue(bailleur),
+    mettreAJour: vi.fn(),
   };
 
   return {

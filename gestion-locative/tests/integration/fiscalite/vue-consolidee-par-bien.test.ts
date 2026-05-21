@@ -86,7 +86,7 @@ describe('listerVueConsolidee — intégration in-memory (D-FIS-G5.1)', () => {
         rue: bailleur.adresse.rue,
         code_postal: bailleur.adresse.codePostal,
         ville: bailleur.adresse.ville,
-        singleton_marker: 1,
+        singleton_marker: 'unique_bailleur',
         regime_fiscal: null,
         revenus_actifs_annuels_courant_centimes: 10_000_000,
         fiscalite_premier_acces: null,

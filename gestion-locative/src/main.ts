@@ -86,6 +86,7 @@ import {
 } from './infrastructure/repositories/composant-repository-sqlite.js';
 import { TableauAmortissementRepositorySqlite } from './infrastructure/repositories/tableau-amortissement-repository-sqlite.js';
 import { RegleFiscaleProviderEnMemoire } from './domain/fiscalite/regles/regle-fiscale-provider.js';
+import { REGLES_2026 } from './domain/fiscalite/regles/regles-2026.js';
 import { DeclarationAnnuelleRepositorySqlite } from './infrastructure/repositories/declaration-annuelle-repository-sqlite.js';
 import { DeclarationCorrigeeRepositorySqlite } from './infrastructure/repositories/declaration-corrigee-repository-sqlite.js';
 import {
@@ -420,7 +421,7 @@ export async function creerApp(
     valorisationRepo: valorisationFiscaleRepo,
     tableauAmortRepo: tableauAmortissementRepo,
     bailleurRepo,
-    regleFiscale,
+    regleFiscale: REGLES_2026,
     clock,
   });
 
