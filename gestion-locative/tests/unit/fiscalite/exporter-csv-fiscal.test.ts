@@ -45,7 +45,7 @@ function uneDeclMicroBic(): DeclarationAnnuelle {
     dotationAmortissement: Money.zero(),
     ardGenere: Money.zero(),
     ardConsomme: Money.zero(),
-    revenusFoyerSnapshot: null,
+    revenusFoyerSnapshot: Money.fromEuros(40_000),
     statutLmnpLmp: 'lmnp_confirme',
     composantsSnapshot: '[]',
     clotureLe: Temporal.PlainDate.from('2026-12-31'),

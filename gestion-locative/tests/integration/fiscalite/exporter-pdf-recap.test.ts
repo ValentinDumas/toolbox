@@ -31,7 +31,8 @@ import { DeclarationAnnuelleRepositorySqlite } from '../../../src/infrastructure
 import { TableauAmortissementRepositorySqlite } from '../../../src/infrastructure/repositories/tableau-amortissement-repository-sqlite.js';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
-import type { BailleurId, BienId, DeclarationAnnuelleId } from '../../../src/domain/_shared/identifiants.js';
+import type { BailleurId, BienId, DeclarationAnnuelleId, LotId } from '../../../src/domain/_shared/identifiants.js';
+import { unBailleurValide } from '../../_builders/identite.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
@@ -50,24 +51,32 @@ describe('exporterPdfRecap — intégration in-memory (D-FIS-G5.3)', () => {
     db = new Kysely<DB>({ dialect: new SqliteDialect({ database: sqlite }) });
     await appliquerToutesMigrations(db, sqlite, MIGRATIONS_DIR);
 
-    // Bailleur singleton
-    const bailleurRow = await db.selectFrom('bailleur').selectAll().executeTakeFirst();
-    bailleurId = (bailleurRow?.id ?? crypto.randomUUID()) as BailleurId;
+    // Bailleur singleton — inséré via le repository (FK requise)
+    const bailleurRepo = new BailleurRepositorySqlite(db);
+    const bailleur = unBailleurValide();
+    await bailleurRepo.enregistrer(bailleur);
+    bailleurId = bailleur.id;
 
-    // Bien minimal
+    // Bien minimal + 1 lot (requis par BienRepositorySqlite.listerTous)
     bienId = crypto.randomUUID() as BienId;
     await db.insertInto('bien').values({
       id: bienId, rue: '10 rue test', code_postal: '75001', ville: 'Paris',
       surface: 60, type: 'appartement', annee_construction: 2000,
       classe_dpe: null, supprime_le: null,
     }).execute();
+    const lotId = crypto.randomUUID() as LotId;
+    await db.insertInto('lot').values({
+      id: lotId, bien_id: bienId, designation: 'Appartement T3', surface: 60,
+      type: 'appartement', etage: 1, supprime_le: null,
+    }).execute();
 
     // Déclaration annuelle
     declId = crypto.randomUUID() as DeclarationAnnuelleId;
+    // charges_qualifiees_json : format centimes (comme serializeCharges)
     const chargesJson = JSON.stringify({
-      entretien_reparation: 500_000,
+      entretien_reparation: 500_000, // 5 000 €
       amelioration: 0,
-      charge_courante_periodique: 200_000,
+      charge_courante_periodique: 200_000, // 2 000 €
       non_deductible: 0,
       non_qualifie: 0,
     });
