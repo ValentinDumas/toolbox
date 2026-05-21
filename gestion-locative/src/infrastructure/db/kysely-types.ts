@@ -293,6 +293,39 @@ export interface AmortissementExerciceTable {
   cree_le: string;
 }
 
+// Phase 5 — Plan 06 : DeclarationAnnuelle append-only (migration 0016)
+export interface DeclarationsAnnuellesTable {
+  id: string;
+  bailleur_id: string;
+  exercice: number;
+  regime_applique: 'micro_bic' | 'reel';
+  recettes_totales_centimes: number;
+  charges_qualifiees_json: string;
+  dotation_amortissement_centimes: number;
+  ard_genere_centimes: number;
+  ard_consomme_centimes: number;
+  revenus_foyer_snapshot_centimes: number | null;
+  statut_lmnp_lmp: 'lmnp_confirme' | 'lmp_probable' | 'indetermine_revenus_foyer_manquants';
+  composants_snapshot_json: string;
+  cloture_le: string;
+}
+
+// Phase 5 — Plan 06 : DeclarationCorrigee append-only (migration 0017)
+export interface DeclarationsCorrigeesTable {
+  id: string;
+  declaration_originale_id: string;
+  motif: string;
+  recettes_totales_centimes: number;
+  charges_qualifiees_json: string;
+  dotation_amortissement_centimes: number;
+  ard_genere_centimes: number;
+  ard_consomme_centimes: number;
+  revenus_foyer_snapshot_centimes: number | null;
+  statut_lmnp_lmp: 'lmnp_confirme' | 'lmp_probable' | 'indetermine_revenus_foyer_manquants';
+  regime_applique: 'micro_bic' | 'reel';
+  cree_le: string;
+}
+
 export interface DB {
   bien: BienTable;
   lot: LotTable;
@@ -315,4 +348,7 @@ export interface DB {
   bien_composant: BienComposantTable;
   bien_valorisation_fiscale: BienValorisationFiscaleTable;
   amortissement_exercice: AmortissementExerciceTable;
+  // Phase 5 — Plan 06 : clôture exercice (migrations 0016, 0017)
+  declarations_annuelles: DeclarationsAnnuellesTable;
+  declarations_corrigees: DeclarationsCorrigeesTable;
 }

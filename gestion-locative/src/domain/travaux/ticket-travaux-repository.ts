@@ -65,4 +65,17 @@ export interface TicketTravauxRepository {
   listerJustificatifsLies(
     ticketId: TicketTravauxId | string,
   ): Promise<JustificatifId[]>;
+
+  /**
+   * Compte les tickets en statuts actifs (ouvert ou en_cours).
+   *
+   * Filtre : statut IN ('ouvert', 'en_cours')
+   * Note : tickets annulés exclus (annule_le IS NOT NULL) — elles sont exclues implicitement
+   * car statut='annule' est exclu du filtre.
+   *
+   * Utilisé par collecterPrerequisCloture pour le prérequis D-FIS-G4.1 (b).
+   *
+   * @returns nombre de tickets non clos
+   */
+  compterStatutsActifs(): Promise<number>;
 }

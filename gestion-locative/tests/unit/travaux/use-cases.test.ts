@@ -68,6 +68,8 @@ function mockTicketRepo() {
         }
         return ids;
       }),
+      // Plan 06 — prérequis clôture (D-FIS-G4.1 b)
+      compterStatutsActifs: vi.fn(async () => 0),
     } satisfies TicketTravauxRepository,
   };
 }
@@ -98,6 +100,8 @@ function mockJustificatifRepo() {
       rechercher: vi.fn(),
       listerCorbeille: vi.fn(),
       supprimerDefinitivement: vi.fn(),
+      // Plan 06 — prérequis clôture (D-FIS-G4.1 a)
+      compterNonQualifiesPourAnnee: vi.fn(async () => 0),
     } satisfies JustificatifRepository,
   };
 }

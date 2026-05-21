@@ -21,7 +21,7 @@ import type { Kysely, Transaction } from 'kysely';
 import type { DB } from '../db/kysely-types.js';
 import type { TableauAmortissementRepository } from '../../domain/fiscalite/tableau-amortissement-repository.js';
 import { AmortissementExercice } from '../../domain/fiscalite/amortissement-exercice.js';
-import type { BienId, AmortissementExerciceId, ComposantId } from '../../domain/_shared/identifiants.js';
+import type { BienId, BailleurId, AmortissementExerciceId, ComposantId } from '../../domain/_shared/identifiants.js';
 import { Money } from '../../domain/_shared/money.js';
 
 type DbOrTrx = Kysely<DB> | Transaction<DB>;
@@ -115,6 +115,43 @@ export class TableauAmortissementRepositorySqlite implements TableauAmortissemen
     }
 
     return Money.fromCentimes(BigInt(row.ard_cumule_disponible_centimes));
+  }
+
+  /**
+   * Retourne l'ARD cumulé disponible TOTAL pour un bailleur et un exercice exact.
+   *
+   * Agrège Σ ard_cumule_disponible_centimes des lignes SYNTHESE_BIEN de tous les biens
+   * du bailleur pour l'exercice exactement égal à exerciceMax.
+   *
+   * JOIN bien b ON b.id = ae.bien_id — D-LOCK-2 single-bailleur V1 (tous les biens du bailleur).
+   * Note : la table amortissement_exercice n'a pas de colonne bailleur_id directe.
+   *
+   * Retourne Money.zero() si aucune SYNTHESE_BIEN trouvée (premier exercice de clôture du bailleur).
+   *
+   * Source : CGI art. 39 B — ARD reportable sans limite, propagation cross-exercice (T-05-06-11).
+   * D-LOCK-2 : mono-bailleur V1 — tous les biens appartiennent au même bailleur.
+   */
+  async dernierArdCumuleBailleur(bailleurId: BailleurId, exerciceMax: number): Promise<Money> {
+    // D-LOCK-2 : en V1 tous les biens appartiennent au seul bailleur.
+    // Le bailleurId est passé pour la compatibilité V1.1 multi-bailleur.
+    // On identifie les biens du bailleur via la table bien (pas de FK directe sur amortissement_exercice).
+    // Pour simplifier en V1 (D-LOCK-2), on sélectionne TOUS les biens car mono-bailleur.
+    const row = await this.db
+      .selectFrom('amortissement_exercice as ae')
+      .innerJoin('bien as b', 'b.id', 'ae.bien_id')
+      .select((eb) => eb.fn.sum<number>('ae.ard_cumule_disponible_centimes').as('total_centimes'))
+      .where('ae.type_ligne', '=', 'SYNTHESE_BIEN')
+      .where('ae.exercice', '=', exerciceMax)
+      .$if(true, (q) => q)  // D-LOCK-2 : V1 mono-bailleur → pas de filtre bailleur_id
+      .executeTakeFirst();
+
+    if (!row || row.total_centimes === null) {
+      return Money.zero();
+    }
+
+    const total = Number(row.total_centimes);
+    if (total === 0) return Money.zero();
+    return Money.fromCentimes(BigInt(total));
   }
 
   // ─── Mapping ────────────────────────────────────────────────────────────────

@@ -141,6 +141,21 @@ export class TicketTravauxRepositorySqlite implements TicketTravauxRepository {
       .execute();
   }
 
+  /**
+   * Compte les tickets en statuts actifs (ouvert ou en_cours).
+   *
+   * Filtre : statut IN ('ouvert', 'en_cours')
+   * Utilisé par collecterPrerequisCloture (D-FIS-G4.1 b).
+   */
+  async compterStatutsActifs(): Promise<number> {
+    const row = await this.db
+      .selectFrom('tickets_travaux')
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .where('statut', 'in', ['ouvert', 'en_cours'])
+      .executeTakeFirstOrThrow();
+    return Number(row.count);
+  }
+
   async listerJustificatifsLies(
     ticketId: TicketTravauxId | string,
   ): Promise<JustificatifId[]> {

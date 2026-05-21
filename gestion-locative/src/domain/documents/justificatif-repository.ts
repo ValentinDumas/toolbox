@@ -34,4 +34,19 @@ export interface JustificatifRepository {
   rechercher(filtres: JustificatifRechercheFiltres): Promise<JustificatifPage>;
   listerCorbeille(): Promise<Justificatif[]>;
   supprimerDefinitivement(id: JustificatifId, trx?: unknown): Promise<void>;
+
+  /**
+   * Compte les justificatifs non qualifiés pour une année fiscale donnée.
+   *
+   * Filtre :
+   *   - qualification_fiscale IS NULL OR qualification_fiscale = 'non_qualifie'
+   *   - corbeille_le IS NULL (non supprimés)
+   *   - substr(COALESCE(date_paiement, date_document), 1, 4) = annee (D-FIS-G2.11)
+   *
+   * Utilisé par collecterPrerequisCloture pour le prérequis D-FIS-G4.1 (a).
+   *
+   * @param annee - exercice fiscal (ex: 2026)
+   * @returns nombre de justificatifs non qualifiés
+   */
+  compterNonQualifiesPourAnnee(annee: number): Promise<number>;
 }

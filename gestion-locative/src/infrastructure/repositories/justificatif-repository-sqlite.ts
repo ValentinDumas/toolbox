@@ -198,6 +198,39 @@ export class JustificatifRepositorySqlite implements JustificatifRepository {
   }
 
   /**
+   * Compte les justificatifs non qualifiés pour une année fiscale (D-FIS-G4.1 a).
+   *
+   * Filtre :
+   *   - qualification_fiscale IS NULL OR 'non_qualifie'
+   *   - corbeille_le IS NULL
+   *   - substr(COALESCE(date_paiement, date_document), 1, 4) = annee (D-FIS-G2.11)
+   */
+  async compterNonQualifiesPourAnnee(annee: number): Promise<number> {
+    const row = await this.db
+      .selectFrom('justificatifs')
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .where('corbeille_le', 'is', null)
+      .where((eb) =>
+        eb.or([
+          eb('qualification_fiscale', 'is', null),
+          eb('qualification_fiscale', '=', 'non_qualifie'),
+        ]),
+      )
+      .where(
+        (eb) =>
+          eb.fn('substr', [
+            eb.fn('coalesce', ['date_paiement', 'date_document']),
+            eb.val(1),
+            eb.val(4),
+          ]),
+        '=',
+        String(annee),
+      )
+      .executeTakeFirstOrThrow();
+    return Number(row.count);
+  }
+
+  /**
    * Lister les justificatifs non qualifiés pour une année donnée (D-FIS-G2.1).
    * Filtre : qualification_fiscale = 'non_qualifie' OR NULL ; corbeille_le IS NULL ;
    * coalesce(date_paiement, date_document) year = annee.

@@ -19,7 +19,7 @@
  */
 
 import type { Money } from '../_shared/money.js';
-import type { BienId } from '../_shared/identifiants.js';
+import type { BienId, BailleurId } from '../_shared/identifiants.js';
 import type { AmortissementExercice } from './amortissement-exercice.js';
 
 /**
@@ -69,4 +69,27 @@ export interface TableauAmortissementRepository {
    * @returns ARD cumulé disponible en Money (≥ 0)
    */
   dernierArdCumule(bienId: BienId, exerciceMax: number): Promise<Money>;
+
+  /**
+   * Retourne l'ARD cumulé disponible TOTAL pour un bailleur et un exercice exact.
+   *
+   * Agrège toutes les lignes SYNTHESE_BIEN de tous les biens du bailleur
+   * pour l'exercice exactement égal à exerciceMax.
+   *
+   * Utilisation : cloturer-exercice N+1 → dernierArdCumuleBailleur(bailleurId, N)
+   * pour initialiser ardCumuleEnEntree lors du calcul de l'exercice N+1.
+   *
+   * D-LOCK-2 : mono-bailleur V1 — tous les biens appartiennent au même bailleur.
+   * JOIN bien b ON b.id = ae.bien_id (pas de colonne bailleur_id directe sur amortissement_exercice).
+   *
+   * Retourne Money.zero() si aucune SYNTHESE_BIEN trouvée pour exerciceMax
+   * (premier exercice de clôture du bailleur).
+   *
+   * Source : CGI art. 39 B — ARD reportable sans limite, propagation cross-exercice (T-05-06-11).
+   *
+   * @param bailleurId - identifiant bailleur (D-LOCK-2 : tous les biens du bailleur)
+   * @param exerciceMax - exercice exact à consulter (exercice N-1 lors de la clôture N)
+   * @returns ARD cumulé disponible total bailleur en Money (≥ 0)
+   */
+  dernierArdCumuleBailleur(bailleurId: BailleurId, exerciceMax: number): Promise<Money>;
 }

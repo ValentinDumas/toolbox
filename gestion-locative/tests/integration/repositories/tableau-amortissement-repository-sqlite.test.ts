@@ -26,7 +26,7 @@ import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/b
 import { ComposantRepositorySqlite } from '../../../src/infrastructure/repositories/composant-repository-sqlite.js';
 import { Composant } from '../../../src/domain/fiscalite/composant.js';
 import { unBienValide } from '../../_builders/patrimoine.js';
-import type { BienId, ComposantId } from '../../../src/domain/_shared/identifiants.js';
+import type { BienId, BailleurId, ComposantId } from '../../../src/domain/_shared/identifiants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../../migrations');
@@ -205,5 +205,73 @@ describe('TableauAmortissementRepositorySqlite — append-only strict (T-05-04-0
     // dernierArdCumule pour exercice 2026 doit retourner l'ARD de 2025
     const ard = await repo.dernierArdCumule(bienId, 2026);
     expect(ard.toCentimes()).toBe(1_200_000n); // 12 000 €
+  });
+
+  // ─── dernierArdCumuleBailleur (Plan 06 — cross-year ARD propagation CGI art. 39 B) ──────
+  // Note : en V1 D-LOCK-2, le bailleurId n'est pas utilisé dans la requête (mono-bailleur).
+  // On passe le bienId casté en BailleurId pour les tests (D-LOCK-2 simplification).
+
+  const FAKE_BAILLEUR_ID = 'bailleur-test-001' as BailleurId;
+
+  it('dernierArdCumuleBailleur — aucune SYNTHESE_BIEN → Money.zero() (premier exercice)', async () => {
+    const ard = await repo.dernierArdCumuleBailleur(FAKE_BAILLEUR_ID, 2025);
+    expect(ard.toCentimes()).toBe(0n);
+  });
+
+  it('dernierArdCumuleBailleur — 1 bien avec SYNTHESE_BIEN exercice 2025 ard 10 000 €', async () => {
+    const ligne = AmortissementExercice.creer({
+      bienId,
+      composantId: null,
+      exercice: 2025,
+      typeLigne: 'SYNTHESE_BIEN',
+      dotationTheorique: Money.fromEuros(50_000),
+      dotationAppliquee: Money.fromEuros(40_000),
+      ardGenere: Money.fromEuros(10_000),
+      ardCumuleDisponible: Money.fromEuros(10_000),
+      ardConsomme: Money.zero(),
+    });
+    await repo.enregistrerBatch([ligne]);
+
+    const ard = await repo.dernierArdCumuleBailleur(FAKE_BAILLEUR_ID, 2025);
+    expect(ard.toCentimes()).toBe(1_000_000n); // 10 000 €
+  });
+
+  it('dernierArdCumuleBailleur — 2 biens avec SYNTHESE_BIEN exercice 2025 → Σ = 12 000 € (D-LOCK-2)', async () => {
+    // Créer un 2e bien
+    const bienRepo2 = new BienRepositorySqlite(db);
+    const bien2 = unBienValide();
+    await bienRepo2.enregistrer(bien2);
+    const bienId2 = bien2.id;
+
+    // SYNTHESE_BIEN bien 1 : 5 000 €
+    const ligne1 = AmortissementExercice.creer({
+      bienId,
+      composantId: null,
+      exercice: 2025,
+      typeLigne: 'SYNTHESE_BIEN',
+      dotationTheorique: Money.fromEuros(5_000),
+      dotationAppliquee: Money.fromEuros(5_000),
+      ardGenere: Money.zero(),
+      ardCumuleDisponible: Money.fromEuros(5_000),
+      ardConsomme: Money.zero(),
+    });
+
+    // SYNTHESE_BIEN bien 2 : 7 000 €
+    const ligne2 = AmortissementExercice.creer({
+      bienId: bienId2,
+      composantId: null,
+      exercice: 2025,
+      typeLigne: 'SYNTHESE_BIEN',
+      dotationTheorique: Money.fromEuros(7_000),
+      dotationAppliquee: Money.fromEuros(7_000),
+      ardGenere: Money.zero(),
+      ardCumuleDisponible: Money.fromEuros(7_000),
+      ardConsomme: Money.zero(),
+    });
+
+    await repo.enregistrerBatch([ligne1, ligne2]);
+
+    const ard = await repo.dernierArdCumuleBailleur(FAKE_BAILLEUR_ID, 2025);
+    expect(ard.toCentimes()).toBe(1_200_000n); // 5 000 + 7 000 = 12 000 €
   });
 });

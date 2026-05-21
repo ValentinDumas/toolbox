@@ -23,19 +23,10 @@
 import type { RegleFiscale2026 } from '../../domain/fiscalite/regles/regles-2026.js';
 import { Money } from '../../domain/_shared/money.js';
 
-/**
- * Verdict tri-état de la bascule LMNP/LMP.
- *
- * Source : D-FIS-G3.3 (CONTEXT.md Phase 5).
- * Valeurs :
- *   - 'lmnp_confirme' : les deux critères CGI 155 IV ne sont pas tous remplis.
- *   - 'lmp_probable' : recettes > 23 000 € ET recettes > revenus actifs foyer.
- *   - 'indetermine_revenus_foyer_manquants' : recettes > 23 000 € mais revenus foyer absents.
- */
-export type VerdictLmp =
-  | 'lmnp_confirme'
-  | 'lmp_probable'
-  | 'indetermine_revenus_foyer_manquants';
+// Re-export depuis le domaine — Plan 06 : VerdictLmp déplacé dans le domaine
+// pour permettre son import par les agrégats (DeclarationAnnuelle, DeclarationCorrigee)
+// sans violer la règle no-domain-to-infra (D-FIS architecture hexagonale).
+export type { VerdictLmp } from '../../domain/fiscalite/verdict-lmp.js';
 
 /**
  * Labels français pour affichage utilisateur (S7 UI-SPEC, D-FIS-G3.3).
