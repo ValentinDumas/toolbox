@@ -1,0 +1,31 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Verdict fiscal ' + annee,
+  breadcrumbs: [{ label: 'Fiscalité', url: '/fiscalite' }, { label: 'Verdict ' + annee }],
+  navActive: navActive ?? 'fiscalite'
+}) %>
+
+<%- include('../../partials/banniere-success', { message: locals.banniereSuccess ?? null }) %>
+
+<h1>Verdict fiscal pour <%= annee %></h1>
+
+<p style="color: var(--couleur-neutre);">
+  Pré-affichage basé sur les données courantes — le verdict figé sera établi lors de la clôture de l'exercice.
+</p>
+
+<%- include('../../partials/partial-verdict-fiscal', { statut, annee }) %>
+
+<dl>
+  <dt>Recettes <%= annee %></dt>
+  <dd><%= formatMoney(recettes) %></dd>
+  <dt>Revenus du foyer renseignés</dt>
+  <dd>
+    <% if (bailleur && bailleur.revenusActifsAnnuelsCourant) { %>
+      <%= formatMoney(bailleur.revenusActifsAnnuelsCourant) %>
+    <% } else { %>
+      <em>Non renseignés</em>
+      — <a href="/fiscalite/revenus-foyer">Renseigner maintenant</a>
+    <% } %>
+  </dd>
+</dl>
+
+<%- include('../../partials/layout-fin') %>

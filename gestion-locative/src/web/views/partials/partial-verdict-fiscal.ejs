@@ -1,0 +1,74 @@
+<%
+/*
+ * partial-verdict-fiscal.ejs — Bandeau verdict tri-état LMNP/LMP (D-FIS-G3.3, S7 UI-SPEC).
+ *
+ * Variables attendues :
+ *   - statut ('lmnp_confirme' | 'lmp_probable' | 'indetermine_revenus_foyer_manquants')
+ *   - annee (number) — pour la copy
+ *
+ * Couleurs : tokens app.css (--couleur-success / --couleur-warning / --couleur-destructive).
+ *   WCAG 1.4.3 contraste ≥ 4.5:1 garanti par les tokens (Phase 4 UI-SPEC validé).
+ * Icône doublant la couleur (WCAG 1.4.1) : ✓ succès / ⚠ warning / ✕ destructive.
+ *   aria-hidden="true" sur l'icône — texte adjacent toujours visible.
+ *
+ * Sources :
+ *   D-FIS-G3.3 — verdict tri-état pré-affichage
+ *   CGI art. 155 IV — critères LMP
+ *   T-05-05-07 — rel="noopener noreferrer" sur lien externe annuaire EC
+ */
+const verdictConfig = {
+  lmnp_confirme: {
+    bg: 'var(--couleur-success-bg, #d1fae5)',
+    fg: 'var(--couleur-success, #16a34a)',
+    icone: '✓',
+    label: 'Statut LMNP confirmé pour ' + annee + '.',
+    role: 'status',
+    lien: null,
+  },
+  indetermine_revenus_foyer_manquants: {
+    bg: 'var(--couleur-warning-bg, #fef3c7)',
+    fg: 'var(--couleur-warning, #d97706)',
+    icone: '⚠',
+    label: 'Statut indéterminé — revenus du foyer non renseignés.',
+    role: 'status',
+    lien: { href: '/fiscalite/revenus-foyer', texte: 'Renseigner maintenant', externe: false },
+  },
+  lmp_probable: {
+    bg: 'var(--couleur-destructive-bg, #fee2e2)',
+    fg: 'var(--couleur-destructive, #dc2626)',
+    icone: '✕',
+    label: 'Risque LMP probable — consultez un expert-comptable.',
+    role: 'alert',
+    lien: {
+      href: 'https://annuaire.experts-comptables.org/',
+      texte: 'Trouver un expert-comptable',
+      externe: true,
+    },
+  },
+};
+
+const v = verdictConfig[statut] || verdictConfig.indetermine_revenus_foyer_manquants;
+%>
+<section
+  role="<%= v.role %>"
+  aria-label="Verdict fiscal <%= annee %>"
+  style="background: <%= v.bg %>; border-left: 4px solid <%= v.fg %>; padding: 16px; margin-bottom: 16px; border-radius: 0 4px 4px 0;"
+>
+  <span aria-hidden="true" style="font-size: 1.25em; margin-right: 8px;"><%= v.icone %></span>
+  <strong style="color: <%= v.fg %>;"><%= v.label %></strong>
+  <% if (v.lien) { %>
+    <% if (v.lien.externe) { %>
+      <a
+        href="<%= v.lien.href %>"
+        target="_blank"
+        rel="noopener noreferrer"
+        style="margin-left: 8px; color: var(--couleur-accent, #1d4ed8);"
+      ><%= v.lien.texte %></a>
+    <% } else { %>
+      <a
+        href="<%= v.lien.href %>"
+        style="margin-left: 8px; color: var(--couleur-accent, #1d4ed8);"
+      ><%= v.lien.texte %></a>
+    <% } %>
+  <% } %>
+</section>

@@ -63,8 +63,10 @@ describe('saisirRevenusFoyer — use case impure', () => {
     );
 
     expect(bailleurEnregistre).not.toBeNull();
-    expect((bailleurEnregistre as Bailleur).revenusActifsAnnuelsCourant?.toCentimes()).toBe(4_800_000n);
-    expect((bailleurEnregistre as Bailleur).fiscalitePremierAcces).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(bailleurEnregistre!.revenusActifsAnnuelsCourant?.toCentimes()).toBe(4_800_000n);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(bailleurEnregistre!.fiscalitePremierAcces).not.toBeNull();
   });
 
   // ── Test 11 : fiscalitePremierAcces déjà set → INCHANGÉ ─────────────────
@@ -86,10 +88,12 @@ describe('saisirRevenusFoyer — use case impure', () => {
     );
 
     expect(bailleurEnregistre).not.toBeNull();
-    expect((bailleurEnregistre as Bailleur).fiscalitePremierAcces?.toString()).toBe(
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(bailleurEnregistre!.fiscalitePremierAcces?.toString()).toBe(
       dateInitiale.toString(),
     );
-    expect((bailleurEnregistre as Bailleur).revenusActifsAnnuelsCourant?.toCentimes()).toBe(5_500_000n);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(bailleurEnregistre!.revenusActifsAnnuelsCourant?.toCentimes()).toBe(5_500_000n);
   });
 
   // ── Test 12 : bailleur absent → throw BailleurAbsent ─────────────────────

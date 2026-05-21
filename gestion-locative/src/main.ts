@@ -74,6 +74,7 @@ import { ChargesRepositorySqlite } from './infrastructure/repositories/charges-r
 import { registerFiscaliteQualificationRoutes } from './web/routes/fiscalite/qualification.js';
 import { registerFiscaliteComposantsRoutes } from './web/routes/fiscalite/composants.js';
 import { registerFiscaliteAmortissementRoutes } from './web/routes/fiscalite/amortissement.js';
+import { registerFiscaliteRevenusFoyerRoutes } from './web/routes/fiscalite/revenus-foyer.js';
 import {
   ComposantRepositorySqlite,
   ValorisationFiscaleRepositorySqlite,
@@ -347,6 +348,14 @@ export async function creerApp(
     recettesRepo,
     chargesRepo,
     tableauAmortissementRepo,
+    regleFiscale,
+    clock,
+  });
+
+  // Phase 5 — BC Fiscalité (FIS-01, Plan 05) : revenus foyer + verdict tri-état LMP
+  await registerFiscaliteRevenusFoyerRoutes(app, {
+    bailleurRepo,
+    recettesRepo,
     regleFiscale,
     clock,
   });

@@ -92,6 +92,22 @@ export const decomposerJustificatifSchema = z.object({
 export type DecomposerJustificatifData = z.infer<typeof decomposerJustificatifSchema>;
 
 /**
+ * POST /fiscalite/revenus-foyer
+ * Body : { revenusActifsAnnuelsCourantEuros: number }
+ *
+ * Source : D-FIS-G3.1, D-FIS-G3.2 — saisie unique "revenus du travail et assimilés du foyer".
+ * BOFIP-BIC-CHAMP-40-20 — périmètre revenus actifs foyer.
+ * min(0) : un foyer sans revenus actifs est un cas licite (ex : retraité bailleur).
+ */
+export const saisirRevenusFoyerSchema = z.object({
+  revenusActifsAnnuelsCourantEuros: z.coerce
+    .number()
+    .min(0, 'Les revenus du foyer doivent être >= 0 €'),
+});
+
+export type SaisirRevenusFoyerData = z.infer<typeof saisirRevenusFoyerSchema>;
+
+/**
  * Reconstruit le tableau d'enfants depuis un body FormData plat.
  * Les champs sont encodés enfants[0].bienId, enfants[0].montantTtcEuros, etc.
  * (fast-querystring ne parse pas le bracket-dot notation imbriqué)

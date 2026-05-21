@@ -1,0 +1,77 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Revenus du foyer — Fiscalité LMNP',
+  breadcrumbs: [{ label: 'Fiscalité', url: '/fiscalite' }, { label: 'Revenus du foyer' }],
+  navActive: navActive ?? 'fiscalite'
+}) %>
+
+<%- include('../../partials/banniere-success', { message: locals.banniereSuccess ?? null }) %>
+
+<h1>Revenus du foyer pour <%= annee %></h1>
+
+<p>
+  Cette information est utilisée pour évaluer le risque de bascule LMNP &rarr; LMP
+  (<a href="https://bofip.impots.gouv.fr/bofip/1878-PGP.html" target="_blank" rel="noopener noreferrer">CGI art. 155 IV</a>).
+  Si vos recettes de location meublée dépassent 23&nbsp;000&nbsp;€ et excèdent vos revenus actifs,
+  le statut LMP pourrait s'appliquer.
+</p>
+
+<% if (erreurs && erreurs._global) { %>
+  <aside role="alert" class="error-msg"><%= erreurs._global %></aside>
+<% } %>
+
+<form method="POST" action="/fiscalite/revenus-foyer" novalidate>
+
+  <div class="field">
+    <label for="revenusActifsAnnuelsCourantEuros">
+      Revenus du travail et assimilés du foyer (€)
+      <span aria-hidden="true"> *</span>
+    </label>
+    <input
+      type="number"
+      step="0.01"
+      min="0"
+      name="revenusActifsAnnuelsCourantEuros"
+      id="revenusActifsAnnuelsCourantEuros"
+      value="<%= valeurs.revenusActifsAnnuelsCourantEuros !== undefined
+        ? valeurs.revenusActifsAnnuelsCourantEuros
+        : (bailleur && bailleur.revenusActifsAnnuelsCourant
+            ? Number(bailleur.revenusActifsAnnuelsCourant.toCentimes()) / 100
+            : '') %>"
+      required
+      aria-describedby="aide-revenus<% if (erreurs && erreurs.revenusActifsAnnuelsCourantEuros) { %> revenus-error<% } %>"
+      <% if (erreurs && erreurs.revenusActifsAnnuelsCourantEuros) { %>aria-invalid="true"<% } %>
+    />
+    <% if (erreurs && erreurs.revenusActifsAnnuelsCourantEuros) { %>
+      <span id="revenus-error" role="alert" class="error-msg">
+        <%= erreurs.revenusActifsAnnuelsCourantEuros %>
+      </span>
+    <% } %>
+  </div>
+
+  <%-- Tooltip pédagogique BOFIP-BIC-CHAMP-40-20 (D-FIS-G3.2) --%>
+  <details id="aide-revenus">
+    <summary>Quoi inclure&nbsp;? quoi exclure&nbsp;?</summary>
+    <div style="padding: 8px 0;">
+      <p>
+        <strong>Incluez&nbsp;:</strong> salaires nets imposables, bénéfices non commerciaux (BNC),
+        bénéfices agricoles (BA), bénéfices industriels et commerciaux (BIC) autres que le LMNP
+        objet de cette déclaration, traitements et pensions, gains de gérance.
+      </p>
+      <p>
+        <strong>Excluez&nbsp;:</strong> revenus fonciers, revenus mobiliers (dividendes, intérêts),
+        plus-values, BIC LMNP objet de la présente déclaration.
+      </p>
+      <p>
+        Référence&nbsp;: <a href="https://bofip.impots.gouv.fr/bofip/5847-PGP.html" target="_blank" rel="noopener noreferrer">BOFIP-BIC-CHAMP-40-20</a>.
+      </p>
+    </div>
+  </details>
+
+  <div style="display: flex; gap: 16px; align-items: center; margin-top: 16px;">
+    <button type="submit">Enregistrer</button>
+    <a href="/fiscalite" class="secondary">Annuler</a>
+  </div>
+
+</form>
+
+<%- include('../../partials/layout-fin') %>
