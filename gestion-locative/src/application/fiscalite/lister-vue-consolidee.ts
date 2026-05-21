@@ -153,9 +153,11 @@ export async function listerVueConsolidee(
         }
       }
 
-      const regimeBien = recettesBien.superieurA(regleFiscale.SEUIL_MICRO_BIC_LONGUE_DUREE)
-        ? 'reel'
-        : 'micro_bic';
+      // CGI art. 50-0 : micro-BIC éligible si recettes STRICTEMENT INFÉRIEURES au seuil.
+      // À seuil exact (83 600 €) → régime réel forcé (D-LOCK-2).
+      const regimeBien = recettesBien.lt(regleFiscale.SEUIL_MICRO_BIC_LONGUE_DUREE)
+        ? 'micro_bic'
+        : 'reel';
 
       return {
         bienId: bien.id,
@@ -181,9 +183,11 @@ export async function listerVueConsolidee(
   }
 
   // (5) Régime consolidé (D-LOCK-2 — seuil sur total)
-  const regimeApplique = recettesTotal.superieurA(regleFiscale.SEUIL_MICRO_BIC_LONGUE_DUREE)
-    ? 'reel'
-    : 'micro_bic';
+  // CGI art. 50-0 : micro-BIC éligible si recettes STRICTEMENT INFÉRIEURES au seuil.
+  // À seuil exact (83 600 €) → régime réel forcé (inclusif).
+  const regimeApplique = recettesTotal.lt(regleFiscale.SEUIL_MICRO_BIC_LONGUE_DUREE)
+    ? 'micro_bic'
+    : 'reel';
 
   // (6) Verdict LMP sur total consolidé (CGI art. 155 IV)
   const verdictLmp = detecterBasculeLmp(

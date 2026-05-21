@@ -1,0 +1,103 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Vue consolidée fiscale ' + anneeCourante,
+  breadcrumbs: [
+    { url: '/fiscalite', label: 'Fiscalité' },
+    { label: 'Vue consolidée ' + anneeCourante }
+  ],
+  navActive: 'fiscalite'
+}) %>
+
+<h1>Vue consolidée fiscale — Exercice <%= anneeCourante %></h1>
+
+<% if (vue.biens.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    titre: 'Aucun bien enregistré',
+    description: 'Ajoutez un bien pour visualiser votre tableau consolidé.',
+    lien: '/biens',
+    labelLien: 'Gérer les biens'
+  }) %>
+<% } else { %>
+
+<section aria-label="Synthèse fiscale consolidée" style="margin-bottom: 2rem;">
+  <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    <div style="background: var(--couleur-neutre-bg, #f3f4f6); border-radius: 8px; padding: 1rem; flex: 1; min-width: 160px;">
+      <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Régime appliqué</div>
+      <div style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;"><%= vue.regimeApplique === 'reel' ? 'Réel simplifié' : 'Micro-BIC' %></div>
+    </div>
+    <div style="background: var(--couleur-neutre-bg, #f3f4f6); border-radius: 8px; padding: 1rem; flex: 1; min-width: 160px;">
+      <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Statut LMP/LMNP</div>
+      <div style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;">
+        <% if (vue.verdictLmp === 'lmp_probable') { %>
+          <span style="color: #d97706;">LMP probable</span>
+        <% } else if (vue.verdictLmp === 'lmp_confirme') { %>
+          <span style="color: #dc2626;">LMP confirmé</span>
+        <% } else { %>
+          <span style="color: #16a34a;">LMNP confirmé</span>
+        <% } %>
+      </div>
+    </div>
+    <div style="background: var(--couleur-neutre-bg, #f3f4f6); border-radius: 8px; padding: 1rem; flex: 1; min-width: 160px;">
+      <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Recettes totales</div>
+      <div style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;"><%= formatMoney(vue.totaux.recettes) %></div>
+    </div>
+    <div style="background: var(--couleur-neutre-bg, #f3f4f6); border-radius: 8px; padding: 1rem; flex: 1; min-width: 160px;">
+      <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Résultat fiscal</div>
+      <div style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;"><%= formatMoney(vue.totaux.resultatFiscal) %></div>
+    </div>
+  </div>
+</section>
+
+<div style="overflow-x: auto;">
+  <table aria-label="Vue consolidée multi-bien <%= anneeCourante %>">
+    <thead>
+      <tr>
+        <th scope="col">Bien</th>
+        <th scope="col" class="numeric" style="text-align: right;">Recettes</th>
+        <th scope="col" class="numeric" style="text-align: right;">Charges qualifiées</th>
+        <th scope="col" class="numeric" style="text-align: right;">Dotation</th>
+        <th scope="col" class="numeric" style="text-align: right;">Résultat fiscal</th>
+        <th scope="col">Régime</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% vue.biens.forEach(function(b) { %>
+        <tr>
+          <td><%= b.adresse %></td>
+          <td class="numeric" style="text-align: right;"><%= formatMoney(b.recettes) %></td>
+          <td class="numeric" style="text-align: right;"><%= formatMoney(b.charges) %></td>
+          <td class="numeric" style="text-align: right;"><%= formatMoney(b.dotation) %></td>
+          <td class="numeric" style="text-align: right;"><%= formatMoney(b.resultatFiscal) %></td>
+          <td><%= b.regime === 'reel' ? 'Réel' : 'Micro-BIC' %></td>
+          <td><a href="/biens/<%= b.bienId %>/fiscalite">Voir le détail</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+    <tfoot>
+      <tr style="font-weight: 600; border-top: 2px solid #e5e7eb;">
+        <td><strong>Totaux</strong></td>
+        <td class="numeric" style="text-align: right;"><strong><%= formatMoney(vue.totaux.recettes) %></strong></td>
+        <td class="numeric" style="text-align: right;"><strong><%= formatMoney(vue.totaux.charges) %></strong></td>
+        <td class="numeric" style="text-align: right;"><strong><%= formatMoney(vue.totaux.dotation) %></strong></td>
+        <td class="numeric" style="text-align: right;"><strong><%= formatMoney(vue.totaux.resultatFiscal) %></strong></td>
+        <td><strong><%= vue.regimeApplique === 'reel' ? 'Réel' : 'Micro-BIC' %></strong></td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<aside style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280; border-left: 3px solid #e5e7eb; padding-left: 0.75rem;">
+  Seuils micro-BIC et LMP appréciés sur le total consolidé (D-LOCK-2).
+  Ventilation par bien via JOIN bail→lot→bien et justificatif.bien_id (D-FIS-G5.1).
+  Seuil micro-BIC 2026 : 83 600 € — Seuil LMP : 23 000 €.
+</aside>
+
+<div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+  <a href="/fiscalite/cloturer/<%= anneeCourante %>/etape/1" role="button">Clôturer l'exercice <%= anneeCourante %></a>
+  <a href="/fiscalite" style="color: #6b7280;">← Retour à la fiscalité</a>
+</div>
+
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

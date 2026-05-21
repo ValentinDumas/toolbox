@@ -25,8 +25,11 @@ import type { RegleFiscale2026 } from '../../../domain/fiscalite/regles/regles-2
 import { Money } from '../../../domain/_shared/money.js';
 import { activerFiscaliteBien, BienDejaActifFiscalement } from '../../../application/fiscalite/activer-fiscalite-bien.js';
 import { ComposantsSommeIncoherente } from '../../../domain/fiscalite/erreurs.js';
-import { activerFiscaliteSchema } from '../../schemas/fiscalite-schemas.js';
+import { activerFiscaliteSchema, sortirComposantSchema } from '../../schemas/fiscalite-schemas.js';
 import { REGLES_2026 } from '../../../domain/fiscalite/regles/regles-2026.js';
+import { sortirComposant, ComposantIntrouvable } from '../../../application/fiscalite/sortir-composant.js';
+import type { ComposantId } from '../../../domain/_shared/identifiants.js';
+import { InvariantViolated } from '../../../domain/_shared/erreurs.js';
 
 interface ComposantsDeps {
   bienRepo: BienRepository;
@@ -172,6 +175,102 @@ export async function registerFiscaliteComposantsRoutes(
             { url: '/biens/' + bienId, label: bien.adresse.enLigne() },
             { url: '/biens/' + bienId + '/fiscalite', label: 'Fiscalité' },
             { label: 'Activer la fiscalité réelle' },
+          ],
+        });
+      }
+      throw err;
+    }
+  });
+
+  // ─── Sortir composant (D-FIS-G5.2, LF 2025 art. 84) ───────────────────────────
+
+  /** GET /biens/:bienId/fiscalite/composants/:composantId/sortir */
+  app.get('/biens/:bienId/fiscalite/composants/:composantId/sortir', async (req, reply) => {
+    const { bienId, composantId } = req.params as { bienId: string; composantId: string };
+
+    const bien = await bienRepo.trouverParId(bienId as BienId);
+    if (!bien) return reply.code(404).send("Ce bien n'existe pas.");
+
+    const composant = await composantRepo.trouverParId(composantId as ComposantId);
+    if (!composant) return reply.code(404).send("Ce composant n'existe pas.");
+
+    return reply.view('pages/fiscalite/sortir-composant.ejs', {
+      bien,
+      composant,
+      valeurs: {},
+      erreurs: {},
+      navActive: 'fiscalite',
+      breadcrumbs: [
+        { url: '/biens', label: 'Biens' },
+        { url: '/biens/' + bienId, label: bien.adresse.enLigne() },
+        { url: '/biens/' + bienId + '/fiscalite', label: 'Fiscalité' },
+        { url: '/biens/' + bienId + '/fiscalite/amortissement', label: 'Amortissement' },
+        { label: 'Sortir un composant' },
+      ],
+    });
+  });
+
+  /** POST /biens/:bienId/fiscalite/composants/:composantId/sortir */
+  app.post('/biens/:bienId/fiscalite/composants/:composantId/sortir', async (req, reply) => {
+    const { bienId, composantId } = req.params as { bienId: string; composantId: string };
+
+    const bien = await bienRepo.trouverParId(bienId as BienId);
+    if (!bien) return reply.code(404).send("Ce bien n'existe pas.");
+
+    const composant = await composantRepo.trouverParId(composantId as ComposantId);
+    if (!composant) return reply.code(404).send("Ce composant n'existe pas.");
+
+    const body = req.body as Record<string, unknown>;
+    const parsed = sortirComposantSchema.safeParse(body);
+
+    if (!parsed.success) {
+      const erreurs: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const cle = issue.path.join('.') || '_global';
+        if (!erreurs[cle]) erreurs[cle] = issue.message;
+      }
+      return reply.code(400).view('pages/fiscalite/sortir-composant.ejs', {
+        bien, composant, valeurs: body, erreurs,
+        navActive: 'fiscalite',
+        breadcrumbs: [
+          { url: '/biens', label: 'Biens' },
+          { url: '/biens/' + bienId, label: bien.adresse.enLigne() },
+          { url: '/biens/' + bienId + '/fiscalite', label: 'Fiscalité' },
+          { url: '/biens/' + bienId + '/fiscalite/amortissement', label: 'Amortissement' },
+          { label: 'Sortir un composant' },
+        ],
+      });
+    }
+
+    const { motif, dateSortieIso } = parsed.data;
+
+    try {
+      const { Temporal } = await import('@js-temporal/polyfill');
+      await sortirComposant(
+        {
+          composantId: composantId as ComposantId,
+          motif,
+          dateSortie: Temporal.PlainDate.from(dateSortieIso),
+        },
+        { composantRepo },
+      );
+      req.session.banniereSuccess = `Composant sorti avec succès (motif : ${motif}).`;
+      return reply.redirect(`/biens/${bienId}/fiscalite/amortissement`);
+    } catch (err) {
+      if (err instanceof ComposantIntrouvable) {
+        return reply.code(404).send(err.message);
+      }
+      if (err instanceof InvariantViolated) {
+        return reply.code(400).view('pages/fiscalite/sortir-composant.ejs', {
+          bien, composant, valeurs: body,
+          erreurs: { _global: err.message },
+          navActive: 'fiscalite',
+          breadcrumbs: [
+            { url: '/biens', label: 'Biens' },
+            { url: '/biens/' + bienId, label: bien.adresse.enLigne() },
+            { url: '/biens/' + bienId + '/fiscalite', label: 'Fiscalité' },
+            { url: '/biens/' + bienId + '/fiscalite/amortissement', label: 'Amortissement' },
+            { label: 'Sortir un composant' },
           ],
         });
       }

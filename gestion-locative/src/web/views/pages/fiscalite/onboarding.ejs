@@ -1,0 +1,40 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Bienvenue dans Fiscalité LMNP',
+  breadcrumbs: [{ label: 'Fiscalité LMNP' }],
+  navActive: 'fiscalite'
+}) %>
+
+<section style="background: var(--couleur-accent-bg, #f0f9ff); padding: 2rem; border-radius: 8px; max-width: 640px; margin: 2rem auto;">
+  <h1 style="margin-top: 0;">Bienvenue dans Fiscalité LMNP</h1>
+  <p style="color: #374151; margin-bottom: 1.5rem;">
+    Centralisez vos charges, calculez votre amortissement par composant, anticipez le verdict LMNP/LMP.
+    Local-first, single-user, à jour LF 2026.
+  </p>
+
+  <ul style="color: #374151; margin-bottom: 1.5rem; padding-left: 1.5rem;">
+    <li>Qualifiez vos charges (entretien, amélioration, charges courantes)</li>
+    <li>Calculez vos dotations d'amortissement par composant (CGI art. 39)</li>
+    <li>Anticipez le verdict LMNP / LMP (CGI art. 155 IV)</li>
+    <li>Exportez votre récapitulatif fiscal annuel (CSV + PDF)</li>
+  </ul>
+
+  <form method="POST" action="/fiscalite/onboarding">
+    <%# Hick's Law : 3 choix maximum %>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <button name="action" value="commencer" type="submit"
+              style="width: 100%; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600;">
+        Commencer maintenant
+      </button>
+      <button name="action" value="plus_tard" type="submit" class="secondary"
+              style="width: 100%; padding: 0.75rem 1.5rem;">
+        Plus tard
+      </button>
+      <button name="action" value="ignorer" type="submit"
+              style="background: transparent; border: none; color: var(--couleur-accent, #4f46e5); text-decoration: underline; cursor: pointer; padding: 0.5rem; font-size: 0.875rem;">
+        Tout ignorer
+      </button>
+    </div>
+  </form>
+</section>
+
+<%- include('../../partials/layout-fin') %>

@@ -77,6 +77,9 @@ import { registerFiscaliteAmortissementRoutes } from './web/routes/fiscalite/amo
 import { registerFiscaliteRevenusFoyerRoutes } from './web/routes/fiscalite/revenus-foyer.js';
 import { registerFiscaliteClotureRoutes } from './web/routes/fiscalite/cloture.js';
 import { registerFiscaliteRacineRoute } from './web/routes/fiscalite/racine.js';
+import { registerFiscaliteExportsRoutes } from './web/routes/fiscalite/exports.js';
+import { registerFiscaliteOnboardingRoute } from './web/routes/fiscalite/onboarding.js';
+import { registerFiscaliteMultiBienRoute } from './web/routes/fiscalite/multi-bien.js';
 import {
   ComposantRepositorySqlite,
   ValorisationFiscaleRepositorySqlite,
@@ -390,6 +393,34 @@ export async function creerApp(
   await registerFiscaliteRacineRoute(app, {
     bailleurRepo,
     declRepo: declAnnuelleRepo,
+    clock,
+  });
+
+  // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.3) : exports CSV + PDF
+  await registerFiscaliteExportsRoutes(app, {
+    declRepo: declAnnuelleRepo,
+    bailleurRepo,
+    bienRepo: repo,
+    tableauAmortRepo: tableauAmortissementRepo,
+    pdfRenderer,
+  });
+
+  // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.4) : onboarding progressif S1
+  await registerFiscaliteOnboardingRoute(app, {
+    bailleurRepo,
+    clock,
+  });
+
+  // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.1) : vue consolidée multi-bien S12
+  await registerFiscaliteMultiBienRoute(app, {
+    bienRepo: repo,
+    recettesRepo,
+    chargesRepo,
+    composantRepo,
+    valorisationRepo: valorisationFiscaleRepo,
+    tableauAmortRepo: tableauAmortissementRepo,
+    bailleurRepo,
+    regleFiscale,
     clock,
   });
 
