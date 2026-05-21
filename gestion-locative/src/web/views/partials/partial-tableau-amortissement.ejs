@@ -1,0 +1,51 @@
+<%
+/*
+ * partial-tableau-amortissement.ejs — Tableau d'amortissement par composant (S4, UI-SPEC §S4 L130-136).
+ *
+ * Variables attendues :
+ *   - tableau : TableauAmortissementExercice (ou null si calcul indisponible)
+ *   - exercice : number — exercice fiscal affiché
+ *   - labelsComposant : Record<string, string> — labels français des types BOFIP
+ *   - bien : { adresse: { enLigne(): string } }
+ *   - formatMoney : (money: Money) => string — helper EJS injecté en locals
+ *
+ * Colonnes (numeric = tabular-nums pour alignement fiscal) :
+ *   Composant | Dotation théorique | Dotation appliquée | ARD généré
+ *
+ * Sources : CGI art. 39 / 39 B / BOFIP-BIC-AMT-20-40 / D-FIS-G1.6 / UI-SPEC §S4
+ *
+ * Analog : src/web/views/partials/data-table.ejs (consumer pattern)
+ *         src/web/views/pages/biens/liste.ejs (include data-table)
+ */
+const lignesTableau = tableau && tableau.dotationParComposant ? tableau.dotationParComposant : [];
+const colonnes = [
+  { titre: 'Composant', numerique: false },
+  { titre: 'Dotation théorique', numerique: true },
+  { titre: 'Dotation appliquée', numerique: true },
+  { titre: 'ARD généré', numerique: true },
+];
+const lignes = lignesTableau.map(function(ligne) {
+  const labelType = (labelsComposant && labelsComposant[ligne.composantId]) || ligne.composantId;
+  return [
+    labelType,
+    formatMoney(ligne.dotationTheorique),
+    formatMoney(ligne.dotationAppliquee),
+    formatMoney(ligne.ardGenereComposant),
+  ];
+});
+%>
+<%- include('data-table', {
+  ariaLabel: 'Tableau d\'amortissement ' + (bien && bien.adresse ? bien.adresse.enLigne() : '') + ' ' + exercice,
+  colonnes: colonnes,
+  lignes: lignes
+}) %>
+<% if (tableau) { %>
+<tfoot>
+  <tr style="font-weight: 600; border-top: 2px solid currentColor;">
+    <td>Total</td>
+    <td class="numeric"><%= formatMoney(tableau.dotationTheoriqueTotale) %></td>
+    <td class="numeric"><%= formatMoney(tableau.dotationAppliqueeTotale) %></td>
+    <td class="numeric"><%= formatMoney(tableau.ardGenereTotal()) %></td>
+  </tr>
+</tfoot>
+<% } %>

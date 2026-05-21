@@ -1,0 +1,70 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Amortissement — ' + bien.adresse.enLigne() + ' — ' + exercice,
+  breadcrumbs: breadcrumbs,
+  navActive: navActive ?? 'fiscalite'
+}) %>
+
+<%- include('../../partials/banniere-success', { message: locals.banniereSuccess ?? null }) %>
+
+<h1>Tableau d'amortissement</h1>
+<h2><%= bien.adresse.enLigne() %> — exercice <%= exercice %></h2>
+
+<nav aria-label="Navigation entre exercices" style="margin-bottom: 1.5rem; display: flex; gap: 1rem;">
+  <a href="/biens/<%= bien.id %>/fiscalite/amortissement?annee=<%= exercice - 1 %>"
+     style="display: inline-flex; align-items: center; gap: 0.25rem;">
+    ← Exercice <%= exercice - 1 %>
+  </a>
+  <a href="/biens/<%= bien.id %>/fiscalite/amortissement?annee=<%= exercice + 1 %>"
+     style="display: inline-flex; align-items: center; gap: 0.25rem;">
+    Exercice <%= exercice + 1 %> →
+  </a>
+</nav>
+
+<%# Bandeau pédagogique ARD — CGI art. 39 B (acceptance_criteria : grep 2 occurrences) %>
+<section role="status" aria-label="Règle ARD — amortissement réputé différé"
+  style="background: var(--couleur-neutre-bg, #f3f4f6); border-left: 4px solid var(--couleur-accent, #6366f1); padding: 1rem; margin-bottom: 1.5rem; border-radius: 0 6px 6px 0;">
+  <strong>ARD — Amortissement Réputé Différé (CGI art. 39 B)</strong>
+  <p style="margin: 0.25rem 0 0; font-size: 0.875rem;">
+    L'ARD est reportable sans limite de durée (<a href="https://bofip.impots.gouv.fr/bofip/1726-PGP.html"
+      target="_blank" rel="noopener noreferrer">CGI art. 39 B</a>).
+    Il sera imputé en priorité absolue sur les exercices futurs avant toute nouvelle dotation.
+    Le montant appliqué est plafonné au résultat avant amortissement (CGI art. 39, D-LOCK-1).
+  </p>
+</section>
+
+<% if (!tableau || tableau.dotationParComposant.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    titre: 'Aucun composant actif pour ' + exercice,
+    description: 'Aucun composant amortissable n\'est actif pour cet exercice. Vérifiez la date d\'acquisition et les dates de sortie des composants.',
+    lien: '/biens/' + bien.id + '/fiscalite/activer',
+    libelleAction: 'Voir les composants'
+  }) %>
+<% } else { %>
+
+  <%- include('../../partials/partial-tableau-amortissement', {
+    tableau: tableau,
+    exercice: exercice,
+    labelsComposant: labelsComposant,
+    bien: bien
+  }) %>
+
+  <%# Récapitulatif ARD de l'exercice %>
+  <section style="margin-top: 2rem; padding: 1rem; background: var(--pico-card-background-color, #fff); border: 1px solid var(--pico-table-border-color, #e5e7eb); border-radius: 6px;">
+    <h3 style="margin-top: 0; font-size: 1rem;">Flux ARD exercice <%= exercice %></h3>
+    <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0;">
+      <dt>ARD cumulé en entrée (report N-1)</dt>
+      <dd class="numeric"><%= formatMoney(tableau.ardCumuleEnEntree) %></dd>
+      <dt>ARD consommé (priorité absolue — CGI art. 39 B)</dt>
+      <dd class="numeric"><%= formatMoney(tableau.ardConsomme) %></dd>
+      <dt>Dotation théorique totale</dt>
+      <dd class="numeric"><%= formatMoney(tableau.dotationTheoriqueTotale) %></dd>
+      <dt>Dotation appliquée totale</dt>
+      <dd class="numeric"><%= formatMoney(tableau.dotationAppliqueeTotale) %></dd>
+      <dt style="font-weight: 600; border-top: 1px solid currentColor; padding-top: 0.25rem;">ARD cumulé disponible en sortie</dt>
+      <dd class="numeric" style="font-weight: 600; border-top: 1px solid currentColor; padding-top: 0.25rem;"><%= formatMoney(tableau.ardCumuleEnSortie) %></dd>
+    </dl>
+  </section>
+
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

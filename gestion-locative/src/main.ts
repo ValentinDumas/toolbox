@@ -73,10 +73,13 @@ import { RecettesRepositorySqlite } from './infrastructure/repositories/recettes
 import { ChargesRepositorySqlite } from './infrastructure/repositories/charges-repository-sqlite.js';
 import { registerFiscaliteQualificationRoutes } from './web/routes/fiscalite/qualification.js';
 import { registerFiscaliteComposantsRoutes } from './web/routes/fiscalite/composants.js';
+import { registerFiscaliteAmortissementRoutes } from './web/routes/fiscalite/amortissement.js';
 import {
   ComposantRepositorySqlite,
   ValorisationFiscaleRepositorySqlite,
 } from './infrastructure/repositories/composant-repository-sqlite.js';
+import { TableauAmortissementRepositorySqlite } from './infrastructure/repositories/tableau-amortissement-repository-sqlite.js';
+import { RegleFiscaleProviderEnMemoire } from './domain/fiscalite/regles/regle-fiscale-provider.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -313,8 +316,8 @@ export async function creerApp(
   });
 
   // Phase 5 — BC Fiscalité (FIS-02, FIS-03) : qualification charges
-  const _recettesRepo = new RecettesRepositorySqlite(db);
-  const _chargesRepo = new ChargesRepositorySqlite(db);
+  const recettesRepo = new RecettesRepositorySqlite(db);
+  const chargesRepo = new ChargesRepositorySqlite(db);
   await registerFiscaliteQualificationRoutes(app, {
     justificatifRepo: justificatifRepo as never,
     ticketRepo,
@@ -331,6 +334,21 @@ export async function creerApp(
     valorisationRepo: valorisationFiscaleRepo,
     clock,
     db,
+  });
+
+  // Phase 5 — BC Fiscalité (FIS-04, Plan 04) : tableau d'amortissement S4
+  const tableauAmortissementRepo = new TableauAmortissementRepositorySqlite(db);
+  const regleFiscale = new RegleFiscaleProviderEnMemoire();
+  await registerFiscaliteAmortissementRoutes(app, {
+    bienRepo: repo,
+    bailleurRepo,
+    composantRepo,
+    valorisationRepo: valorisationFiscaleRepo,
+    recettesRepo,
+    chargesRepo,
+    tableauAmortissementRepo,
+    regleFiscale,
+    clock,
   });
 
   return app;
