@@ -5,6 +5,7 @@ import { InvariantViolated } from '../../../src/domain/_shared/erreurs.js';
 import type { BienId, JustificatifId, TicketTravauxId } from '../../../src/domain/_shared/identifiants.js';
 import { unTicketAmelioration } from '../../_builders/fiscalite.js';
 import { unJustificatifNonQualifie } from '../../_builders/fiscalite.js';
+import { unBailleurValide } from '../../_builders/identite.js';
 
 /**
  * Tests TDD — use case qualifierTicketTravaux (D-FIS-G2.3).
@@ -59,9 +60,13 @@ describe('qualifierTicketTravaux', () => {
       }),
     };
 
+    const bailleur = unBailleurValide();
+    const bailleurRepo = { trouver: vi.fn().mockResolvedValue(bailleur) };
+    const declRepo = { trouverParBailleurExercice: vi.fn().mockResolvedValue(null) };
+
     await qualifierTicketTravaux(
       { ticketId: ticket.id as TicketTravauxId, natureFiscale: 'amelioration' },
-      { ticketRepo: ticketRepo as never, justificatifRepo: justificatifRepo as never },
+      { ticketRepo: ticketRepo as never, justificatifRepo: justificatifRepo as never, bailleurRepo: bailleurRepo as never, declRepo: declRepo as never },
       makeClock(),
       db as never,
     );
@@ -90,10 +95,14 @@ describe('qualifierTicketTravaux', () => {
       transaction: () => ({ execute: vi.fn() }),
     };
 
+    const bailleur = unBailleurValide();
+    const bailleurRepo = { trouver: vi.fn().mockResolvedValue(bailleur) };
+    const declRepo = { trouverParBailleurExercice: vi.fn().mockResolvedValue(null) };
+
     await expect(
       qualifierTicketTravaux(
         { ticketId: ticketAnnule.id as TicketTravauxId, natureFiscale: 'amelioration' },
-        { ticketRepo: ticketRepo as never, justificatifRepo: justificatifRepo as never },
+        { ticketRepo: ticketRepo as never, justificatifRepo: justificatifRepo as never, bailleurRepo: bailleurRepo as never, declRepo: declRepo as never },
         makeClock(),
         db as never,
       ),

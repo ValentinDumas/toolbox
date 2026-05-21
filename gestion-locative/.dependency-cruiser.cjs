@@ -42,6 +42,8 @@ module.exports = {
           '^src/application/documents/uploader-justificatif\\.ts$',
           '^src/application/documents/purger-justificatif\\.ts$',
           '^src/application/fiscalite/activer-fiscalite-bien\\.ts$',
+          '^src/application/fiscalite/cloturer-exercice\\.ts$',
+          '^src/application/fiscalite/creer-declaration-corrigee\\.ts$',
         ],
       },
       to: {

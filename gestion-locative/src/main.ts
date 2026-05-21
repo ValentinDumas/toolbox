@@ -81,6 +81,7 @@ import {
 } from './infrastructure/repositories/composant-repository-sqlite.js';
 import { TableauAmortissementRepositorySqlite } from './infrastructure/repositories/tableau-amortissement-repository-sqlite.js';
 import { RegleFiscaleProviderEnMemoire } from './domain/fiscalite/regles/regle-fiscale-provider.js';
+import { DeclarationAnnuelleRepositorySqlite } from './infrastructure/repositories/declaration-annuelle-repository-sqlite.js';
 import {
   verifierDejaLance,
   ecrirePidfile,
@@ -319,9 +320,12 @@ export async function creerApp(
   // Phase 5 — BC Fiscalité (FIS-02, FIS-03) : qualification charges
   const recettesRepo = new RecettesRepositorySqlite(db);
   const chargesRepo = new ChargesRepositorySqlite(db);
+  const declAnnuelleRepo = new DeclarationAnnuelleRepositorySqlite(db);
   await registerFiscaliteQualificationRoutes(app, {
     justificatifRepo: justificatifRepo as never,
     ticketRepo,
+    declRepo: declAnnuelleRepo,
+    bailleurRepo,
     clock,
     db,
   });

@@ -97,11 +97,12 @@ When(
     const exercice = parseInt(exerciceStr, 10);
     const provider = new RegleFiscaleProviderEnMemoire();
     const regles = provider.pour(exercice);
-    this.dernierVerdict = detecterBasculeLmp(
+    const verdict = detecterBasculeLmp(
       { recettes: this.recettes, revenusFoyer: this.revenusFoyer },
       regles,
     );
-    this.verdictsParExercice[exercice] = this.dernierVerdict;
+    this.dernierVerdict = verdict;
+    this.verdictsParExercice[exercice] = verdict;
   },
 );
 

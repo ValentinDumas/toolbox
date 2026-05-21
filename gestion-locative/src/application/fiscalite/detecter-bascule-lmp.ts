@@ -22,11 +22,12 @@
 
 import type { RegleFiscale2026 } from '../../domain/fiscalite/regles/regles-2026.js';
 import { Money } from '../../domain/_shared/money.js';
+import type { VerdictLmp } from '../../domain/fiscalite/verdict-lmp.js';
 
 // Re-export depuis le domaine — Plan 06 : VerdictLmp déplacé dans le domaine
 // pour permettre son import par les agrégats (DeclarationAnnuelle, DeclarationCorrigee)
 // sans violer la règle no-domain-to-infra (D-FIS architecture hexagonale).
-export type { VerdictLmp } from '../../domain/fiscalite/verdict-lmp.js';
+export type { VerdictLmp };
 
 /**
  * Labels français pour affichage utilisateur (S7 UI-SPEC, D-FIS-G3.3).
