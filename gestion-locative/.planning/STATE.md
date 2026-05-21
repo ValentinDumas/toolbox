@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-07-PLAN.md
+stopped_at: Phase 5 verification gaps_found (3 critical fiscal bugs)
 last_updated: "2026-05-21T09:30:30.748Z"
 last_activity: 2026-05-21
 progress:
@@ -25,10 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 
 ## Current Position
 
-Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — EXECUTING
-Plan: 3 of 8
-Status: Ready to execute
-Last activity: 2026-05-21
+Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — GAPS FOUND
+Plan: 8 of 8 (all plans executed)
+Status: Gaps found — verifier flagged 3 critical fiscal bugs (CR-01 float SUM, CR-03 ARD multi-bien, CR-06 hexagonal)
+Last activity: 2026-05-21 -- Phase 5 verification: gaps_found
+Next step: /gsd-plan-phase 5 --gaps (gap closure phase 5.1)
 
 Progress: [██████████] 97%
 
