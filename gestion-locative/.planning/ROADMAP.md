@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Quittancement — Échéances, Encaissements, Relances** - L'utilisateur peut générer avis d'échéance et quittances, suivre les paiements et déclencher des relances escaladées.
 - [ ] **Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier** - Le système garantit la conformité juridique du bail meublé (DPE/gaz/élec, EDL contradictoire, indexation IRL avec gel DPE F/G, checklist mobilier décret 2015-981).
 - [ ] **Phase 4: Coffre documentaire & Travaux** - L'utilisateur peut centraliser ses justificatifs (10 ans de rétention) et tracer les tickets d'incidents/travaux avec pièces jointes et coûts.
-- [ ] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP.
+- [x] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (completed 2026-05-21)
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
 - [ ] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail).
 
@@ -119,7 +119,7 @@ Plans:
   3. Le système calcule l'amortissement par composant en régime réel : terrain exclu, prorata temporis à l'acquisition, ARD reportable, **plafonné au résultat avant amortissement**.
   4. Le système détecte le risque de bascule LMP (recettes annuelles > 23 000 € **ET** > revenus actifs du foyer) et alerte explicitement l'utilisateur.
   5. Toute la logique fiscale de cette phase est couverte à 100 % par des scénarios BDD (chaque exception du droit a son scénario dédié) — vérifiable via le rapport de couverture du domaine `fiscalite/`.
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — Walking enabler fiscal : regles-2026 + RegleFiscaleProvider + Bailleur étendu + migrations 0014/0015/0021 + brand types (wave 1, walking enabler)
@@ -143,7 +143,7 @@ Plans:
 - [x] 05-07-PLAN.md — Vertical slice G5 : vue consolidée S12 + sortie composant + exports CSV/PDF + onboarding S1 (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 05-08-PLAN.md — UI polish + a11y WCAG 2.1 AA + tests d'intégration end-to-end + couverture 100 % cas limites locked + checkpoint humain (wave 8)
+- [x] 05-08-PLAN.md — UI polish + a11y WCAG 2.1 AA + tests d'intégration end-to-end + couverture 100 % cas limites locked + checkpoint humain (wave 8)
 **UI hint:** yes
 
 ### Phase 6: Liasse 2031 & CFE
@@ -183,6 +183,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Quittancement — Échéances, Encaissements, Relances | 7/7 | Complete | 2026-05-16 |
 | 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/5 | Planned | - |
 | 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
-| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 7/8 | In Progress|  |
+| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Complete   | 2026-05-21 |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
 | 7. Dashboard & Notifications d'échéances | 0/TBD | Not started | - |
