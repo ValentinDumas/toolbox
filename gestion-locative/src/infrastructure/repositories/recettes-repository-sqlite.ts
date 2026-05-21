@@ -2,7 +2,7 @@ import type { Kysely } from 'kysely';
 import type { DB } from '../db/kysely-types.js';
 import type { RecettesRepository } from '../../domain/fiscalite/recettes-repository.js';
 import { Money } from '../../domain/_shared/money.js';
-import type { BailleurId } from '../../domain/_shared/identifiants.js';
+import type { BailleurId, BienId } from '../../domain/_shared/identifiants.js';
 
 /**
  * Adapter SQLite — RecettesRepository (FIS-02, D-LOCK-2).
@@ -41,6 +41,39 @@ export class RecettesRepositorySqlite implements RecettesRepository {
     const total = result?.total ?? 0;
 
     // Si somme négative (compensateurs > paiements) → Money.zero()
+    if (total <= 0) {
+      return Money.zero();
+    }
+    return Money.fromCentimes(BigInt(Math.round(total)));
+  }
+
+  /**
+   * Somme des encaissements actifs pour un bien donné (D-FIS-G5.1).
+   *
+   * JOIN : encaissement → echeance_loyer → bail → lot WHERE lot.bien_id = bienId.
+   * La colonne bail.bien_id permet de trouver le bien directement via le bail.
+   *
+   * @param bienId - identifiant du bien
+   * @param annee - exercice fiscal (ex: 2026)
+   */
+  async sommeRecettesAnnuellesParBien(bienId: BienId, annee: number): Promise<Money> {
+    const result = await this.db
+      .selectFrom('encaissement as e')
+      .innerJoin('echeance_loyer as el', 'el.id', 'e.echeance_id')
+      .innerJoin('bail as b', 'b.id', 'el.bail_id')
+      .select((eb) => eb.fn.sum<number>('e.montant_centimes').as('total'))
+      .where('b.bien_id', '=', bienId)
+      .where('e.annule_le', 'is', null)
+      .where(
+        (eb) => eb.fn('substr', ['e.date', eb.val(1), eb.val(4)]),
+        '=',
+        String(annee),
+      )
+      .executeTakeFirst();
+
+    const total = result?.total ?? 0;
+
+    // Clamp à zéro si somme négative (compensateurs > paiements)
     if (total <= 0) {
       return Money.zero();
     }

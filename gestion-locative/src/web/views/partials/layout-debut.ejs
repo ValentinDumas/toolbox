@@ -18,6 +18,10 @@
       </nav>
     </header>
 
+    <% if (typeof afficherOnboardingBanner !== 'undefined' && afficherOnboardingBanner) { %>
+      <%- include('partial-onboarding-banner') %>
+    <% } %>
+
     <main class="container">
       <% if (locals.breadcrumbs) { %>
         <%- include('breadcrumbs') %>

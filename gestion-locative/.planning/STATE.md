@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-05-21T08:38:34.235Z"
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-05-21T09:30:30.748Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 34
-  completed_plans: 32
-  percent: 94
+  completed_plans: 33
+  percent: 97
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 ## Current Position
 
 Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-05-21
 
-Progress: [█████████░] 94%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 94%
 | Phase 01-activation-bien-locataire-bail P06 | 9 | 3 tasks | 15 files |
 | Phase 01 P07 | 20 | 3 tasks | 16 files |
 | Phase 05 P06 | 180 | 3 tasks | 54 files |
+| Phase 05 P07 | 105 | 3 tasks | 35 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Recent decisions affecting current work:
 - [Phase ?]: Regex email minimal côté domaine + z.string().email() côté HTTP — séparation responsabilité
 - [Phase ?]: Temporal.PlainDate.compare >= 0 → rejet date future
 - [Phase ?]: navActive locals + aria-current='page' sidebar nav active state
+- [Phase 05]: Boundary CGI art. 50-0 inclusive : recettes >= 83600 euro = reel (lt strict pour micro_bic eligible)
+- [Phase 05]: BDD step lazy bien creation : pas de pre-creation dans le step contexte N biens actifs, auto-creation par adresse dans les steps recettes/charges
+- [Phase 05]: Content-Disposition RFC 6266 avec helper contentDispositionFilename() dans routes exports.ts
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-21T08:38:34.228Z
-Stopped at: Phase 5 UI-SPEC approved
+Last session: 2026-05-21T09:30:30.742Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None

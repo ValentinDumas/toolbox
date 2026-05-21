@@ -134,6 +134,34 @@ export const creerDeclarationCorrigeeSchema = z.object({
 export type CreerDeclarationCorrigeeData = z.infer<typeof creerDeclarationCorrigeeSchema>;
 
 /**
+ * POST /biens/:bienId/fiscalite/composants/:composantId/sortir
+ * Body : { motif, dateSortieIso }
+ *
+ * T-05-07-02 : motif enum strict + date ISO — Zod validation côté serveur.
+ * T-05-07-07 : onboarding action enum strict.
+ */
+export const sortirComposantSchema = z.object({
+  motif: z.enum(['vente', 'mise_au_rebut', 'sinistre', 'autre'], {
+    errorMap: () => ({ message: "Motif invalide. Valeurs : vente, mise_au_rebut, sinistre, autre" }),
+  }),
+  dateSortieIso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format AAAA-MM-JJ requis'),
+});
+export type SortirComposantData = z.infer<typeof sortirComposantSchema>;
+
+/**
+ * POST /fiscalite/onboarding
+ * Body : { action: 'commencer' | 'plus_tard' | 'ignorer' }
+ *
+ * T-05-07-07 : action enum strict — pas d'autres valeurs acceptées.
+ */
+export const onboardingActionSchema = z.object({
+  action: z.enum(['commencer', 'plus_tard', 'ignorer'], {
+    errorMap: () => ({ message: "Action invalide. Valeurs : commencer, plus_tard, ignorer" }),
+  }),
+});
+export type OnboardingActionData = z.infer<typeof onboardingActionSchema>;
+
+/**
  * Reconstruit le tableau d'enfants depuis un body FormData plat.
  * Les champs sont encodés enfants[0].bienId, enfants[0].montantTtcEuros, etc.
  * (fast-querystring ne parse pas le bracket-dot notation imbriqué)

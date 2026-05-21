@@ -1,12 +1,12 @@
 import type { Money } from '../_shared/money.js';
-import type { BailleurId } from '../_shared/identifiants.js';
+import type { BailleurId, BienId } from '../_shared/identifiants.js';
 import type { QualificationFiscale } from './qualification-fiscale.js';
 
 /** Map des charges agrégées par catégorie de qualification (D-FIS-G2.2). */
 export type ChargesParCategorie = Record<QualificationFiscale, Money>;
 
 /**
- * Port — agrégation des charges qualifiées par catégorie annuelle (FIS-03).
+ * Port — agrégation des charges qualifiées par catégorie annuelle (FIS-03, D-FIS-G5.1).
  *
  * Source : D-FIS-G2.2 (4 catégories alignées 2033-A) + D-FIS-G2.6 (enfants inclus, parent exclu).
  *
@@ -28,4 +28,22 @@ export interface ChargesRepository {
    * @param annee - exercice fiscal (ex: 2026)
    */
   sommeChargesParCategorie(bailleurId: BailleurId, annee: number): Promise<ChargesParCategorie>;
+
+  /**
+   * Retourne la somme totale des charges déductibles pour un bien donné et une année.
+   *
+   * Ventilation par bien (D-FIS-G5.1) — utilisée par listerVueConsolidee.
+   * Filtre : justificatif.bien_id = bienId (les charges sans bien_id sont exclues).
+   *
+   * Règles :
+   *   - WHERE bien_id = bienId AND corbeille_le IS NULL
+   *   - Catégories incluses : entretien_reparation, amelioration, charge_courante_periodique
+   *   - Exclus : non_qualifie, non_deductible, justificatifs avec bien_id=null
+   *   - Rattachement par COALESCE(date_paiement, date_document) (D-FIS-G2.11)
+   *   - Retourne Money ≥ 0
+   *
+   * @param bienId - identifiant du bien (filtrage direct par colonne bien_id)
+   * @param annee - exercice fiscal (ex: 2026)
+   */
+  sommeChargesParBien(bienId: BienId, annee: number): Promise<Money>;
 }
