@@ -14,6 +14,7 @@ import { ClockFixe } from '../../../src/domain/_shared/clock.js';
 import { genererQuittance } from '../../../src/application/encaissements/generer-quittance.js';
 import { EcheanceLoyerNonPayee, QuittanceDejaEmise } from '../../../src/domain/encaissements/erreurs.js';
 import { BailleurAbsent } from '../../../src/domain/identite/erreurs.js';
+import type { QuittanceBuilder } from '../../../src/domain/encaissements/quittance-builder.js';
 
 // ─── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,10 @@ const fakeStockage = {
   ecrireQuittance: vi.fn().mockResolvedValue('quittances/2026/quittance-2026-001-mai-2026-dupont.pdf'),
 };
 
+const fakeQuittanceBuilder: QuittanceBuilder = {
+  construire: vi.fn().mockReturnValue({}),
+};
+
 const clock = ClockFixe.du('2026-05-31');
 
 // fake db with transaction support
@@ -130,9 +135,10 @@ describe('genererQuittance', () => {
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
         repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
+        fakeQuittanceBuilder,
         fakeStockage,
         clock,
-        db as Parameters<typeof genererQuittance>[5],
+        db as Parameters<typeof genererQuittance>[6],
       ),
     ).rejects.toThrow(EcheanceLoyerNonPayee);
   });
@@ -149,9 +155,10 @@ describe('genererQuittance', () => {
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
         repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
+        fakeQuittanceBuilder,
         fakeStockage,
         clock,
-        db as Parameters<typeof genererQuittance>[5],
+        db as Parameters<typeof genererQuittance>[6],
       ),
     ).rejects.toThrow("Cette période n'est pas entièrement réglée");
   });
@@ -170,9 +177,10 @@ describe('genererQuittance', () => {
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
         repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
+        fakeQuittanceBuilder,
         fakeStockage,
         clock,
-        db as Parameters<typeof genererQuittance>[5],
+        db as Parameters<typeof genererQuittance>[6],
       ),
     ).rejects.toThrow(BailleurAbsent);
   });
@@ -196,9 +204,10 @@ describe('genererQuittance', () => {
         { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
         repos as unknown as Parameters<typeof genererQuittance>[1],
         fakePdfRenderer,
+        fakeQuittanceBuilder,
         fakeStockage,
         clock,
-        db as Parameters<typeof genererQuittance>[5],
+        db as Parameters<typeof genererQuittance>[6],
       ),
     ).rejects.toThrow(QuittanceDejaEmise);
   });
@@ -245,9 +254,10 @@ describe('genererQuittance', () => {
       { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
       repos as unknown as Parameters<typeof genererQuittance>[1],
       fakePdfRenderer,
-      stockage as Parameters<typeof genererQuittance>[3],
+      fakeQuittanceBuilder,
+      stockage as Parameters<typeof genererQuittance>[4],
       clock,
-      db as Parameters<typeof genererQuittance>[5],
+      db as Parameters<typeof genererQuittance>[6],
     );
 
     expect(resultat.numero).toBe('2026-001');
@@ -287,9 +297,10 @@ describe('genererQuittance', () => {
       { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
       repos as unknown as Parameters<typeof genererQuittance>[1],
       fakePdfRenderer,
-      fakeStockage as Parameters<typeof genererQuittance>[3],
+      fakeQuittanceBuilder,
+      fakeStockage as Parameters<typeof genererQuittance>[4],
       clock,
-      db as Parameters<typeof genererQuittance>[5],
+      db as Parameters<typeof genererQuittance>[6],
     );
 
     expect(resultat.numero).toBe('2026-002');
@@ -330,9 +341,10 @@ describe('genererQuittance', () => {
       { echeanceId: (echeance as { id: EcheanceLoyerId }).id },
       repos as unknown as Parameters<typeof genererQuittance>[1],
       fakePdfRenderer,
-      fakeStockage as Parameters<typeof genererQuittance>[3],
+      fakeQuittanceBuilder,
+      fakeStockage as Parameters<typeof genererQuittance>[4],
       clock2027,
-      db as Parameters<typeof genererQuittance>[5],
+      db as Parameters<typeof genererQuittance>[6],
     );
 
     expect(resultat.numero).toBe('2027-001');

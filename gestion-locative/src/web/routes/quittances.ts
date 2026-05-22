@@ -10,6 +10,7 @@ import type { BienRepository } from '../../domain/patrimoine/bien-repository.js'
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { EncaissementRepository } from '../../domain/encaissements/encaissement-repository.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { QuittanceBuilder } from '../../domain/encaissements/quittance-builder.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { QuittanceId } from '../../domain/_shared/identifiants.js';
 import { StockageFichierLocal } from '../../infrastructure/storage/stockage-fichier-local.js';
@@ -34,6 +35,7 @@ export async function plugin(
     bienRepo: BienRepository;
     bailRepo: BailRepository;
     pdfRenderer: PdfRenderer;
+    quittanceBuilder: QuittanceBuilder;
     stockage: StockageFichierLocal;
     clock: Clock;
     db: Kysely<DB>;
@@ -96,6 +98,7 @@ export async function plugin(
           bailRepo: opts.bailRepo,
         },
         opts.pdfRenderer,
+        opts.quittanceBuilder,
         opts.stockage,
         opts.clock,
         opts.db,

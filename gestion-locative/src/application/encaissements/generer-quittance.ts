@@ -11,6 +11,7 @@ import type { LocataireRepository } from '../../domain/locatif/locataire-reposit
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { QuittanceBuilder } from '../../domain/encaissements/quittance-builder.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import { Quittance } from '../../domain/encaissements/quittance.js';
 import {
@@ -19,8 +20,7 @@ import {
   QuittanceDejaEmise,
 } from '../../domain/encaissements/erreurs.js';
 import { BailleurAbsent } from '../../domain/identite/erreurs.js';
-import { construireQuittance } from '../../infrastructure/pdf/quittance-doc-def.js';
-import { StockageFichierLocal } from '../../infrastructure/storage/stockage-fichier-local.js';
+import { slugify } from '../../domain/_shared/slug.js';
 import { formatPeriode } from '../../helpers/format-periode.js';
 
 interface Stockage {
@@ -62,6 +62,7 @@ export async function genererQuittance(
   commande: { echeanceId: EcheanceLoyerId | string },
   repos: Repos,
   pdfRenderer: PdfRenderer,
+  quittanceBuilder: QuittanceBuilder,
   stockage: Stockage,
   clock: Clock,
   db: Kysely<DB> | { transaction: () => { execute: (fn: (trx: unknown) => Promise<unknown>) => Promise<unknown> } },
@@ -110,7 +111,7 @@ export async function genererQuittance(
   }
 
   // ─── Calcul slug et chemin ──────────────────────────────────────────────────
-  const locataireSlug = StockageFichierLocal.slugify(`${locataire.nom}-${locataire.prenom}`);
+  const locataireSlug = slugify(`${locataire.nom}-${locataire.prenom}`);
   const periodeStr = formatPeriode(echeance.periodeDebut).replace(/\s+/g, '-').toLowerCase();
   const annee = echeance.periodeDebut.year;
 
@@ -140,7 +141,7 @@ export async function genererQuittance(
   // — c'est un compromis acceptable (audit > densité de numéros).
   const adresseBien = bien.adresse;
   try {
-    const docDef = construireQuittance(
+    const docDef = quittanceBuilder.construire(
       echeance,
       bailleur,
       locataire,
