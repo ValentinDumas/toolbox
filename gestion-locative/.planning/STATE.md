@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_for_next_phase
-stopped_at: Phase 5 complete — gap closure verified (passed 5/5 must-haves)
-last_updated: "2026-05-22T14:32:00.000Z"
+stopped_at: Phase 5.1 complete — hardening hexagonal closed (3 ports + 3 adapters)
+last_updated: "2026-05-22T16:18:00.000Z"
 last_activity: 2026-05-22
 progress:
-  total_phases: 7
-  completed_phases: 5
-  total_plans: 37
-  completed_plans: 37
+  total_phases: 8
+  completed_phases: 6
+  total_plans: 38
+  completed_plans: 38
   percent: 100
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 
 ## Current Position
 
-Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — COMPLETE
-Plan: 11 of 11 (all plans executed and verified)
-Status: passed — verifier confirmed 5/5 must-haves, CR-01/CR-03/CR-06 closed in codebase. 895/895 vitest, 171/173 BDD (2 pre-existing failures unrelated, documented).
-Last activity: 2026-05-22 -- Phase 5 gap-closure verified passed
-Next step: /gsd-discuss-phase 6 (Liasse 2031 & CFE) OR /gsd-ship if shipping milestone
+Phase: 5.1 (hardening-hexagonal) — COMPLETE
+Plan: 1 of 1 (05.1-01 pdf-builder-ports-hardening executed)
+Status: complete — 3 ports + 3 adapters extraits, DI propagée, 4 violations hexagonales fermées. `grep "from.*infrastructure" src/application/` (hors type-only Kysely) → 0 résultats. 895/895 vitest, BDD 171/173 (failures pré-existantes non liées).
+Last activity: 2026-05-22 -- Phase 5.1 hardening complete (CLAUDE.md règle non-négociable rétablie end-to-end sur la couche application)
+Next step: /gsd-discuss-phase 6 (Liasse 2031 & CFE)
 
 Progress: [██████████] 100%
 
