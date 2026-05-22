@@ -127,4 +127,23 @@ describe('ChargesRepositorySqlite.sommeChargesParCategorie', () => {
     expect(result2025.entretien_reparation.centimes).toBe(40_000n);
     expect(result2026.entretien_reparation.centimes).toBe(60_000n);
   });
+
+  it('régression CR-01 : 100 justificatifs de 1 centime entretien_reparation = 100 centimes exact, sans perte d\'arrondi flottant', async () => {
+    // Verrouille la sémantique exacte du SUM en BigInt pour la variante "par catégorie" :
+    // après le fix CR-01, plus aucun float ne transite entre SQLite et Money.fromCentimes().
+    // 100 × 1n centime DOIT donner exactement 100n centimes pour entretien_reparation.
+    for (let i = 0; i < 100; i++) {
+      await insertJustificatif({
+        montantCentimes: 1,
+        qualification: 'entretien_reparation',
+        datePaiement: '2026-06-15',
+        dateDocument: '2026-06-15',
+        corbeilleLe: null,
+      });
+    }
+
+    const result = await repo.sommeChargesParCategorie(bailleurId, 2026);
+
+    expect(result.entretien_reparation.toCentimes()).toBe(100n);
+  });
 });
