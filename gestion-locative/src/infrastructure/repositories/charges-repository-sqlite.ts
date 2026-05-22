@@ -29,12 +29,16 @@ export class ChargesRepositorySqlite implements ChargesRepository {
    *
    * @param _bailleurId - V1.1 : filtrage par bailleur. En V1, ignoré.
    * @param annee - exercice fiscal (ex: 2026)
+   *
+   * Précision BigInt CR-01 : `fn.sum<string>` + `BigInt(totalStr)` — aucun float
+   * intermédiaire ne transite entre SQLite et `Money.fromCentimes()`. Règle non
+   * négociable "jamais de float pour les montants fiscaux" (CLAUDE.md).
    */
   async sommeChargesParCategorie(_bailleurId: BailleurId, annee: number): Promise<ChargesParCategorie> {
     const rows = await this.db
       .selectFrom('justificatifs')
       .select(['qualification_fiscale'])
-      .select((eb) => eb.fn.sum<number>('montant_ttc_centimes').as('total'))
+      .select((eb) => eb.fn.sum<string>('montant_ttc_centimes').as('total'))
       .where('corbeille_le', 'is', null)
       .where('qualification_fiscale', 'is not', null)
       .where('qualification_fiscale', 'not in', QUALIFICATIONS_EXCLUES)
@@ -60,9 +64,10 @@ export class ChargesRepositorySqlite implements ChargesRepository {
     for (const row of rows) {
       const qualification = row.qualification_fiscale as QualificationFiscale | null;
       if (qualification && (QUALIFICATIONS_VALIDES as readonly string[]).includes(qualification)) {
-        const total = row.total ?? 0;
-        if (total > 0) {
-          result[qualification] = Money.fromCentimes(BigInt(Math.round(total)));
+        const totalStr = row.total ?? '0';
+        const totalBig = BigInt(totalStr);
+        if (totalBig > 0n) {
+          result[qualification] = Money.fromCentimes(totalBig);
         }
       }
     }
@@ -78,6 +83,8 @@ export class ChargesRepositorySqlite implements ChargesRepository {
    *
    * @param bienId - identifiant du bien (filtrage direct par colonne bien_id)
    * @param annee - exercice fiscal (ex: 2026)
+   *
+   * Précision BigInt CR-01 : même refactor que `sommeChargesParCategorie`.
    */
   async sommeChargesParBien(bienId: BienId, annee: number): Promise<Money> {
     const CATEGORIES_DEDUCTIBLES = [
@@ -88,7 +95,7 @@ export class ChargesRepositorySqlite implements ChargesRepository {
 
     const result = await this.db
       .selectFrom('justificatifs')
-      .select((eb) => eb.fn.sum<number>('montant_ttc_centimes').as('total'))
+      .select((eb) => eb.fn.sum<string>('montant_ttc_centimes').as('total'))
       .where('bien_id', '=', bienId)
       .where('corbeille_le', 'is', null)
       .where('qualification_fiscale', 'in', CATEGORIES_DEDUCTIBLES)
@@ -104,10 +111,11 @@ export class ChargesRepositorySqlite implements ChargesRepository {
       )
       .executeTakeFirst();
 
-    const total = result?.total ?? 0;
-    if (total <= 0) {
+    const totalStr = result?.total ?? '0';
+    const totalBig = BigInt(totalStr);
+    if (totalBig <= 0n) {
       return Money.zero();
     }
-    return Money.fromCentimes(BigInt(Math.round(total)));
+    return Money.fromCentimes(totalBig);
   }
 }

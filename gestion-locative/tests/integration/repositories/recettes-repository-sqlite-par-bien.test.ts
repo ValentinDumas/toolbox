@@ -156,4 +156,17 @@ describe('RecettesRepositorySqlite.sommeRecettesAnnuellesParBien (D-FIS-G5.1)', 
     expect(somme2025.centimes).toBe(50_000n);
     expect(somme2026.centimes).toBe(78_000n);
   });
+
+  it('régression CR-01 : 100 encaissements de 1 centime sur un bien = 100 centimes exact, sans perte d\'arrondi flottant', async () => {
+    // Verrouille la sémantique exacte du SUM en BigInt pour la variante par bien :
+    // après le fix CR-01, plus aucun float ne transite entre SQLite et Money.fromCentimes().
+    // 100 × 1n centime DOIT donner exactement 100n centimes.
+    for (let i = 0; i < 100; i++) {
+      await insertEncaissement(echeanceId1, '2026-06-15', 1); // 1 centime = 0.01 €
+    }
+
+    const somme = await repo.sommeRecettesAnnuellesParBien(bienId1, 2026);
+
+    expect(somme.toCentimes()).toBe(100n);
+  });
 });

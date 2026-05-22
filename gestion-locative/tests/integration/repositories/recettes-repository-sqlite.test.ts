@@ -147,4 +147,17 @@ describe('RecettesRepositorySqlite.sommeRecettesAnnuelles', () => {
     const somme = await repo.sommeRecettesAnnuelles(bailleurId, 2025);
     expect(somme.centimes).toBe(0n);
   });
+
+  it('régression CR-01 : 100 encaissements de 1 centime = 100 centimes exact, sans perte d\'arrondi flottant', async () => {
+    // Verrouille la sémantique exacte du SUM en BigInt :
+    // après le fix CR-01, le SUM SQLite ne doit PLUS transiter par un `number` (float 64).
+    // 100 × 1n centime DOIT donner exactement 100n centimes (Σ entière de centimes en base).
+    for (let i = 0; i < 100; i++) {
+      await insertEncaissement(echeanceId2026, '2026-06-15', 1); // 1 centime = 0.01 €
+    }
+
+    const somme = await repo.sommeRecettesAnnuelles(bailleurId, 2026);
+
+    expect(somme.toCentimes()).toBe(100n);
+  });
 });
