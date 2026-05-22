@@ -41,3 +41,21 @@ Feature: Propagation ARD cross-exercice (CGI art. 39 B)
     When un encaissement de l'exercice 2026 est annulé post-clôture
     Then la déclaration 2026 a le même ardGenere qu'avant l'annulation
     And le tableau SYNTHESE_BIEN 2026 reste inchangé
+
+  @fis-04 @gap-CR-03 @fis-ard-cross-multi-bien
+  Scenario: CR-03 — Multi-bien — l'ARD est reporté à l'exercice N+1 sans doublon
+    # Régression 05-VERIFICATION.md gap 2 (BLOCKER) : cloturer-exercice créait N lignes
+    # SYNTHESE_BIEN portant chacune l'ardCumuleEnSortie global → dernierArdCumuleBailleur
+    # multipliait l'ARD par le nombre de biens à l'exercice N+1.
+    # En V1 D-LOCK-2 mono-bailleur, l'ARD est bailleur-level (pas bien-level) : une
+    # seule SYNTHESE_BIEN par exercice, portée par biensIds[0] comme bien sentinelle.
+    Given un bailleur avec des revenus actifs annuels de 150 000 €
+    And deux biens immobiliers A et B avec composant gros_oeuvre de 100 000 € chacun acquis en 2025
+    And une valorisation fiscale activée pour chaque bien
+    And l'exercice 2025 avec des recettes de 5 000 €
+    When je clôture l'exercice 2025 en régime réel
+    Then la table amortissement_exercice contient exactement 1 ligne SYNTHESE_BIEN pour l'exercice 2025
+    And l'ARD reporté pour l'exercice 2026 est exactement égal à l'ardCumuleEnSortie de 2025
+    Given l'exercice 2026 avec des recettes de 5 000 €
+    When je clôture l'exercice 2026 en régime réel
+    Then la table amortissement_exercice contient exactement 1 ligne SYNTHESE_BIEN pour l'exercice 2026
