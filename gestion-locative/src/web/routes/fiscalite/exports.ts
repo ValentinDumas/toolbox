@@ -16,6 +16,7 @@ import type { BailleurRepository } from '../../../domain/identite/bailleur-repos
 import type { BienRepository } from '../../../domain/patrimoine/bien-repository.js';
 import type { TableauAmortissementRepository } from '../../../domain/fiscalite/tableau-amortissement-repository.js';
 import type { PdfRenderer } from '../../../domain/encaissements/pdf-renderer.js';
+import type { RecapFiscalBuilder } from '../../../domain/fiscalite/recap-fiscal-builder.js';
 import type { DeclarationAnnuelleId } from '../../../domain/_shared/identifiants.js';
 import {
   exporterCsvFiscal,
@@ -33,6 +34,7 @@ export interface ExportsDeps {
   bienRepo: BienRepository;
   tableauAmortRepo: TableauAmortissementRepository;
   pdfRenderer: PdfRenderer;
+  recapFiscalBuilder: RecapFiscalBuilder;
 }
 
 /**
@@ -48,7 +50,7 @@ export async function registerFiscaliteExportsRoutes(
   app: FastifyInstance,
   deps: ExportsDeps,
 ): Promise<void> {
-  const { declRepo, bailleurRepo, bienRepo, tableauAmortRepo, pdfRenderer } = deps;
+  const { declRepo, bailleurRepo, bienRepo, tableauAmortRepo, pdfRenderer, recapFiscalBuilder } = deps;
 
   /**
    * GET /fiscalite/declarations/:id/csv
@@ -90,7 +92,7 @@ export async function registerFiscaliteExportsRoutes(
       try {
         const { buffer, nomFichier } = await exporterPdfRecap(
           { declarationId },
-          { declRepo, bailleurRepo, bienRepo, tableauAmortRepo },
+          { declRepo, bailleurRepo, bienRepo, tableauAmortRepo, recapFiscalBuilder },
           pdfRenderer,
         );
 

@@ -36,6 +36,7 @@ import { BailleurRepositorySqlite } from '../../../src/infrastructure/repositori
 import { DeclarationAnnuelleRepositorySqlite } from '../../../src/infrastructure/repositories/declaration-annuelle-repository-sqlite.js';
 import { RegleFiscaleProviderEnMemoire } from '../../../src/domain/fiscalite/regles/regle-fiscale-provider.js';
 import { PdfRendererPdfmake } from '../../../src/infrastructure/pdf/pdf-renderer-pdfmake.js';
+import { RecapFiscalBuilderPdfmake } from '../../../src/infrastructure/pdf/recap-fiscal-builder-pdfmake.js';
 import { listerVueConsolidee, type VueConsolideeBailleur } from '../../../src/application/fiscalite/lister-vue-consolidee.js';
 import { sortirComposant, ComposantIntrouvable } from '../../../src/application/fiscalite/sortir-composant.js';
 import { exporterCsvFiscal } from '../../../src/application/fiscalite/exporter-csv-fiscal.js';
@@ -597,9 +598,10 @@ When(
     }
 
     const pdfRenderer = new PdfRendererPdfmake();
+    const recapFiscalBuilder = new RecapFiscalBuilderPdfmake();
     const { buffer, nomFichier } = await exporterPdfRecap(
       { declarationId: declId },
-      { declRepo: repos.declRepo, bailleurRepo, bienRepo: repos.bienRepo, tableauAmortRepo: repos.tableauAmortRepo },
+      { declRepo: repos.declRepo, bailleurRepo, bienRepo: repos.bienRepo, tableauAmortRepo: repos.tableauAmortRepo, recapFiscalBuilder },
       pdfRenderer,
     );
     this.pdfBuffer = buffer;

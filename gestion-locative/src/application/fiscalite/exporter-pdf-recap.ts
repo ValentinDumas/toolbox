@@ -8,7 +8,7 @@
  *   2. Charger le bailleur
  *   3. Charger la liste des biens
  *   4. Charger le tableau d'amortissement (exercice N)
- *   5. Construire la TDocumentDefinitions via construireRecapFiscal
+ *   5. Construire la définition du document via le port RecapFiscalBuilder
  *   6. Générer le buffer PDF via pdfRenderer.genererBuffer()
  *
  * Sources :
@@ -23,7 +23,7 @@ import type { BailleurRepository } from '../../domain/identite/bailleur-reposito
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { TableauAmortissementRepository } from '../../domain/fiscalite/tableau-amortissement-repository.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
-import { construireRecapFiscal } from '../../infrastructure/pdf/recap-fiscal-doc-def.js';
+import type { RecapFiscalBuilder } from '../../domain/fiscalite/recap-fiscal-builder.js';
 
 export class DeclarationIntrouvablePdf extends Error {
   constructor(declarationId: string) {
@@ -48,6 +48,7 @@ export interface ExporterPdfRecapDeps {
   bailleurRepo: BailleurRepository;
   bienRepo: BienRepository;
   tableauAmortRepo: TableauAmortissementRepository;
+  recapFiscalBuilder: RecapFiscalBuilder;
 }
 
 export interface ExporterPdfRecapResultat {
@@ -67,7 +68,7 @@ export async function exporterPdfRecap(
   pdfRenderer: PdfRenderer,
 ): Promise<ExporterPdfRecapResultat> {
   const { declarationId } = commande;
-  const { declRepo, bailleurRepo, bienRepo, tableauAmortRepo } = deps;
+  const { declRepo, bailleurRepo, bienRepo, tableauAmortRepo, recapFiscalBuilder } = deps;
 
   // 1. Charger la déclaration
   const decl = await declRepo.trouverParId(declarationId);
@@ -90,8 +91,8 @@ export async function exporterPdfRecap(
     biens.map((b) => tableauAmortRepo.listerParBienExercice(b.id, decl.exercice)),
   ).then((listes) => listes.flat());
 
-  // 5. Construire la TDocumentDefinitions
-  const docDef = construireRecapFiscal(decl, bailleur, biens, tableauxAmort);
+  // 5. Construire la TDocumentDefinitions via le port (DI — règle hexagonale CLAUDE.md)
+  const docDef = recapFiscalBuilder.construire(decl, bailleur, biens, tableauxAmort);
 
   // 6. Générer le buffer PDF
   const buffer = await pdfRenderer.genererBuffer(docDef);
