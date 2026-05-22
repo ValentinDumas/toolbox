@@ -46,6 +46,7 @@ import { EncaissementRepositorySqlite } from './infrastructure/repositories/enca
 import { QuittanceRepositorySqlite } from './infrastructure/repositories/quittance-repository-sqlite.js';
 import { StockageFichierLocal } from './infrastructure/storage/stockage-fichier-local.js';
 import { PdfRendererPdfmake } from './infrastructure/pdf/pdf-renderer-pdfmake.js';
+import { RecapFiscalBuilderPdfmake } from './infrastructure/pdf/recap-fiscal-builder-pdfmake.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
@@ -159,6 +160,7 @@ export async function creerApp(
       path.join(os.homedir(), 'Library', 'Application Support', 'gestion-locative', 'documents'),
   );
   const pdfRenderer = new PdfRendererPdfmake();
+  const recapFiscalBuilder = new RecapFiscalBuilderPdfmake();
   const edlRepo = new EtatDesLieuxRepositorySqlite(db);
   const bailIndexationRepo = new BailIndexationRepositorySqlite(db);
   const relanceRepo = new RelanceRepositorySqlite(db);
@@ -407,6 +409,7 @@ export async function creerApp(
     bienRepo: repo,
     tableauAmortRepo: tableauAmortissementRepo,
     pdfRenderer,
+    recapFiscalBuilder,
   });
 
   // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.4) : onboarding progressif S1
