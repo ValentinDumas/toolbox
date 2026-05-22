@@ -22,6 +22,7 @@ import { cloturerExercice } from '../../../src/application/fiscalite/cloturer-ex
 import { exporterCsvFiscal } from '../../../src/application/fiscalite/exporter-csv-fiscal.js';
 import { exporterPdfRecap } from '../../../src/application/fiscalite/exporter-pdf-recap.js';
 import { PdfRendererPdfmake } from '../../../src/infrastructure/pdf/pdf-renderer-pdfmake.js';
+import { RecapFiscalBuilderPdfmake } from '../../../src/infrastructure/pdf/recap-fiscal-builder-pdfmake.js';
 import { BailleurRepositorySqlite } from '../../../src/infrastructure/repositories/bailleur-repository-sqlite.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { RecettesRepositorySqlite } from '../../../src/infrastructure/repositories/recettes-repository-sqlite.js';
@@ -219,9 +220,10 @@ describe('parcours-complet-cloture — intégration end-to-end', () => {
 
     // Export PDF — magic bytes %PDF
     const pdfRenderer = new PdfRendererPdfmake();
+    const recapFiscalBuilder = new RecapFiscalBuilderPdfmake();
     const { buffer } = await exporterPdfRecap(
       { declarationId: resultat.declarationId },
-      { declRepo, bailleurRepo, bienRepo: new BienRepositorySqlite(db), tableauAmortRepo: new TableauAmortissementRepositorySqlite(db) },
+      { declRepo, bailleurRepo, bienRepo: new BienRepositorySqlite(db), tableauAmortRepo: new TableauAmortissementRepositorySqlite(db), recapFiscalBuilder },
       pdfRenderer,
     );
     expect(buffer.slice(0, 4).toString()).toBe('%PDF');

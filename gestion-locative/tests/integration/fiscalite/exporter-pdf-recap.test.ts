@@ -25,6 +25,7 @@ import type { DB } from '../../../src/infrastructure/db/kysely-types.js';
 import { activerPragmas, appliquerToutesMigrations } from '../../../src/infrastructure/db/database.js';
 import { exporterPdfRecap } from '../../../src/application/fiscalite/exporter-pdf-recap.js';
 import { PdfRendererPdfmake } from '../../../src/infrastructure/pdf/pdf-renderer-pdfmake.js';
+import { RecapFiscalBuilderPdfmake } from '../../../src/infrastructure/pdf/recap-fiscal-builder-pdfmake.js';
 import { BailleurRepositorySqlite } from '../../../src/infrastructure/repositories/bailleur-repository-sqlite.js';
 import { BienRepositorySqlite } from '../../../src/infrastructure/repositories/bien-repository-sqlite.js';
 import { DeclarationAnnuelleRepositorySqlite } from '../../../src/infrastructure/repositories/declaration-annuelle-repository-sqlite.js';
@@ -103,6 +104,7 @@ describe('exporterPdfRecap — intégration in-memory (D-FIS-G5.3)', () => {
 
   it('buffer non vide + magic bytes %PDF- + taille > 1000 octets + nomFichier correct', async () => {
     const pdfRenderer = new PdfRendererPdfmake();
+    const recapFiscalBuilder = new RecapFiscalBuilderPdfmake();
     const declRepo = new DeclarationAnnuelleRepositorySqlite(db);
     const bailleurRepo = new BailleurRepositorySqlite(db);
     const bienRepo = new BienRepositorySqlite(db);
@@ -110,7 +112,7 @@ describe('exporterPdfRecap — intégration in-memory (D-FIS-G5.3)', () => {
 
     const { buffer, nomFichier } = await exporterPdfRecap(
       { declarationId: declId },
-      { declRepo, bailleurRepo, bienRepo, tableauAmortRepo },
+      { declRepo, bailleurRepo, bienRepo, tableauAmortRepo, recapFiscalBuilder },
       pdfRenderer,
     );
 
