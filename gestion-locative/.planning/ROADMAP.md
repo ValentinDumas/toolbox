@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier** - Le système garantit la conformité juridique du bail meublé (DPE/gaz/élec, EDL contradictoire, indexation IRL avec gel DPE F/G, checklist mobilier décret 2015-981).
 - [ ] **Phase 4: Coffre documentaire & Travaux** - L'utilisateur peut centraliser ses justificatifs (10 ans de rétention) et tracer les tickets d'incidents/travaux avec pièces jointes et coûts.
 - [x] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (passed 2026-05-22 — 3 gap-closure plans 05-09/05-10/05-11 fermèrent CR-01 / CR-03 / CR-06)
+- [ ] **Phase 5.1: Hardening hexagonal** - Fermer les 3 violations hexagonales pré-existantes découvertes pendant la clôture du gap CR-06 (Phase 5) — `generer-quittance.ts`, `appliquer-indexation-irl.ts`, `enregistrer-relance.ts` doivent passer par des ports `QuittanceBuilder` / `AvenantIRLBuilder` / `MiseEnDemeureBuilder` au lieu d'importer directement depuis `infrastructure/pdf/`.
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
 - [ ] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail).
 
@@ -145,6 +146,23 @@ Plans:
 **Wave 8** *(blocked on Wave 7 completion)*
 - [x] 05-08-PLAN.md — UI polish + a11y WCAG 2.1 AA + tests d'intégration end-to-end + couverture 100 % cas limites locked + checkpoint humain (wave 8)
 **UI hint:** yes
+
+### Phase 5.1: Hardening hexagonal
+**Goal**: Fermer les 3 violations hexagonales pré-existantes (héritées de Phases 2 et 3) découvertes pendant la clôture de CR-06 (Phase 5). La couche application ne doit plus importer d'implémentation infrastructure concrète — pattern miroir de `RecapFiscalBuilder` / `RecapFiscalBuilderPdfmake` créé par 05-11.
+**Mode:** standard
+**Depends on**: Phase 5
+**Requirements**: (hardening — règle non-négociable CLAUDE.md "Domaine pur — ports & adapters strict")
+**Success Criteria** (what must be TRUE):
+  1. `grep -rn "from.*infrastructure" src/application/` filtré sur les imports non-type-only (excluant les `type Kysely<DB>` annotés "acceptable" dans 05-VERIFICATION.md L32) → 0 résultats.
+  2. 3 nouveaux ports existent côté domaine : `src/domain/encaissements/quittance-builder.ts`, `src/domain/locatif/avenant-irl-builder.ts`, `src/domain/encaissements/mise-en-demeure-builder.ts` — interfaces retournant `unknown` pour ne pas faire fuiter pdfmake dans le domaine.
+  3. 3 adapters concrets existent côté infra : `QuittanceBuilderPdfmake`, `AvenantIRLBuilderPdfmake`, `MiseEnDemeureBuilderPdfmake` — wrappent les fonctions `construire*` existantes.
+  4. `pnpm typecheck` exit 0, `pnpm test -- --run` tous verts, BDD ≥ 171/173 (les 2 failures `fiscalite-qualification.feature` héritées, non liées).
+  5. `deferred-items.md` voit les 4 lignes marquées `closed by Phase 5.1`.
+**Plans:** 0/1 plans complete
+Plans:
+**Wave 1**
+- [ ] 05.1-01-PLAN.md — pdf-builder-ports-hardening : extraire 3 ports + 3 adapters + DI + nettoyer import StockageFichierLocal parasite dans generer-quittance.ts
+**UI hint:** no
 
 ### Phase 6: Liasse 2031 & CFE
 **Goal**: L'utilisateur peut produire le brouillon de la liasse 2031-SD avec annexes 2033-A à G à partir des données fiscales agrégées, et tracer sa déclaration CFE (1447-C-SD) avec alerte sur l'échéance de paiement de décembre.
