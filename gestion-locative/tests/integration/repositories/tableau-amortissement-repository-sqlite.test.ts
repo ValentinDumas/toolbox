@@ -274,4 +274,68 @@ describe('TableauAmortissementRepositorySqlite — append-only strict (T-05-04-0
     const ard = await repo.dernierArdCumuleBailleur(FAKE_BAILLEUR_ID, 2025);
     expect(ard.toCentimes()).toBe(1_200_000n); // 5 000 + 7 000 = 12 000 €
   });
+
+  // ─── dernierArdCumuleBailleur — multi-bien (CR-03) + precision BigInt (CR-01 derive) ──────
+  // 05-VERIFICATION.md gap 2 (BLOCKER) + WARNING L172 :
+  // - CR-03 : en V1 D-LOCK-2 mono-bailleur, l'ARD est bailleur-level → une seule SYNTHESE_BIEN par exercice
+  //   suffit. dernierArdCumuleBailleur ne doit pas sur-additionner l'ARD par le nombre de biens.
+  // - CR-01 derive : le SUM SQLite est lu via fn.sum<string> + BigInt(string), jamais via float.
+  describe('dernierArdCumuleBailleur — multi-bien (CR-03) + precision BigInt (CR-01 derive)', () => {
+    it('CR-03 — une seule SYNTHESE_BIEN par exercice → dernierArdCumuleBailleur retourne ardCumuleEnSortie tel quel, pas multiplié par le nombre de biens', async () => {
+      // En V1 D-LOCK-2, cloturer-exercice ne doit insérer qu'une seule SYNTHESE_BIEN par exercice
+      // portée par biensIds[0]. Le SUM repo sur cette unique ligne doit donc retourner la valeur exacte.
+      // Setup : 2 biens en base mais UNE SEULE SYNTHESE_BIEN insérée pour exercice 2025.
+      const bienRepo2 = new BienRepositorySqlite(db);
+      const bien2 = unBienValide();
+      await bienRepo2.enregistrer(bien2);
+
+      const ligne = AmortissementExercice.creer({
+        bienId, // porteur sentinelle (biensIds[0])
+        composantId: null,
+        exercice: 2025,
+        typeLigne: 'SYNTHESE_BIEN',
+        dotationTheorique: Money.fromEuros(500),
+        dotationAppliquee: Money.fromEuros(500),
+        ardGenere: Money.zero(),
+        ardCumuleDisponible: Money.fromCentimes(50_000n), // 500 €
+        ardConsomme: Money.zero(),
+      });
+      await repo.enregistrerBatch([ligne]);
+
+      const ard = await repo.dernierArdCumuleBailleur(FAKE_BAILLEUR_ID, 2025);
+      // Assertion : 50_000n centimes exact, pas 100_000n (qui serait le bug 2× du multi-bien)
+      expect(ard.toCentimes()).toBe(50_000n);
+    });
+
+    it('CR-01 derive — précision BigInt : 100 lignes SYNTHESE_BIEN de 1 centime sur biens distincts agrègent à 100n exact (fn.sum<string>)', async () => {
+      // Verrouille la mécanique du SUM en BigInt pur, indépendamment de la sémantique métier
+      // (en V1 post-fix, l'usage normal ne génère qu'UNE SYNTHESE_BIEN par exercice).
+      // Empêche un retour en arrière vers fn.sum<number> lors d'un refactor futur.
+      const bienRepo = new BienRepositorySqlite(db);
+      // 100 biens distincts + 100 lignes SYNTHESE_BIEN à 1 centime chacune sur le MÊME exercice
+      const lignes: AmortissementExercice[] = [];
+      for (let i = 0; i < 100; i++) {
+        const bienExtra = unBienValide();
+        await bienRepo.enregistrer(bienExtra);
+        lignes.push(
+          AmortissementExercice.creer({
+            bienId: bienExtra.id,
+            composantId: null,
+            exercice: 2025,
+            typeLigne: 'SYNTHESE_BIEN',
+            dotationTheorique: Money.zero(),
+            dotationAppliquee: Money.zero(),
+            ardGenere: Money.zero(),
+            ardCumuleDisponible: Money.fromCentimes(1n),
+            ardConsomme: Money.zero(),
+          }),
+        );
+      }
+      await repo.enregistrerBatch(lignes);
+
+      const ard = await repo.dernierArdCumuleBailleur(FAKE_BAILLEUR_ID, 2025);
+      // Assertion : SUM(100 × 1n) = 100n exact (BigInt direct depuis la chaîne SQLite)
+      expect(ard.toCentimes()).toBe(100n);
+    });
+  });
 });
