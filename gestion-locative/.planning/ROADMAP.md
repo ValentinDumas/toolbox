@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Quittancement — Échéances, Encaissements, Relances** - L'utilisateur peut générer avis d'échéance et quittances, suivre les paiements et déclencher des relances escaladées.
 - [ ] **Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier** - Le système garantit la conformité juridique du bail meublé (DPE/gaz/élec, EDL contradictoire, indexation IRL avec gel DPE F/G, checklist mobilier décret 2015-981).
 - [ ] **Phase 4: Coffre documentaire & Travaux** - L'utilisateur peut centraliser ses justificatifs (10 ans de rétention) et tracer les tickets d'incidents/travaux avec pièces jointes et coûts.
-- [ ] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (gaps_found 2026-05-21 — 3 critical bugs : CR-01 float SUM, CR-03 ARD multi-bien, CR-06 hexagonal — voir 05-VERIFICATION.md)
+- [x] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (passed 2026-05-22 — 3 gap-closure plans 05-09/05-10/05-11 fermèrent CR-01 / CR-03 / CR-06)
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
 - [ ] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail).
 
