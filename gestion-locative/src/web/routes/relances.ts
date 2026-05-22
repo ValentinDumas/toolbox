@@ -13,10 +13,10 @@ import type { Clock } from '../../domain/_shared/clock.js';
 import type { RelanceId } from '../../domain/_shared/identifiants.js';
 import type { NiveauRelance } from '../../domain/encaissements/relance.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { MiseEnDemeureBuilder } from '../../domain/encaissements/mise-en-demeure-builder.js';
 import { enregistrerRelance } from '../../application/encaissements/enregistrer-relance.js';
 import { listerRelances } from '../../application/encaissements/lister-relances.js';
 import { TemplateRendererEjs } from '../../infrastructure/templates/template-renderer-ejs.js';
-import { construireMiseEnDemeure } from '../../infrastructure/pdf/mise-en-demeure-doc-def.js';
 import { Money } from '../../domain/_shared/money.js';
 import { RelanceNiveauNonDisponible } from '../../domain/encaissements/erreurs.js';
 import { relanceFormSchema } from '../schemas/relance-schemas.js';
@@ -35,6 +35,7 @@ export async function plugin(
     bienRepo: BienRepository;
     bailleurRepo: BailleurRepository;
     pdfRenderer: PdfRenderer;
+    miseEnDemeureBuilder: MiseEnDemeureBuilder;
     clock: Clock;
   },
 ): Promise<void> {
@@ -101,6 +102,7 @@ export async function plugin(
         },
         templateRenderer,
         pdfRenderer,
+        opts.miseEnDemeureBuilder,
         opts.clock,
       );
 
@@ -166,7 +168,7 @@ export async function plugin(
     const sommePaiee = await opts.encaissementRepo.sommePaieeParEcheance(echeance.id);
     const resteDu = echeance.total.lte(sommePaiee) ? Money.zero() : echeance.total.soustraire(sommePaiee);
 
-    const docDef = construireMiseEnDemeure(
+    const docDef = opts.miseEnDemeureBuilder.construire(
       echeance,
       await opts.encaissementRepo.listerParEcheance(echeance.id),
       bailleur,

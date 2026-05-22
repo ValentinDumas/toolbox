@@ -75,6 +75,11 @@ const pdfRendererStub = {
   genererBuffer: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4 test')),
 };
 
+// Stub MiseEnDemeureBuilder
+const miseEnDemeureBuilderStub = {
+  construire: vi.fn().mockReturnValue({}),
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function creerRepos(opts: { relances?: unknown[] } = {}): any {
   const relances = opts.relances ?? [];
@@ -119,6 +124,7 @@ describe('enregistrerRelance', () => {
       repos,
       new TemplateRendererStub(),
       pdfRendererStub,
+      miseEnDemeureBuilderStub,
       clockJ15,
     );
     expect(result.relanceId).toBeDefined();
@@ -135,6 +141,7 @@ describe('enregistrerRelance', () => {
         repos,
         new TemplateRendererStub(),
         pdfRendererStub,
+        miseEnDemeureBuilderStub,
         clockJ15,
       ),
     ).rejects.toThrow(RelanceNiveauNonDisponible);
@@ -153,6 +160,7 @@ describe('enregistrerRelance', () => {
       repos,
       new TemplateRendererStub(),
       pdfRendererStub,
+      miseEnDemeureBuilderStub,
       clockJ65,
     );
     expect(result.canal).toBe('pdf');
