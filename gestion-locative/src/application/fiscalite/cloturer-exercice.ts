@@ -218,14 +218,18 @@ export async function cloturerExercice(
       );
     }
 
-    // SYNTHESE_BIEN par bien : ard_cumule_disponible = ardCumuleEnSortie réparti
-    // En V1 (D-LOCK-2 mono-bailleur) : ardCumuleEnSortie global réparti proportionnellement
-    // Simplification V1 : une SYNTHESE_BIEN par bien avec ardCumuleDisponible = ardCumuleEnSortie total
-    // (dernierArdCumuleBailleur somme toutes les SYNTHESE_BIEN → résultat correct)
-    for (const bienId of biensIds) {
+    // SYNTHESE_BIEN bailleur-level (D-LOCK-2 V1 mono-bailleur, CR-03 fix).
+    // En V1, l'ARD est un attribut du bailleur (pas du bien individuel) :
+    // on crée UNE seule ligne SYNTHESE_BIEN par exercice, portée par biensIds[0]
+    // comme bien sentinelle. dernierArdCumuleBailleur SUM toutes les SYNTHESE_BIEN
+    // d'un exercice → résultat = ardCumuleEnSortie exact (pas N × ardCumule).
+    // Référence : 05-VERIFICATION.md CR-03 (BLOCKER) — la boucle for précédente créait
+    // N lignes chacune portant l'ARD global → SUM × N côté lecture.
+    // V1.1 multi-bailleur : la sémantique évoluera vers une SYNTHESE par bailleur.
+    if (biensIds.length > 0) {
       amortissementExercicesLignes.push(
         AmortissementExercice.creer({
-          bienId,
+          bienId: biensIds[0]!, // bien sentinelle (V1 D-LOCK-2 : mono-bailleur, ARD bailleur-level)
           composantId: null,
           exercice,
           typeLigne: 'SYNTHESE_BIEN',

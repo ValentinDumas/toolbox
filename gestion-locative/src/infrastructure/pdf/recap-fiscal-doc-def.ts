@@ -96,8 +96,11 @@ export function construireRecapFiscal(
           { text: 'Dotation théorique', bold: true, fillColor: '#f3f4f6', alignment: 'right' as const },
           { text: 'ARD cumulé dispo', bold: true, fillColor: '#f3f4f6', alignment: 'right' as const },
         ],
+        // CR-03 fix (V1 D-LOCK-2) : la SYNTHESE_BIEN est bailleur-level — afficher un libellé
+        // agrégé "Bailleur — exercice {N}" plutôt que l.bienId (porteur sentinelle sans
+        // signification métier en V1). La sémantique évoluera vers une vue par bien en V1.1.
         ...syntheseAmort.map((l) => [
-          l.bienId,
+          `Bailleur — exercice ${decl.exercice}`,
           { text: l.dotationTheorique.enEuros(), alignment: 'right' as const },
           { text: (l.ardCumuleDisponible ?? Money.zero()).enEuros(), alignment: 'right' as const },
         ]),

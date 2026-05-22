@@ -15,6 +15,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { cloturerExercice, DeclarationDejaExiste } from '../../../src/application/fiscalite/cloturer-exercice.js';
 import { collecterPrerequisCloture } from '../../../src/application/fiscalite/collecter-prerequis-cloture.js';
 import { PrerequisCloturalNonSatisfaits } from '../../../src/domain/fiscalite/erreurs.js';
+import { AmortissementExercice } from '../../../src/domain/fiscalite/amortissement-exercice.js';
 import { Money } from '../../../src/domain/_shared/money.js';
 import { REGLES_2026 } from '../../../src/domain/fiscalite/regles/regles-2026.js';
 import { RegleFiscaleProviderEnMemoire } from '../../../src/domain/fiscalite/regles/regle-fiscale-provider.js';
@@ -232,6 +233,59 @@ describe('cloturerExercice', () => {
     expect(resultat.regimeApplique).toBe('reel');
     // Pas de résultat avant amortissement : les deux branches sont testées, la clôture réussit
     expect(resultat.declarationId).toBeTruthy();
+  });
+
+  it('CR-03 — multi-bien : un bailleur avec 2 biens actifs produit exactement UNE ligne SYNTHESE_BIEN par exercice', async () => {
+    // Régression : 05-VERIFICATION.md gap 2 (BLOCKER). Le bug structural créait N lignes SYNTHESE_BIEN
+    // chacune portant ardCumuleEnSortie GLOBAL → dernierArdCumuleBailleur sur-additionnait l'ARD par N.
+    //
+    // En V1 D-LOCK-2 mono-bailleur, l'ARD est un attribut bailleur-level (pas bien-level) :
+    // on ne crée qu'UNE seule ligne SYNTHESE_BIEN par exercice, portée par biensIds[0] (porteur sentinelle).
+    const BIEN_ID_A = crypto.randomUUID() as BienId;
+    const BIEN_ID_B = crypto.randomUUID() as BienId;
+    const composantA = unComposantGrosOeuvre({
+      bienId: BIEN_ID_A,
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: Temporal.PlainDate.from('2026-01-01'),
+    });
+    const composantB = unComposantGrosOeuvre({
+      bienId: BIEN_ID_B,
+      montantHt: Money.fromEuros(200_000),
+      dateAcquisition: Temporal.PlainDate.from('2026-01-01'),
+    });
+    const repos = makeRepos({
+      recettes: Money.fromEuros(100_000),
+      chargesDeductibles: Money.fromEuros(10_000),
+      revenusActifs: Money.fromEuros(150_000),
+    });
+    repos.composantRepo.listerActifsPourBailleur = vi.fn().mockResolvedValue([composantA, composantB]);
+
+    // Capture des lignes passées à enregistrerBatch pour assertion explicite
+    let capturedLignes: AmortissementExercice[] = [];
+    repos.tableauAmortRepo.enregistrerBatch = vi.fn().mockImplementation(async (lignes: AmortissementExercice[]) => {
+      capturedLignes = lignes;
+    });
+
+    await cloturerExercice(
+      { bailleurId: BAILLEUR_ID, exercice: 2026, regimeChoisi: 'reel' },
+      repos as never,
+      makeClock(),
+      REGLE,
+      makeDb() as never,
+    );
+
+    // Assertion principale : exactement UNE SYNTHESE_BIEN (pas 2)
+    const syntheseLignes = capturedLignes.filter((l) => l.typeLigne === 'SYNTHESE_BIEN');
+    expect(syntheseLignes.length).toBe(1);
+    expect(syntheseLignes[0]!.typeLigne).toBe('SYNTHESE_BIEN');
+    expect(syntheseLignes[0]!.composantId).toBeNull();
+    // bienId est l'un des deux biens (porteur sentinelle V1, sans signification métier)
+    expect([BIEN_ID_A, BIEN_ID_B]).toContain(syntheseLignes[0]!.bienId);
+    // ardCumuleDisponible porte l'ARD global du bailleur (ardCumuleEnSortie), non multiplié
+    expect(syntheseLignes[0]!.ardCumuleDisponible).not.toBeNull();
+    // Les COMPOSANT restent 1 par composant (2 composants → 2 lignes COMPOSANT)
+    const composantLignes = capturedLignes.filter((l) => l.typeLigne === 'COMPOSANT');
+    expect(composantLignes.length).toBe(2);
   });
 });
 

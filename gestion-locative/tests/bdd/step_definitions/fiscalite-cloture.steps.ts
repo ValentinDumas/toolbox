@@ -848,3 +848,80 @@ Then(
     );
   },
 );
+
+// ─── Steps CR-03 multi-bien (05-VERIFICATION.md gap 2 BLOCKER) ─────────────────
+//
+// L'ARD est bailleur-level en V1 (D-LOCK-2 mono-bailleur) : une seule SYNTHESE_BIEN
+// par exercice quelle que soit le nombre de biens. dernierArdCumuleBailleur ne doit
+// pas sur-additionner l'ARD par le nombre de biens à l'exercice N+1.
+
+Given(
+  /^un (?:deuxième|troisième|quatrième) bien immobilier avec un composant gros_oeuvre de ([\d ]+) €$/,
+  async function (this: MondeCloture, montantStr: string) {
+    const montantEuros = parseInt(montantStr.replace(/\s/g, ''), 10);
+    assert.ok(this.db, 'DB doit être initialisée');
+    assert.ok(this.bailleurId, 'bailleurId doit être initialisé (Background)');
+    // Bien additionnel (ne touche pas this.bienId qui reste le bien principal du Background)
+    const bienExtra = unBienValide();
+    const bienRepo = new BienRepositorySqlite(this.db);
+    await bienRepo.enregistrer(bienExtra);
+    // Composant gros_oeuvre acquis avant 2026 pour être actif sur tous les exercices testés
+    const composant = unComposantGrosOeuvre({
+      bienId: bienExtra.id,
+      montantHt: Money.fromEuros(montantEuros),
+      dateAcquisition: Temporal.PlainDate.from('2025-01-01'),
+    });
+    const composantRepo = new ComposantRepositorySqlite(this.db);
+    await composantRepo.enregistrer(composant);
+    // Valorisation fiscale activée (sinon prérequis bloquant si > seuil micro)
+    const valorisation = uneValorisationFiscale({ bienId: bienExtra.id });
+    const valorisationRepo = new ValorisationFiscaleRepositorySqlite(this.db);
+    await valorisationRepo.enregistrer(valorisation);
+  },
+);
+
+Then(
+  /^la table amortissement_exercice contient exactement (\d+) ligne SYNTHESE_BIEN pour l'exercice (\d{4})$/,
+  async function (this: MondeCloture, nbStr: string, exerciceStr: string) {
+    const nbAttendu = parseInt(nbStr, 10);
+    const exercice = parseInt(exerciceStr, 10);
+    assert.ok(this.db, 'DB doit être initialisée');
+    const rows = await this.db
+      .selectFrom('amortissement_exercice')
+      .selectAll()
+      .where('exercice', '=', exercice)
+      .where('type_ligne', '=', 'SYNTHESE_BIEN')
+      .execute();
+    assert.strictEqual(
+      rows.length,
+      nbAttendu,
+      `CR-03 — SYNTHESE_BIEN exercice ${exercice} : attendu ${nbAttendu} ligne(s), obtenu ${rows.length}. En V1 D-LOCK-2 mono-bailleur, l'ARD est bailleur-level → 1 seule SYNTHESE_BIEN par exercice (porteur sentinelle biensIds[0]).`,
+    );
+  },
+);
+
+Then(
+  /^l'ARD propagé pour l'exercice (\d{4}) est exactement égal à l'ardCumuleEnSortie de (\d{4})$/,
+  async function (this: MondeCloture, exerciceNplus1Str: string, exerciceNStr: string) {
+    const exerciceN = parseInt(exerciceNStr, 10);
+    assert.ok(this.db, 'DB doit être initialisée');
+    assert.ok(this.bailleurId, 'bailleurId doit être initialisé');
+    // Lit l'ardCumuleDisponible inscrit sur la seule SYNTHESE_BIEN de l'exercice N
+    const rows = await this.db
+      .selectFrom('amortissement_exercice')
+      .select(['ard_cumule_disponible_centimes'])
+      .where('exercice', '=', exerciceN)
+      .where('type_ligne', '=', 'SYNTHESE_BIEN')
+      .execute();
+    assert.strictEqual(rows.length, 1, `Attendu 1 SYNTHESE_BIEN pour exercice ${exerciceN} (CR-03), obtenu ${rows.length}`);
+    const ardCumuleStocke = BigInt(rows[0]!.ard_cumule_disponible_centimes ?? 0);
+    // Appel direct du repo : dernierArdCumuleBailleur doit retourner exactement la valeur stockée
+    const repo = new TableauAmortissementRepositorySqlite(this.db);
+    const ardPropage = await repo.dernierArdCumuleBailleur(this.bailleurId, exerciceN);
+    assert.strictEqual(
+      ardPropage.toCentimes(),
+      ardCumuleStocke,
+      `CR-03 — ARD propagé doit être exactement = ardCumuleEnSortie(${exerciceN}). Attendu ${ardCumuleStocke}n, obtenu ${ardPropage.toCentimes()}n. Si > attendu × N (N=nb biens), le bug CR-03 persiste.`,
+    );
+  },
+);
