@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 5 verification gaps_found (3 critical fiscal bugs)
-last_updated: "2026-05-21T09:30:30.748Z"
-last_activity: 2026-05-21
+status: planned
+stopped_at: Phase 5 gap closure ready to execute (3 plans in Wave 1)
+last_updated: "2026-05-22T13:59:00.000Z"
+last_activity: 2026-05-22
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 34
+  total_plans: 37
   completed_plans: 33
-  percent: 97
+  percent: 89
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 
 ## Current Position
 
-Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — GAPS FOUND
-Plan: 8 of 8 (all plans executed)
-Status: Gaps found — verifier flagged 3 critical fiscal bugs (CR-01 float SUM, CR-03 ARD multi-bien, CR-06 hexagonal)
-Last activity: 2026-05-21 -- Phase 5 verification: gaps_found
-Next step: /gsd-plan-phase 5 --gaps (gap closure phase 5.1)
+Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — GAP CLOSURE PLANNED
+Plan: 8 of 11 executed (3 gap-closure plans 05-09/05-10/05-11 ready)
+Status: Ready to execute — Wave 1 parallel: 05-09 (CR-01 float SUM), 05-10 (CR-03 ARD multi-bien), 05-11 (CR-06 hexagonal port)
+Last activity: 2026-05-22 -- Phase 5 gap-closure planning complete (plan-checker passed)
+Next step: /gsd-execute-phase 5 (executes the 3 gap-closure plans)
 
-Progress: [██████████] 97%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
