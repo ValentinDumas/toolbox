@@ -236,8 +236,10 @@ describe('TableauAmortissementRepositorySqlite — append-only strict (T-05-04-0
     expect(ard.toCentimes()).toBe(1_000_000n); // 10 000 €
   });
 
-  it('dernierArdCumuleBailleur — 2 biens avec SYNTHESE_BIEN exercice 2025 → Σ = 12 000 € (D-LOCK-2)', async () => {
-    // Créer un 2e bien
+  it('dernierArdCumuleBailleur — mécanique SUM repo : 2 lignes SYNTHESE_BIEN distinctes agrègent à Σ (test mécanique, hors flux V1)', async () => {
+    // Note : ce test verrouille la mécanique du SUM côté repo. En production V1 D-LOCK-2 (post-CR-03 fix),
+    // cloturer-exercice n'insère QU'UNE seule SYNTHESE_BIEN par exercice (cf. test CR-03 ci-dessous).
+    // Ce setup directement injecté en base teste donc la mécanique BigInt du SUM, pas le flux nominal V1.
     const bienRepo2 = new BienRepositorySqlite(db);
     const bien2 = unBienValide();
     await bienRepo2.enregistrer(bien2);

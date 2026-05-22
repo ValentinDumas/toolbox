@@ -136,10 +136,13 @@ export class TableauAmortissementRepositorySqlite implements TableauAmortissemen
     // Le bailleurId est passé pour la compatibilité V1.1 multi-bailleur.
     // On identifie les biens du bailleur via la table bien (pas de FK directe sur amortissement_exercice).
     // Pour simplifier en V1 (D-LOCK-2), on sélectionne TOUS les biens car mono-bailleur.
+    //
+    // CR-01 derive (05-VERIFICATION.md L172) : SUM en chaîne entière, jamais en float.
+    // fn.sum<string> + BigInt(string) garantit zéro perte de précision sur les montants fiscaux.
     const row = await this.db
       .selectFrom('amortissement_exercice as ae')
       .innerJoin('bien as b', 'b.id', 'ae.bien_id')
-      .select((eb) => eb.fn.sum<number>('ae.ard_cumule_disponible_centimes').as('total_centimes'))
+      .select((eb) => eb.fn.sum<string>('ae.ard_cumule_disponible_centimes').as('total_centimes'))
       .where('ae.type_ligne', '=', 'SYNTHESE_BIEN')
       .where('ae.exercice', '=', exerciceMax)
       .$if(true, (q) => q)  // D-LOCK-2 : V1 mono-bailleur → pas de filtre bailleur_id
@@ -149,9 +152,7 @@ export class TableauAmortissementRepositorySqlite implements TableauAmortissemen
       return Money.zero();
     }
 
-    const total = Number(row.total_centimes);
-    if (total === 0) return Money.zero();
-    return Money.fromCentimes(BigInt(total));
+    return Money.fromCentimes(BigInt(row.total_centimes ?? '0'));
   }
 
   // ─── Mapping ────────────────────────────────────────────────────────────────
