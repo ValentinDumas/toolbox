@@ -49,13 +49,17 @@ Feature: Propagation ARD cross-exercice (CGI art. 39 B)
     # multipliait l'ARD par le nombre de biens à l'exercice N+1.
     # En V1 D-LOCK-2 mono-bailleur, l'ARD est bailleur-level (pas bien-level) : une
     # seule SYNTHESE_BIEN par exercice, portée par biensIds[0] comme bien sentinelle.
-    Given un bailleur avec des revenus actifs annuels de 150 000 €
-    And deux biens immobiliers A et B avec composant gros_oeuvre de 100 000 € chacun acquis en 2025
-    And une valorisation fiscale activée pour chaque bien
-    And l'exercice 2025 avec des recettes de 5 000 €
-    When je clôture l'exercice 2025 en régime réel
-    Then la table amortissement_exercice contient exactement 1 ligne SYNTHESE_BIEN pour l'exercice 2025
-    And l'ARD reporté pour l'exercice 2026 est exactement égal à l'ardCumuleEnSortie de 2025
-    Given l'exercice 2026 avec des recettes de 5 000 €
+    #
+    # Setup : le Background ajoute déjà 1 bien (gros_oeuvre 200k acquis 2026-01-01).
+    # On ajoute 2 biens supplémentaires A et B → total 3 biens actifs pour exercice 2026.
+    # Pré-fix : 3 lignes SYNTHESE_BIEN seraient insérées en 2026 → ARD × 3 en 2027.
+    # Post-fix : 1 seule ligne SYNTHESE_BIEN portée par biensIds[0] → ARD correct en 2027.
+    And un deuxième bien immobilier avec un composant gros_oeuvre de 100 000 €
+    And un troisième bien immobilier avec un composant gros_oeuvre de 100 000 €
+    And l'exercice 2026 avec des recettes de 5 000 € et des charges de 0 €
     When je clôture l'exercice 2026 en régime réel
     Then la table amortissement_exercice contient exactement 1 ligne SYNTHESE_BIEN pour l'exercice 2026
+    And l'ARD propagé pour l'exercice 2027 est exactement égal à l'ardCumuleEnSortie de 2026
+    Given l'exercice 2027 avec des recettes de 5 000 €
+    When je clôture l'exercice 2027 en régime réel
+    Then la table amortissement_exercice contient exactement 1 ligne SYNTHESE_BIEN pour l'exercice 2027
