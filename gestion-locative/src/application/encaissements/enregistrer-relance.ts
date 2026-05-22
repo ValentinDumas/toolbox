@@ -6,6 +6,7 @@ import type { LocataireRepository } from '../../domain/locatif/locataire-reposit
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { BailleurRepository } from '../../domain/identite/bailleur-repository.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { MiseEnDemeureBuilder } from '../../domain/encaissements/mise-en-demeure-builder.js';
 import type { TemplateRenderer } from '../../domain/encaissements/template-renderer.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { NiveauRelance } from '../../domain/encaissements/relance.js';
@@ -14,7 +15,6 @@ import { Relance } from '../../domain/encaissements/relance.js';
 import { calculerRelanceDisponible } from './calculer-relance-disponible.js';
 import { buildMailto } from '../../helpers/build-mailto.js';
 import { extraireSujet, extraireCorps } from '../../domain/encaissements/template-renderer.js';
-import { construireMiseEnDemeure } from '../../infrastructure/pdf/mise-en-demeure-doc-def.js';
 import {
   EcheanceLoyerIntrouvable,
   RelanceNiveauNonDisponible,
@@ -61,6 +61,7 @@ export async function enregistrerRelance(
   repos: Repos,
   templateRenderer: TemplateRenderer,
   pdfRenderer: PdfRenderer,
+  miseEnDemeureBuilder: MiseEnDemeureBuilder,
   clock: Clock,
 ): Promise<ResultatEnregistrerRelance> {
   // 1. Lookup échéance
@@ -160,7 +161,7 @@ export async function enregistrerRelance(
   } else {
     // niveau 3 — générer PDF à la volée (non persisté D-66 cohérence)
     const encaissementsLies = await repos.encaissementRepo.listerParEcheance(echeance.id);
-    const docDef = construireMiseEnDemeure(
+    const docDef = miseEnDemeureBuilder.construire(
       echeance,
       encaissementsLies,
       bailleur,

@@ -47,6 +47,9 @@ import { QuittanceRepositorySqlite } from './infrastructure/repositories/quittan
 import { StockageFichierLocal } from './infrastructure/storage/stockage-fichier-local.js';
 import { PdfRendererPdfmake } from './infrastructure/pdf/pdf-renderer-pdfmake.js';
 import { RecapFiscalBuilderPdfmake } from './infrastructure/pdf/recap-fiscal-builder-pdfmake.js';
+import { QuittanceBuilderPdfmake } from './infrastructure/pdf/quittance-builder-pdfmake.js';
+import { AvenantIRLBuilderPdfmake } from './infrastructure/pdf/avenant-irl-builder-pdfmake.js';
+import { MiseEnDemeureBuilderPdfmake } from './infrastructure/pdf/mise-en-demeure-builder-pdfmake.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
@@ -161,6 +164,9 @@ export async function creerApp(
   );
   const pdfRenderer = new PdfRendererPdfmake();
   const recapFiscalBuilder = new RecapFiscalBuilderPdfmake();
+  const quittanceBuilder = new QuittanceBuilderPdfmake();
+  const avenantIRLBuilder = new AvenantIRLBuilderPdfmake();
+  const miseEnDemeureBuilder = new MiseEnDemeureBuilderPdfmake();
   const edlRepo = new EtatDesLieuxRepositorySqlite(db);
   const bailIndexationRepo = new BailIndexationRepositorySqlite(db);
   const relanceRepo = new RelanceRepositorySqlite(db);
@@ -243,6 +249,7 @@ export async function creerApp(
     encaissementRepo,
     bailIndexationRepo,
     pdfRenderer,
+    avenantIRLBuilder,
     stockage,
     clock,
     db,
@@ -277,6 +284,7 @@ export async function creerApp(
     bienRepo: repo,
     bailRepo,
     pdfRenderer,
+    quittanceBuilder,
     stockage,
     clock,
     db,
@@ -300,6 +308,7 @@ export async function creerApp(
     bienRepo: repo,
     bailleurRepo,
     pdfRenderer,
+    miseEnDemeureBuilder,
     clock,
   });
 

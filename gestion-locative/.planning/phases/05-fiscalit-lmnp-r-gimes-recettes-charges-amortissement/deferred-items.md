@@ -12,6 +12,12 @@ The verifier did NOT flag them (CR-06 only named `recap-fiscal-doc-def`), so
 they are out of scope for plan 05-11. Same fix shape (extract port + adapter +
 inject via DI) applies. Phase 2/3 work — not phase 5.
 
+> **STATUT 2026-05-22 — CLOSED by Phase 5.1.** Les 4 violations listees
+> ci-dessous ont ete fermees par le plan 05.1-01-pdf-builder-ports-hardening
+> (3 ports + 3 adapters + DI). Voir
+> `.planning/phases/05.1-hardening-hexagonal/05.1-01-pdf-builder-ports-hardening-SUMMARY.md`
+> pour les diffs, commits et verifications finales.
+
 | Caller | Infrastructure dependency | Function imported | Suggested port name |
 |---|---|---|---|
 | `src/application/encaissements/generer-quittance.ts:22` | `src/infrastructure/pdf/quittance-doc-def.ts` | `construireQuittance` | `QuittanceBuilder` |

@@ -13,6 +13,7 @@ import type { BailIndexationRepository } from '../../domain/locatif/bail-indexat
 import type { BailId } from '../../domain/_shared/identifiants.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { AvenantIRLBuilder } from '../../domain/locatif/avenant-irl-builder.js';
 import type { DB } from '../../infrastructure/db/kysely-types.js';
 import {
   BailIntrouvable,
@@ -61,6 +62,7 @@ export async function plugin(
     encaissementRepo?: EncaissementRepository;
     bailIndexationRepo?: BailIndexationRepository;
     pdfRenderer?: PdfRenderer;
+    avenantIRLBuilder?: AvenantIRLBuilder;
     stockage?: StockageLike;
     clock?: Clock;
     db?: Kysely<DB>;
@@ -245,6 +247,7 @@ export async function plugin(
       !opts.encaissementRepo ||
       !opts.bailIndexationRepo ||
       !opts.pdfRenderer ||
+      !opts.avenantIRLBuilder ||
       !opts.stockage ||
       !opts.clock ||
       !opts.db
@@ -276,7 +279,12 @@ export async function plugin(
           encaissementRepo: opts.encaissementRepo,
           bailIndexationRepo: opts.bailIndexationRepo,
         },
-        { pdfRenderer: opts.pdfRenderer, stockage: opts.stockage, clock: opts.clock },
+        {
+          pdfRenderer: opts.pdfRenderer,
+          avenantIRLBuilder: opts.avenantIRLBuilder,
+          stockage: opts.stockage,
+          clock: opts.clock,
+        },
         opts.db,
       );
       req.session.indexationDraft = undefined;
