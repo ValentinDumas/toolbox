@@ -18,12 +18,13 @@ import type {
   EcheanceLoyerId,
 } from '../../domain/_shared/identifiants.js';
 import type { Clock } from '../../domain/_shared/clock.js';
+import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
+import type { AvenantIRLBuilder } from '../../domain/locatif/avenant-irl-builder.js';
 import { BailIntrouvable, GelLoyerClimatActif } from '../../domain/locatif/erreurs.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import { BailleurAbsent } from '../../domain/identite/erreurs.js';
 import { LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
 import { genererEcheancesPour } from '../encaissements/activer-bail.js';
-import { construireAvenantIRL } from '../../infrastructure/pdf/avenant-irl-doc-def.js';
 
 export interface AppliquerIndexationIRLCommande {
   bailId: BailId;
@@ -49,16 +50,13 @@ interface Repos {
   bailIndexationRepo: BailIndexationRepository;
 }
 
-interface PdfRendererLike {
-  genererBuffer(docDef: unknown): Promise<Buffer>;
-}
-
 interface StockageLike {
   ecrireAvenant(annee: number, nomFichier: string, buffer: Buffer): Promise<string>;
 }
 
 interface Infra {
-  pdfRenderer: PdfRendererLike;
+  pdfRenderer: PdfRenderer;
+  avenantIRLBuilder: AvenantIRLBuilder;
   stockage: StockageLike;
   clock: Clock;
 }
@@ -180,7 +178,7 @@ export async function appliquerIndexationIRL(
 
   let cheminRelatif: string;
   try {
-    const docDef = construireAvenantIRL(
+    const docDef = infra.avenantIRLBuilder.construire(
       bailModifie,
       locataire,
       bailleur,

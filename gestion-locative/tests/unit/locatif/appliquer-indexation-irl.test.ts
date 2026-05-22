@@ -18,6 +18,7 @@ import { EncaissementRepositorySqlite } from '../../../src/infrastructure/reposi
 import { BailIndexationRepositorySqlite } from '../../../src/infrastructure/repositories/bail-indexation-repository-sqlite.js';
 import { StockageFichierLocal } from '../../../src/infrastructure/storage/stockage-fichier-local.js';
 import { PdfRendererPdfmake } from '../../../src/infrastructure/pdf/pdf-renderer-pdfmake.js';
+import { AvenantIRLBuilderPdfmake } from '../../../src/infrastructure/pdf/avenant-irl-builder-pdfmake.js';
 import { ClockFixe } from '../../../src/domain/_shared/clock.js';
 import { Bailleur } from '../../../src/domain/identite/bailleur.js';
 import { Adresse } from '../../../src/domain/_shared/adresse.js';
@@ -52,6 +53,7 @@ interface Ctx {
   encaissementRepo: EncaissementRepositorySqlite;
   bailIndexationRepo: BailIndexationRepositorySqlite;
   pdfRenderer: PdfRendererPdfmake;
+  avenantIRLBuilder: AvenantIRLBuilderPdfmake;
   stockage: StockageFichierLocal;
   clock: ClockFixe;
   bailId: BailId;
@@ -72,6 +74,7 @@ async function setupCtx(dpe: ClasseDpe = 'D', bailleurPresent = true): Promise<C
   const encaissementRepo = new EncaissementRepositorySqlite(db);
   const bailIndexationRepo = new BailIndexationRepositorySqlite(db);
   const pdfRenderer = new PdfRendererPdfmake();
+  const avenantIRLBuilder = new AvenantIRLBuilderPdfmake();
   const baseDir = creerTmpDir();
   const stockage = new StockageFichierLocal(baseDir);
   const clock = ClockFixe.du('2026-05-15');
@@ -105,7 +108,7 @@ async function setupCtx(dpe: ClasseDpe = 'D', bailleurPresent = true): Promise<C
   return {
     db, sqlite, bailRepo, bienRepo, locataireRepo, bailleurRepo,
     echeanceLoyerRepo, encaissementRepo, bailIndexationRepo,
-    pdfRenderer, stockage, clock, bailId: bail.id, baseDir,
+    pdfRenderer, avenantIRLBuilder, stockage, clock, bailId: bail.id, baseDir,
   };
 }
 
@@ -142,7 +145,7 @@ describe('appliquerIndexationIRL (Phase 3-04, D-94)', () => {
         encaissementRepo: ctx.encaissementRepo,
         bailIndexationRepo: ctx.bailIndexationRepo,
       },
-      { pdfRenderer: ctx.pdfRenderer, stockage: ctx.stockage, clock: ctx.clock },
+      { pdfRenderer: ctx.pdfRenderer, avenantIRLBuilder: ctx.avenantIRLBuilder, stockage: ctx.stockage, clock: ctx.clock },
       ctx.db,
     );
 
@@ -178,7 +181,7 @@ describe('appliquerIndexationIRL (Phase 3-04, D-94)', () => {
           encaissementRepo: ctx.encaissementRepo,
           bailIndexationRepo: ctx.bailIndexationRepo,
         },
-        { pdfRenderer: ctx.pdfRenderer, stockage: ctx.stockage, clock: ctx.clock },
+        { pdfRenderer: ctx.pdfRenderer, avenantIRLBuilder: ctx.avenantIRLBuilder, stockage: ctx.stockage, clock: ctx.clock },
         ctx.db,
       ),
     ).rejects.toThrow(GelLoyerClimatActif);
@@ -201,7 +204,7 @@ describe('appliquerIndexationIRL (Phase 3-04, D-94)', () => {
           encaissementRepo: ctx.encaissementRepo,
           bailIndexationRepo: ctx.bailIndexationRepo,
         },
-        { pdfRenderer: ctx.pdfRenderer, stockage: ctx.stockage, clock: ctx.clock },
+        { pdfRenderer: ctx.pdfRenderer, avenantIRLBuilder: ctx.avenantIRLBuilder, stockage: ctx.stockage, clock: ctx.clock },
         ctx.db,
       ),
     ).rejects.toThrow(BailleurAbsent);
@@ -230,7 +233,7 @@ describe('appliquerIndexationIRL (Phase 3-04, D-94)', () => {
           encaissementRepo: ctx.encaissementRepo,
           bailIndexationRepo: ctx.bailIndexationRepo,
         },
-        { pdfRenderer: pdfStub, stockage: ctx.stockage, clock: ctx.clock },
+        { pdfRenderer: pdfStub, avenantIRLBuilder: ctx.avenantIRLBuilder, stockage: ctx.stockage, clock: ctx.clock },
         ctx.db,
       ),
     ).rejects.toThrow('PDF render boom');
@@ -266,7 +269,7 @@ describe('appliquerIndexationIRL (Phase 3-04, D-94)', () => {
           encaissementRepo: ctx.encaissementRepo,
           bailIndexationRepo: ctx.bailIndexationRepo,
         },
-        { pdfRenderer: ctx.pdfRenderer, stockage: stockageStub, clock: ctx.clock },
+        { pdfRenderer: ctx.pdfRenderer, avenantIRLBuilder: ctx.avenantIRLBuilder, stockage: stockageStub, clock: ctx.clock },
         ctx.db,
       ),
     ).rejects.toThrow();
