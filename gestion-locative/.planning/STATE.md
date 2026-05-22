@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planned
-stopped_at: Phase 5 gap closure ready to execute (3 plans in Wave 1)
-last_updated: "2026-05-22T13:59:00.000Z"
+status: executing
+stopped_at: Phase 5 gap closure executed — awaiting verifier
+last_updated: "2026-05-22T14:22:00.000Z"
 last_activity: 2026-05-22
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 37
-  completed_plans: 33
-  percent: 89
+  completed_plans: 36
+  percent: 97
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 
 ## Current Position
 
-Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — GAP CLOSURE PLANNED
-Plan: 8 of 11 executed (3 gap-closure plans 05-09/05-10/05-11 ready)
-Status: Ready to execute — Wave 1 parallel: 05-09 (CR-01 float SUM), 05-10 (CR-03 ARD multi-bien), 05-11 (CR-06 hexagonal port)
-Last activity: 2026-05-22 -- Phase 5 gap-closure planning complete (plan-checker passed)
-Next step: /gsd-execute-phase 5 (executes the 3 gap-closure plans)
+Phase: 5 (fiscalit-lmnp-r-gimes-recettes-charges-amortissement) — GAP CLOSURE EXECUTED
+Plan: 11 of 11 executed (05-09, 05-10, 05-11 merged, post-merge gate green)
+Status: Awaiting /gsd-verify-phase 5 — 895/895 vitest tests pass, BDD 171/173 (2 pre-existing failures unrelated), 0 TypeScript errors. CR-01 / CR-03 / CR-06 closed at the source level.
+Last activity: 2026-05-22 -- Phase 5 gap-closure Wave 1 complete (15 commits across 3 worktrees + 3 merge commits)
+Next step: gsd-verifier spawn to confirm gaps_found → passed transition
 
-Progress: [█████████░] 89%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
