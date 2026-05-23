@@ -3,7 +3,7 @@
  * Compare l'inventaire de l'EDL d'entrée vs l'EDL de sortie.
  * Génère des warnings textuels (WARNING_ITEM_DISPARU / WARNING_ITEM_DEGRADE).
  * Vue diff UI différée Phase 4 (D-88).
- * 100% couverture logique métier (BDD_PRACTICES.md).
+ * 100% couverture logique métier (practices/BDD_PRACTICES.md).
  */
 import { TYPES_ITEM_INVENTAIRE, LABELS_ITEM_INVENTAIRE, etatADegrade, type TypeItemInventaire, type EtatItem } from '../_shared/inventaire-item.js';
 import type { EtatDesLieux } from './etat-des-lieux.js';

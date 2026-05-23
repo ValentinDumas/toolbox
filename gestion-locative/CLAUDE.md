@@ -32,18 +32,18 @@ Tout ce qui sort de ce périmètre — location nue, SCI à l'IS, meublé de tou
 
 | Document | Rôle |
 |---|---|
-| [SOFTWARE_CRAFTSMANSHIP.md](SOFTWARE_CRAFTSMANSHIP.md) | Discipline d'ingénierie : SOLID, Clean Code, refactoring, code review, mesures qualité (CI gates). |
-| [DDD.md](DDD.md) | Domain-Driven Design : ubiquitous language, bounded contexts, agrégats, hexagonal architecture. |
-| [BDD_PRACTICES.md](BDD_PRACTICES.md) | **Testing top priority** : Given/When/Then, pyramide, 100 % couverture logique fiscale, cas obligatoires. |
-| [BEHAVIOR.md](BEHAVIOR.md) | Code of conduct par session : posture sceptique, speed levers (parallel calls, cache discipline, tight prompts). |
+| [practices/SOFTWARE_CRAFTSMANSHIP.md](practices/SOFTWARE_CRAFTSMANSHIP.md) | Discipline d'ingénierie : SOLID, Clean Code, refactoring, code review, mesures qualité (CI gates). |
+| [practices/DDD.md](practices/DDD.md) | Domain-Driven Design : ubiquitous language, bounded contexts, agrégats, hexagonal architecture. |
+| [practices/BDD_PRACTICES.md](practices/BDD_PRACTICES.md) | **Testing top priority** : Given/When/Then, pyramide, 100 % couverture logique fiscale, cas obligatoires. |
+| [practices/BEHAVIOR.md](practices/BEHAVIOR.md) | Code of conduct par session : posture sceptique, speed levers (parallel calls, cache discipline, tight prompts). |
 
 ### Pratiques UI / UX / Accessibilité (opposables)
 
 | Document | Rôle |
 |---|---|
-| [UI_DESIGN.md](UI_DESIGN.md) | Gestalt, hiérarchie visuelle, color, typography, spacing system (8 px), feedback states, data tables. |
-| [UX_DESIGN.md](UX_DESIGN.md) | Hick / Fitts / Miller / Jakob / Doherty laws, flow & nav, forms, error handling, empty states, affordance, cognitive load, trust. |
-| [ACCESSIBILITY.md](ACCESSIBILITY.md) | WCAG 2.1 AA : POUR principles, contraste, keyboard nav, semantic HTML, ARIA, forms, tables, motion, testing checklist. |
+| [practices/UI_DESIGN.md](practices/UI_DESIGN.md) | Gestalt, hiérarchie visuelle, color, typography, spacing system (8 px), feedback states, data tables. |
+| [practices/UX_DESIGN.md](practices/UX_DESIGN.md) | Hick / Fitts / Miller / Jakob / Doherty laws, flow & nav, forms, error handling, empty states, affordance, cognitive load, trust. |
+| [practices/ACCESSIBILITY.md](practices/ACCESSIBILITY.md) | WCAG 2.1 AA : POUR principles, contraste, keyboard nav, semantic HTML, ARIA, forms, tables, motion, testing checklist. |
 
 ## Principes directeurs
 
@@ -55,7 +55,7 @@ Tout ce qui sort de ce périmètre — location nue, SCI à l'IS, meublé de tou
 
 ## Règles non négociables (extraits)
 
-- **Pas de code métier sans test** (cf. [BDD_PRACTICES.md](BDD_PRACTICES.md)). Cycle outside-in : scénario BDD rouge → TDD interne → scénario vert.
+- **Pas de code métier sans test** (cf. [practices/BDD_PRACTICES.md](practices/BDD_PRACTICES.md)). Cycle outside-in : scénario BDD rouge → TDD interne → scénario vert.
 - **100 % de couverture** sur la logique fiscale (amortissement, micro-BIC, plus-value), **chaque exception** du droit a son scénario dédié.
 - **Ubiquitous language** : tout identifiant du code reflète le vocabulaire métier français (`Bail`, `Quittance`, `Locataire`, `IRL`, `ARD`, `CFE`…), jamais traduit en anglais.
 - **Domaine pur** : aucun import technique (ORM, HTTP, fichier) dans le cœur du domaine — ports & adapters strict.

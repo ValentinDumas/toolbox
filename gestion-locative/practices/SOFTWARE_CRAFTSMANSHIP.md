@@ -27,7 +27,7 @@ Le projet gère de la **fiscalité réelle**. Une erreur silencieuse dans un cal
 ### 2.2 Clean Code
 
 - **Nommage explicite** : `calculer_amortissement_annuel()` plutôt que `compute()`.
-- **Vocabulaire métier** : utiliser les termes des docs ([LMNP.md](LMNP.md), [LOCATION_MEUBLEE_REGLES.md](LOCATION_MEUBLEE_REGLES.md)) — cf. [DDD.md](DDD.md).
+- **Vocabulaire métier** : utiliser les termes définis par les docs domaine du projet — cf. [DDD.md](DDD.md).
 - **Fonctions courtes** : < 20 lignes en moyenne, un seul niveau d'abstraction.
 - **Pas de magic numbers** : `SEUIL_MICRO_BIC_LONGUE_DUREE = 83_600` plutôt que `83600` inline.
 - **Commentaires** : expliquent **pourquoi**, pas **quoi**. Si un commentaire décrit le code, renommer le code.
@@ -134,7 +134,19 @@ Checklist (auto-revue ou pair) :
 - **Done** : code mergé sur `main` + tests verts + docs à jour + déployable localement sans étape manuelle non documentée.
 - **Production-ready** : *Done* + logs structurés + erreurs récupérables + rollback possible (export DB avant migration, par exemple).
 
-## 10. Références
+## 10. AI-navigability — structure lisible par un agent
+
+Compléments à DDD / BDD / hexagonal pour qu'un agent IA puisse naviguer et modifier le code en toute sécurité, avec un minimum de contexte à charger.
+
+- **README par bounded context** : chaque dossier de contexte (`src/baux/`, `src/quittances/`, …) ship un `README.md` court : *purpose*, API publique exposée, invariants, *do-not-touch*, liens vers contextes voisins et ADRs liés.
+- **API publique explicite par module** : un seul point d'export (`index.ts` / `__init__.py` / barrel) qui liste ce qui est public. Tout le reste reste interne au dossier et n'est pas importable depuis l'extérieur.
+- **Profondeur max ~3–4 niveaux** de dossiers. **Interdits** : `utils/`, `helpers/`, `common/`, `misc/` — toujours nommer par le domaine.
+- **ADRs courts et datés** dans `docs/adr/NNNN-titre.md` pour chaque décision d'architecture, de contrat public, ou de dérogation aux règles ci-dessus. Format : *Contexte → Décision → Conséquences*.
+- **Une PR = un module quand c'est possible**. Toute modification qui traverse plusieurs bounded contexts exige soit un ADR, soit une note explicite dans la description de la PR justifiant le changement de contrat.
+
+> **Pourquoi** : une bonne architecture réduit le contexte qu'un agent doit charger. Des modules profonds avec des contrats explicites permettent à l'IA d'opérer en toute confiance sur les internes pendant que l'humain garde la main sur le design et le comportement.
+
+## 11. Références
 
 - *Clean Code* — Robert C. Martin.
 - *The Pragmatic Programmer* — Andy Hunt & Dave Thomas.
