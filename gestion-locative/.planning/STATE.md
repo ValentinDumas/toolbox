@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_for_next_phase
-stopped_at: Phase 5.1 complete — hardening hexagonal closed (3 ports + 3 adapters)
-last_updated: "2026-05-22T16:18:00.000Z"
-last_activity: 2026-05-22
+status: completed
+stopped_at: Phase 6 context gathered
+last_updated: "2026-05-28T12:48:58.295Z"
+last_activity: 2026-05-22 -- Phase 5.1 hardening complete (CLAUDE.md règle non-négociable rétablie end-to-end sur la couche application)
 progress:
   total_phases: 8
   completed_phases: 6
@@ -106,6 +106,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-21T09:30:30.742Z
-Stopped at: Completed 05-07-PLAN.md
-Resume file: None
+Last session: 2026-05-28T12:48:58.287Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-liasse-2031-cfe/06-CONTEXT.md
