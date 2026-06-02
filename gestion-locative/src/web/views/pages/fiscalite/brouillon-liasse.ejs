@@ -1,0 +1,49 @@
+<%#
+  Vue HTML — Brouillon liasse fiscale régime réel (Phase 6 / FIS-05 Wave 1).
+
+  Locals attendus :
+    - dto : BrouillonLiasseDto { exercice, regimeApplique, bailleurNom, sections, clotureLe }
+    - navActive : 'fiscalite'
+    - banniereSuccess (optionnel)
+
+  Helpers attendus (injection main.ts preHandler) :
+    - formaterCaseLiasse(numero)
+    - formatMoney(money)
+
+  Surfaces couvertes :
+    - S1 — bandeau persistant "À reporter manuellement"
+    - S2 — tableau case-par-case (5 annexes : 2031-SD + 2033-A/B/C/D)
+    - S3 — bandeau "postes manuels" sur 2033-A (via section.bandeauPostesManuels)
+
+  Wave 1 N'INCLUT PAS :
+    - Section Exports PDF/CSV (Plan 05)
+    - Colonne Sources (Plan 03)
+    - Bandeau réconciliation (Plan 03)
+    - Bandeau rectificative (Plan 04)
+%>
+<%- include('../../partials/layout-debut', {
+  titre: 'Brouillon liasse fiscale ' + dto.exercice,
+  breadcrumbs: [
+    { label: 'Accueil', url: '/' },
+    { label: 'Fiscalité', url: '/fiscalite' },
+    { label: 'Brouillon liasse ' + dto.exercice }
+  ],
+  navActive: 'fiscalite'
+}) %>
+
+<%- include('../../partials/partial-bandeau-brouillon-liasse', { exercice: dto.exercice }) %>
+
+<h1>Brouillon liasse fiscale <%= dto.exercice %> — <%= dto.bailleurNom %></h1>
+<p>
+  Régime : <strong><%= dto.regimeApplique === 'reel' ? 'Régime réel' : 'Micro-BIC' %></strong>
+  &middot; Exercice clôturé le <strong><%= dto.clotureLe.toString() %></strong>
+</p>
+
+<% dto.sections.forEach(function(section) { %>
+  <%- include('../../partials/partial-tableau-liasse-section', {
+    section: section,
+    exercice: dto.exercice
+  }) %>
+<% }); %>
+
+<%- include('../../partials/layout-fin') %>

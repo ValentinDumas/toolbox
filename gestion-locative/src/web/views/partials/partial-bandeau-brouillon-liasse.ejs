@@ -1,0 +1,21 @@
+<%#
+  Partial — Bandeau d'avertissement "Brouillon liasse fiscale" (UI-SPEC §S1).
+
+  Props :
+    - exercice : number — millésime affiché dans le bandeau.
+
+  Présent en tête de toutes les pages liasse. Rappelle à l'utilisateur que
+  l'app produit un brouillon, pas une télédéclaration (R1.1 RISKS.md + V2 EDI-01).
+
+  ARIA : role="status" + aria-live="polite" (information persistante, pas urgence).
+%>
+<aside
+  role="status"
+  aria-live="polite"
+  style="background: var(--couleur-accent-bg); padding: 16px; border-left: 4px solid var(--couleur-accent); margin-bottom: 24px;"
+>
+  <span aria-hidden="true">ⓘ </span>
+  <strong>Brouillon liasse fiscale <%= exercice %>.</strong>
+  À reporter case-par-case sur votre télédéclaration impots.gouv.fr.
+  Ce document n'est pas une transmission officielle.
+</aside>
