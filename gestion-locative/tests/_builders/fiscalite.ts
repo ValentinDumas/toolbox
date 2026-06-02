@@ -4,6 +4,7 @@ import { TicketTravaux } from '../../src/domain/travaux/ticket-travaux.js';
 import { Money } from '../../src/domain/_shared/money.js';
 import type { QualificationFiscale } from '../../src/domain/fiscalite/qualification-fiscale.js';
 import type { BienId, CheminRelatif, JustificatifId, TicketTravauxId } from '../../src/domain/_shared/identifiants.js';
+import { DeclarationCfe, type DeclarationCfeProps } from '../../src/domain/fiscalite/cfe/declaration-cfe.js';
 import { Composant } from '../../src/domain/fiscalite/composant.js';
 import type { OrigineKindComposant, MotifSortieComposant } from '../../src/domain/fiscalite/composant.js';
 import { ValorisationFiscale } from '../../src/domain/fiscalite/valorisation-fiscale.js';
@@ -254,6 +255,31 @@ export function unBrouillonLiasseDtoReel(
     sections: overrides.sections ?? [],
     clotureLe: overrides.clotureLe ?? decl?.clotureLe ?? Temporal.PlainDate.from('2026-12-31'),
   };
+}
+
+// ─── Phase 6 — CFE builders (FIS-06) ──────────────────────────────────────────
+
+/**
+ * Builder minimal `DeclarationCfe` (Phase 6 / FIS-06 / D-CFE6.3).
+ *
+ * Defaults sûrs : `non_deposee` + millésime 2026 + échéance 15/12/2026.
+ * Pattern miroir `unTicketAmelioration` (cf. _builders/fiscalite.ts L111).
+ */
+export function uneDeclarationCfe(
+  overrides: Partial<DeclarationCfeProps> = {},
+): DeclarationCfe {
+  return DeclarationCfe.creer({
+    bienId: overrides.bienId ?? DEFAULT_BIEN_ID,
+    millesime: overrides.millesime ?? 2026,
+    statut: overrides.statut ?? 'non_deposee',
+    dateDepotDeclaration:
+      'dateDepotDeclaration' in overrides ? overrides.dateDepotDeclaration ?? null : null,
+    montantAvisCentimes:
+      'montantAvisCentimes' in overrides ? overrides.montantAvisCentimes ?? null : null,
+    dateEcheancePaiement:
+      overrides.dateEcheancePaiement ?? Temporal.PlainDate.from('2026-12-15'),
+    id: overrides.id,
+  });
 }
 
 /**
