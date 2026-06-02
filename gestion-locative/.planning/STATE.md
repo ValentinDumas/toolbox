@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-06-02T14:37:00.250Z"
-last_activity: 2026-06-02 -- Phase 6 planning complete
+last_updated: "2026-06-02T16:00:32.745Z"
+last_activity: 2026-06-02 -- Phase 06 execution started
 progress:
   total_phases: 8
   completed_phases: 6
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13)
 
 **Core value:** Centraliser factures, quittances, baux et échéances pour simplifier les obligations fiscales LMNP (liasse 2031, 2042 C PRO, CFE, amortissements, plus-value LF 2025) — sans cloud, sans délégation.
-**Current focus:** Phase 5 — fiscalit-lmnp-r-gimes-recettes-charges-amortissement
+**Current focus:** Phase 06 — liasse-2031-cfe
 
 ## Current Position
 
-Phase: 5.1 (hardening-hexagonal) — COMPLETE
-Plan: 1 of 1 (05.1-01 pdf-builder-ports-hardening executed)
-Status: Ready to execute
-Last activity: 2026-06-02 -- Phase 6 planning complete
+Phase: 06 (liasse-2031-cfe) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 06
+Last activity: 2026-06-02 -- Phase 06 execution started
 Next step: /gsd-discuss-phase 6 (Liasse 2031 & CFE)
 
 Progress: [██████████] 100%

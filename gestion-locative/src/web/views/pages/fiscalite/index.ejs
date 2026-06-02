@@ -82,4 +82,31 @@
   <% } %>
 </section>
 
+<%#
+  UI-SPEC §S11 — Bloc "Brouillons de liasse" (Phase 6 / FIS-05 Wave 1).
+  Filtre régime réel uniquement (micro-BIC Plan 02).
+%>
+<section aria-label="Brouillons de liasse fiscale">
+  <h2>Brouillons de liasse</h2>
+  <% const declarationsReel = declarations.filter(function(d) { return d.regimeApplique === 'reel'; }); %>
+  <% if (declarationsReel.length === 0) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Aucune déclaration éligible au brouillon liasse',
+      body: 'Aucune déclaration clôturée en régime réel pour ' + anneeCourante + '. Clôturez d\'abord votre exercice fiscal pour générer le brouillon de la liasse.',
+      ctaUrl: '/fiscalite',
+      ctaLabel: 'Clôturer un exercice fiscal'
+    }) %>
+  <% } else { %>
+    <ul>
+      <% declarationsReel.forEach(function(decl) { %>
+        <li>
+          <a href="/fiscalite/declarations/<%= decl.id %>/liasse">
+            Consulter le brouillon liasse <%= decl.exercice %>
+          </a>
+        </li>
+      <% }); %>
+    </ul>
+  <% } %>
+</section>
+
 <%- include('../../partials/layout-fin') %>

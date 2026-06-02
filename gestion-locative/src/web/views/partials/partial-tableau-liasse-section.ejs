@@ -1,0 +1,48 @@
+<%#
+  Partial — Tableau d'une section liasse (UI-SPEC §S2).
+
+  Props :
+    - section : SectionLiasseDto { titre, annexe, cases: CaseLiasseDto[], bandeauPostesManuels? }
+    - exercice : number — millésime utilisé dans aria-label.
+
+  Helpers attendus dans `locals` (injection main.ts preHandler) :
+    - formaterCaseLiasse(numero) : <span monospace 14px>
+    - formatMoney(money) : "12 000,00 €" (Intl.NumberFormat fr-FR)
+
+  Wave 1 : 3 colonnes (Case, Libellé officiel, Valeur). Plan 03 ajoute "Sources".
+  ARIA : `aria-label` unique par annexe × millésime (UI-SPEC §Accessibilité).
+%>
+<section aria-label="Annexe <%= section.annexe %> — <%= section.titre %>" style="margin-bottom: 32px;">
+  <h3><%= section.titre %></h3>
+  <% if (section.bandeauPostesManuels) { %>
+    <%- include('banniere-warning', {
+      message: 'Bilan simplifié (2033-A) : seuls les postes calculables sont remplis ci-dessous (immobilisations, amortissements cumulés, VNC). Les autres postes — trésorerie, créances, dettes, emprunts — restent à compléter manuellement sur la télédéclaration.'
+    }) %>
+  <% } %>
+  <table aria-label="<%= section.titre %>">
+    <thead>
+      <tr>
+        <th scope="col">Case</th>
+        <th scope="col">Libellé officiel</th>
+        <th scope="col" class="numeric">Valeur</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% section.cases.forEach(function(c) { %>
+        <tr>
+          <td><%- formaterCaseLiasse(c.numero) %></td>
+          <td><%= c.libelleOfficiel %></td>
+          <td class="numeric">
+            <% if (c.valeur) { %>
+              <%= formatMoney(c.valeur) %>
+            <% } else { %>
+              <span style="color: var(--couleur-neutre); font-style: italic;">
+                <%= c.mention || '—' %>
+              </span>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</section>

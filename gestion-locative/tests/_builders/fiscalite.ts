@@ -7,6 +7,15 @@ import type { BienId, CheminRelatif, JustificatifId, TicketTravauxId } from '../
 import { Composant } from '../../src/domain/fiscalite/composant.js';
 import type { OrigineKindComposant, MotifSortieComposant } from '../../src/domain/fiscalite/composant.js';
 import { ValorisationFiscale } from '../../src/domain/fiscalite/valorisation-fiscale.js';
+import {
+  MAPPING_LIASSE_2026,
+  type MappingLiasse2026,
+} from '../../src/domain/fiscalite/liasse/mapping-liasse-2026.js';
+import type {
+  BrouillonLiasseDto,
+  SectionLiasseDto,
+} from '../../src/domain/fiscalite/liasse/case-liasse.js';
+import type { DeclarationAnnuelle } from '../../src/domain/fiscalite/declaration-annuelle.js';
 
 const TODAY = Temporal.PlainDate.from('2026-05-20');
 const DEFAULT_BIEN_ID = crypto.randomUUID() as BienId;
@@ -193,6 +202,58 @@ export function uneValorisationFiscale(overrides: OverridesValorisationFiscale =
     quotePartTerrainRatio: overrides.quotePartTerrainRatio ?? 0.10,
     activeLe: overrides.activeLe ?? Temporal.PlainDateTime.from('2026-03-15T10:00:00'),
   });
+}
+
+// ─── Phase 6 — Liasse builders (FIS-05) ───────────────────────────────────────
+
+interface OverridesMapping {
+  millesime?: 2026;
+  sections?: Partial<MappingLiasse2026['sections']>;
+}
+
+/**
+ * Builder MappingLiasse2026 — retourne `MAPPING_LIASSE_2026` ou un mapping
+ * partiellement override (utile pour tester des sections vides ou enrichies).
+ *
+ * Phase 6 / FIS-05 / D-L6.3. Pattern miroir `unBailleurValide`.
+ */
+export function unMappingLiasse2026(overrides: OverridesMapping = {}): MappingLiasse2026 {
+  if (!overrides.sections) {
+    return MAPPING_LIASSE_2026;
+  }
+  return {
+    millesime: overrides.millesime ?? 2026,
+    sections: {
+      ...MAPPING_LIASSE_2026.sections,
+      ...overrides.sections,
+    },
+  };
+}
+
+interface OverridesBrouillonLiasseDto {
+  exercice?: number;
+  bailleurNom?: string;
+  sections?: ReadonlyArray<SectionLiasseDto>;
+  clotureLe?: Temporal.PlainDate;
+}
+
+/**
+ * Builder minimal `BrouillonLiasseDto` régime réel — utile aux tests Plan 02-05
+ * qui n'instancient pas tout le pipeline `genererBrouillonLiasse`.
+ *
+ * Si `decl` est fourni, exercice/clotureLe par défaut sont dérivés du snapshot.
+ */
+export function unBrouillonLiasseDtoReel(
+  decl?: DeclarationAnnuelle,
+  overrides: OverridesBrouillonLiasseDto = {},
+): BrouillonLiasseDto {
+  return {
+    exercice: overrides.exercice ?? decl?.exercice ?? 2026,
+    regimeApplique: 'reel',
+    bailleurNom: overrides.bailleurNom ?? 'Jean Dupont',
+    sections: overrides.sections ?? [],
+    clotureLe: overrides.clotureLe ?? decl?.clotureLe ?? Temporal.PlainDate.from('2026-12-31'),
+  };
 }
 
 /**

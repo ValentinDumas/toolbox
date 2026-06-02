@@ -81,3 +81,24 @@ export class JustificatifNonQualifie extends Error {
     this.name = 'JustificatifNonQualifie';
   }
 }
+
+/**
+ * Levée par `MappingLiasseProvider` lorsqu'un millésime n'est pas couvert
+ * par un fichier `mapping-liasse-<millesime>.ts` (Phase 6 / FIS-05 / D-L6.3).
+ *
+ * Différence sémantique vs `RegleFiscaleAbsente` : les seuils micro-BIC sont
+ * révisés par tranche triennale (2026-2028 couvert d'un coup), alors que le
+ * cerfa peut changer chaque année (LF). On commence avec un seul millésime
+ * couvert (2026) — il faudra créer `mapping-liasse-2027.ts` en janvier 2027
+ * en revérifiant chaque case sur le PDF officiel impots.gouv.fr.
+ *
+ * Source : R1.1 RISKS.md (surveillance fiscale annuelle), D-L6.3, pitfall §6 RESEARCH.md.
+ */
+export class MappingLiasseAbsent extends Error {
+  constructor(public readonly millesime: number) {
+    super(
+      `Mapping liasse absent : millésime ${millesime} non couvert. Le cerfa peut changer chaque année (LF) — vérifier le PDF officiel impots.gouv.fr et créer mapping-liasse-${millesime}.ts. (R1.1 RISKS.md)`,
+    );
+    this.name = 'MappingLiasseAbsent';
+  }
+}
