@@ -119,3 +119,10 @@ export function nouveauAmortissementExerciceId(): AmortissementExerciceId {
 export function nouveauValorisationFiscaleId(): ValorisationFiscaleId {
   return crypto.randomUUID() as ValorisationFiscaleId;
 }
+
+// Phase 6 — identifiants CFE (FIS-06)
+export type DeclarationCfeId = string & { readonly __brand: 'DeclarationCfeId' };
+
+export function nouveauDeclarationCfeId(): DeclarationCfeId {
+  return crypto.randomUUID() as DeclarationCfeId;
+}

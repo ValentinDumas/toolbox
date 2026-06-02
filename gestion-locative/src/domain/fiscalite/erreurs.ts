@@ -102,3 +102,18 @@ export class MappingLiasseAbsent extends Error {
     this.name = 'MappingLiasseAbsent';
   }
 }
+
+/**
+ * Levée lorsqu'une `DeclarationCfe` recherchée par identifiant n'existe pas
+ * (Phase 6 / FIS-06 / D-CFE6.2).
+ *
+ * Utilisée par `modifierDeclarationCfe` et la route GET `/biens/:id/cfe/:cfeId/editer`.
+ * Le `id` est un UUID v4 opaque — single-user, pas de risque d'énumération
+ * (T-06-CFE6-04 accept).
+ */
+export class DeclarationCfeIntrouvable extends Error {
+  constructor(public readonly id: string) {
+    super(`Déclaration CFE introuvable : ${id}`);
+    this.name = 'DeclarationCfeIntrouvable';
+  }
+}
