@@ -310,6 +310,24 @@ export interface DeclarationsAnnuellesTable {
   cloture_le: string;
 }
 
+// Phase 6 — Plan 06 : DeclarationCfe (migration 0023) — upsert sur (bien_id, millesime)
+export type StatutCfeRow =
+  | 'non_deposee'
+  | 'deposee'
+  | 'exoneree_premiere_annee'
+  | 'exoneree_commune'
+  | 'payee';
+
+export interface DeclarationsCfeTable {
+  id: string;
+  bien_id: string;
+  millesime: number;
+  statut: StatutCfeRow;
+  date_depot_declaration: string | null;
+  montant_avis_centimes: number | null;
+  date_echeance_paiement: string;
+}
+
 // Phase 5 — Plan 06 : DeclarationCorrigee append-only (migration 0017)
 export interface DeclarationsCorrigeesTable {
   id: string;
@@ -351,4 +369,6 @@ export interface DB {
   // Phase 5 — Plan 06 : clôture exercice (migrations 0016, 0017)
   declarations_annuelles: DeclarationsAnnuellesTable;
   declarations_corrigees: DeclarationsCorrigeesTable;
+  // Phase 6 — Plan 06 : suivi déclaratif CFE (migration 0023)
+  declarations_cfe: DeclarationsCfeTable;
 }
