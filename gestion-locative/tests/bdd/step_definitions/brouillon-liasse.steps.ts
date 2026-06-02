@@ -24,15 +24,10 @@ import {
   MappingLiasseProviderEnMemoire,
   type MappingLiasseProvider,
 } from '../../../src/domain/fiscalite/liasse/mapping-liasse-provider.js';
-import { MAPPING_LIASSE_2026, type MappingLiasse2026 } from '../../../src/domain/fiscalite/liasse/mapping-liasse-2026.js';
+import type { MappingLiasse2026 } from '../../../src/domain/fiscalite/liasse/mapping-liasse-2026.js';
 import { MappingLiasseAbsent } from '../../../src/domain/fiscalite/erreurs.js';
-import {
-  genererBrouillonLiasse,
-  DeclarationIntrouvableLiasse,
-  RegimeMicroBicNonSupporteWave1,
-} from '../../../src/application/fiscalite/generer-brouillon-liasse.js';
+import { genererBrouillonLiasse } from '../../../src/application/fiscalite/generer-brouillon-liasse.js';
 import type { BrouillonLiasseDto } from '../../../src/domain/fiscalite/liasse/case-liasse.js';
-import { MappingLiasseProviderFake } from '../../_fakes/mapping-liasse-provider-fake.js';
 import { unBailleurValide } from '../../_builders/identite.js';
 import type { BailleurRepository } from '../../../src/domain/identite/bailleur-repository.js';
 import type { DeclarationAnnuelleRepository } from '../../../src/domain/fiscalite/declaration-annuelle-repository.js';
@@ -44,6 +39,16 @@ interface MondeLiasse extends World {
   declaration: DeclarationAnnuelle | null;
   brouillon: BrouillonLiasseDto | null;
   [key: string]: unknown;
+}
+
+/**
+ * Normalise les espaces dans une chaîne monétaire fr-FR. `Money.enEuros()`
+ * (Intl.NumberFormat) insère un espace insécable U+00A0 entre nombre et €.
+ * Les `.feature` utilisent l'espace simple U+0020 pour la lisibilité.
+ * Les deux côtés passent par cette fonction avant comparaison.
+ */
+function normaliserEspaces(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 // ─── Step shared : Mapping versionné ──────────────────────────────────────────
@@ -227,7 +232,8 @@ Then(
   'le brouillon contient une section {string}',
   function (this: MondeLiasse, libelleSection: string) {
     assert.ok(this.brouillon, 'brouillon non généré');
-    const trouve = this.brouillon.sections.find((s) => s.titre.includes(libelleSection.split('—')[0]!.trim()));
+    const cible = libelleSection.split('—')[0]!.trim();
+    const trouve = this.brouillon.sections.find((s) => s.titre.includes(cible));
     assert.ok(trouve, `section "${libelleSection}" introuvable`);
   },
 );
@@ -237,12 +243,13 @@ Then(
   function (this: MondeLiasse, codeCase: string, valeurAttendue: string) {
     assert.ok(this.brouillon, 'brouillon non généré');
     const sectionsAvecCase = this.brouillon.sections.flatMap((s) => s.cases);
-    const trouve = sectionsAvecCase.find(
-      (c) => c.numero === codeCase || c.libelleOfficiel.includes(codeCase.replace(/[{}]/g, '')),
-    );
+    const trouve = sectionsAvecCase.find((c) => c.numero === codeCase);
     assert.ok(trouve, `case "${codeCase}" introuvable`);
-    assert.ok(trouve.valeur);
-    assert.equal(trouve.valeur.enEuros(), valeurAttendue.replace(' ', ' '));
+    assert.ok(trouve.valeur, `la case "${codeCase}" devrait porter une valeur`);
+    assert.equal(
+      normaliserEspaces(trouve.valeur.enEuros()),
+      normaliserEspaces(valeurAttendue),
+    );
   },
 );
 
@@ -252,7 +259,10 @@ Then('la case dotation amortissement vaut {string}', function (this: MondeLiasse
   const dotation = allCases.find((c) => c.libelleOfficiel.toLowerCase().includes('dotation'));
   assert.ok(dotation, 'case dotation amortissement introuvable');
   assert.ok(dotation.valeur);
-  assert.equal(dotation.valeur.enEuros(), valeurAttendue.replace(' ', ' '));
+  assert.equal(
+    normaliserEspaces(dotation.valeur.enEuros()),
+    normaliserEspaces(valeurAttendue),
+  );
 });
 
 Then('la case 2031-SD bénéfice fiscal est non vide', function (this: MondeLiasse) {
@@ -305,9 +315,10 @@ Then(
   'la section {string} affiche un bandeau {string}',
   function (this: MondeLiasse, libelleSection: string, _libelleBandeau: string) {
     assert.ok(this.brouillon, 'brouillon non généré');
-    const cible = this.brouillon.sections.find((s) => s.titre.includes(libelleSection.split('—')[0]!.trim()));
-    assert.ok(cible, `section "${libelleSection}" introuvable`);
-    assert.equal(cible.bandeauPostesManuels, true, 'bandeauPostesManuels doit être true');
+    const cible = libelleSection.split('—')[0]!.trim();
+    const sectionCible = this.brouillon.sections.find((s) => s.titre.includes(cible));
+    assert.ok(sectionCible, `section "${libelleSection}" introuvable`);
+    assert.equal(sectionCible.bandeauPostesManuels, true, 'bandeauPostesManuels doit être true');
   },
 );
 
