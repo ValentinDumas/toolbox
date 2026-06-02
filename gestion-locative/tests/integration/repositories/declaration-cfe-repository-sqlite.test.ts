@@ -155,8 +155,8 @@ describe('DeclarationCfeRepositorySqlite — upsert (bien_id, millesime) — D-C
 
     const liste = await cfeRepo.listerParBien(bienId);
     expect(liste).toHaveLength(1);
-    expect(liste[0].statut).toBe('payee');
-    expect(liste[0].montantAvisCentimes?.egale(Money.fromEuros(320))).toBe(true);
-    expect(liste[0].dateDepotDeclaration?.toString()).toBe('2026-12-10');
+    expect(liste[0]!.statut).toBe('payee');
+    expect(liste[0]!.montantAvisCentimes?.egale(Money.fromEuros(320))).toBe(true);
+    expect(liste[0]!.dateDepotDeclaration?.toString()).toBe('2026-12-10');
   });
 });
