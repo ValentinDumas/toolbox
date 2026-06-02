@@ -283,4 +283,25 @@
   <% } %>
 </section>
 
+<section aria-label="Déclarations CFE — <%= bien.adresse.enLigne() %>">
+  <h2>Cotisation Foncière des Entreprises (CFE)</h2>
+  <% if (!locals.declarationsCfe || declarationsCfe.length === 0) { %>
+    <%- include('../../partials/empty-state', {
+      heading: 'Cotisation Foncière des Entreprises (CFE) — ' + (new Date().getFullYear()),
+      body: 'Aucune déclaration CFE enregistrée pour ce bien. La CFE est due par tout LMNP (CGI art. 1447) — votre première année d\'activité est exonérée ; vous recevrez ensuite un avis de votre commune en octobre/novembre.',
+      ctaUrl: '/biens/' + bien.id + '/cfe/nouvelle',
+      ctaLabel: 'Enregistrer une déclaration CFE'
+    }) %>
+  <% } else { %>
+    <% declarationsCfe.forEach(function(d) { %>
+      <%- include('../../partials/partial-carte-cfe', { declarationCfe: d, bienId: bien.id }) %>
+    <% }); %>
+    <p>
+      <a href="/biens/<%= bien.id %>/cfe/nouvelle" role="button" class="secondary">
+        Enregistrer une nouvelle déclaration CFE
+      </a>
+    </p>
+  <% } %>
+</section>
+
 <%- include('../../partials/layout-fin') %>

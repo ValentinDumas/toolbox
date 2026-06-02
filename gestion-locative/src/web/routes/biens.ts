@@ -4,6 +4,7 @@ import type { BienRepository } from '../../domain/patrimoine/bien-repository.js'
 import type { BienId, LotId } from '../../domain/_shared/identifiants.js';
 import type { JustificatifRepository } from '../../domain/documents/justificatif-repository.js';
 import type { TicketTravauxRepository } from '../../domain/travaux/ticket-travaux-repository.js';
+import type { DeclarationCfeRepository } from '../../domain/fiscalite/cfe/declaration-cfe-repository.js';
 import { creerBien } from '../../application/patrimoine/creer-bien.js';
 import { modifierBien } from '../../application/patrimoine/modifier-bien.js';
 import { supprimerBien } from '../../application/patrimoine/supprimer-bien.js';
@@ -12,6 +13,7 @@ import { ajouterLot } from '../../application/patrimoine/ajouter-lot.js';
 import { supprimerLot } from '../../application/patrimoine/supprimer-lot.js';
 import { listerJustificatifsParBien } from '../../application/documents/lister-justificatifs-par-bien.js';
 import { listerTicketsParBien } from '../../application/travaux/lister-tickets-par-bien.js';
+import { listerDeclarationsCfeParBien } from '../../application/fiscalite/lister-declarations-cfe-par-bien.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import {
@@ -20,6 +22,7 @@ import {
   lotCreationSchema,
   normaliserLotsFormBody,
 } from '../schemas/bien-schemas.js';
+import { formaterMillesimeCfe } from '../helpers/formater-millesime-cfe.js';
 
 export async function plugin(
   app: FastifyInstance,
@@ -27,6 +30,7 @@ export async function plugin(
     repo: BienRepository;
     justificatifRepo?: JustificatifRepository;
     ticketRepo?: TicketTravauxRepository;
+    cfeRepo?: DeclarationCfeRepository;
   },
 ): Promise<void> {
 
@@ -126,11 +130,18 @@ export async function plugin(
       ticketsBien = { items: ouverts, total: tous.length };
     }
 
+    // Phase 6 — FIS-06 : section "CFE" sur la fiche Bien
+    const declarationsCfe = opts.cfeRepo
+      ? await listerDeclarationsCfeParBien({ bienId: bien.id }, { cfeRepo: opts.cfeRepo })
+      : [];
+
     return reply.view('pages/biens/detail.ejs', {
       bien,
       banniereSuccess,
       documentsBien,
       ticketsBien,
+      declarationsCfe,
+      formaterMillesimeCfe,
     });
   });
 

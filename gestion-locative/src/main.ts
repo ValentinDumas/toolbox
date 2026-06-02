@@ -52,6 +52,8 @@ import { AvenantIRLBuilderPdfmake } from './infrastructure/pdf/avenant-irl-build
 import { MiseEnDemeureBuilderPdfmake } from './infrastructure/pdf/mise-en-demeure-builder-pdfmake.js';
 import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
+import { registerBiensCfeRoutes } from './web/routes/biens/cfe.js';
+import { DeclarationCfeRepositorySqlite } from './infrastructure/repositories/declaration-cfe-repository-sqlite.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
 import { plugin as bauxPlugin } from './web/routes/baux.js';
 import { plugin as wizardPlugin } from './web/routes/wizard.js';
@@ -183,6 +185,8 @@ export async function creerApp(
   const convertisseurImage = new ConvertisseurImageSharp();
   // Phase 4 — BC Travaux
   const ticketRepo = new TicketTravauxRepositorySqlite(db);
+  // Phase 6 — BC Fiscalité : suivi déclaratif CFE (FIS-06)
+  const cfeRepo = new DeclarationCfeRepositorySqlite(db);
 
   // Hook global : injecte les helpers de format français dans les locals EJS.
   // reply.locals est lu par @fastify/view et fusionné dans les données de chaque vue.
@@ -240,7 +244,10 @@ export async function creerApp(
 
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
-  await app.register(biensPlugin, { repo, justificatifRepo, ticketRepo });
+  await app.register(biensPlugin, { repo, justificatifRepo, ticketRepo, cfeRepo });
+  await app.register(async (instance) => {
+    await registerBiensCfeRoutes(instance, { bienRepo: repo, cfeRepo, clock });
+  });
   await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo, justificatifRepo });
   await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, bailIndexationRepo, clock });
