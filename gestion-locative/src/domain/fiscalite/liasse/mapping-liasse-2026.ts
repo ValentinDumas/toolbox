@@ -316,8 +316,20 @@ export const MAPPING_LIASSE_2026: MappingLiasse2026 = {
     ],
 
     // ── 2042-C-PRO — Report micro-BIC (Plan 02) ────────────────────────────
-    // Squelette V1 Wave 1 vide. Peuplé au Plan 02 (micro-BIC) — case 5NI
-    // (recettes brutes location meublée non professionnelle longue durée).
-    '2042-C-PRO': [],
+    // Case "5NI" (déclarant 1) — Location meublée longue durée (post-LF 2024).
+    // Source : RESEARCH §Cerfa Case Mapping §2042 C PRO + rendimmo.fr.
+    // V1 single-user mono-déclarant → 5NI uniquement (5OI/5PI = indivision/PAC hors V1).
+    // R4.3 : valeur = recettes BRUTES (decl.recettesTotales) — l'abattement 50 %
+    // est appliqué par impots.gouv.fr, PAS par l'app.
+    '2042-C-PRO': [
+      {
+        caseId: '5NI',
+        numero: '5NI',
+        libelleOfficiel: 'Locations meublées non professionnelles — Régime micro-BIC — Locations meublées longue durée',
+        annexe: '2042-C-PRO',
+        source: 'recettesTotales',
+        section: 'Locations meublées',
+      },
+    ],
   },
 } as const;

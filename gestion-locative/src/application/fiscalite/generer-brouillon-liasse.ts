@@ -36,14 +36,17 @@ import type {
   SourceCleSnapshot,
 } from '../../domain/fiscalite/liasse/case-liasse.js';
 
-/** Annexes rendues Wave 1 (régime réel, 2042-C-PRO peuplé Plan 02). */
-const ANNEXES_WAVE1_REEL: ReadonlyArray<AnnexeLiasse> = [
+/** Annexes rendues en régime réel (2031-SD + bilan/résultat/immobilisations/déficits). */
+const ANNEXES_REEL: ReadonlyArray<AnnexeLiasse> = [
   '2031-SD',
   '2033-A',
   '2033-B',
   '2033-C',
   '2033-D',
 ] as const;
+
+/** Annexes rendues en régime micro-BIC (Plan 06-02 — D-L6.2). */
+const ANNEXES_MICRO: ReadonlyArray<AnnexeLiasse> = ['2042-C-PRO'] as const;
 
 /** Libellés affichables des annexes (titre `<h3>` de chaque section S2 UI-SPEC). */
 const TITRES_ANNEXES: Readonly<Record<AnnexeLiasse, string>> = {
@@ -81,8 +84,8 @@ export class BailleurIntrouvableLiasse extends Error {
 }
 
 /**
- * Levée Wave 1 si la déclaration est en régime micro-BIC. Sera remplacée par
- * un rendu valide du brouillon 2042-C-PRO au Plan 02.
+ * @deprecated Plan 06-02 — micro-BIC est désormais supporté (D-L6.2). Conservé
+ * pour la rétro-compatibilité des imports nommés. Plus jamais levée.
  */
 export class RegimeMicroBicNonSupporteWave1 extends Error {
   constructor() {
@@ -343,28 +346,25 @@ export async function genererBrouillonLiasse(
     throw new BailleurIntrouvableLiasse();
   }
 
-  // 3. Wave 1 — régime réel uniquement (Plan 02 retire ce verrou et peuple 2042-C-PRO).
-  if (decl.regimeApplique === 'micro_bic') {
-    throw new RegimeMicroBicNonSupporteWave1();
-  }
-
-  // 4. Résoudre le mapping millésimé (fail-fast `MappingLiasseAbsent` propagé).
+  // 3. Résoudre le mapping millésimé (fail-fast `MappingLiasseAbsent` propagé).
   const mapping = mappingProvider.pour(decl.exercice);
 
-  // 5. Préparer le contexte pur (snapshot → agrégats + résultat fiscal).
+  // 4. Préparer le contexte pur (snapshot → agrégats + résultat fiscal).
   const composants = agregerComposantsSnapshot(decl);
   const { beneficeFiscal, deficitFiscal } = calculerResultatFiscal(decl);
   const ctx: ContexteResolution = { decl, composants, beneficeFiscal, deficitFiscal };
 
-  // 6. Construire les sections dans l'ordre canonique (2031-SD → 2033-A/B/C/D).
-  const sections = ANNEXES_WAVE1_REEL.map((annexe) =>
+  // 5. Annexes rendues selon le régime (D-L6.2).
+  const annexes: ReadonlyArray<AnnexeLiasse> =
+    decl.regimeApplique === 'micro_bic' ? ANNEXES_MICRO : ANNEXES_REEL;
+  const sections = annexes.map((annexe) =>
     construireSectionDto(annexe, mapping.sections[annexe], ctx, decl.exercice),
   );
 
-  // 7. DTO racine.
+  // 6. DTO racine.
   return {
     exercice: decl.exercice,
-    regimeApplique: 'reel',
+    regimeApplique: decl.regimeApplique,
     bailleurNom: bailleur.nomComplet,
     sections,
     clotureLe: decl.clotureLe,

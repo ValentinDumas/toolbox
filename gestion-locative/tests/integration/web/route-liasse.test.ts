@@ -207,7 +207,7 @@ describe('Route GET /fiscalite/declarations/:id/liasse (Phase 6 / FIS-05 Wave 1)
     expect(res.body).not.toContain(inconnuId);
   });
 
-  it('422 — régime micro-BIC : message redirigeant vers Plan 02', async () => {
+  it('200 — régime micro-BIC : rend la section 2042-C-PRO avec la case 5NI (Plan 06-02)', async () => {
     ctx = await setupAvecDeclarationMicroBic();
 
     const res = await ctx.app.inject({
@@ -215,8 +215,10 @@ describe('Route GET /fiscalite/declarations/:id/liasse (Phase 6 / FIS-05 Wave 1)
       url: `/fiscalite/declarations/${ctx.declarationId}/liasse`,
     });
 
-    expect(res.statusCode).toBe(422);
-    expect(res.body).toMatch(/micro-BIC/);
-    expect(res.body).toMatch(/Plan 02/);
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('2042-C-PRO');
+    expect(res.body).toContain('5NI');
+    // Recettes brutes (30 000 € — pas le net après abattement 15 000 €)
+    expect(res.body).toMatch(/30[\s ]?000,00/);
   });
 });

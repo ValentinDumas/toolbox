@@ -25,7 +25,6 @@ import {
   genererBrouillonLiasse,
   DeclarationIntrouvableLiasse,
   BailleurIntrouvableLiasse,
-  RegimeMicroBicNonSupporteWave1,
 } from '../../../application/fiscalite/generer-brouillon-liasse.js';
 
 export interface LiasseRouteDeps {
@@ -48,7 +47,7 @@ export async function registerFiscaliteLiasseRoutes(
    *   - 200 : DTO résolu, vue rendue.
    *   - 404 : déclaration introuvable ou bailleur singleton non configuré.
    *           Message générique sans révéler `req.params.id` (T-06-LIASSE-W1-01).
-   *   - 422 : régime micro-BIC (Plan 02) ou mapping millésime non couvert (D-L6.3).
+   *   - 422 : mapping millésime non couvert (D-L6.3).
    *           Page d'erreur dédiée avec copywriting UI-SPEC.
    */
   app.get<{ Params: { id: string } }>(
@@ -76,14 +75,6 @@ export async function registerFiscaliteLiasseRoutes(
         if (err instanceof BailleurIntrouvableLiasse) {
           return reply.code(404).view('pages/erreur.ejs', {
             message: 'Bailleur non configuré — configurez votre profil avant de consulter une liasse.',
-            navActive: 'fiscalite',
-          });
-        }
-        if (err instanceof RegimeMicroBicNonSupporteWave1) {
-          return reply.code(422).view('pages/erreur.ejs', {
-            message:
-              "Brouillon liasse micro-BIC : disponible avec le Plan 02 (FIS-05 micro). "
-              + 'Pour l\'instant cette page ne supporte que les déclarations en régime réel.',
             navActive: 'fiscalite',
           });
         }

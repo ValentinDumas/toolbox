@@ -36,9 +36,11 @@ describe('MAPPING_LIASSE_2026 — data file versionné 2026 (D-L6.3)', () => {
     expect(MAPPING_LIASSE_2026.sections['2033-D']).toBeDefined();
   });
 
-  it('2042-C-PRO existe mais reste vide en V1 Wave 1 (peuplé Plan 02 micro-BIC)', () => {
+  it('2042-C-PRO contient la case 5NI (Plan 06-02 — D-L6.2 micro-BIC)', () => {
     expect(MAPPING_LIASSE_2026.sections['2042-C-PRO']).toBeDefined();
-    expect(MAPPING_LIASSE_2026.sections['2042-C-PRO'].length).toBe(0);
+    const case5NI = MAPPING_LIASSE_2026.sections['2042-C-PRO'].find((c) => c.caseId === '5NI');
+    expect(case5NI).toBeDefined();
+    expect(case5NI?.source).toBe('recettesTotales');
   });
 
   it('chaque caseId est unique (propriété injectivité, renforcée fast-check Plan 03)', () => {
