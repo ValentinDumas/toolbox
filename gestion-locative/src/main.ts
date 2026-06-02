@@ -84,6 +84,9 @@ import { registerFiscaliteRacineRoute } from './web/routes/fiscalite/racine.js';
 import { registerFiscaliteExportsRoutes } from './web/routes/fiscalite/exports.js';
 import { registerFiscaliteOnboardingRoute } from './web/routes/fiscalite/onboarding.js';
 import { registerFiscaliteMultiBienRoute } from './web/routes/fiscalite/multi-bien.js';
+import { registerFiscaliteLiasseRoutes } from './web/routes/fiscalite/liasse.js';
+import { MappingLiasseProviderEnMemoire } from './domain/fiscalite/liasse/mapping-liasse-provider.js';
+import { formaterCaseLiasse } from './web/helpers/formater-case-liasse.js';
 import {
   ComposantRepositorySqlite,
   ValorisationFiscaleRepositorySqlite,
@@ -201,6 +204,7 @@ export async function creerApp(
       formaterTailleFichier,
       formaterAnneeFiscale,
       formaterStatutTicket,
+      formaterCaseLiasse,
       today,
     };
   });
@@ -419,6 +423,14 @@ export async function creerApp(
     tableauAmortRepo: tableauAmortissementRepo,
     pdfRenderer,
     recapFiscalBuilder,
+  });
+
+  // Phase 6 — BC Fiscalité (Plan 06-01 / FIS-05 Wave 1) : brouillon liasse 2031-SD + 2033-A/B/C/D
+  const mappingLiasseProvider = new MappingLiasseProviderEnMemoire();
+  await registerFiscaliteLiasseRoutes(app, {
+    declRepo: declAnnuelleRepo,
+    bailleurRepo,
+    mappingProvider: mappingLiasseProvider,
   });
 
   // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.4) : onboarding progressif S1
