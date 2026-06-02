@@ -1,0 +1,27 @@
+<%
+  // UI-SPEC §S8 — carte CFE par millésime sur fiche Bien.
+  // Props : declarationCfe (DeclarationCfe), bienId (BienId)
+  const d = locals.declarationCfe;
+  const bienId = locals.bienId;
+  const fm = locals.formatMoney;
+  const fd = locals.formatDate;
+  const fmCfe = locals.formaterMillesimeCfe;
+%>
+<article class="carte-cfe" aria-label="Déclaration CFE <%= d.millesime %>">
+  <header>
+    <strong><%= fmCfe ? fmCfe(d.millesime) : 'CFE ' + d.millesime %></strong>
+    <% if (d.dateDepotDeclaration) { %>
+      — déposée le <%= fd ? fd(d.dateDepotDeclaration) : d.dateDepotDeclaration.toString() %>
+    <% } %>
+    | échéance paiement : <strong><%= fd ? fd(d.dateEcheancePaiement) : d.dateEcheancePaiement.toString() %></strong>
+    <%- include('partial-badge-statut-cfe', { statut: d.statut }) %>
+  </header>
+  <% if (d.montantAvisCentimes !== null) { %>
+    <p class="montant-avis">
+      Montant d'avis : <%= fm ? fm(d.montantAvisCentimes) : d.montantAvisCentimes.enEuros() %>
+    </p>
+  <% } %>
+  <p class="row-actions">
+    <a href="/biens/<%= bienId %>/cfe/<%= d.id %>/editer">Modifier</a>
+  </p>
+</article>

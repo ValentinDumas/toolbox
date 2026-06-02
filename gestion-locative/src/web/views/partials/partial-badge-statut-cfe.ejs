@@ -1,0 +1,29 @@
+<%
+  // UI-SPEC §S8 / §Accessibilité : badge couleur + icône (WCAG 1.4.1 — texte + icône doublent la couleur)
+  // Props : statut (StatutCfe)
+  const statut = locals.statut;
+  const LIBELLES = {
+    non_deposee: 'Non déposée',
+    deposee: 'Déposée',
+    exoneree_premiere_annee: 'Exonérée — première année (CGI art. 1478)',
+    exoneree_commune: 'Exonérée — décision de la commune',
+    payee: 'Payée',
+  };
+  let couleur, icone;
+  switch (statut) {
+    case 'payee':
+    case 'exoneree_premiere_annee':
+    case 'exoneree_commune':
+      couleur = 'success'; icone = '✓'; break;
+    case 'deposee':
+      couleur = 'warning'; icone = '⚠'; break;
+    case 'non_deposee':
+    default:
+      couleur = 'warning'; icone = '⚠'; break;
+  }
+  const libelle = LIBELLES[statut] || statut;
+%>
+<span class="badge badge-<%= couleur %>" aria-label="Statut CFE : <%= libelle %>">
+  <span aria-hidden="true"><%= icone %></span>
+  <%= libelle %>
+</span>

@@ -1,0 +1,101 @@
+<%
+  // UI-SPEC §S9 — formulaire création/édition CFE.
+  // Props : bien (Bien), millesime (number), erreurs (Record<string,string>), valeurs (Record<string,unknown>), mode ('creation'|'edition'), declarationId? (string)
+  const mode = locals.mode || 'creation';
+  const erreurs = locals.erreurs || {};
+  const v = locals.valeurs || {};
+%>
+<%- include('../../../partials/layout-debut', {
+  titre: 'CFE — ' + bien.adresse.enLigne() + ' — ' + millesime,
+  breadcrumbs: [
+    { url: '/biens', label: 'Biens' },
+    { url: '/biens/' + bien.id, label: bien.adresse.enLigne() },
+    { label: 'CFE ' + millesime }
+  ],
+  navActive: 'biens'
+}) %>
+
+<h1>Déclaration CFE — <%= bien.adresse.enLigne() %> — <%= millesime %></h1>
+
+<%- include('../../../partials/partial-aide-cfe') %>
+
+<form
+  method="POST"
+  action="<%= mode === 'edition'
+    ? '/biens/' + bien.id + '/cfe/' + locals.declarationId + '/modifier'
+    : '/biens/' + bien.id + '/cfe' %>"
+  aria-label="Déclaration CFE <%= millesime %>"
+>
+  <%- include('../../../partials/form-field', {
+    id: 'millesime',
+    name: 'millesime',
+    label: 'Millésime',
+    type: 'number',
+    value: v.millesime !== undefined ? v.millesime : millesime,
+    required: true,
+    erreur: erreurs.millesime || null,
+    hint: 'Année de la déclaration CFE (2020-2030).'
+  }) %>
+
+  <div class="field">
+    <label for="statut">Statut <span aria-hidden="true">*</span></label>
+    <select id="statut" name="statut" required aria-describedby="statut-error">
+      <% const statutOpts = [
+        ['non_deposee', 'Non déposée'],
+        ['deposee', 'Déposée'],
+        ['exoneree_premiere_annee', 'Exonérée — première année (CGI art. 1478)'],
+        ['exoneree_commune', 'Exonérée — décision de la commune'],
+        ['payee', 'Payée']
+      ]; %>
+      <% statutOpts.forEach(([val, lbl]) => { %>
+        <option value="<%= val %>" <%= (v.statut || 'non_deposee') === val ? 'selected' : '' %>><%= lbl %></option>
+      <% }); %>
+    </select>
+    <span id="statut-error" role="alert" class="error-msg" <% if (!erreurs.statut) { %>hidden<% } %>>
+      <%= erreurs.statut || '' %>
+    </span>
+  </div>
+
+  <%- include('../../../partials/form-field', {
+    id: 'dateDepotDeclaration',
+    name: 'dateDepotDeclaration',
+    label: 'Date de dépôt de la 1447-C-SD',
+    type: 'date',
+    value: v.dateDepotDeclaration || '',
+    required: false,
+    erreur: erreurs.dateDepotDeclaration || null,
+    hint: 'Optionnel — uniquement si statut = déposée ou payée.'
+  }) %>
+
+  <%- include('../../../partials/form-field', {
+    id: 'montantAvisEuros',
+    name: 'montantAvisEuros',
+    label: 'Montant d\'avis (€)',
+    type: 'number',
+    value: v.montantAvisEuros || '',
+    required: false,
+    erreur: erreurs.montantAvisEuros || null,
+    hint: 'Renseignez le montant reçu de votre commune. Laissez vide si non reçu.'
+  }) %>
+
+  <%- include('../../../partials/form-field', {
+    id: 'dateEcheancePaiement',
+    name: 'dateEcheancePaiement',
+    label: 'Date limite de paiement',
+    type: 'date',
+    value: v.dateEcheancePaiement || (millesime + '-12-15'),
+    required: true,
+    erreur: erreurs.dateEcheancePaiement || null,
+    hint: 'Date limite de paiement (généralement le 15 décembre).'
+  }) %>
+
+  <p>
+    <button type="submit">
+      <%= mode === 'edition' ? 'Enregistrer les modifications' : 'Enregistrer la déclaration CFE' %>
+    </button>
+    &nbsp;
+    <a href="/biens/<%= bien.id %>">Annuler</a>
+  </p>
+</form>
+
+<%- include('../../../partials/layout-fin') %>
