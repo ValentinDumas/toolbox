@@ -409,3 +409,85 @@ describe('genererBrouillonLiasse — use case régime réel (Phase 6 / FIS-05)',
     ).rejects.toThrow(MappingLiasseAbsent);
   });
 });
+
+// ─── Plan 06-02 — micro-BIC (FIS-05 slice 2) ──────────────────────────────────
+
+function uneDeclarationMicroBicAvec(recettes: number): DeclarationAnnuelle {
+  return DeclarationAnnuelle.creer({
+    id: DECL_ID,
+    bailleurId: BAILLEUR_ID,
+    exercice: 2026,
+    regimeApplique: 'micro_bic',
+    recettesTotales: Money.fromEuros(recettes),
+    chargesQualifieesParCategorie: {
+      entretien_reparation: Money.zero(),
+      amelioration: Money.zero(),
+      charge_courante_periodique: Money.zero(),
+      non_deductible: Money.zero(),
+      non_qualifie: Money.zero(),
+    },
+    dotationAmortissement: Money.zero(),
+    ardGenere: Money.zero(),
+    ardConsomme: Money.zero(),
+    revenusFoyerSnapshot: Money.fromEuros(40_000),
+    statutLmnpLmp: 'lmnp_confirme',
+    composantsSnapshot: '[]',
+    clotureLe: Temporal.PlainDate.from('2026-12-31'),
+    seuilLmpRecettes: REGLES_2026.SEUIL_LMP_RECETTES,
+  });
+}
+
+describe('genererBrouillonLiasse — régime micro-BIC (Plan 06-02 / D-L6.2)', () => {
+  it('Test M1 : régime micro → DTO regimeApplique=micro_bic + une seule section 2042-C-PRO', async () => {
+    const decl = uneDeclarationMicroBicAvec(18_000);
+    const declRepo = makeDeclRepo(decl);
+    const bailleurRepo = makeBailleurRepoOK();
+    const mappingProvider = new MappingLiasseProviderEnMemoire();
+
+    const dto = await genererBrouillonLiasse(
+      { declarationId: DECL_ID },
+      { declRepo, bailleurRepo, mappingProvider },
+    );
+
+    expect(dto.regimeApplique).toBe('micro_bic');
+    expect(dto.sections).toHaveLength(1);
+    expect(dto.sections[0]!.annexe).toBe('2042-C-PRO');
+  });
+
+  it('Test M2 : case "5NI" porte les recettes BRUTES (pas le net après abattement 50 %)', async () => {
+    const decl = uneDeclarationMicroBicAvec(18_000);
+    const declRepo = makeDeclRepo(decl);
+    const bailleurRepo = makeBailleurRepoOK();
+    const mappingProvider = new MappingLiasseProviderEnMemoire();
+
+    const dto = await genererBrouillonLiasse(
+      { declarationId: DECL_ID },
+      { declRepo, bailleurRepo, mappingProvider },
+    );
+
+    const case5NI = dto.sections[0]!.cases.find((c) => c.numero === '5NI');
+    expect(case5NI).toBeDefined();
+    expect(case5NI!.valeur?.egale(Money.fromEuros(18_000))).toBe(true);
+    // Anti-pattern §3 + R4.3 : pas de calcul d'abattement côté app
+    expect(case5NI!.valeur?.egale(Money.fromEuros(9_000))).toBe(false);
+  });
+
+  it("Test M3 : pour micro, AUCUNE section '2031-SD' ni '2033-*' n'est rendue", async () => {
+    const decl = uneDeclarationMicroBicAvec(18_000);
+    const declRepo = makeDeclRepo(decl);
+    const bailleurRepo = makeBailleurRepoOK();
+    const mappingProvider = new MappingLiasseProviderEnMemoire();
+
+    const dto = await genererBrouillonLiasse(
+      { declarationId: DECL_ID },
+      { declRepo, bailleurRepo, mappingProvider },
+    );
+
+    const annexes = dto.sections.map((s) => s.annexe);
+    expect(annexes).not.toContain('2031-SD');
+    expect(annexes).not.toContain('2033-A');
+    expect(annexes).not.toContain('2033-B');
+    expect(annexes).not.toContain('2033-C');
+    expect(annexes).not.toContain('2033-D');
+  });
+});

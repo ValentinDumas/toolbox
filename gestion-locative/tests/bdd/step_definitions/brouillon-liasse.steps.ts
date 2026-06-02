@@ -333,3 +333,64 @@ Then(
     assert.ok(avecMention.length > 0, `aucune case "${annexeLabel}" ne porte la mention "${mention}"`);
   },
 );
+
+// ─── Plan 06-02 — régime micro-BIC ────────────────────────────────────────────
+
+function uneDeclarationMicroBicMinimale(opts: { recettes: number }): DeclarationAnnuelle {
+  return DeclarationAnnuelle.creer({
+    id: DECL_ID,
+    bailleurId: BAILLEUR_ID,
+    exercice: 2026,
+    regimeApplique: 'micro_bic',
+    recettesTotales: Money.fromEuros(opts.recettes),
+    chargesQualifieesParCategorie: {
+      entretien_reparation: Money.zero(),
+      amelioration: Money.zero(),
+      charge_courante_periodique: Money.zero(),
+      non_deductible: Money.zero(),
+      non_qualifie: Money.zero(),
+    },
+    dotationAmortissement: Money.zero(),
+    ardGenere: Money.zero(),
+    ardConsomme: Money.zero(),
+    revenusFoyerSnapshot: Money.fromEuros(40_000),
+    statutLmnpLmp: 'lmnp_confirme',
+    composantsSnapshot: '[]',
+    clotureLe: Temporal.PlainDate.from('2026-12-31'),
+    seuilLmpRecettes: REGLES_2026.SEUIL_LMP_RECETTES,
+  });
+}
+
+Given(
+  'une DeclarationAnnuelle clôturée en régime micro-BIC avec recettes {int} €',
+  function (this: MondeLiasse, recettes: number) {
+    this.declaration = uneDeclarationMicroBicMinimale({ recettes });
+    this.brouillon = null;
+    this.derniereErreur = null;
+  },
+);
+
+Then(
+  'le brouillon NE contient PAS de section {string}',
+  function (this: MondeLiasse, libelleSection: string) {
+    assert.ok(this.brouillon, 'brouillon non généré');
+    const cible = libelleSection.split('—')[0]!.trim();
+    const trouve = this.brouillon.sections.find((s) => s.titre.includes(cible));
+    assert.equal(trouve, undefined, `section "${libelleSection}" présente alors qu'elle ne devrait PAS l'être`);
+  },
+);
+
+Then(
+  'la case {string} ne porte PAS la valeur {string}',
+  function (this: MondeLiasse, codeCase: string, valeurInterdite: string) {
+    assert.ok(this.brouillon, 'brouillon non généré');
+    const cases = this.brouillon.sections.flatMap((s) => s.cases);
+    const trouve = cases.find((c) => c.numero === codeCase);
+    assert.ok(trouve, `case "${codeCase}" introuvable`);
+    assert.ok(trouve.valeur);
+    assert.notEqual(
+      normaliserEspaces(trouve.valeur.enEuros()),
+      normaliserEspaces(valeurInterdite),
+    );
+  },
+);
