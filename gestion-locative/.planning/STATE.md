@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 6 context gathered
-last_updated: "2026-05-28T12:48:58.295Z"
+stopped_at: Phase 6 UI-SPEC approved
+last_updated: "2026-06-02T08:06:29.026Z"
 last_activity: 2026-05-22 -- Phase 5.1 hardening complete (CLAUDE.md règle non-négociable rétablie end-to-end sur la couche application)
 progress:
   total_phases: 8
@@ -106,6 +106,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-28T12:48:58.287Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-liasse-2031-cfe/06-CONTEXT.md
+Last session: 2026-06-02T08:06:29.019Z
+Stopped at: Phase 6 UI-SPEC approved
+Resume file: .planning/phases/06-liasse-2031-cfe/06-UI-SPEC.md
