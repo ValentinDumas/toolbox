@@ -169,7 +169,7 @@ describe('DeclarationCfe.creer — factory + invariants (D-CFE6.3)', () => {
       }),
     );
     expect(decl.statut).toBe('payee');
-    expect(decl.montantAvisCentimes?.enEuros()).toBe(320);
+    expect(decl.montantAvisCentimes?.egale(Money.fromEuros(320))).toBe(true);
   });
 
   it("accepte statut='exoneree_premiere_annee' SANS dépôt ni montant (D-CFE6.4)", () => {
@@ -226,7 +226,7 @@ describe('DeclarationCfe.modifier — copy-on-write + pattern "field in patch" (
     });
     expect(patched.statut).toBe('payee');
     expect(patched.dateDepotDeclaration?.toString()).toBe('2026-12-10');
-    expect(patched.montantAvisCentimes?.enEuros()).toBe(320);
+    expect(patched.montantAvisCentimes?.egale(Money.fromEuros(320))).toBe(true);
     expect(patched.dateEcheancePaiement.toString()).toBe('2026-12-20');
   });
 
@@ -274,7 +274,7 @@ describe('DeclarationCfe.modifier — copy-on-write + pattern "field in patch" (
     expect(patched.id).toBe(base.id);
     expect(patched.statut).toBe('payee');
     expect(patched.dateDepotDeclaration?.toString()).toBe('2026-12-10');
-    expect(patched.montantAvisCentimes?.enEuros()).toBe(320);
+    expect(patched.montantAvisCentimes?.egale(Money.fromEuros(320))).toBe(true);
     expect(patched.dateEcheancePaiement.toString()).toBe(base.dateEcheancePaiement.toString());
   });
 
