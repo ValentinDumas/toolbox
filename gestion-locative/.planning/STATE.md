@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
+status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-06-02T08:06:29.026Z"
-last_activity: 2026-05-22 -- Phase 5.1 hardening complete (CLAUDE.md règle non-négociable rétablie end-to-end sur la couche application)
+last_updated: "2026-06-02T14:37:00.250Z"
+last_activity: 2026-06-02 -- Phase 6 planning complete
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 38
+  total_plans: 45
   completed_plans: 38
-  percent: 100
+  percent: 84
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 
 Phase: 5.1 (hardening-hexagonal) — COMPLETE
 Plan: 1 of 1 (05.1-01 pdf-builder-ports-hardening executed)
-Status: complete — 3 ports + 3 adapters extraits, DI propagée, 4 violations hexagonales fermées. `grep "from.*infrastructure" src/application/` (hors type-only Kysely) → 0 résultats. 895/895 vitest, BDD 171/173 (failures pré-existantes non liées).
-Last activity: 2026-05-22 -- Phase 5.1 hardening complete (CLAUDE.md règle non-négociable rétablie end-to-end sur la couche application)
+Status: Ready to execute
+Last activity: 2026-06-02 -- Phase 6 planning complete
 Next step: /gsd-discuss-phase 6 (Liasse 2031 & CFE)
 
 Progress: [██████████] 100%

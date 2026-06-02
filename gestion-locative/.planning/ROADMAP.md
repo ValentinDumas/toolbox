@@ -174,7 +174,14 @@ Plans:
   2. Les montants de la liasse sont **traçables** à la source (chaque ligne renvoie aux `Encaissement`s, `Justificatif`s et `TableauAmortissement` qui la justifient).
   3. L'utilisateur peut enregistrer sa déclaration CFE initiale (formulaire 1447-C-SD) sur un `Bien` et marquer son statut.
   4. Le système alerte l'utilisateur à l'approche de l'échéance de paiement CFE (décembre) sur le `Bien` concerné.
-**Plans**: TBD
+**Plans**: 7 plans
+- [ ] 06-01-PLAN.md — Walking enabler FIS-05 : port MappingLiasseProvider + vue brouillon liasse régime réel (2031-SD + 2033-A/B/C/D)
+- [ ] 06-02-PLAN.md — Brouillon micro-BIC : extension regimeApplique='micro_bic' avec section 2042-C-PRO
+- [ ] 06-03-PLAN.md — Traçabilité + réconciliation : drill-down sources + fonction pure reconcilier snapshot/vivant
+- [ ] 06-04-PLAN.md — Liasse rectificative : génération depuis DeclarationCorrigee + bandeau motif
+- [ ] 06-05-PLAN.md — Exports PDF + CSV liasse : adapter pdfmake + CSV avec colonne sources (mitigation injection)
+- [ ] 06-06-PLAN.md — Suivi déclaratif CFE : agrégat DeclarationCfe + repo SQLite + use cases + section CFE fiche Bien (FIS-06)
+- [ ] 06-07-PLAN.md — Alerte CFE J-30 décembre : fonction pure calculerAlertesCfe + banner Clock-driven + intégrations fiche Bien et /fiscalite (FIS-06)
 **UI hint:** yes
 
 ### Phase 7: Dashboard & Notifications d'échéances
