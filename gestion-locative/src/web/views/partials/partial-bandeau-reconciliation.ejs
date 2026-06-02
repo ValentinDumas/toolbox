@@ -1,0 +1,29 @@
+<%#
+  Partial — Bandeau réconciliation (UI-SPEC §S5 CRITIQUE, Plan 06-03 / D-T6.4).
+
+  Props :
+    - reconciliation : ResultatReconciliation { cohérent, nbPiecesModifiees, ecartsParCase[] }
+    - dateCloture : Temporal.PlainDate
+
+  Rendu conditionnel côté serveur : on ne passe ce partial QUE si
+  `reconciliation.nbPiecesModifiees > 0`. Aucune logique de masquage côté template.
+
+  AUCUN bouton "Re-calculer" (anti-pattern §11 strict — D-T6.4).
+  Le snapshot fait foi ; ce bandeau prévient seulement l'utilisateur.
+
+  Helpers attendus (preHandler) : formatDate.
+%>
+<aside
+  role="alert"
+  aria-live="assertive"
+  aria-label="Réconciliation données snapshot ≠ sources vivantes"
+  style="background: var(--couleur-destructive-bg); border-left: 4px solid var(--couleur-destructive); padding: 16px; margin-bottom: 24px;"
+>
+  <p>
+    <span aria-hidden="true">✕</span>
+    <strong>Données modifiées depuis la clôture du <%= formatDate(dateCloture) %>.</strong>
+    Le brouillon reflète la clôture (snapshot immuable).
+    <%= reconciliation.nbPiecesModifiees %> pièce<%= reconciliation.nbPiecesModifiees > 1 ? 's' : '' %>
+    ont changé depuis cette date. Les valeurs ci-dessous restent celles validées à la clôture.
+  </p>
+</aside>

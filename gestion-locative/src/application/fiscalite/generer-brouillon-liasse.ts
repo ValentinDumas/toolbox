@@ -26,11 +26,17 @@ import type { DeclarationAnnuelleId } from '../../domain/_shared/identifiants.js
 import type { DeclarationAnnuelle } from '../../domain/fiscalite/declaration-annuelle.js';
 import type { DeclarationAnnuelleRepository } from '../../domain/fiscalite/declaration-annuelle-repository.js';
 import type { BailleurRepository } from '../../domain/identite/bailleur-repository.js';
+import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
+import type { RecettesRepository } from '../../domain/fiscalite/recettes-repository.js';
+import type { ChargesRepository } from '../../domain/fiscalite/charges-repository.js';
+import type { TableauAmortissementRepository } from '../../domain/fiscalite/tableau-amortissement-repository.js';
 import type { MappingLiasseProvider } from '../../domain/fiscalite/liasse/mapping-liasse-provider.js';
+import { reconcilier, type ResultatReconciliation } from '../../domain/fiscalite/reconciliation.js';
 import type {
   AnnexeLiasse,
   BrouillonLiasseDto,
   CaseLiasseDef,
+  SourceDto,
   CaseLiasseDto,
   SectionLiasseDto,
   SourceCleSnapshot,
@@ -102,6 +108,11 @@ export interface GenererBrouillonLiasseDeps {
   readonly declRepo: DeclarationAnnuelleRepository;
   readonly bailleurRepo: BailleurRepository;
   readonly mappingProvider: MappingLiasseProvider;
+  /** Plan 06-03 — facultatifs : si fournis, la réconciliation + les sources sont calculées. */
+  readonly recettesRepo?: RecettesRepository;
+  readonly chargesRepo?: ChargesRepository;
+  readonly tableauAmortRepo?: TableauAmortissementRepository;
+  readonly bienRepo?: BienRepository;
 }
 
 interface ComposantSnapshotItem {
@@ -327,6 +338,101 @@ function construireSectionDto(
  * @throws RegimeMicroBicNonSupporteWave1 si `regimeApplique='micro_bic'` (Plan 02)
  * @throws MappingLiasseAbsent si le millésime n'est pas couvert (D-L6.3, propagé)
  */
+async function calculerReconciliationEtSources(
+  decl: DeclarationAnnuelle,
+  ctx: ContexteResolution,
+  deps: GenererBrouillonLiasseDeps,
+): Promise<{
+  reconciliation?: ResultatReconciliation;
+  sourcesParCase: Map<string, ReadonlyArray<SourceDto>>;
+}> {
+  const sourcesParCase = new Map<string, ReadonlyArray<SourceDto>>();
+  if (!deps.recettesRepo || !deps.chargesRepo || !deps.tableauAmortRepo || !deps.bienRepo) {
+    return { sourcesParCase };
+  }
+  // 1) Agréger les sources vivantes.
+  const sommeRecettesVivante = await deps.recettesRepo.sommeRecettesAnnuelles(
+    decl.bailleurId,
+    decl.exercice,
+  );
+  const chargesVivantes = await deps.chargesRepo.sommeChargesParCategorie(
+    decl.bailleurId,
+    decl.exercice,
+  );
+  const chargesAutresExternesVivantes = chargesVivantes.entretien_reparation.additionner(
+    chargesVivantes.charge_courante_periodique,
+  );
+
+  const biens = await deps.bienRepo.listerTous();
+  const tableauxParBien = await Promise.all(
+    biens.map(async (b) => ({
+      bien: b,
+      lignes: await deps.tableauAmortRepo!.listerParBienExercice(b.id, decl.exercice),
+    })),
+  );
+  const dotationVivante = tableauxParBien.reduce<Money>((acc, t) => {
+    const sumBien = t.lignes
+      .filter((l) => l.typeLigne === 'COMPOSANT')
+      .reduce<Money>((a, l) => a.additionner(l.dotationAppliquee), Money.zero());
+    return acc.additionner(sumBien);
+  }, Money.zero());
+
+  // 2) Construire snapshotMap + sourcesVivantesMap pour les cases mappées.
+  const snapshotMap = new Map<string, Money>();
+  const vivantMap = new Map<string, Money>();
+  const mapping = deps.mappingProvider.pour(decl.exercice);
+  for (const annexeCases of Object.values(mapping.sections)) {
+    for (const def of annexeCases) {
+      const vSnapshot = resoudreValeurCase(def.source, ctx);
+      if (vSnapshot === null) continue;
+      let vVivante: Money | null = null;
+      const detail: SourceDto[] = [];
+      if (def.source === 'recettesTotales') {
+        vVivante = sommeRecettesVivante;
+        detail.push({
+          type: 'recette',
+          label: `Encaissements ${decl.exercice} (cumulés)`,
+          url: `/encaissements?annee=${decl.exercice}`,
+          montant: sommeRecettesVivante,
+        });
+      } else if (def.source === 'chargesAutresExternes') {
+        vVivante = chargesAutresExternesVivantes;
+        detail.push({
+          type: 'charge',
+          label: `Charges déductibles ${decl.exercice} (entretien + charges courantes)`,
+          url: `/coffre?annee=${decl.exercice}`,
+          montant: chargesAutresExternesVivantes,
+        });
+      } else if (def.source === 'dotationAmortissement') {
+        vVivante = dotationVivante;
+        for (const { bien, lignes } of tableauxParBien) {
+          const sumBien = lignes
+            .filter((l) => l.typeLigne === 'COMPOSANT')
+            .reduce<Money>((a, l) => a.additionner(l.dotationAppliquee), Money.zero());
+          if (sumBien.toCentimes() > 0n) {
+            detail.push({
+              type: 'amortissement',
+              label: `Amortissement ${decl.exercice} — ${bien.adresse.enLigne()}`,
+              url: `/biens/${bien.id}/fiscalite/amortissement/${decl.exercice}`,
+              montant: sumBien,
+            });
+          }
+        }
+      }
+      if (vVivante !== null) {
+        snapshotMap.set(def.caseId, vSnapshot);
+        vivantMap.set(def.caseId, vVivante);
+        if (detail.length > 0) {
+          sourcesParCase.set(def.caseId, detail);
+        }
+      }
+    }
+  }
+
+  const reconciliation = reconcilier(snapshotMap, vivantMap);
+  return { reconciliation, sourcesParCase };
+}
+
 export async function genererBrouillonLiasse(
   commande: GenererBrouillonLiasseCommande,
   deps: GenererBrouillonLiasseDeps,
@@ -357,16 +463,30 @@ export async function genererBrouillonLiasse(
   // 5. Annexes rendues selon le régime (D-L6.2).
   const annexes: ReadonlyArray<AnnexeLiasse> =
     decl.regimeApplique === 'micro_bic' ? ANNEXES_MICRO : ANNEXES_REEL;
-  const sections = annexes.map((annexe) =>
-    construireSectionDto(annexe, mapping.sections[annexe], ctx, decl.exercice),
-  );
 
-  // 6. DTO racine.
+  // 6. Plan 06-03 — Calcul réconciliation + agrégation sources si deps fournies.
+  const { reconciliation, sourcesParCase } = await calculerReconciliationEtSources(decl, ctx, deps);
+
+  const sections = annexes.map((annexe) => {
+    const def = mapping.sections[annexe];
+    const cases = def.map((d): CaseLiasseDto => {
+      const baseCase = construireCaseDto(d, ctx);
+      const sources = sourcesParCase.get(d.caseId);
+      return sources ? { ...baseCase, sources } : baseCase;
+    });
+    const titre = `${TITRES_ANNEXES[annexe]} ${decl.exercice}`;
+    return annexe === '2033-A'
+      ? { titre, annexe, cases, bandeauPostesManuels: true }
+      : { titre, annexe, cases };
+  });
+
+  // 7. DTO racine.
   return {
     exercice: decl.exercice,
     regimeApplique: decl.regimeApplique,
     bailleurNom: bailleur.nomComplet,
     sections,
     clotureLe: decl.clotureLe,
+    ...(reconciliation ? { reconciliation } : {}),
   };
 }

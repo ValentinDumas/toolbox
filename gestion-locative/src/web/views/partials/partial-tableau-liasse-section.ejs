@@ -25,6 +25,7 @@
         <th scope="col">Case</th>
         <th scope="col">Libellé officiel</th>
         <th scope="col" class="numeric">Valeur</th>
+        <th scope="col">Sources</th>
       </tr>
     </thead>
     <tbody>
@@ -40,6 +41,12 @@
                 <%= c.mention || '—' %>
               </span>
             <% } %>
+          </td>
+          <td>
+            <%- include('partial-drill-down-sources', {
+              sources: c.sources || [],
+              nbSources: (c.sources || []).length
+            }) %>
           </td>
         </tr>
       <% }); %>

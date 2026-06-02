@@ -31,13 +31,18 @@ export interface LiasseRouteDeps {
   declRepo: DeclarationAnnuelleRepository;
   bailleurRepo: BailleurRepository;
   mappingProvider: MappingLiasseProvider;
+  // Plan 06-03 — facultatifs : si fournis, activent la traçabilité + la réconciliation
+  recettesRepo?: import('../../../domain/fiscalite/recettes-repository.js').RecettesRepository;
+  chargesRepo?: import('../../../domain/fiscalite/charges-repository.js').ChargesRepository;
+  tableauAmortRepo?: import('../../../domain/fiscalite/tableau-amortissement-repository.js').TableauAmortissementRepository;
+  bienRepo?: import('../../../domain/patrimoine/bien-repository.js').BienRepository;
 }
 
 export async function registerFiscaliteLiasseRoutes(
   app: FastifyInstance,
   deps: LiasseRouteDeps,
 ): Promise<void> {
-  const { declRepo, bailleurRepo, mappingProvider } = deps;
+  const { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo } = deps;
 
   /**
    * GET /fiscalite/declarations/:id/liasse
@@ -58,7 +63,7 @@ export async function registerFiscaliteLiasseRoutes(
       try {
         const dto = await genererBrouillonLiasse(
           { declarationId },
-          { declRepo, bailleurRepo, mappingProvider },
+          { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo },
         );
 
         return reply.view('pages/fiscalite/brouillon-liasse.ejs', {

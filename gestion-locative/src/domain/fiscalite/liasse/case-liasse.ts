@@ -89,12 +89,27 @@ export interface CaseLiasseDef {
  * - `valeur` est TOUJOURS dérivée du snapshot `DeclarationAnnuelle`, jamais recalculée
  *   côté UI (D-T6.4 + anti-pattern Phase 5 #3).
  */
+/**
+ * Source vivante drillable (Plan 06-03 / D-T6.1 / D-T6.2).
+ *
+ * `type` distingue les 3 catégories de pièces consommées (recette / charge / amortissement).
+ * `url` est un lien interne audit-friendly vers la pièce ou un listing filtré.
+ */
+export interface SourceDto {
+  readonly type: 'recette' | 'charge' | 'amortissement';
+  readonly label: string;
+  readonly url: string;
+  readonly montant: Money;
+}
+
 export interface CaseLiasseDto {
   readonly numero: string;
   readonly libelleOfficiel: string;
   readonly annexe: AnnexeLiasse;
   readonly valeur: Money | null;
   readonly mention?: string;
+  /** Plan 06-03 — Sources vivantes drillables (D-T6.1). Vide ou absent si case non sourceable. */
+  readonly sources?: ReadonlyArray<SourceDto>;
 }
 
 /**
@@ -125,4 +140,6 @@ export interface BrouillonLiasseDto {
   readonly bailleurNom: string;
   readonly sections: ReadonlyArray<SectionLiasseDto>;
   readonly clotureLe: Temporal.PlainDate;
+  /** Plan 06-03 — résultat de la réconciliation snapshot/vivant (D-T6.4). */
+  readonly reconciliation?: import('../reconciliation.js').ResultatReconciliation;
 }

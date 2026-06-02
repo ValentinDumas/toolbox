@@ -432,12 +432,16 @@ export async function creerApp(
     recapFiscalBuilder,
   });
 
-  // Phase 6 — BC Fiscalité (Plan 06-01 / FIS-05 Wave 1) : brouillon liasse 2031-SD + 2033-A/B/C/D
+  // Phase 6 — BC Fiscalité (Plan 06-01 + 06-02 + 06-03) : brouillon liasse + traçabilité + réconciliation
   const mappingLiasseProvider = new MappingLiasseProviderEnMemoire();
   await registerFiscaliteLiasseRoutes(app, {
     declRepo: declAnnuelleRepo,
     bailleurRepo,
     mappingProvider: mappingLiasseProvider,
+    recettesRepo,
+    chargesRepo,
+    tableauAmortRepo: tableauAmortissementRepo,
+    bienRepo: repo,
   });
 
   // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.4) : onboarding progressif S1

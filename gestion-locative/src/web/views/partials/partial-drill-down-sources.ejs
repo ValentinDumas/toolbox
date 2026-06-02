@@ -1,0 +1,30 @@
+<%#
+  Partial — Drill-down sources d'une case liasse (UI-SPEC §S4, Plan 06-03).
+
+  Props :
+    - sources : SourceDto[] — liste des pièces vivantes consommées par la case.
+    - nbSources : number — taille de la liste (économie côté template).
+
+  Zéro JS framework : `<details>` natif (UI-SPEC §S4 + RESEARCH §Pattern 11).
+  Si `nbSources === 0` → "—" neutre (case non sourceable, ex. dateCloture).
+
+  Helpers attendus (preHandler) : formatMoney.
+%>
+<% if (nbSources === 0) { %>
+  <span style="color: var(--couleur-neutre);">—</span>
+<% } else { %>
+  <details>
+    <summary role="button" class="secondary" style="padding: 8px 12px;">
+      Voir <%= nbSources %> source<%= nbSources > 1 ? 's' : '' %>
+    </summary>
+    <ul style="list-style: none; padding-left: 0; margin-top: 8px;">
+      <% sources.forEach(function(s) { %>
+        <li>
+          <a href="<%= s.url %>"><%= s.label %></a>
+          —
+          <%= formatMoney(s.montant) %>
+        </li>
+      <% }); %>
+    </ul>
+  </details>
+<% } %>
