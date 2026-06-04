@@ -31,6 +31,7 @@ export async function plugin(
     justificatifRepo?: JustificatifRepository;
     ticketRepo?: TicketTravauxRepository;
     cfeRepo?: DeclarationCfeRepository;
+    clock?: import('../../domain/_shared/clock.js').Clock;
   },
 ): Promise<void> {
 
@@ -135,12 +136,25 @@ export async function plugin(
       ? await listerDeclarationsCfeParBien({ bienId: bien.id }, { cfeRepo: opts.cfeRepo })
       : [];
 
+    // Plan 06-07 — Alertes CFE J-30 pour ce bien
+    let alertesCfeBien: import('../../domain/fiscalite/cfe/alerte-cfe-j30.js').AlerteCfe[] = [];
+    if (opts.cfeRepo && opts.clock) {
+      const { listerAlertesCfeActives } = await import(
+        '../../application/fiscalite/lister-alertes-cfe-actives.js'
+      );
+      alertesCfeBien = await listerAlertesCfeActives(
+        { bienId: bien.id },
+        { cfeRepo: opts.cfeRepo, bienRepo: opts.repo, clock: opts.clock },
+      );
+    }
+
     return reply.view('pages/biens/detail.ejs', {
       bien,
       banniereSuccess,
       documentsBien,
       ticketsBien,
       declarationsCfe,
+      alertesCfeBien,
       formaterMillesimeCfe,
     });
   });

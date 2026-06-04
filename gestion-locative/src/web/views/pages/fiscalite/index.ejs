@@ -42,6 +42,14 @@
   }) %>
 <% } %>
 
+<% if (locals.alertesCfe && alertesCfe.length > 0) { %>
+  <section aria-label="Échéances CFE">
+    <% alertesCfe.forEach(function(alerte) { %>
+      <%- include('../../partials/partial-bandeau-cfe-echeance', { alerte: alerte }) %>
+    <% }); %>
+  </section>
+<% } %>
+
 <h1>Fiscalité LMNP — Exercice <%= anneeCourante %></h1>
 
 <section>

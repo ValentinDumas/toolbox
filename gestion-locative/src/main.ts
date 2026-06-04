@@ -244,7 +244,7 @@ export async function creerApp(
 
   await app.register(racinePlugin, { db });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
-  await app.register(biensPlugin, { repo, justificatifRepo, ticketRepo, cfeRepo });
+  await app.register(biensPlugin, { repo, justificatifRepo, ticketRepo, cfeRepo, clock });
   await app.register(async (instance) => {
     await registerBiensCfeRoutes(instance, { bienRepo: repo, cfeRepo, clock });
   });
@@ -412,7 +412,8 @@ export async function creerApp(
     db,
   });
 
-  // Phase 5 — BC Fiscalité (Plan 08) : page racine /fiscalite (index.ejs locked Plan 08 — placeholder Plan 06 remplacé)
+  // Phase 5 — BC Fiscalité (Plan 08) : page racine /fiscalite
+  // Phase 6 (Plan 06-07) : alertes CFE J-30 sur /fiscalite (cfeRepo + bienRepo facultatifs)
   await registerFiscaliteRacineRoute(app, {
     bailleurRepo,
     declRepo: declAnnuelleRepo,
@@ -420,6 +421,8 @@ export async function creerApp(
     recettesRepo,
     regleFiscale,
     clock,
+    cfeRepo,
+    bienRepo: repo,
   });
 
   // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.3) : exports CSV + PDF

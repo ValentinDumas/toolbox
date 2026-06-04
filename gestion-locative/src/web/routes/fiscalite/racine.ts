@@ -36,13 +36,16 @@ export interface RacineRouteDeps {
   recettesRepo: RecettesRepository;
   regleFiscale: RegleFiscaleProvider;
   clock: Clock;
+  // Plan 06-07 — alertes CFE J-30 (facultatif, no-op si absent)
+  cfeRepo?: import('../../../domain/fiscalite/cfe/declaration-cfe-repository.js').DeclarationCfeRepository;
+  bienRepo?: import('../../../domain/patrimoine/bien-repository.js').BienRepository;
 }
 
 export async function registerFiscaliteRacineRoute(
   app: FastifyInstance,
   deps: RacineRouteDeps,
 ): Promise<void> {
-  const { bailleurRepo, declRepo, justificatifRepo, recettesRepo, regleFiscale, clock } = deps;
+  const { bailleurRepo, declRepo, justificatifRepo, recettesRepo, regleFiscale, clock, cfeRepo, bienRepo } = deps;
 
   app.get('/fiscalite', async (req, reply) => {
     const bailleur = await bailleurRepo.trouver();
@@ -85,6 +88,15 @@ export async function registerFiscaliteRacineRoute(
       anneeCourante,
     );
 
+    // Plan 06-07 — Alertes CFE J-30 (D-CFE6.5)
+    let alertesCfe: import('../../../domain/fiscalite/cfe/alerte-cfe-j30.js').AlerteCfe[] = [];
+    if (cfeRepo && bienRepo) {
+      const { listerAlertesCfeActives } = await import(
+        '../../../application/fiscalite/lister-alertes-cfe-actives.js'
+      );
+      alertesCfe = await listerAlertesCfeActives({}, { cfeRepo, bienRepo, clock });
+    }
+
     return reply.view('pages/fiscalite/index', {
       bailleur,
       declarations,
@@ -92,6 +104,7 @@ export async function registerFiscaliteRacineRoute(
       verdictLmp,
       compteurNonQualifies,
       afficherOnboardingBanner,
+      alertesCfe,
     });
   });
 }

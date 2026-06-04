@@ -283,6 +283,12 @@
   <% } %>
 </section>
 
+<% if (locals.alertesCfeBien && alertesCfeBien.length > 0) { %>
+  <% alertesCfeBien.forEach(function(alerte) { %>
+    <%- include('../../partials/partial-bandeau-cfe-echeance', { alerte: alerte }) %>
+  <% }); %>
+<% } %>
+
 <section aria-label="Déclarations CFE — <%= bien.adresse.enLigne() %>">
   <h2>Cotisation Foncière des Entreprises (CFE)</h2>
   <% if (!locals.declarationsCfe || declarationsCfe.length === 0) { %>

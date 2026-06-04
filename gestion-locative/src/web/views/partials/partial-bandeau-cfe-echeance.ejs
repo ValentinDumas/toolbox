@@ -1,0 +1,69 @@
+<%#
+  Partial — Bandeau échéance CFE J-30 (UI-SPEC §S10, Plan 06-07 / D-CFE6.5).
+
+  Props :
+    - alerte : AlerteCfe { joursRestants, dateEcheancePaiement, statutCfe, millesime, bienId }
+
+  3 variantes visuelles selon `joursRestants` :
+    - J-30 à J-8 : warning (bord gauche orange).
+    - J-7 à J-0  : warning forte (fond orange clair + bord plus marqué).
+    - J+1 et plus : destructive (bord rouge — échéance dépassée).
+
+  Lien externe vers impots.gouv.fr avec `target="_blank" rel="noopener noreferrer"` (V9 ASVS).
+
+  Helpers attendus (preHandler) : formatDate.
+%>
+<%
+  const j = alerte.joursRestants;
+  let variant, libelleEtat, role;
+  if (j < 0) {
+    variant = 'destructive';
+    libelleEtat = "Échéance dépassée depuis " + Math.abs(j) + " jour" + (Math.abs(j) > 1 ? 's' : '');
+    role = 'alert';
+  } else if (j === 0) {
+    variant = 'destructive';
+    libelleEtat = "Échéance aujourd'hui";
+    role = 'alert';
+  } else if (j <= 7) {
+    variant = 'warning-fort';
+    libelleEtat = "Échéance dans " + j + " jour" + (j > 1 ? 's' : '');
+    role = 'alert';
+  } else {
+    variant = 'warning';
+    libelleEtat = "Échéance dans " + j + " jours";
+    role = 'status';
+  }
+
+  const styleBase = "padding: 16px; margin-bottom: 16px;";
+  let styleVariant;
+  if (variant === 'destructive') {
+    styleVariant = "background: var(--couleur-destructive-bg); border-left: 4px solid var(--couleur-destructive);";
+  } else if (variant === 'warning-fort') {
+    styleVariant = "background: var(--couleur-warning-bg, #FFF4E6); border-left: 4px solid var(--couleur-warning, #C2410C);";
+  } else {
+    styleVariant = "border-left: 4px solid var(--couleur-warning, #C2410C); padding-left: 12px;";
+  }
+%>
+<aside
+  role="<%= role %>"
+  <% if (role === 'alert') { %>aria-live="assertive"<% } else { %>aria-live="polite"<% } %>
+  aria-label="Alerte CFE <%= alerte.millesime %>"
+  style="<%= styleBase %> <%= styleVariant %>"
+>
+  <p>
+    <strong>CFE <%= alerte.millesime %> — <%= libelleEtat %>.</strong>
+    Échéance le <%= formatDate(alerte.dateEcheancePaiement) %>.
+  </p>
+  <p>
+    <a
+      href="https://www.impots.gouv.fr/professionnel/cotisation-fonciere-des-entreprises-cfe"
+      target="_blank"
+      rel="noopener noreferrer"
+      role="button"
+    >Régler la CFE sur impots.gouv.fr</a>
+    &nbsp;
+    <a href="/biens/<%= alerte.bienId %>/cfe/<%= alerte.declarationCfeId %>/editer">
+      Mettre à jour le statut
+    </a>
+  </p>
+</aside>
