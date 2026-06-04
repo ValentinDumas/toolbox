@@ -33,6 +33,13 @@
 
 <%- include('../../partials/partial-bandeau-brouillon-liasse', { exercice: dto.exercice }) %>
 
+<% if (dto.motifRectification && dto.urlOriginale) { %>
+  <%- include('../../partials/partial-bandeau-rectificative', {
+    motif: dto.motifRectification,
+    urlOriginale: dto.urlOriginale
+  }) %>
+<% } %>
+
 <% if (dto.reconciliation && !dto.reconciliation.cohérent) { %>
   <%- include('../../partials/partial-bandeau-reconciliation', {
     reconciliation: dto.reconciliation,

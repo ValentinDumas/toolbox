@@ -142,4 +142,8 @@ export interface BrouillonLiasseDto {
   readonly clotureLe: Temporal.PlainDate;
   /** Plan 06-03 — résultat de la réconciliation snapshot/vivant (D-T6.4). */
   readonly reconciliation?: import('../reconciliation.js').ResultatReconciliation;
+  /** Plan 06-04 — si le brouillon est rendu depuis une DeclarationCorrigee. */
+  readonly motifRectification?: string;
+  /** Plan 06-04 — URL vers la liasse originale (audit-friendly). */
+  readonly urlOriginale?: string;
 }

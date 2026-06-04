@@ -1,0 +1,24 @@
+<%#
+  Partial — Bandeau S6 liasse rectificative (UI-SPEC §S6, Plan 06-04 / D-L6.5).
+
+  Props :
+    - motif : string — motif de la correction (saisi utilisateur, échappé par EJS).
+    - urlOriginale : string — URL vers la liasse originale.
+
+  Copywriting EXACT UI-SPEC. Aucun bouton "supprimer la rectificative" (append-only).
+%>
+<aside
+  role="status"
+  aria-live="polite"
+  aria-label="Liasse rectificative"
+  style="background: var(--couleur-warning-bg, #FFF4E6); border-left: 4px solid var(--couleur-warning, #C2410C); padding: 16px; margin-bottom: 24px;"
+>
+  <p>
+    <span aria-hidden="true">⚠</span>
+    <strong>Liasse rectificative — motif : <%= motif %>.</strong>
+    Cette version remplace le brouillon précédent. La déclaration originale reste consultable.
+  </p>
+  <p>
+    <a href="<%= urlOriginale %>">Voir la déclaration originale</a>
+  </p>
+</aside>

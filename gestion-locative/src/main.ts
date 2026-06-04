@@ -445,6 +445,7 @@ export async function creerApp(
     chargesRepo,
     tableauAmortRepo: tableauAmortissementRepo,
     bienRepo: repo,
+    declCorrigeeRepo: declCorrRepo,
   });
 
   // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.4) : onboarding progressif S1

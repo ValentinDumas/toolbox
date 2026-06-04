@@ -36,6 +36,8 @@ export interface LiasseRouteDeps {
   chargesRepo?: import('../../../domain/fiscalite/charges-repository.js').ChargesRepository;
   tableauAmortRepo?: import('../../../domain/fiscalite/tableau-amortissement-repository.js').TableauAmortissementRepository;
   bienRepo?: import('../../../domain/patrimoine/bien-repository.js').BienRepository;
+  // Plan 06-04 — facultatif (requis pour la route /declarations-corrigees/:id/liasse)
+  declCorrigeeRepo?: import('../../../domain/fiscalite/declaration-annuelle-repository.js').DeclarationCorrigeeRepository;
 }
 
 export async function registerFiscaliteLiasseRoutes(
@@ -55,44 +57,60 @@ export async function registerFiscaliteLiasseRoutes(
    *   - 422 : mapping millésime non couvert (D-L6.3).
    *           Page d'erreur dédiée avec copywriting UI-SPEC.
    */
+  const handleErreurs = (err: unknown, reply: import('fastify').FastifyReply) => {
+    if (err instanceof DeclarationIntrouvableLiasse) {
+      return reply.code(404).view('pages/erreur.ejs', {
+        message: 'Déclaration introuvable.',
+        navActive: 'fiscalite',
+      });
+    }
+    if (err instanceof BailleurIntrouvableLiasse) {
+      return reply.code(404).view('pages/erreur.ejs', {
+        message: 'Bailleur non configuré — configurez votre profil avant de consulter une liasse.',
+        navActive: 'fiscalite',
+      });
+    }
+    if (err instanceof MappingLiasseAbsent) {
+      return reply.code(422).view('pages/erreur.ejs', {
+        message:
+          `Mapping de la liasse non disponible pour l'année ${err.millesime}. `
+          + "Mettez à jour l'application — le mapping est revu chaque janvier après "
+          + 'publication des nouveautés fiscales (loi de finances).',
+        navActive: 'fiscalite',
+      });
+    }
+    throw err;
+  };
+
   app.get<{ Params: { id: string } }>(
     '/fiscalite/declarations/:id/liasse',
     async (req, reply) => {
       const declarationId = req.params.id as DeclarationAnnuelleId;
-
       try {
         const dto = await genererBrouillonLiasse(
           { declarationId },
-          { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo },
+          { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo, declCorrigeeRepo: deps.declCorrigeeRepo },
         );
-
-        return reply.view('pages/fiscalite/brouillon-liasse.ejs', {
-          dto,
-          navActive: 'fiscalite',
-        });
+        return reply.view('pages/fiscalite/brouillon-liasse.ejs', { dto, navActive: 'fiscalite' });
       } catch (err) {
-        if (err instanceof DeclarationIntrouvableLiasse) {
-          return reply.code(404).view('pages/erreur.ejs', {
-            message: 'Déclaration introuvable.',
-            navActive: 'fiscalite',
-          });
-        }
-        if (err instanceof BailleurIntrouvableLiasse) {
-          return reply.code(404).view('pages/erreur.ejs', {
-            message: 'Bailleur non configuré — configurez votre profil avant de consulter une liasse.',
-            navActive: 'fiscalite',
-          });
-        }
-        if (err instanceof MappingLiasseAbsent) {
-          return reply.code(422).view('pages/erreur.ejs', {
-            message:
-              `Mapping de la liasse non disponible pour l'année ${err.millesime}. `
-              + "Mettez à jour l'application — le mapping est revu chaque janvier après "
-              + 'publication des nouveautés fiscales (loi de finances).',
-            navActive: 'fiscalite',
-          });
-        }
-        throw err;
+        return handleErreurs(err, reply);
+      }
+    },
+  );
+
+  // Plan 06-04 — Route liasse rectificative depuis DeclarationCorrigee.
+  app.get<{ Params: { id: string } }>(
+    '/fiscalite/declarations-corrigees/:id/liasse',
+    async (req, reply) => {
+      const declarationCorrigeeId = req.params.id as import('../../../domain/_shared/identifiants.js').DeclarationCorrigeeId;
+      try {
+        const dto = await genererBrouillonLiasse(
+          { declarationCorrigeeId },
+          { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo, declCorrigeeRepo: deps.declCorrigeeRepo },
+        );
+        return reply.view('pages/fiscalite/brouillon-liasse.ejs', { dto, navActive: 'fiscalite' });
+      } catch (err) {
+        return handleErreurs(err, reply);
       }
     },
   );

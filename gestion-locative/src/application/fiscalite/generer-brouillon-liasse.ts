@@ -22,9 +22,10 @@
  */
 
 import { Money } from '../../domain/_shared/money.js';
-import type { DeclarationAnnuelleId } from '../../domain/_shared/identifiants.js';
-import type { DeclarationAnnuelle } from '../../domain/fiscalite/declaration-annuelle.js';
-import type { DeclarationAnnuelleRepository } from '../../domain/fiscalite/declaration-annuelle-repository.js';
+import type { DeclarationAnnuelleId, DeclarationCorrigeeId } from '../../domain/_shared/identifiants.js';
+import { DeclarationAnnuelle } from '../../domain/fiscalite/declaration-annuelle.js';
+import type { DeclarationAnnuelleRepository, DeclarationCorrigeeRepository } from '../../domain/fiscalite/declaration-annuelle-repository.js';
+import { REGLES_2026 } from '../../domain/fiscalite/regles/regles-2026.js';
 import type { BailleurRepository } from '../../domain/identite/bailleur-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { RecettesRepository } from '../../domain/fiscalite/recettes-repository.js';
@@ -100,9 +101,9 @@ export class RegimeMicroBicNonSupporteWave1 extends Error {
   }
 }
 
-export interface GenererBrouillonLiasseCommande {
-  readonly declarationId: DeclarationAnnuelleId;
-}
+export type GenererBrouillonLiasseCommande =
+  | { readonly declarationId: DeclarationAnnuelleId }
+  | { readonly declarationCorrigeeId: DeclarationCorrigeeId };
 
 export interface GenererBrouillonLiasseDeps {
   readonly declRepo: DeclarationAnnuelleRepository;
@@ -113,6 +114,8 @@ export interface GenererBrouillonLiasseDeps {
   readonly chargesRepo?: ChargesRepository;
   readonly tableauAmortRepo?: TableauAmortissementRepository;
   readonly bienRepo?: BienRepository;
+  /** Plan 06-04 — facultatif, requis pour la commande `{ declarationCorrigeeId }`. */
+  readonly declCorrigeeRepo?: DeclarationCorrigeeRepository;
 }
 
 interface ComposantSnapshotItem {
@@ -433,17 +436,69 @@ async function calculerReconciliationEtSources(
   return { reconciliation, sourcesParCase };
 }
 
+/**
+ * Construit un snapshot DeclarationAnnuelle-like à partir d'une DeclarationCorrigee
+ * + sa déclaration originale (Plan 06-04 / D-L6.5).
+ *
+ * La corrigée ne porte pas `bailleurId`, `exercice`, `composantsSnapshot`, `clotureLe` —
+ * ces champs viennent de l'originale (append-only Phase 5).
+ */
+async function chargerDepuisCorrigee(
+  declarationCorrigeeId: DeclarationCorrigeeId,
+  deps: GenererBrouillonLiasseDeps,
+): Promise<{ decl: DeclarationAnnuelle; declarationOriginaleId: DeclarationAnnuelleId; motif: string }> {
+  if (!deps.declCorrigeeRepo) {
+    throw new Error('declCorrigeeRepo dep manquante pour la commande declarationCorrigeeId');
+  }
+  const corr = await deps.declCorrigeeRepo.trouverParId(declarationCorrigeeId);
+  if (corr === null) {
+    throw new DeclarationIntrouvableLiasse(declarationCorrigeeId);
+  }
+  const originale = await deps.declRepo.trouverParId(corr.declarationOriginaleId);
+  if (originale === null) {
+    throw new DeclarationIntrouvableLiasse(corr.declarationOriginaleId);
+  }
+  const declSynth = DeclarationAnnuelle.creer({
+    id: corr.id as unknown as DeclarationAnnuelleId,
+    bailleurId: originale.bailleurId,
+    exercice: originale.exercice,
+    regimeApplique: corr.regimeApplique,
+    recettesTotales: corr.recettesTotales,
+    chargesQualifieesParCategorie: corr.chargesQualifieesParCategorie,
+    dotationAmortissement: corr.dotationAmortissement,
+    ardGenere: corr.ardGenere,
+    ardConsomme: corr.ardConsomme,
+    revenusFoyerSnapshot: corr.revenusFoyerSnapshot,
+    statutLmnpLmp: corr.statutLmnpLmp,
+    composantsSnapshot: originale.composantsSnapshot,
+    clotureLe: originale.clotureLe,
+    seuilLmpRecettes: REGLES_2026.SEUIL_LMP_RECETTES,
+  });
+  return { decl: declSynth, declarationOriginaleId: corr.declarationOriginaleId, motif: corr.motif };
+}
+
 export async function genererBrouillonLiasse(
   commande: GenererBrouillonLiasseCommande,
   deps: GenererBrouillonLiasseDeps,
 ): Promise<BrouillonLiasseDto> {
-  const { declarationId } = commande;
   const { declRepo, bailleurRepo, mappingProvider } = deps;
 
-  // 1. Charger le snapshot — source unique de vérité pour les valeurs (D-T6.4).
-  const decl = await declRepo.trouverParId(declarationId);
-  if (decl === null) {
-    throw new DeclarationIntrouvableLiasse(declarationId);
+  let decl: DeclarationAnnuelle;
+  let motifRectification: string | undefined;
+  let urlOriginale: string | undefined;
+
+  if ('declarationCorrigeeId' in commande) {
+    const r = await chargerDepuisCorrigee(commande.declarationCorrigeeId, deps);
+    decl = r.decl;
+    motifRectification = r.motif;
+    urlOriginale = `/fiscalite/declarations/${r.declarationOriginaleId}/liasse`;
+  } else {
+    // 1. Charger le snapshot — source unique de vérité pour les valeurs (D-T6.4).
+    const loaded = await declRepo.trouverParId(commande.declarationId);
+    if (loaded === null) {
+      throw new DeclarationIntrouvableLiasse(commande.declarationId);
+    }
+    decl = loaded;
   }
 
   // 2. Charger le bailleur singleton (mention sur le brouillon).
@@ -488,5 +543,7 @@ export async function genererBrouillonLiasse(
     sections,
     clotureLe: decl.clotureLe,
     ...(reconciliation ? { reconciliation } : {}),
+    ...(motifRectification ? { motifRectification } : {}),
+    ...(urlOriginale ? { urlOriginale } : {}),
   };
 }

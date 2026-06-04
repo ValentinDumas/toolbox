@@ -221,4 +221,100 @@ describe('Route GET /fiscalite/declarations/:id/liasse (Phase 6 / FIS-05 Wave 1)
     // Recettes brutes (30 000 € — pas le net après abattement 15 000 €)
     expect(res.body).toMatch(/30[\s ]?000,00/);
   });
+
+  // ─── Plan 06-04 — Liasse rectificative depuis DeclarationCorrigee (D-L6.5) ───
+  it('200 rectificative — bandeau S6 visible + motif + lien vers originale', async () => {
+    const { DeclarationCorrigee } = await import(
+      '../../../src/domain/fiscalite/declaration-corrigee.js'
+    );
+    const { DeclarationCorrigeeRepositorySqlite } = await import(
+      '../../../src/infrastructure/repositories/declaration-corrigee-repository-sqlite.js'
+    );
+    ctx = await setupAvecDeclarationReel();
+
+    const corrRepo = new DeclarationCorrigeeRepositorySqlite(ctx.db);
+    const corr = DeclarationCorrigee.creer({
+      declarationOriginaleId: ctx.declarationId,
+      motif: 'Oubli charge syndic',
+      regimeApplique: 'reel',
+      recettesTotales: Money.fromEuros(12_000),
+      chargesQualifieesParCategorie: {
+        entretien_reparation: Money.fromEuros(1_800),
+        amelioration: Money.zero(),
+        charge_courante_periodique: Money.fromEuros(500),
+        non_deductible: Money.zero(),
+        non_qualifie: Money.zero(),
+      },
+      dotationAmortissement: Money.fromEuros(3_500),
+      ardGenere: Money.zero(),
+      ardConsomme: Money.zero(),
+      revenusFoyerSnapshot: Money.fromEuros(40_000),
+      statutLmnpLmp: 'lmnp_confirme',
+      creeLe: Temporal.PlainDateTime.from('2026-12-31T10:00:00'),
+    });
+    await corrRepo.enregistrer(corr);
+
+    const res = await ctx.app.inject({
+      method: 'GET',
+      url: `/fiscalite/declarations-corrigees/${corr.id}/liasse`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('Liasse rectificative — motif : Oubli charge syndic');
+    expect(res.body).toContain(`/fiscalite/declarations/${ctx.declarationId}/liasse`);
+    expect(res.body).toContain('Voir la déclaration originale');
+  });
+
+  it("200 originale post-rectification — pas de bandeau rectificative (audit-friendly)", async () => {
+    const { DeclarationCorrigee } = await import(
+      '../../../src/domain/fiscalite/declaration-corrigee.js'
+    );
+    const { DeclarationCorrigeeRepositorySqlite } = await import(
+      '../../../src/infrastructure/repositories/declaration-corrigee-repository-sqlite.js'
+    );
+    ctx = await setupAvecDeclarationReel();
+    const corrRepo = new DeclarationCorrigeeRepositorySqlite(ctx.db);
+    await corrRepo.enregistrer(
+      DeclarationCorrigee.creer({
+        declarationOriginaleId: ctx.declarationId,
+        motif: 'test',
+        regimeApplique: 'reel',
+        recettesTotales: Money.fromEuros(12_000),
+        chargesQualifieesParCategorie: {
+          entretien_reparation: Money.zero(),
+          amelioration: Money.zero(),
+          charge_courante_periodique: Money.zero(),
+          non_deductible: Money.zero(),
+          non_qualifie: Money.zero(),
+        },
+        dotationAmortissement: Money.zero(),
+        ardGenere: Money.zero(),
+        ardConsomme: Money.zero(),
+        revenusFoyerSnapshot: Money.fromEuros(40_000),
+        statutLmnpLmp: 'lmnp_confirme',
+        creeLe: Temporal.PlainDateTime.from('2026-12-31T10:00:00'),
+      }),
+    );
+
+    const res = await ctx.app.inject({
+      method: 'GET',
+      url: `/fiscalite/declarations/${ctx.declarationId}/liasse`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).not.toContain('Liasse rectificative');
+  });
+
+  it('404 rectificative — id introuvable', async () => {
+    ctx = await setupAvecDeclarationReel();
+    const inconnu = crypto.randomUUID();
+
+    const res = await ctx.app.inject({
+      method: 'GET',
+      url: `/fiscalite/declarations-corrigees/${inconnu}/liasse`,
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toContain('Déclaration introuvable');
+  });
 });
