@@ -54,6 +54,7 @@ import { plugin as racinePlugin } from './web/routes/racine.js';
 import { plugin as biensPlugin } from './web/routes/biens.js';
 import { registerBiensCfeRoutes } from './web/routes/biens/cfe.js';
 import { DeclarationCfeRepositorySqlite } from './infrastructure/repositories/declaration-cfe-repository-sqlite.js';
+import { BrouillonLiasseBuilderPdfmake } from './infrastructure/pdf/brouillon-liasse-builder-pdfmake.js';
 import { plugin as locatairesPlugin } from './web/routes/locataires.js';
 import { plugin as bauxPlugin } from './web/routes/baux.js';
 import { plugin as wizardPlugin } from './web/routes/wizard.js';
@@ -437,6 +438,7 @@ export async function creerApp(
 
   // Phase 6 — BC Fiscalité (Plan 06-01 + 06-02 + 06-03) : brouillon liasse + traçabilité + réconciliation
   const mappingLiasseProvider = new MappingLiasseProviderEnMemoire();
+  const brouillonLiasseBuilder = new BrouillonLiasseBuilderPdfmake();
   await registerFiscaliteLiasseRoutes(app, {
     declRepo: declAnnuelleRepo,
     bailleurRepo,
@@ -446,6 +448,8 @@ export async function creerApp(
     tableauAmortRepo: tableauAmortissementRepo,
     bienRepo: repo,
     declCorrigeeRepo: declCorrRepo,
+    brouillonLiasseBuilder,
+    pdfRenderer,
   });
 
   // Phase 5 — BC Fiscalité (Plan 07 D-FIS-G5.4) : onboarding progressif S1

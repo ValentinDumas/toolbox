@@ -60,4 +60,23 @@
   }) %>
 <% }); %>
 
+<%
+  // Plan 06-05 — Section Exports (UI-SPEC §S7).
+  // dtoId + dtoIsRectificative sont injectés par la route ; on choisit l'URL appropriée.
+  const exportBase = locals.dtoIsRectificative
+    ? '/fiscalite/declarations-corrigees/' + locals.dtoId + '/liasse'
+    : '/fiscalite/declarations/' + locals.dtoId + '/liasse';
+%>
+<section aria-label="Exports brouillon liasse" style="margin-top: 32px;">
+  <h3>Exports</h3>
+  <p>
+    <a href="<%= exportBase %>.pdf" role="button" style="padding: 12px 16px; min-height: 44px;">Télécharger PDF</a>
+    &nbsp;
+    <a href="<%= exportBase %>.csv" role="button" class="secondary outline" style="padding: 12px 16px; min-height: 44px;">Télécharger CSV (expert-comptable)</a>
+  </p>
+  <p style="font-size: 14px; color: var(--couleur-neutre);">
+    Le PDF est destiné à l'archivage. Le CSV est destiné à la vérification par votre expert-comptable (colonne « sources » incluse).
+  </p>
+</section>
+
 <%- include('../../partials/layout-fin') %>

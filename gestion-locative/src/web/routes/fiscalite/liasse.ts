@@ -38,6 +38,9 @@ export interface LiasseRouteDeps {
   bienRepo?: import('../../../domain/patrimoine/bien-repository.js').BienRepository;
   // Plan 06-04 — facultatif (requis pour la route /declarations-corrigees/:id/liasse)
   declCorrigeeRepo?: import('../../../domain/fiscalite/declaration-annuelle-repository.js').DeclarationCorrigeeRepository;
+  // Plan 06-05 — facultatifs (requis pour les routes .pdf et .csv)
+  brouillonLiasseBuilder?: import('../../../domain/fiscalite/liasse/brouillon-liasse-builder.js').BrouillonLiasseBuilder;
+  pdfRenderer?: import('../../../domain/encaissements/pdf-renderer.js').PdfRenderer;
 }
 
 export async function registerFiscaliteLiasseRoutes(
@@ -82,16 +85,30 @@ export async function registerFiscaliteLiasseRoutes(
     throw err;
   };
 
+  // Helper : deps complets pour appeler les use cases.
+  const useCaseDeps = {
+    declRepo,
+    bailleurRepo,
+    mappingProvider,
+    recettesRepo,
+    chargesRepo,
+    tableauAmortRepo,
+    bienRepo,
+    declCorrigeeRepo: deps.declCorrigeeRepo,
+  };
+
   app.get<{ Params: { id: string } }>(
     '/fiscalite/declarations/:id/liasse',
     async (req, reply) => {
       const declarationId = req.params.id as DeclarationAnnuelleId;
       try {
-        const dto = await genererBrouillonLiasse(
-          { declarationId },
-          { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo, declCorrigeeRepo: deps.declCorrigeeRepo },
-        );
-        return reply.view('pages/fiscalite/brouillon-liasse.ejs', { dto, navActive: 'fiscalite' });
+        const dto = await genererBrouillonLiasse({ declarationId }, useCaseDeps);
+        return reply.view('pages/fiscalite/brouillon-liasse.ejs', {
+          dto,
+          dtoId: declarationId,
+          dtoIsRectificative: false,
+          navActive: 'fiscalite',
+        });
       } catch (err) {
         return handleErreurs(err, reply);
       }
@@ -104,14 +121,97 @@ export async function registerFiscaliteLiasseRoutes(
     async (req, reply) => {
       const declarationCorrigeeId = req.params.id as import('../../../domain/_shared/identifiants.js').DeclarationCorrigeeId;
       try {
-        const dto = await genererBrouillonLiasse(
-          { declarationCorrigeeId },
-          { declRepo, bailleurRepo, mappingProvider, recettesRepo, chargesRepo, tableauAmortRepo, bienRepo, declCorrigeeRepo: deps.declCorrigeeRepo },
-        );
-        return reply.view('pages/fiscalite/brouillon-liasse.ejs', { dto, navActive: 'fiscalite' });
+        const dto = await genererBrouillonLiasse({ declarationCorrigeeId }, useCaseDeps);
+        return reply.view('pages/fiscalite/brouillon-liasse.ejs', {
+          dto,
+          dtoId: declarationCorrigeeId,
+          dtoIsRectificative: true,
+          navActive: 'fiscalite',
+        });
       } catch (err) {
         return handleErreurs(err, reply);
       }
     },
   );
+
+  // Plan 06-05 — Exports PDF + CSV (originale + rectificative) si deps PDF câblées.
+  if (deps.brouillonLiasseBuilder && deps.pdfRenderer) {
+    const { exporterPdfBrouillonLiasse } = await import(
+      '../../../application/fiscalite/exporter-pdf-brouillon-liasse.js'
+    );
+    const { exporterCsvBrouillonLiasse } = await import(
+      '../../../application/fiscalite/exporter-csv-brouillon-liasse.js'
+    );
+    const { encodeFilenameRFC6266 } = await import('../../helpers/content-disposition.js');
+
+    const pdfDeps = {
+      ...useCaseDeps,
+      brouillonLiasseBuilder: deps.brouillonLiasseBuilder,
+      pdfRenderer: deps.pdfRenderer,
+    };
+
+    app.get<{ Params: { id: string } }>(
+      '/fiscalite/declarations/:id/liasse.pdf',
+      async (req, reply) => {
+        const declarationId = req.params.id as DeclarationAnnuelleId;
+        try {
+          const { buffer, nomFichier } = await exporterPdfBrouillonLiasse({ declarationId }, pdfDeps);
+          return reply
+            .type('application/pdf')
+            .header('Content-Disposition', encodeFilenameRFC6266(nomFichier))
+            .send(buffer);
+        } catch (err) {
+          return handleErreurs(err, reply);
+        }
+      },
+    );
+
+    app.get<{ Params: { id: string } }>(
+      '/fiscalite/declarations/:id/liasse.csv',
+      async (req, reply) => {
+        const declarationId = req.params.id as DeclarationAnnuelleId;
+        try {
+          const { contenu, nomFichier } = await exporterCsvBrouillonLiasse({ declarationId }, useCaseDeps);
+          return reply
+            .type('text/csv; charset=utf-8')
+            .header('Content-Disposition', encodeFilenameRFC6266(nomFichier))
+            .send(contenu);
+        } catch (err) {
+          return handleErreurs(err, reply);
+        }
+      },
+    );
+
+    app.get<{ Params: { id: string } }>(
+      '/fiscalite/declarations-corrigees/:id/liasse.pdf',
+      async (req, reply) => {
+        const declarationCorrigeeId = req.params.id as import('../../../domain/_shared/identifiants.js').DeclarationCorrigeeId;
+        try {
+          const { buffer, nomFichier } = await exporterPdfBrouillonLiasse({ declarationCorrigeeId }, pdfDeps);
+          return reply
+            .type('application/pdf')
+            .header('Content-Disposition', encodeFilenameRFC6266(nomFichier))
+            .send(buffer);
+        } catch (err) {
+          return handleErreurs(err, reply);
+        }
+      },
+    );
+
+    app.get<{ Params: { id: string } }>(
+      '/fiscalite/declarations-corrigees/:id/liasse.csv',
+      async (req, reply) => {
+        const declarationCorrigeeId = req.params.id as import('../../../domain/_shared/identifiants.js').DeclarationCorrigeeId;
+        try {
+          const { contenu, nomFichier } = await exporterCsvBrouillonLiasse({ declarationCorrigeeId }, useCaseDeps);
+          return reply
+            .type('text/csv; charset=utf-8')
+            .header('Content-Disposition', encodeFilenameRFC6266(nomFichier))
+            .send(contenu);
+        } catch (err) {
+          return handleErreurs(err, reply);
+        }
+      },
+    );
+  }
 }
