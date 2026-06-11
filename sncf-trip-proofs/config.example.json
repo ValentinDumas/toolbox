@@ -1,14 +1,14 @@
 {
   "curate-justificatifs-voyage": {
-    "in": "",
-    "out": ""
+    "in":  "/Users/alice/Documents/sncf/bruts-voyage",
+    "out": "/Users/alice/Documents/sncf/renommes-voyage"
   },
   "curate-justificatifs-achat": {
-    "in": "",
-    "out": ""
+    "in":  "/Users/alice/Documents/sncf/bruts-achat",
+    "out": "/Users/alice/Documents/sncf/renommes-achat"
   },
   "draw-bilan-depenses-train": {
-    "in": "",
-    "out": ""
+    "in":  "/Users/alice/Documents/sncf/renommes-achat",
+    "out": "/Users/alice/Documents/sncf/bilans"
   }
 }
