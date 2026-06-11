@@ -191,6 +191,51 @@ Même principe, seul le point de montage change :
 Adapter les chemins dans `config.json` au point de montage du client choisi.
 Les étapes 3 à 6 ci-dessus restent valables à l'identique.
 
+### Politique de clôture annuelle
+
+`curated/` est la source de vérité du bilan. Le script `draw-bilan` régénère un
+fichier par année trouvée — donc tant que `curated/` contient les années
+passées, leurs bilans sont **réécrits à chaque run**. Sans nettoyage, `curated/`
+grossit indéfiniment et un justificatif arrivant en retard peut modifier
+silencieusement un bilan déjà déclaré.
+
+**Politique** : début février N+1 (deux mois de buffer pour les retards de
+décembre), figer l'année N en déplaçant ses justificatifs et son bilan vers
+`archive/closed-N/`. Une seule commande, idempotente.
+
+Ajouter cette fonction à votre `~/.zshrc` (ou `~/.bashrc`) :
+
+```bash
+sncf-close-year() {
+  local YR="$1"
+  local DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
+  local DEST="$DRIVE/archive/closed-$YR"
+  mkdir -p "$DEST"
+  find "$DRIVE/curated" -maxdepth 1 -type f \
+       -name "justificatif-*-${YR}[0-1][0-9][0-3][0-9]*.pdf" \
+       -exec mv {} "$DEST/" \;
+  mv "$DRIVE/bilans/bilan-depenses-train-${YR}".* "$DEST/" 2>/dev/null || true
+  echo "annee $YR cloturee dans $DEST"
+}
+```
+
+Usage :
+
+```bash
+sncf-close-year 2026   # debut fevrier 2027
+```
+
+Propriétés :
+- **Idempotent** : re-jouer la commande ne fait rien si l'année est déjà
+  fermée (rien à matcher dans `curated/`).
+- **Rattrapage tardif** : si un justificatif 2026 arrive en mai 2027, il sera
+  traité normalement par `sncf-run.sh` (atterrit dans `curated/`), puis un
+  `sncf-close-year 2026` le déplace dans `archive/closed-2026/` et y régénère
+  le bilan final. Pas de drift permanent.
+- **Pattern de date strict** (`YYYY[0-1][0-9][0-3][0-9]`) : matche le premier
+  champ date du nom de fichier (`justificatif-achat-20260402-…`), pas
+  d'over-match sur un numéro de référence contenant l'année.
+
 ### Automatiser le run (optionnel)
 
 Pour éviter même de taper la commande, un wrapper shell idempotent qui exécute
