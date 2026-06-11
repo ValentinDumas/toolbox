@@ -204,10 +204,17 @@ set -euo pipefail
 REPO="$HOME/Projects/toolbox/sncf-trip-proofs"
 DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
 INBOX="$DRIVE/inbox"
+CURATED="${SNCF_CURATED:-$DRIVE/curated}"
 ARCHIVE="$DRIVE/archive/$(date +%Y-%m)"
 
 mapfile -t FILES < <(find "$INBOX" -maxdepth 1 -type f -name '*.pdf')
 [[ ${#FILES[@]} -eq 0 ]] && { echo "inbox vide"; exit 0; }
+
+# Snapshot checksums AVANT run
+declare -A SUM_BY_FILE
+for f in "${FILES[@]}"; do
+  SUM_BY_FILE["$f"]=$(shasum -a 256 "$f" | awk '{print $1}')
+done
 
 cd "$REPO"
 [[ -x "$REPO/.venv/bin/python3" ]] && PY="$REPO/.venv/bin/python3" || PY="python3"
@@ -215,16 +222,27 @@ cd "$REPO"
 "$PY" curate-justificatifs-voyage/curate-justificatifs-voyage.py --real
 "$PY" draw-bilan-depenses-train/draw-bilan-depenses-train.py
 
+# Archive seulement les sources dont le contenu se retrouve dans curated/
+CURATED_SUMS=$(find "$CURATED" -maxdepth 1 -type f -name '*.pdf' \
+               -exec shasum -a 256 {} \; | awk '{print $1}' | sort -u)
 mkdir -p "$ARCHIVE"
-for f in "${FILES[@]}"; do mv "$f" "$ARCHIVE/"; done
+for f in "${FILES[@]}"; do
+  if grep -qFx "${SUM_BY_FILE[$f]}" <<<"$CURATED_SUMS"; then
+    mv "$f" "$ARCHIVE/"
+  else
+    echo "non-archive : $(basename "$f")" >&2
+  fi
+done
 ```
 
 Propriétés du wrapper :
 - **Snapshot avant run** : un PDF ajouté pendant l'exécution n'est pas archivé
   par erreur, il sera traité au run suivant.
-- **Archive uniquement si tout réussit** (`set -e`) : un crash préserve les
-  sources, on relance, les doublons côté `curated/` sont détectés
-  automatiquement (cf. tableau « Cas particuliers » plus bas).
+- **Archive sélective par checksum** : seuls les PDFs dont le contenu se
+  retrouve dans `curated/` sont archivés. Un PDF qui a échoué l'OCR ou le
+  parsing reste visible dans `inbox/` — pas d'erreur silencieuse.
+- **Archive uniquement si tout réussit** (`set -e`) : un crash dans un script
+  Python préserve les sources, on relance, les doublons sont gérés.
 - **Venv auto-détecté** : utilise `.venv/bin/python3` si présent, sinon
   `python3` du `PATH`.
 
