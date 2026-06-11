@@ -143,6 +143,16 @@ manuelle.
 
 ### Exemple — Google Drive for Desktop
 
+> ⚠️ **Avant de copier-coller** les chemins ci-dessous : remplacer `<email>`
+> par votre adresse Google réelle (sinon `config.json` contient littéralement
+> `<email>` et les scripts échouent avec `Path does not exist`). Pour trouver
+> le nom exact de votre point de montage :
+>
+> ```bash
+> ls ~/Library/CloudStorage/ | grep GoogleDrive
+> # → GoogleDrive-prenom.nom@gmail.com
+> ```
+
 1. **Installer le client** : <https://www.google.com/drive/download/>, se
    connecter, choisir **« Streamer les fichiers »** (économise du disque).
 2. **Localiser le point de montage** :
