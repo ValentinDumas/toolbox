@@ -93,6 +93,15 @@ cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 
 Les dossiers `in` et `out` sont créés automatiquement si besoin. Les fichiers sources ne sont **jamais modifiés**.
 
+> ⚠️ **Avant le premier run**, vérifier que `config.json` ne contient plus les
+> chemins placeholder `/Users/alice/…` du template. Les dossiers `in`/`out`
+> étant auto-créés, un chemin oublié à `alice` ne crash pas — il crée
+> silencieusement une arborescence au mauvais endroit.
+>
+> ```bash
+> grep -q "alice" sncf-trip-proofs/config.json && echo "⚠️ placeholders restants"
+> ```
+
 ### Étape 2 — Organiser les justificatifs
 
 Choisir le script selon le type de fichier téléchargé depuis SNCF Connect :
