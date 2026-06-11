@@ -1,2 +1,7 @@
 # Local config (personal paths — do not commit)
 config.json
+
+# Python virtualenv
+.venv/
+__pycache__/
+*.pyc

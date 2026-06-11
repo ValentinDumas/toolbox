@@ -42,10 +42,27 @@ flowchart TD
 
 ### Prérequis (une seule fois)
 
+**Dépendances système** (OCR + rendu PDF) :
+
 ```bash
+# macOS
 brew install tesseract tesseract-lang poppler
-pip3 install pdfplumber pdf2image pytesseract Pillow
+
+# Debian / Ubuntu
+sudo apt install tesseract-ocr tesseract-ocr-fra poppler-utils
 ```
+
+**Dépendances Python** (venv recommandé pour isoler et reproduire) :
+
+```bash
+cd sncf-trip-proofs
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+À chaque nouvelle session terminal : `source .venv/bin/activate` avant de
+lancer les scripts. Le `.venv/` est local au repo et ignoré par git.
 
 ### Étape 1 — Configurer les chemins (une seule fois)
 
@@ -114,6 +131,102 @@ cd ..
 # Bilan depuis un dossier explicite
 python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output/ ./bilans/
 ```
+
+---
+
+## Workflow zéro copier-coller avec un dossier cloud synchronisé
+
+Si vos justificatifs vivent sur un cloud (Google Drive, Dropbox, iCloud Drive,
+OneDrive…), pointez `config.json` directement sur le dossier monté localement
+par le client desktop. Les scripts lisent/écrivent dans le cloud sans copie
+manuelle.
+
+### Exemple — Google Drive for Desktop
+
+1. **Installer le client** : <https://www.google.com/drive/download/>, se
+   connecter, choisir **« Streamer les fichiers »** (économise du disque).
+2. **Localiser le point de montage** :
+   - macOS récent : `~/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/`
+   - macOS ancien : `/Volumes/GoogleDrive/Mon Drive/`
+   - Windows : `G:\Mon Drive\`
+3. **Créer la structure** dans le Drive (Finder/Explorer ou navigateur) :
+   ```
+   Justificatifs SNCF/
+   ├── inbox/      ← PDFs bruts téléchargés depuis SNCF Connect
+   ├── curated/    ← PDFs renommés (output des scripts curate-*)
+   └── bilans/     ← bilans .md (output de draw-bilan-*)
+   ```
+4. **Marquer offline** : clic droit sur `Justificatifs SNCF/` →
+   « Disponible hors connexion ». Sans ça, Tesseract OCR re-télécharge chaque
+   PDF à chaque accès, lent et fragile.
+5. **Configurer le navigateur** pour télécharger directement dans `inbox/` :
+   - Chrome/Brave : Réglages → Téléchargements → Emplacement
+   - Safari : Réglages → Général → Emplacement de téléchargement
+   - Firefox : Réglages → Général → Fichiers et applications
+6. **Éditer `config.json`** avec les chemins du Drive :
+   ```json
+   {
+     "curate-justificatifs-achat": {
+       "in":  "/Users/<vous>/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF/inbox",
+       "out": "/Users/<vous>/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF/curated"
+     },
+     "curate-justificatifs-voyage": { "in": "...inbox", "out": "...curated" },
+     "draw-bilan-depenses-train":   { "in": "...curated", "out": "...bilans" }
+   }
+   ```
+
+À partir de là : télécharger un PDF SNCF → il atterrit dans le Drive → lancer
+les scripts depuis le venv → outputs synchronisés automatiquement.
+
+### Alternative — Dropbox / iCloud Drive / OneDrive
+
+Même principe, seul le point de montage change :
+
+| Provider | Point de montage typique (macOS) | Garder offline |
+|---|---|---|
+| Dropbox | `~/Dropbox/` | Préférences → Sync → « Sync sélective » → tout cocher |
+| iCloud Drive | `~/Library/Mobile Documents/com~apple~CloudDocs/` | Décocher « Optimiser stockage Mac » |
+| OneDrive | `~/OneDrive/` | Clic droit → « Toujours conserver sur cet appareil » |
+
+Adapter les chemins dans `config.json` au point de montage du client choisi.
+Les étapes 3 à 6 ci-dessus restent valables à l'identique.
+
+### Automatiser le run (optionnel)
+
+Pour éviter même de taper la commande, un wrapper shell idempotent qui exécute
+les 3 scripts à la suite et archive `inbox/` après run pour ne pas re-traiter
+les mêmes PDFs :
+
+```bash
+#!/usr/bin/env bash
+# ~/.local/bin/sncf-run.sh — adapter REPO et DRIVE puis chmod +x
+set -euo pipefail
+REPO="$HOME/Projects/toolbox/sncf-trip-proofs"
+DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
+INBOX="$DRIVE/inbox"
+ARCHIVE="$DRIVE/archive/$(date +%Y-%m)"
+
+mapfile -t FILES < <(find "$INBOX" -maxdepth 1 -type f -name '*.pdf')
+[[ ${#FILES[@]} -eq 0 ]] && { echo "inbox vide"; exit 0; }
+
+cd "$REPO"
+[[ -x "$REPO/.venv/bin/python3" ]] && PY="$REPO/.venv/bin/python3" || PY="python3"
+"$PY" curate-justificatifs-achat/curate-justificatifs-achat.py --real
+"$PY" curate-justificatifs-voyage/curate-justificatifs-voyage.py --real
+"$PY" draw-bilan-depenses-train/draw-bilan-depenses-train.py
+
+mkdir -p "$ARCHIVE"
+for f in "${FILES[@]}"; do mv "$f" "$ARCHIVE/"; done
+```
+
+Propriétés du wrapper :
+- **Snapshot avant run** : un PDF ajouté pendant l'exécution n'est pas archivé
+  par erreur, il sera traité au run suivant.
+- **Archive uniquement si tout réussit** (`set -e`) : un crash préserve les
+  sources, on relance, les doublons côté `curated/` sont détectés
+  automatiquement (cf. tableau « Cas particuliers » plus bas).
+- **Venv auto-détecté** : utilise `.venv/bin/python3` si présent, sinon
+  `python3` du `PATH`.
 
 ---
 
