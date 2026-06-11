@@ -246,6 +246,14 @@ les mêmes PDFs :
 #!/usr/bin/env bash
 # ~/.local/bin/sncf-run.sh — adapter REPO et DRIVE puis chmod +x
 set -euo pipefail
+
+# Lock non-bloquant : refus si une instance tourne deja
+LOCKFILE="${TMPDIR:-/tmp}/sncf-run.lock"
+if ! ( set -o noclobber; echo "$$" > "$LOCKFILE") 2>/dev/null; then
+  echo "sncf-run deja en cours (PID $(cat "$LOCKFILE" 2>/dev/null))" >&2; exit 1
+fi
+trap 'rm -f "$LOCKFILE"' EXIT
+
 REPO="$HOME/Projects/toolbox/sncf-trip-proofs"
 DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
 INBOX="$DRIVE/inbox"
@@ -290,6 +298,9 @@ Propriétés du wrapper :
   Python préserve les sources, on relance, les doublons sont gérés.
 - **Venv auto-détecté** : utilise `.venv/bin/python3` si présent, sinon
   `python3` du `PATH`.
+- **Lock anti double-exécution** : pattern noclobber + PID (portable, zéro
+  dépendance contrairement à `flock` absent de macOS). Trap `EXIT` garantit
+  le nettoyage du lock même en cas de crash.
 
 ---
 
