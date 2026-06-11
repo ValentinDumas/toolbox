@@ -255,6 +255,19 @@ Propriétés :
   champ date du nom de fichier (`justificatif-achat-20260402-…`), pas
   d'over-match sur un numéro de référence contenant l'année.
 
+### Export CSV/XLSX du bilan (à prévoir)
+
+Le bilan `.md` couvre la déclaration perso aux frais réels (justificatifs sur
+demande, total annuel suffit). Pour les notes de frais entreprise qui
+demandent un upload tabulaire :
+
+1. **Court terme** : copier-coller manuel du tableau Markdown vers
+   Numbers/Excel au moment de déclarer.
+2. **Long terme** : étendre `draw-bilan-depenses-train` pour générer `.csv`
+   ou `.xlsx` en parallèle du `.md` (via `csv` stdlib ou `openpyxl`).
+
+Hors scope pour l'instant.
+
 ### Sauvegarde de `archive/` (à prévoir)
 
 `archive/closed-YYYY/` contient les pièces justificatives fiscales — l'admin
