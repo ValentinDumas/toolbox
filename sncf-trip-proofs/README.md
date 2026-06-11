@@ -255,6 +255,16 @@ Propriétés :
   champ date du nom de fichier (`justificatif-achat-20260402-…`), pas
   d'over-match sur un numéro de référence contenant l'année.
 
+### Sauvegarde de `archive/` (à prévoir)
+
+`archive/closed-YYYY/` contient les pièces justificatives fiscales — l'admin
+peut les demander jusqu'à 6 ans en France. Compter uniquement sur le cloud
+provider est risqué (compte suspendu, sync foireux, erreur manuelle).
+
+Piste recommandée, cross-platform : `rclone copy` vers un second backend
+(autre cloud, disque externe, Backblaze B2…) une fois par mois. À planifier
+plus tard, hors scope du workflow courant.
+
 ### Automatiser le run (optionnel)
 
 Pour éviter même de taper la commande, un wrapper shell idempotent qui exécute
