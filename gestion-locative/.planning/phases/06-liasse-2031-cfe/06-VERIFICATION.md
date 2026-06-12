@@ -141,3 +141,15 @@ Aucun gap bloquant. Backlogs différés (non-bloquants) consignés dans les SUMM
 Phase 6 — Liasse 2031 & CFE — verdict **PASSED**. FIS-05 et FIS-06 sont entièrement
 couverts, tous les anti-patterns critiques (R4.3 base imposable, T-06-LIASSE-01 CSV
 injection, hexagonal strict) sont verrouillés par tests et grep statique.
+
+## Manual UAT — différée
+
+Le passage manuel (`/gsd-verify-work 6`) est **reporté volontairement** : il sera
+exécuté juste avant la verif manuelle de la Phase 7, pour tester l'UI Phase 6 + 7
+d'un seul tenant (bandeaux brouillon liasse + banner CFE J-30 cohabitent sur
+`/fiscalite` et la fiche bien).
+
+État courant : `06-UAT.md` est en `status: paused` avec 12 checkpoints rédigés
+(cold start, brouillon réel/micro, drill-down sources, réconciliation,
+rectificative, exports PDF/CSV, CRUD CFE, badge statut, banner J-30 3 variantes).
+Reprise via `/gsd-verify-work 6` après exécution Phase 7.
