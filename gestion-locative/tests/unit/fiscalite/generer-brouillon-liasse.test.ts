@@ -163,15 +163,17 @@ describe('genererBrouillonLiasse — use case régime réel (Phase 6 / FIS-05)',
     ).rejects.toThrow(MappingLiasseAbsent);
   });
 
-  it('Test 4 : régime micro-BIC Wave 1 → throw RegimeMicroBicNonSupporteWave1', async () => {
+  it('Test 4 : régime micro-BIC retourne désormais un DTO (Plan 06-02 — RegimeMicroBicNonSupporteWave1 n\'est plus levée)', async () => {
     const decl = uneDeclarationMicroBic();
     const declRepo = makeDeclRepo(decl);
     const bailleurRepo = makeBailleurRepoOK();
     const mappingProvider = new MappingLiasseProviderEnMemoire();
 
-    await expect(
-      genererBrouillonLiasse({ declarationId: DECL_ID }, { declRepo, bailleurRepo, mappingProvider }),
-    ).rejects.toThrow(RegimeMicroBicNonSupporteWave1);
+    const dto = await genererBrouillonLiasse(
+      { declarationId: DECL_ID },
+      { declRepo, bailleurRepo, mappingProvider },
+    );
+    expect(dto.regimeApplique).toBe('micro_bic');
   });
 
   it('Test 5 : régime réel → DTO contient regimeApplique=reel + bailleurNom du repo + clotureLe du snapshot', async () => {

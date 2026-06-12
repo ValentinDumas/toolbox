@@ -1,5 +1,8 @@
 /**
  * Alerte CFE J-30 — Phase 6 / FIS-06 / Plan 06-07 / D-CFE6.5.
+ * Refactoré Phase 7 / DAS-02 / 07-01 : calculerAlertesCfe produit désormais
+ * des Alerte[] unifiés (D-AL-01). La compatibilité Phase 6 est assurée par la
+ * projection plate AlerteCfe au niveau du use case lister-alertes-cfe-actives.ts.
  *
  * Calcul À LA DEMANDE via Clock injecté — PAS de cron, PAS de setInterval
  * (anti-pattern §6 RESEARCH + Pattern critique 4 Phase 3 D-90 banner IRL).
@@ -16,14 +19,25 @@
 import { Temporal } from '@js-temporal/polyfill';
 
 import type { BienId, DeclarationCfeId } from '../../_shared/identifiants.js';
+import { type Alerte, joursAvantEcheance } from '../../_shared/alerte.js';
 
 import type { DeclarationCfe } from './declaration-cfe.js';
 import type { StatutCfe } from './statut-cfe.js';
+
+// Ré-export pour compatibilité avec les imports Phase 6 existants
+export { joursAvantEcheance } from '../../_shared/alerte.js';
 
 const FENETRE_ALERTE_JOURS = 30;
 
 const STATUTS_ALERTABLES: ReadonlySet<StatutCfe> = new Set(['non_deposee', 'deposee']);
 
+/**
+ * Projection plate Phase 6 — DTO consommé par les routes web et le partial EJS.
+ *
+ * Cette interface est la projection de compatibilité Phase 6 ; elle est produite
+ * par le use case lister-alertes-cfe-actives.ts à partir des Alerte[] unifiés.
+ * Le dashboard Phase 7 (07-04/07-05) consomme directement les Alerte[] unifiés.
+ */
 export interface AlerteCfe {
   readonly declarationCfeId: DeclarationCfeId;
   readonly bienId: BienId;
@@ -32,17 +46,6 @@ export interface AlerteCfe {
   readonly joursRestants: number;
   readonly dateEcheancePaiement: Temporal.PlainDate;
   readonly statutCfe: StatutCfe;
-}
-
-/**
- * Nombre de jours entre `maintenant` et `dateEcheance`.
- * Positif si l'échéance est future, 0 le jour J, négatif si dépassée.
- */
-export function joursAvantEcheance(
-  dateEcheance: Temporal.PlainDate,
-  maintenant: Temporal.PlainDate,
-): number {
-  return maintenant.until(dateEcheance, { largestUnit: 'days' }).days;
 }
 
 /**
@@ -65,23 +68,36 @@ export function estAlerteActive(
 }
 
 /**
- * Retourne la liste triée des AlerteCfe par `joursRestants ASC`
+ * Retourne la liste triée des Alerte[] unifiés (D-AL-01) par `joursRestants ASC`
  * (plus urgent en premier).
+ *
+ * Le dashboard 07-04/07-05 consomme ces Alerte[] directement sans mapping.
+ * La projection vers AlerteCfe plat est faite dans le use case lister-alertes-cfe-actives.ts.
  */
 export function calculerAlertesCfe(
   declarations: readonly DeclarationCfe[],
   maintenant: Temporal.PlainDate,
-): AlerteCfe[] {
-  const alertes: AlerteCfe[] = [];
+): Alerte[] {
+  const alertes: Alerte[] = [];
   for (const d of declarations) {
     if (!estAlerteActive(d, maintenant)) continue;
+    const joursRestants = joursAvantEcheance(d.dateEcheancePaiement, maintenant);
     alertes.push({
-      declarationCfeId: d.id,
-      bienId: d.bienId,
-      millesime: d.millesime,
-      joursRestants: joursAvantEcheance(d.dateEcheancePaiement, maintenant),
-      dateEcheancePaiement: d.dateEcheancePaiement,
-      statutCfe: d.statut,
+      type: 'cfe',
+      joursRestants,
+      dateEcheance: d.dateEcheancePaiement,
+      libelle: `CFE ${d.millesime}`,
+      urlAction: `/biens/${d.bienId}/cfe/${d.id}/editer`,
+      source: {
+        type: 'cfe',
+        refId: d.id,
+        bienId: d.bienId,
+        extra: {
+          millesime: d.millesime,
+          statutCfe: d.statut,
+          dateEcheancePaiement: d.dateEcheancePaiement,
+        },
+      },
     });
   }
   alertes.sort((a, b) => a.joursRestants - b.joursRestants);
