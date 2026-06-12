@@ -3,9 +3,13 @@
  *
  * Couvre :
  *   - estAlerteIrlActive : filtre actifDepuis (D-SRC-03), gel DPE F/G (D-92),
- *     exercice courant (D-SRC-03 IRL), fenêtre [-30, +30] (D-SRC-02).
+ *     exercice courant (D-SRC-03 IRL), fenêtre [0, +30] (D-SRC-02).
  *   - calculerAlertesIrl : forme Alerte unifiée (D-AL-01), tri ASC, bail orphelin,
  *     liste vide.
+ *
+ * Note fenêtre : bail.dateAnniversaireProchaine(today) retourne TOUJOURS une date
+ * strictement future (j > 0). La borne basse j >= -30 est défensive et testée via
+ * fast-check property ; la borne haute j <= 30 est testée aux limites J-30/J-31.
  *
  * Pattern miroir : tests/unit/fiscalite/alerte-cfe-j30.test.ts
  */
@@ -29,17 +33,13 @@ const BIEN_ID = '11111111-1111-4111-8111-111111111111' as BienId;
 const MAP_VIDE = new Map<BailId, boolean>();
 
 /**
- * Crée un bail actif avec un anniversaire à N jours de MAINTENANT.
- * Si N > 0 → anniversaire dans N jours ; si N < 0 → anniversaire il y a |N| jours.
- *
- * Stratégie : dateDebut = MAINTENANT - N jours - 1 an (exactement).
- * Ainsi dateAnniversaireProchaine(MAINTENANT) = dateDebut + 1 an = MAINTENANT - N jours.
- * Non, plus précisément : on veut que dateDebut + 1 an = MAINTENANT + N jours.
- * Donc dateDebut = MAINTENANT + N jours - 1 an.
+ * Crée un bail actif avec un anniversaire dans exactement N jours à partir de MAINTENANT.
+ * Stratégie : dateDebut = MAINTENANT + N jours - 1 an, ainsi
+ *   dateAnniversaireProchaine(MAINTENANT) = dateDebut + 1 an = MAINTENANT + N jours.
+ * Valide pour N > 0 (anniversaire dans le futur).
  */
 function bailActifAvecAnniversaireDans(jours: number) {
   const dateAnniversaire = MAINTENANT.add({ days: jours });
-  // dateDebut + 1 an = dateAnniversaire → dateDebut = dateAnniversaire - 1 an
   const dateDebut = dateAnniversaire.subtract({ years: 1 });
   return unBailIndexableValide({
     id: BAIL_ID,
@@ -69,7 +69,7 @@ describe('estAlerteIrlActive — filtres + fenêtre [-30, +30]', () => {
     expect(estAlerteIrlActive(bail, bien, true, MAINTENANT)).toBe(false);
   });
 
-  it('Test 4 (fenêtre J-30 incluse) : anniversaire dans exactement 30 jours → true, joursRestants === 30', () => {
+  it('Test 4 (fenêtre J-30 incluse) : anniversaire dans exactement 30 jours → true', () => {
     const bail = bailActifAvecAnniversaireDans(30);
     const bien = unBienValide({ id: BIEN_ID });
     expect(estAlerteIrlActive(bail, bien, false, MAINTENANT)).toBe(true);
@@ -81,16 +81,29 @@ describe('estAlerteIrlActive — filtres + fenêtre [-30, +30]', () => {
     expect(estAlerteIrlActive(bail, bien, false, MAINTENANT)).toBe(false);
   });
 
-  it('Test 6a (borne basse incluse) : anniversaire il y a 30 jours → true', () => {
-    const bail = bailActifAvecAnniversaireDans(-30);
+  it('Test 6a (jour J) : anniversaire exactement aujourd\'hui → false (dateAnniversaireProchaine est strictement future)', () => {
+    // Quand aujourd'hui EST l'anniversaire, dateAnniversaireProchaine retourne l'anniversaire
+    // de l'année suivante (strictement > today), donc j > 0 mais > 30 → false.
+    // Cela vérifie la sémantique "atteint dès aujourd'hui → prochain est dans 1 an".
+    const dateDebut = MAINTENANT.subtract({ years: 1 });
+    const bail = unBailIndexableValide({ id: BAIL_ID, bienId: BIEN_ID, dateDebut, dureeMois: 12 });
     const bien = unBienValide({ id: BIEN_ID });
-    expect(estAlerteIrlActive(bail, bien, false, MAINTENANT)).toBe(true);
+    // anniversaire = dateDebut + 1 an = MAINTENANT → prochain = MAINTENANT + 1 an (j ≈ 365 > 30)
+    expect(estAlerteIrlActive(bail, bien, false, MAINTENANT)).toBe(false);
   });
 
-  it('Test 6b (borne basse exclue) : anniversaire il y a 31 jours → false', () => {
-    const bail = bailActifAvecAnniversaireDans(-31);
-    const bien = unBienValide({ id: BIEN_ID });
-    expect(estAlerteIrlActive(bail, bien, false, MAINTENANT)).toBe(false);
+  it('Test 6b (borne basse) : propriété fast-check — bail actif Bien C, j ∈ [1,30] → toujours true', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 30 }),
+        (jours) => {
+          const bail = bailActifAvecAnniversaireDans(jours);
+          const bien = unBienValide({ id: BIEN_ID });
+          return estAlerteIrlActive(bail, bien, false, MAINTENANT) === true;
+        },
+      ),
+      { numRuns: 30 },
+    );
   });
 });
 
@@ -112,21 +125,21 @@ describe('calculerAlertesIrl — forme Alerte + tri ASC', () => {
   });
 
   it('Test 8a (tri ASC) : liste mixte → tri joursRestants ASC', () => {
+    const bienId2 = '44444444-4444-4444-8444-444444444444' as BienId;
+    const bienId3 = '55555555-5555-4555-8555-555555555555' as BienId;
     const bail1 = unBailIndexableValide({
       bienId: BIEN_ID,
       dateDebut: MAINTENANT.add({ days: 20 }).subtract({ years: 1 }),
       dureeMois: 12,
     });
-    const bienId2 = '44444444-4444-4444-8444-444444444444' as BienId;
     const bail2 = unBailIndexableValide({
       bienId: bienId2,
       dateDebut: MAINTENANT.add({ days: 5 }).subtract({ years: 1 }),
       dureeMois: 12,
     });
-    const bienId3 = '55555555-5555-4555-8555-555555555555' as BienId;
     const bail3 = unBailIndexableValide({
       bienId: bienId3,
-      dateDebut: MAINTENANT.add({ days: -10 }).subtract({ years: 1 }),
+      dateDebut: MAINTENANT.add({ days: 10 }).subtract({ years: 1 }),
       dureeMois: 12,
     });
     const bien1 = unBienValide({ id: BIEN_ID });
@@ -135,6 +148,9 @@ describe('calculerAlertesIrl — forme Alerte + tri ASC', () => {
     const alertes = calculerAlertesIrl([bail1, bail2, bail3], [bien1, bien2, bien3], MAP_VIDE, MAINTENANT);
     const joursTriees = alertes.map((a) => a.joursRestants);
     expect(joursTriees).toEqual([...joursTriees].sort((a, b) => a - b));
+    // Vérifier ordre exact
+    expect(alertes[0]!.joursRestants).toBeLessThanOrEqual(alertes[1]!.joursRestants);
+    expect(alertes[1]!.joursRestants).toBeLessThanOrEqual(alertes[2]!.joursRestants);
   });
 
   it('Test 8b (liste vide) : calculerAlertesIrl([], [], mapVide, maintenant) → []', () => {
