@@ -1,10 +1,13 @@
 /**
  * Tests unitaires — Alerte CFE J-30 (Phase 6 / FIS-06 / Plan 06-07 / D-CFE6.5).
+ * Mis à jour Phase 7 / DAS-02 / 07-01 : calculerAlertesCfe produit des Alerte[]
+ * unifiés (D-AL-01) ; les scénarios de régression Phase 6 sont conservés.
  *
  * Couvre :
  *   - joursAvantEcheance : positif / zéro / négatif + monotonie (fast-check).
  *   - estAlerteActive : filtres statut (payee/exoneree_*) + fenêtre J-30.
- *   - calculerAlertesCfe : agrégation + tri par joursRestants ASC.
+ *   - calculerAlertesCfe : forme unifiée Alerte (type, source.refId, source.extra,
+ *     urlAction, libelle) + agrégation + tri par joursRestants ASC.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -18,16 +21,19 @@ import {
 } from '../../../src/domain/fiscalite/cfe/alerte-cfe-j30.js';
 import { DeclarationCfe } from '../../../src/domain/fiscalite/cfe/declaration-cfe.js';
 import { Money } from '../../../src/domain/_shared/money.js';
-import type { BienId } from '../../../src/domain/_shared/identifiants.js';
+import type { BienId, DeclarationCfeId } from '../../../src/domain/_shared/identifiants.js';
 
 const BIEN_TEST = '11111111-1111-4111-8111-111111111111' as BienId;
+const DECL_TEST = '22222222-2222-4222-8222-222222222222' as DeclarationCfeId;
 
 function declCfe(opts: {
   statut: 'non_deposee' | 'deposee' | 'exoneree_premiere_annee' | 'exoneree_commune' | 'payee';
   echeance: string;
+  id?: DeclarationCfeId;
 }): DeclarationCfe {
   const date = Temporal.PlainDate.from(opts.echeance);
   return DeclarationCfe.creer({
+    id: opts.id,
     bienId: BIEN_TEST,
     millesime: date.year,
     statut: opts.statut,
@@ -139,17 +145,18 @@ describe('estAlerteActive — filtres statut + fenêtre J-30 (pitfall §5)', () 
   });
 });
 
-describe('calculerAlertesCfe — agrégation + tri', () => {
+describe('calculerAlertesCfe — forme unifiée Alerte (D-AL-01) + tri', () => {
   it('liste mixte → ne retient que les CFE actives', () => {
     const declarations = [
       declCfe({ statut: 'payee', echeance: '2026-12-15' }),
-      declCfe({ statut: 'non_deposee', echeance: '2026-12-15' }),
+      declCfe({ statut: 'non_deposee', echeance: '2026-12-15', id: DECL_TEST }),
       declCfe({ statut: 'exoneree_commune', echeance: '2026-12-15' }),
     ];
     const maintenant = Temporal.PlainDate.from('2026-11-30'); // J-15
     const alertes = calculerAlertesCfe(declarations, maintenant);
     expect(alertes).toHaveLength(1);
-    expect(alertes[0]!.statutCfe).toBe('non_deposee');
+    // Nouvelle forme unifiée — source.extra contient statutCfe
+    expect(alertes[0]!.source.extra?.['statutCfe']).toBe('non_deposee');
     expect(alertes[0]!.joursRestants).toBe(15);
   });
 
@@ -167,5 +174,36 @@ describe('calculerAlertesCfe — agrégation + tri', () => {
     const maintenant = Temporal.PlainDate.from('2026-12-01');
     const alertes = calculerAlertesCfe(declarations, maintenant);
     expect(alertes.map((a) => a.joursRestants)).toEqual([7, 14, 30]);
+  });
+
+  it('forme unifiée : type, source.refId, source.bienId, source.extra (millesime, statutCfe)', () => {
+    const decl = declCfe({ statut: 'non_deposee', echeance: '2026-12-15', id: DECL_TEST });
+    const maintenant = Temporal.PlainDate.from('2026-11-30'); // J-15
+    const alertes = calculerAlertesCfe([decl], maintenant);
+    expect(alertes).toHaveLength(1);
+    const alerte = alertes[0]!;
+    expect(alerte.type).toBe('cfe');
+    expect(alerte.joursRestants).toBe(15);
+    expect(alerte.dateEcheance.toString()).toBe('2026-12-15');
+    expect(alerte.source.type).toBe('cfe');
+    expect(alerte.source.refId).toBe(DECL_TEST);
+    expect(alerte.source.bienId).toBe(BIEN_TEST);
+    expect(alerte.source.extra?.['millesime']).toBe(2026);
+    expect(alerte.source.extra?.['statutCfe']).toBe('non_deposee');
+  });
+
+  it('urlAction = /biens/{bienId}/cfe/{declarationCfeId}/editer', () => {
+    const decl = declCfe({ statut: 'non_deposee', echeance: '2026-12-15', id: DECL_TEST });
+    const maintenant = Temporal.PlainDate.from('2026-11-30');
+    const [alerte] = calculerAlertesCfe([decl], maintenant);
+    expect(alerte!.urlAction).toBe(`/biens/${BIEN_TEST}/cfe/${DECL_TEST}/editer`);
+  });
+
+  it("libelle contient 'CFE' et le millésime", () => {
+    const decl = declCfe({ statut: 'non_deposee', echeance: '2026-12-15', id: DECL_TEST });
+    const maintenant = Temporal.PlainDate.from('2026-11-30');
+    const [alerte] = calculerAlertesCfe([decl], maintenant);
+    expect(alerte!.libelle).toContain('CFE');
+    expect(alerte!.libelle).toContain('2026');
   });
 });

@@ -1,0 +1,46 @@
+/**
+ * Builders Alerte unifié — Phase 7 / DAS-02 / 07-01.
+ *
+ * Pattern miroir tests/_builders/fiscalite.ts (fonction unX(overrides = {}) + spread).
+ * Les variantes irl/diagnostic/fin_bail seront ajoutées par 07-02/07-03/07-04.
+ */
+
+import { Temporal } from '@js-temporal/polyfill';
+
+import type { Alerte } from '../../src/domain/_shared/alerte.js';
+import type { BienId } from '../../src/domain/_shared/identifiants.js';
+
+const DEFAULT_BIEN_ID = '11111111-1111-4111-8111-111111111111' as BienId;
+const DEFAULT_DECL_ID = '22222222-2222-4222-8222-222222222222';
+
+/**
+ * Builder Alerte unifié (D-AL-01).
+ * Defaults : alerte CFE J-15, non déposée, millésime 2026.
+ */
+export function uneAlerte(overrides: Partial<Alerte> = {}): Alerte {
+  return {
+    type: 'cfe',
+    joursRestants: 15,
+    dateEcheance: Temporal.PlainDate.from('2026-12-15'),
+    libelle: 'CFE 2026',
+    urlAction: `/biens/${DEFAULT_BIEN_ID}/cfe/${DEFAULT_DECL_ID}/editer`,
+    source: {
+      type: 'cfe',
+      refId: DEFAULT_DECL_ID,
+      bienId: DEFAULT_BIEN_ID,
+      extra: {
+        millesime: 2026,
+        statutCfe: 'non_deposee',
+      },
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Alias sémantique de `uneAlerte` — signale l'intention de construire une alerte CFE.
+ * Les variantes IRL/diagnostic/fin_bail seront ajoutées par 07-02/07-03/07-04.
+ */
+export function uneAlerteCfe(overrides: Partial<Alerte> = {}): Alerte {
+  return uneAlerte(overrides);
+}
