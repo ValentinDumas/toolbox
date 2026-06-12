@@ -46,12 +46,16 @@ function makeDeps(opts: {
   const bienRepo: BienRepository = {
     listerTous: async () => biens,
     trouverParId: async () => null,
+    enregistrer: async () => { throw new Error('non utilisé'); },
+    supprimer: async () => { throw new Error('non utilisé'); },
   };
 
   const bailRepo: BailRepository = {
     listerTous: async () => baux,
     trouverParId: async () => null,
     listerParLocataire: async () => [],
+    enregistrer: async () => { throw new Error('non utilisé'); },
+    supprimer: async () => { throw new Error('non utilisé'); },
   };
 
   const cfeRepo: DeclarationCfeRepository = {
@@ -107,17 +111,18 @@ describe('calculerToutesAlertes', () => {
       ],
     });
 
-    // IRL: dateAnniversaireProchaine = 2026-06-21 (J+10) → dateDebut = 2025-06-21
+    // IRL only (J+10): anniversary=2026-06-21, dureeMois=36 → fin=2028-06-21 (hors fenêtre fin_bail)
     const bailIrl = unBailIndexableValide({
       bienId: bienDiag.id,
       dateDebut: Temporal.PlainDate.from('2025-06-21'),
+      dureeMois: 36,
     });
 
-    // Fin de bail: fin = 2026-07-01 (J+20) → dateDebut=2025-07-01, dureeMois=12
+    // Fin de bail only (J+20): fin=2026-07-01, anniversary=2026-08-01 (J+51, hors fenêtre IRL)
     const bailFin = unBailIndexableValide({
       bienId: bienDiag.id,
-      dateDebut: Temporal.PlainDate.from('2025-07-01'),
-      dureeMois: 12,
+      dateDebut: Temporal.PlainDate.from('2024-08-01'),
+      dureeMois: 23,
     });
 
     const deps = makeDeps({
@@ -152,17 +157,18 @@ describe('calculerToutesAlertes', () => {
       ],
     });
 
-    // IRL: dateAnniversaire = 2026-06-21 (J+10) → dateDebut = 2025-06-21
+    // IRL only (J+10): anniversary=2026-06-21, dureeMois=36 → fin=2028-06-21 (hors fenêtre fin_bail)
     const bailIrl = unBailIndexableValide({
       bienId: bienDiag.id,
       dateDebut: Temporal.PlainDate.from('2025-06-21'),
+      dureeMois: 36,
     });
 
-    // Fin de bail: fin = 2026-07-01 (J+20) → dateDebut=2025-07-01, dureeMois=12
+    // Fin de bail only (J+20): fin=2026-07-01, anniversary=2026-08-01 (J+51, hors fenêtre IRL)
     const bailFin = unBailIndexableValide({
       bienId: bienDiag.id,
-      dateDebut: Temporal.PlainDate.from('2025-07-01'),
-      dureeMois: 12,
+      dateDebut: Temporal.PlainDate.from('2024-08-01'),
+      dureeMois: 23,
     });
 
     const deps = makeDeps({
