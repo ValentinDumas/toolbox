@@ -1,8 +1,8 @@
 /**
- * Builders Alerte unifié — Phase 7 / DAS-02 / 07-01.
+ * Builders Alerte unifié — Phase 7 / DAS-02 / 07-01 + 07-02.
  *
  * Pattern miroir tests/_builders/fiscalite.ts (fonction unX(overrides = {}) + spread).
- * Les variantes irl/diagnostic/fin_bail seront ajoutées par 07-02/07-03/07-04.
+ * Les variantes diagnostic seront ajoutées par 07-03.
  */
 
 import { Temporal } from '@js-temporal/polyfill';
@@ -39,8 +39,49 @@ export function uneAlerte(overrides: Partial<Alerte> = {}): Alerte {
 
 /**
  * Alias sémantique de `uneAlerte` — signale l'intention de construire une alerte CFE.
- * Les variantes IRL/diagnostic/fin_bail seront ajoutées par 07-02/07-03/07-04.
  */
 export function uneAlerteCfe(overrides: Partial<Alerte> = {}): Alerte {
   return uneAlerte(overrides);
+}
+
+const DEFAULT_BAIL_ID = '33333333-3333-4333-8333-333333333333';
+
+/**
+ * Builder Alerte IRL — Phase 7 / DAS-02 / 07-02.
+ * Defaults : alerte IRL J-15, révision IRL, lien /baux/{bailId}/indexer.
+ */
+export function uneAlerteIrl(overrides: Partial<Alerte> = {}): Alerte {
+  return {
+    type: 'irl',
+    joursRestants: 15,
+    dateEcheance: Temporal.PlainDate.from('2026-07-01'),
+    libelle: 'Révision IRL',
+    urlAction: `/baux/${DEFAULT_BAIL_ID}/indexer`,
+    source: {
+      type: 'irl',
+      refId: DEFAULT_BAIL_ID,
+      bienId: DEFAULT_BIEN_ID,
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Builder Alerte fin de bail — Phase 7 / DAS-02 / 07-02.
+ * Defaults : alerte fin de bail J-30, lien /baux/{bailId}.
+ */
+export function uneAlerteFinBail(overrides: Partial<Alerte> = {}): Alerte {
+  return {
+    type: 'fin_bail',
+    joursRestants: 30,
+    dateEcheance: Temporal.PlainDate.from('2026-08-01'),
+    libelle: 'Fin de bail',
+    urlAction: `/baux/${DEFAULT_BAIL_ID}`,
+    source: {
+      type: 'fin_bail',
+      refId: DEFAULT_BAIL_ID,
+      bienId: DEFAULT_BIEN_ID,
+    },
+    ...overrides,
+  };
 }
