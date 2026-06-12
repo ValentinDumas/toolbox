@@ -90,6 +90,7 @@ import { registerFiscaliteMultiBienRoute } from './web/routes/fiscalite/multi-bi
 import { registerFiscaliteLiasseRoutes } from './web/routes/fiscalite/liasse.js';
 import { MappingLiasseProviderEnMemoire } from './domain/fiscalite/liasse/mapping-liasse-provider.js';
 import { formaterCaseLiasse } from './web/helpers/formater-case-liasse.js';
+import { formaterAlerteUrgence, iconeTypeAlerte, libelleTypeAlerte } from './web/helpers/alerte-helpers.js';
 import {
   ComposantRepositorySqlite,
   ValorisationFiscaleRepositorySqlite,
@@ -210,6 +211,9 @@ export async function creerApp(
       formaterAnneeFiscale,
       formaterStatutTicket,
       formaterCaseLiasse,
+      formaterAlerteUrgence,
+      iconeTypeAlerte,
+      libelleTypeAlerte,
       today,
     };
   });
@@ -243,7 +247,7 @@ export async function creerApp(
     return reply.code(statusCode).send({ error: message });
   });
 
-  await app.register(racinePlugin, { db });
+  await app.register(racinePlugin, { db, cfeRepo, bienRepo: repo, bailRepo, bailIndexationRepo, echeanceLoyerRepo, encaissementRepo, locataireRepo, relanceRepo, clock });
   await app.register(wizardPlugin, { db, bienRepo: repo, locataireRepo, bailRepo });
   await app.register(biensPlugin, { repo, justificatifRepo, ticketRepo, cfeRepo, clock });
   await app.register(async (instance) => {
