@@ -1,0 +1,83 @@
+<%#
+  Partial — Bandeau d'alerte unifié polymorphe (Phase 7 / DAS-01 / D-AL-05).
+
+  Props :
+    - alerte : Alerte { type, joursRestants, dateEcheance, libelle, urlAction, source }
+    - inline (optionnel) : si true, variante compact sans lien d'action
+      (utilisé par la table /baux/indexations — plan 07-06)
+
+  3 variantes visuelles selon `joursRestants` (identique partial-bandeau-cfe-echeance.ejs) :
+    - destructive  : joursRestants <= 0  → role="alert" aria-live="assertive"
+    - warning-fort : 1 <= joursRestants <= 7 → role="alert" aria-live="assertive"
+    - warning      : joursRestants >= 8  → role="status" aria-live="polite"
+
+  WCAG 1.4.1 : couleur jamais seule — doublée par libellé textuel + icône aria-hidden + libellé type.
+
+  Helpers attendus (injectés via preHandler global main.ts) :
+    - formatDate(date)            → date au format fr-FR
+    - formaterAlerteUrgence(alerte) → libellé textuel WCAG
+    - iconeTypeAlerte(type)       → caractère Unicode aria-hidden sobre
+    - libelleTypeAlerte(alerte)   → libellé français du type
+%>
+<%
+  const j = alerte.joursRestants;
+  let variant, role, ariaLive;
+
+  if (j <= 0) {
+    variant = 'destructive';
+    role = 'alert';
+    ariaLive = 'assertive';
+  } else if (j <= 7) {
+    variant = 'warning-fort';
+    role = 'alert';
+    ariaLive = 'assertive';
+  } else {
+    variant = 'warning';
+    role = 'status';
+    ariaLive = 'polite';
+  }
+
+  const styleBase = "padding: 16px; margin-bottom: 16px;";
+  let styleVariant;
+  if (variant === 'destructive') {
+    styleVariant = "background: var(--couleur-destructive-bg); border-left: 4px solid var(--couleur-destructive);";
+  } else if (variant === 'warning-fort') {
+    styleVariant = "background: var(--couleur-warning-bg, #FFF4E6); border-left: 4px solid var(--couleur-warning, #C2410C);";
+  } else {
+    styleVariant = "border-left: 4px solid var(--couleur-warning, #C2410C); padding-left: 12px;";
+  }
+
+  const libelleUrgence = formaterAlerteUrgence(alerte);
+  const libelleType    = libelleTypeAlerte(alerte);
+  const icone          = iconeTypeAlerte(alerte.type);
+%>
+<aside
+  role="<%= role %>"
+  aria-live="<%= ariaLive %>"
+  aria-label="Alerte <%= libelleType %>"
+  style="<%= styleBase %> <%= styleVariant %>"
+>
+  <p>
+    <span aria-hidden="true"><%= icone %></span>
+    <strong><%= libelleType %> — <%= libelleUrgence %>.</strong>
+    Échéance le <%= formatDate(alerte.dateEcheance) %>.
+  </p>
+  <% if (!locals.inline) { %>
+    <p>
+      <% if (alerte.type === 'cfe') { %>
+        <a href="https://www.impots.gouv.fr/professionnel/cotisation-fonciere-des-entreprises-cfe"
+           target="_blank" rel="noopener noreferrer" role="button">
+          Régler la CFE sur impots.gouv.fr
+        </a>
+        &nbsp;
+        <a href="<%= alerte.urlAction %>">Mettre à jour le statut</a>
+      <% } else if (alerte.type === 'irl') { %>
+        <a href="<%= alerte.urlAction %>" role="button">Lancer la révision IRL</a>
+      <% } else if (alerte.type === 'diagnostic') { %>
+        <a href="<%= alerte.urlAction %>" role="button">Voir le diagnostic</a>
+      <% } else if (alerte.type === 'fin_bail') { %>
+        <a href="<%= alerte.urlAction %>" role="button">Voir le bail</a>
+      <% } %>
+    </p>
+  <% } %>
+</aside>
