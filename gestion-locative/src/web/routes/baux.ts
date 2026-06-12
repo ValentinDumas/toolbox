@@ -25,6 +25,7 @@ import type { EncaissementRepository } from '../../domain/encaissements/encaisse
 import type { Clock } from '../../domain/_shared/clock.js';
 import { modifierBailActif } from '../../application/locatif/modifier-bail-actif.js';
 import { ClockSysteme } from '../../domain/_shared/clock.js';
+import { calculerAlertesIrl } from '../../domain/locatif/alerte-irl.js';
 
 /** Formate un Temporal.PlainDate en DD/MM/YYYY (format légal français). */
 function formatDate(date: Temporal.PlainDate): string {
@@ -126,6 +127,61 @@ export async function plugin(
       erreurs: {},
       navActive: 'baux',
       formatDate,
+    });
+  });
+
+  /**
+   * GET /baux/indexations — Page transversale révisions IRL à venir.
+   *
+   * Phase 7 / DAS-01 / D-DASH-04 / D-90 (page transversale Phase 3 deferred).
+   * D-SRC-03 : exercice courant = année civile via dernierePourBail().dateEffet.year.
+   * D-92 : gel Climat (DPE F/G) déjà filtré par calculerAlertesIrl (estGelLoyer).
+   * Clock-driven strict : clock.aujourdhui() unique source de date.
+   *
+   * Routage : déclaré avant /baux/:id — find-my-way résout les segments statiques
+   * avant les paramétriques (T-07-06-03 mitigé).
+   */
+  app.get('/baux/indexations', async (_req, reply) => {
+    const maintenant = clock.aujourdhui();
+
+    const [baux, biens, locataires] = await Promise.all([
+      opts.bailRepo.listerTous(),
+      opts.bienRepo.listerTous(),
+      opts.locataireRepo.listerTous(),
+    ]);
+
+    // Construire indexationsParBail : true = déjà indexé sur l'exercice courant (D-SRC-03)
+    const indexationsParBail = new Map<BailId, boolean>();
+    if (opts.bailIndexationRepo) {
+      await Promise.all(
+        baux.map(async (bail) => {
+          const derniere = await opts.bailIndexationRepo!.dernierePourBail(bail.id);
+          const dejaIndexe = derniere !== null && derniere.dateEffet.year === maintenant.year;
+          indexationsParBail.set(bail.id, dejaIndexe);
+        }),
+      );
+    }
+
+    const alertesIrl = calculerAlertesIrl(baux, biens, indexationsParBail, maintenant);
+
+    // Enrichir les noms locataires côté route (domaine ne touche pas LocataireRepository)
+    const locatairesParId = new Map(locataires.map((l) => [l.id, l]));
+    const locatairesParBail: Record<string, string> = {};
+    for (const alerte of alertesIrl) {
+      const bail = baux.find((b) => b.id === alerte.source.refId);
+      if (bail) {
+        const locataire = locatairesParId.get(bail.locataireId);
+        if (locataire) {
+          locatairesParBail[alerte.source.refId] = `${locataire.prenom} ${locataire.nom}`;
+        }
+      }
+    }
+
+    return reply.view('pages/baux/indexations.ejs', {
+      titre: 'Révisions IRL à venir',
+      navActive: 'baux',
+      alertesIrl,
+      locatairesParBail,
     });
   });
 

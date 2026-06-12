@@ -1,0 +1,42 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Révisions IRL à venir',
+  breadcrumbs: [{ label: 'Tableau de bord', url: '/' }, { label: 'Révisions IRL à venir' }],
+  navActive: 'baux'
+}) %>
+
+<h1>Révisions IRL à venir</h1>
+<p style="color: var(--couleur-neutre); max-width: 75ch;">Liste des baux pour lesquels la révision IRL annuelle est due dans les 30 prochains jours ou déjà dépassée. Les baux dont le DPE est classé F ou G sont exclus (gel loyer Climat — décret n° 2022-1313).</p>
+
+<% if (alertesIrl.length === 0) { %>
+  <%- include('../../partials/empty-state', {
+    heading: "Aucune révision IRL en attente",
+    body: "Tous vos baux éligibles sont à jour ou en dehors de la fenêtre d'anticipation (J-30).",
+    ctaUrl: '/baux',
+    ctaLabel: "Voir tous les baux"
+  }) %>
+<% } else { %>
+  <table aria-label="Révisions IRL à venir">
+    <thead>
+      <tr>
+        <th scope="col">Bail</th>
+        <th scope="col">Locataire</th>
+        <th scope="col">Date anniversaire</th>
+        <th scope="col">État</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% alertesIrl.forEach(function(alerte) { %>
+        <tr>
+          <td><a href="/baux/<%= alerte.source.refId %>"><%= alerte.source.extra.adresseBien %></a></td>
+          <td><%= locatairesParBail[alerte.source.refId] %></td>
+          <td><%= formatDate(alerte.dateEcheance) %></td>
+          <td><%- include('../../partials/partial-bandeau-alerte', { alerte: alerte, inline: true }) %></td>
+          <td><a href="/baux/<%= alerte.source.refId %>/indexer" role="button">Lancer la révision</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('../../partials/layout-fin') %>
