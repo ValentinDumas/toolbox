@@ -1,0 +1,142 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Tableau de bord',
+  breadcrumbs: [],
+  navActive: 'dashboard'
+}) %>
+
+<h1>Tableau de bord</h1>
+
+<% if (etatGlobal === 'a_jour') { %>
+  <aside role="status" aria-live="polite" class="banniere-success" style="padding: 16px; margin-top: 32px; background: var(--couleur-success-bg, #d1fae5); border-left: 4px solid var(--couleur-success, #16a34a);">
+    <span aria-hidden="true">✓</span> Vous êtes à jour. Aucune action critique en attente.
+  </aside>
+<% } else { %>
+
+  <div style="margin-top: 32px;">
+
+    <%# S2 — Alertes critiques (joursRestants <= 7) %>
+    <section aria-labelledby="titre-alertes-critiques" style="margin-bottom: 24px;">
+      <header style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+        <h2 id="titre-alertes-critiques">Alertes critiques</h2>
+        <% if (alertesCritiquesTotal > 5) { %>
+          <a href="#toutes-alertes-critiques" aria-label="Voir toutes les alertes critiques">
+            Voir tout (<%= alertesCritiquesTotal %>)
+          </a>
+        <% } %>
+      </header>
+      <% if (alertesCritiques.length === 0) { %>
+        <p style="color: var(--couleur-neutre); padding: 16px 0;">
+          Aucune alerte critique. Toutes vos échéances proches sont sous contrôle.
+        </p>
+      <% } else { %>
+        <% alertesCritiques.forEach(function(alerte) { %>
+          <%- include('../../partials/partial-bandeau-alerte', { alerte: alerte }) %>
+        <% }) %>
+      <% } %>
+    </section>
+
+    <%# S3 — Impayés %>
+    <section aria-labelledby="titre-impayes" style="margin-bottom: 24px;">
+      <header style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+        <h2 id="titre-impayes">Impayés</h2>
+        <% if (impayesTotal > 5) { %>
+          <a href="/impayes" aria-label="Voir tous les impayés">
+            Voir tout (<%= impayesTotal %>)
+          </a>
+        <% } %>
+      </header>
+      <% if (impayes.length === 0) { %>
+        <p style="color: var(--couleur-neutre); padding: 16px 0;">
+          Aucun impayé en cours. Tous vos loyers sont à jour.
+        </p>
+      <% } else { %>
+        <ul class="liste-impayes" style="list-style: none; padding: 0;">
+          <% impayes.forEach(function(impaye) { %>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--couleur-neutre-bg);">
+              <strong><%= impaye.locataireNomComplet %></strong>
+              <span style="color: var(--couleur-destructive); font-size: 14px; margin-left: 8px;">
+                En retard de <%= impaye.joursDeRetard %> jours
+              </span>
+              <br />
+              <small style="color: var(--couleur-neutre);">
+                Loyer dû : <%= formatMoney(impaye.resteDu) %>
+              </small>
+              <a href="/echeances/<%= impaye.echeanceId %>" style="margin-left: 8px;">Saisir l'encaissement</a>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+
+    <%# S4 — Actions du jour %>
+    <section aria-labelledby="titre-actions-jour" style="margin-bottom: 24px;">
+      <header style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+        <h2 id="titre-actions-jour">Actions du jour</h2>
+        <% if (actionsJourTotal > 5) { %>
+          <a href="#toutes-actions-jour" aria-label="Voir toutes les actions du jour">
+            Voir tout (<%= actionsJourTotal %>)
+          </a>
+        <% } %>
+      </header>
+      <% if (actionsJour.length === 0) { %>
+        <p style="color: var(--couleur-neutre); padding: 16px 0;">
+          Aucune action à mener aujourd'hui. Profitez-en.
+        </p>
+      <% } else { %>
+        <ul style="list-style: none; padding: 0;">
+          <% actionsJour.forEach(function(action) { %>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--couleur-neutre-bg);">
+              <% if (action.type === 'relance') { %>
+                <strong>Relance niveau <%= action.niveau %></strong> —
+                <%= action.nomLocataire %>
+                (<%= action.libellePeriode %>)
+                <a href="/echeances/<%= action.echeanceId %>" role="button" style="margin-left: 8px;">
+                  Lancer la relance
+                </a>
+              <% } else if (action.type === 'irl') { %>
+                <strong>Révision IRL disponible</strong>
+                <% if (action.nomLocataire) { %>— <%= action.nomLocataire %><% } %>
+                (échéance dans <%= action.joursRestants %> jours)
+                <a href="/baux/<%= action.bailId %>/indexer" role="button" style="margin-left: 8px;">
+                  Lancer la révision IRL
+                </a>
+              <% } %>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+
+    <%# S5 — Échéances loyer à venir %>
+    <section aria-labelledby="titre-echeances-venir" style="margin-bottom: 24px;">
+      <header style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+        <h2 id="titre-echeances-venir">Échéances loyer à venir</h2>
+        <% if (echeancesAVenirTotal > 5) { %>
+          <a href="/echeances" aria-label="Voir toutes les échéances">
+            Voir tout (<%= echeancesAVenirTotal %>)
+          </a>
+        <% } %>
+      </header>
+      <% if (echeancesAVenir.length === 0) { %>
+        <p style="color: var(--couleur-neutre); padding: 16px 0;">
+          Aucune échéance de loyer prévue sur les deux prochains mois.
+        </p>
+      <% } else { %>
+        <ul style="list-style: none; padding: 0;">
+          <% echeancesAVenir.forEach(function(echeance) { %>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--couleur-neutre-bg); display: flex; justify-content: space-between;">
+              <span>
+                <strong><%= formatPeriode(echeance.periodeDebut, echeance.periodeFin) %></strong>
+              </span>
+              <span class="numeric"><%= formatMoney(echeance.total) %></span>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+
+  </div>
+
+<% } %>
+
+<%- include('../../partials/layout-fin') %>

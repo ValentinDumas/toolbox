@@ -13,6 +13,9 @@
 <nav aria-label="Navigation principale">
   <ul>
     <li>
+      <a href="/"<% if (locals.navActive === 'dashboard') { %> aria-current="page"<% } %>>Tableau de bord</a>
+    </li>
+    <li>
       <a href="/biens"<% if (locals.navActive === 'biens') { %> aria-current="page"<% } %>>Biens</a>
     </li>
     <li>
