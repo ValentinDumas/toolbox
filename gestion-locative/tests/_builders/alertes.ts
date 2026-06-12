@@ -1,8 +1,8 @@
 /**
- * Builders Alerte unifié — Phase 7 / DAS-02 / 07-01 + 07-02.
+ * Builders Alerte unifié — Phase 7 / DAS-02 / 07-01 + 07-02 + 07-04.
  *
  * Pattern miroir tests/_builders/fiscalite.ts (fonction unX(overrides = {}) + spread).
- * Les variantes diagnostic seront ajoutées par 07-03.
+ * Couvre les 4 types : cfe / irl / fin_bail / diagnostic (complet pour 07-05).
  */
 
 import { Temporal } from '@js-temporal/polyfill';
@@ -44,6 +44,8 @@ export function uneAlerteCfe(overrides: Partial<Alerte> = {}): Alerte {
   return uneAlerte(overrides);
 }
 
+const DEFAULT_DIAG_ID = '44444444-4444-4444-8444-444444444444';
+
 const DEFAULT_BAIL_ID = '33333333-3333-4333-8333-333333333333';
 
 /**
@@ -81,6 +83,27 @@ export function uneAlerteFinBail(overrides: Partial<Alerte> = {}): Alerte {
       type: 'fin_bail',
       refId: DEFAULT_BAIL_ID,
       bienId: DEFAULT_BIEN_ID,
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Builder Alerte diagnostic — Phase 7 / DAS-02 / 07-04.
+ * Defaults : alerte diagnostic DPE J-5, lien /biens/{bienId}/diagnostics#diag-dpe.
+ */
+export function uneAlerteDiagnostic(overrides: Partial<Alerte> = {}): Alerte {
+  return {
+    type: 'diagnostic',
+    joursRestants: 5,
+    dateEcheance: Temporal.PlainDate.from('2026-06-16'),
+    libelle: 'Diagnostic DPE',
+    urlAction: `/biens/${DEFAULT_BIEN_ID}/diagnostics#diag-dpe`,
+    source: {
+      type: 'diagnostic',
+      refId: DEFAULT_DIAG_ID,
+      bienId: DEFAULT_BIEN_ID,
+      extra: { typeDiagnostic: 'dpe' },
     },
     ...overrides,
   };
