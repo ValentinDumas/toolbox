@@ -21,8 +21,6 @@
  * Le wiring DI réel (repos concrets) est branché par la route GET / (plan 07-05).
  */
 
-import { Temporal } from '@js-temporal/polyfill';
-
 import type { BailId } from '../../domain/_shared/identifiants.js';
 import type { Clock } from '../../domain/_shared/clock.js';
 import type { Alerte } from '../../domain/_shared/alerte.js';

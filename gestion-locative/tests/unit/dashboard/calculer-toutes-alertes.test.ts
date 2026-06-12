@@ -26,7 +26,7 @@ import type { BienRepository } from '../../../src/domain/patrimoine/bien-reposit
 import type { BailRepository } from '../../../src/domain/locatif/bail-repository.js';
 import type { DeclarationCfeRepository } from '../../../src/domain/fiscalite/cfe/declaration-cfe-repository.js';
 import type { BailIndexationRepository } from '../../../src/domain/locatif/bail-indexation-repository.js';
-import type { BienId, BailId } from '../../../src/domain/_shared/identifiants.js';
+import type { BienId } from '../../../src/domain/_shared/identifiants.js';
 import type { Bien } from '../../../src/domain/patrimoine/bien.js';
 import type { Bail } from '../../../src/domain/locatif/bail.js';
 import type { DeclarationCfe } from '../../../src/domain/fiscalite/cfe/declaration-cfe.js';
@@ -241,7 +241,7 @@ describe('calculerToutesAlertes', () => {
   it('Test 5 — CFE agrégée par bien : listerParBien appelé pour chaque bien', async () => {
     const bien1 = unBienValide();
     const bien2 = unBienValide();
-    const listerParBienSpy = vi.fn(async (bienId: BienId | string) => []);
+    const listerParBienSpy = vi.fn(async (_bienId: BienId | string) => []);
 
     const deps: CalculerToutesAlertesDeps = {
       ...makeDeps({ biens: [bien1, bien2] }),
