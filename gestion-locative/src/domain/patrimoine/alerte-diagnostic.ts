@@ -18,10 +18,11 @@
 
 import { Temporal } from '@js-temporal/polyfill';
 
-import type { Bien } from './bien.js';
 import type { Alerte } from '../_shared/alerte.js';
 import { joursAvantEcheance } from '../_shared/alerte.js';
 import { TYPES_DIAGNOSTIC } from '../_shared/duree-validite-diagnostic.js';
+
+import type { Bien } from './bien.js';
 
 const FENETRE_ALERTE_JOURS = 30;
 
