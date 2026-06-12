@@ -25,10 +25,12 @@
 
 import { Temporal } from '@js-temporal/polyfill';
 
+import type { Alerte } from '../_shared/alerte.js';
+import { joursAvantEcheance } from '../_shared/alerte.js';
 import type { BailId } from '../_shared/identifiants.js';
-import { type Alerte, joursAvantEcheance } from '../_shared/alerte.js';
-import type { Bail } from './bail.js';
 import type { Bien } from '../patrimoine/bien.js';
+
+import type { Bail } from './bail.js';
 
 /** Fenêtre d'alerte IRL : J-30 à J+30 (D-SRC-02). Même valeur que CFE. */
 const FENETRE_ALERTE_JOURS = 30;

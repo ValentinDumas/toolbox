@@ -21,7 +21,9 @@
 
 import { Temporal } from '@js-temporal/polyfill';
 
-import { type Alerte, joursAvantEcheance } from '../_shared/alerte.js';
+import type { Alerte } from '../_shared/alerte.js';
+import { joursAvantEcheance } from '../_shared/alerte.js';
+
 import type { Bail } from './bail.js';
 
 /**

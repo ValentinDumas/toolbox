@@ -23,8 +23,6 @@ import { unBailValide, unBailIndexableValide } from '../../_builders/locatif.js'
 const MAINTENANT = Temporal.PlainDate.from('2026-06-12');
 const BAIL_ID = '33333333-3333-4333-8333-333333333333' as BailId;
 
-const MAP_VIDE = new Map<BailId, boolean>();
-
 /**
  * Crée un bail actif avec une fin dans exactement N jours à partir de MAINTENANT.
  * fin = dateDebut + dureeMois = MAINTENANT + N jours
