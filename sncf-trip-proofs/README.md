@@ -38,11 +38,19 @@ flowchart TD
 
 ---
 
-## Comment utiliser (ordre d'exécution)
+## Sommaire
 
-### Prérequis (une seule fois)
+1. [Installation](#installation)
+2. [Utilisation](#utilisation)
+3. [Workflow cloud (zéro copier-coller)](#workflow-cloud-zéro-copier-coller)
+4. [Référence](#référence)
+5. [Pistes d'évolution](#pistes-dévolution)
 
-**Dépendances système** (OCR + rendu PDF) :
+---
+
+## Installation
+
+### Dépendances système (OCR + rendu PDF)
 
 ```bash
 # macOS
@@ -52,7 +60,7 @@ brew install tesseract tesseract-lang poppler
 sudo apt install tesseract-ocr tesseract-ocr-fra poppler-utils
 ```
 
-**Dépendances Python** (venv recommandé pour isoler et reproduire) :
+### Dépendances Python (venv recommandé)
 
 ```bash
 cd sncf-trip-proofs
@@ -61,96 +69,83 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-À chaque nouvelle session terminal : `source .venv/bin/activate` avant de
-lancer les scripts. Le `.venv/` est local au repo et ignoré par git.
+À chaque nouvelle session terminal : `source .venv/bin/activate` avant de lancer les scripts. Le `.venv/` est local au repo et ignoré par git.
 
-### Étape 1 — Configurer les chemins (une seule fois)
-
-Copiez le template de configuration et renseignez les chemins vers vos dossiers existants :
+### Configuration des chemins
 
 ```bash
 cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 ```
 
-Éditez `config.json` avec vos chemins réels :
+Éditer `config.json` avec vos chemins réels. Les dossiers `in` et `out` sont créés automatiquement si besoin. Les fichiers sources ne sont **jamais modifiés**.
 
 ```json
 {
   "curate-justificatifs-voyage": {
-    "in": "/Users/alice/Documents/sncf/bruts-voyage",
+    "in":  "/Users/alice/Documents/sncf/bruts-voyage",
     "out": "/Users/alice/Documents/sncf/renommes-voyage"
   },
   "curate-justificatifs-achat": {
-    "in": "/Users/alice/Documents/sncf/bruts-achat",
+    "in":  "/Users/alice/Documents/sncf/bruts-achat",
     "out": "/Users/alice/Documents/sncf/renommes-achat"
   },
   "draw-bilan-depenses-train": {
-    "in": "/Users/alice/Documents/sncf/renommes-achat",
+    "in":  "/Users/alice/Documents/sncf/renommes-achat",
     "out": "/Users/alice/Documents/sncf/bilans"
   }
 }
 ```
 
-Les dossiers `in` et `out` sont créés automatiquement si besoin. Les fichiers sources ne sont **jamais modifiés**.
-
 > ⚠️ **Avant le premier run**, vérifier que `config.json` ne contient plus les
-> chemins placeholder `/Users/alice/…` du template. Les dossiers `in`/`out`
-> étant auto-créés, un chemin oublié à `alice` ne crash pas — il crée
-> silencieusement une arborescence au mauvais endroit.
+> chemins placeholder `/Users/alice/…`. Les dossiers `in`/`out` étant auto-créés,
+> un chemin oublié à `alice` ne crash pas — il crée silencieusement une
+> arborescence au mauvais endroit.
 >
 > ```bash
 > grep -q "alice" sncf-trip-proofs/config.json && echo "⚠️ placeholders restants"
 > ```
 
-### Étape 2 — Organiser les justificatifs
+---
 
-Choisir le script selon le type de fichier téléchargé depuis SNCF Connect :
+## Utilisation
+
+### Avec configuration (workflow standard)
 
 ```bash
-# Justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
-python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py          # dry-run — vérifie les noms
+# 1. Organiser les justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
+python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py          # dry-run
 python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py --real   # applique
 
-# Justificatifs de voyage (justificatif-voyage-*.pdf)
-python3 sncf-trip-proofs/curate-justificatifs-voyage/curate-justificatifs-voyage.py          # dry-run — vérifie les noms
+# 2. Organiser les justificatifs de voyage (justificatif-voyage-*.pdf)
+python3 sncf-trip-proofs/curate-justificatifs-voyage/curate-justificatifs-voyage.py          # dry-run
 python3 sncf-trip-proofs/curate-justificatifs-voyage/curate-justificatifs-voyage.py --real   # applique
-```
 
-### Étape 3 — Générer le bilan
-
-```bash
+# 3. Générer le bilan
 python3 sncf-trip-proofs/draw-bilan-depenses-train/draw-bilan-depenses-train.py
 ```
 
 Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `out` configuré.
-
----
 
 ### Sans configuration (usage ponctuel)
 
 Sans `config.json`, les scripts utilisent des chemins par défaut relatifs à leur propre dossier :
 
 ```bash
-# Déposer les PDFs dans inbox/, lancer depuis le dossier du script
 cd sncf-trip-proofs/curate-justificatifs-achat/
 python3 curate-justificatifs-achat.py          # dry-run
 python3 curate-justificatifs-achat.py --real   # applique dans output/
 cd ..
 
-# Bilan depuis un dossier explicite
 python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output/ ./bilans/
 ```
 
 ---
 
-## Workflow zéro copier-coller avec un dossier cloud synchronisé
+## Workflow cloud (zéro copier-coller)
 
-Si vos justificatifs vivent sur un cloud (Google Drive, Dropbox, iCloud Drive,
-OneDrive…), pointez `config.json` directement sur le dossier monté localement
-par le client desktop. Les scripts lisent/écrivent dans le cloud sans copie
-manuelle.
+Si vos justificatifs vivent sur un cloud (Google Drive, Dropbox, iCloud Drive, OneDrive…), pointez `config.json` directement sur le dossier monté localement par le client desktop. Les scripts lisent/écrivent dans le cloud sans copie manuelle.
 
-### Exemple — Google Drive for Desktop
+### Setup Google Drive for Desktop
 
 > ⚠️ **Avant de copier-coller** les chemins ci-dessous : remplacer `<email>`
 > par votre adresse Google réelle (sinon `config.json` contient littéralement
@@ -162,8 +157,7 @@ manuelle.
 > # → GoogleDrive-prenom.nom@gmail.com
 > ```
 
-1. **Installer le client** : <https://www.google.com/drive/download/>, se
-   connecter, choisir **« Streamer les fichiers »** (économise du disque).
+1. **Installer le client** : <https://www.google.com/drive/download/>, se connecter, choisir **« Streamer les fichiers »** (économise du disque).
 2. **Localiser le point de montage** :
    - macOS récent : `~/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/`
    - macOS ancien : `/Volumes/GoogleDrive/Mon Drive/`
@@ -175,9 +169,7 @@ manuelle.
    ├── curated/    ← PDFs renommés (output des scripts curate-*)
    └── bilans/     ← bilans .md (output de draw-bilan-*)
    ```
-4. **Marquer offline** : clic droit sur `Justificatifs SNCF/` →
-   « Disponible hors connexion ». Sans ça, Tesseract OCR re-télécharge chaque
-   PDF à chaque accès, lent et fragile.
+4. **Marquer offline** : clic droit sur `Justificatifs SNCF/` → « Disponible hors connexion ». Sans ça, Tesseract OCR re-télécharge chaque PDF à chaque accès, lent et fragile.
 5. **Configurer le navigateur** pour télécharger directement dans `inbox/` :
    - Chrome/Brave : Réglages → Téléchargements → Emplacement
    - Safari : Réglages → Général → Emplacement de téléchargement
@@ -194,8 +186,7 @@ manuelle.
    }
    ```
 
-À partir de là : télécharger un PDF SNCF → il atterrit dans le Drive → lancer
-les scripts depuis le venv → outputs synchronisés automatiquement.
+À partir de là : télécharger un PDF SNCF → il atterrit dans le Drive → lancer les scripts depuis le venv → outputs synchronisés automatiquement.
 
 ### Alternative — Dropbox / iCloud Drive / OneDrive
 
@@ -207,82 +198,11 @@ Même principe, seul le point de montage change :
 | iCloud Drive | `~/Library/Mobile Documents/com~apple~CloudDocs/` | Décocher « Optimiser stockage Mac » |
 | OneDrive | `~/OneDrive/` | Clic droit → « Toujours conserver sur cet appareil » |
 
-Adapter les chemins dans `config.json` au point de montage du client choisi.
-Les étapes 3 à 6 ci-dessus restent valables à l'identique.
+Adapter les chemins dans `config.json` au point de montage choisi. Les étapes 3 à 6 ci-dessus restent valables à l'identique.
 
-### Politique de clôture annuelle
+### Wrapper `sncf-run.sh` (un seul script pour tout enchaîner)
 
-`curated/` est la source de vérité du bilan. Le script `draw-bilan` régénère un
-fichier par année trouvée — donc tant que `curated/` contient les années
-passées, leurs bilans sont **réécrits à chaque run**. Sans nettoyage, `curated/`
-grossit indéfiniment et un justificatif arrivant en retard peut modifier
-silencieusement un bilan déjà déclaré.
-
-**Politique** : début février N+1 (deux mois de buffer pour les retards de
-décembre), figer l'année N en déplaçant ses justificatifs et son bilan vers
-`archive/closed-N/`. Une seule commande, idempotente.
-
-Ajouter cette fonction à votre `~/.zshrc` (ou `~/.bashrc`) :
-
-```bash
-sncf-close-year() {
-  local YR="$1"
-  local DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
-  local DEST="$DRIVE/archive/closed-$YR"
-  mkdir -p "$DEST"
-  find "$DRIVE/curated" -maxdepth 1 -type f \
-       -name "justificatif-*-${YR}[0-1][0-9][0-3][0-9]*.pdf" \
-       -exec mv {} "$DEST/" \;
-  mv "$DRIVE/bilans/bilan-depenses-train-${YR}".* "$DEST/" 2>/dev/null || true
-  echo "annee $YR cloturee dans $DEST"
-}
-```
-
-Usage :
-
-```bash
-sncf-close-year 2026   # debut fevrier 2027
-```
-
-Propriétés :
-- **Idempotent** : re-jouer la commande ne fait rien si l'année est déjà
-  fermée (rien à matcher dans `curated/`).
-- **Rattrapage tardif** : si un justificatif 2026 arrive en mai 2027, il sera
-  traité normalement par `sncf-run.sh` (atterrit dans `curated/`), puis un
-  `sncf-close-year 2026` le déplace dans `archive/closed-2026/` et y régénère
-  le bilan final. Pas de drift permanent.
-- **Pattern de date strict** (`YYYY[0-1][0-9][0-3][0-9]`) : matche le premier
-  champ date du nom de fichier (`justificatif-achat-20260402-…`), pas
-  d'over-match sur un numéro de référence contenant l'année.
-
-### Export CSV/XLSX du bilan (à prévoir)
-
-Le bilan `.md` couvre la déclaration perso aux frais réels (justificatifs sur
-demande, total annuel suffit). Pour les notes de frais entreprise qui
-demandent un upload tabulaire :
-
-1. **Court terme** : copier-coller manuel du tableau Markdown vers
-   Numbers/Excel au moment de déclarer.
-2. **Long terme** : étendre `draw-bilan-depenses-train` pour générer `.csv`
-   ou `.xlsx` en parallèle du `.md` (via `csv` stdlib ou `openpyxl`).
-
-Hors scope pour l'instant.
-
-### Sauvegarde de `archive/` (à prévoir)
-
-`archive/closed-YYYY/` contient les pièces justificatives fiscales — l'admin
-peut les demander jusqu'à 6 ans en France. Compter uniquement sur le cloud
-provider est risqué (compte suspendu, sync foireux, erreur manuelle).
-
-Piste recommandée, cross-platform : `rclone copy` vers un second backend
-(autre cloud, disque externe, Backblaze B2…) une fois par mois. À planifier
-plus tard, hors scope du workflow courant.
-
-### Automatiser le run (optionnel)
-
-Pour éviter même de taper la commande, un wrapper shell idempotent qui exécute
-les 3 scripts à la suite et archive `inbox/` après run pour ne pas re-traiter
-les mêmes PDFs :
+Pour éviter de taper les 3 commandes à la suite, et archiver automatiquement `inbox/` après chaque run :
 
 ```bash
 #!/usr/bin/env bash
@@ -336,29 +256,55 @@ for f in "${FILES[@]}"; do
 done
 ```
 
-Propriétés du wrapper :
-- **Snapshot avant run** : un PDF ajouté pendant l'exécution n'est pas archivé
-  par erreur, il sera traité au run suivant.
-- **Archive sélective par checksum** : seuls les PDFs dont le contenu se
-  retrouve dans `curated/` sont archivés. Un PDF qui a échoué l'OCR ou le
-  parsing reste visible dans `inbox/` — pas d'erreur silencieuse.
-- **Archive uniquement si tout réussit** (`set -e`) : un crash dans un script
-  Python préserve les sources, on relance, les doublons sont gérés.
-- **Venv auto-détecté** : utilise `.venv/bin/python3` si présent, sinon
-  `python3` du `PATH`.
-- **Lock anti double-exécution** : pattern noclobber + PID (portable, zéro
-  dépendance contrairement à `flock` absent de macOS). Trap `EXIT` garantit
-  le nettoyage du lock même en cas de crash.
-- **Logs cross-platform** : `$XDG_DATA_HOME/sncf-trip-proofs/sncf-run.log` ou
-  `~/.local/share/sncf-trip-proofs/sncf-run.log` par défaut. Fonctionne sur
-  macOS, Linux et Git Bash/WSL côté Windows. Indispensable quand le wrapper
-  sera déclenché par un Shortcut ou un cron — la sortie console n'est plus
-  visible. Croissance illimitée : à rotater à la main si nécessaire
-  (`logrotate` sur Linux, ou simple troncature périodique).
+Propriétés :
+
+| Propriété | Garantie |
+|---|---|
+| **Snapshot avant run** | Un PDF ajouté pendant l'exécution n'est pas archivé par erreur, sera traité au run suivant. |
+| **Archive sélective par checksum** | Seuls les PDFs dont le contenu se retrouve dans `curated/` sont archivés. Un échec OCR/parsing reste visible dans `inbox/` — pas d'erreur silencieuse. |
+| **Archive uniquement si tout réussit** (`set -e`) | Un crash dans un script Python préserve les sources, on relance, les doublons sont gérés. |
+| **Venv auto-détecté** | Utilise `.venv/bin/python3` si présent, sinon `python3` du `PATH`. |
+| **Lock anti double-exécution** | Pattern noclobber + PID, portable (`flock` absent de macOS). Trap `EXIT` nettoie le lock même en cas de crash. |
+| **Logs cross-platform** | `$XDG_DATA_HOME/sncf-trip-proofs/sncf-run.log` ou `~/.local/share/sncf-trip-proofs/sncf-run.log`. Fonctionne sur macOS, Linux, Git Bash/WSL sur Windows. Indispensable une fois branché à un Shortcut ou cron. Croissance illimitée : à rotater à la main (`logrotate` ou troncature). |
+
+### Clôture annuelle (`sncf-close-year`)
+
+`curated/` est la source de vérité du bilan. Tant qu'il contient les années passées, leurs bilans sont **réécrits à chaque run**. Sans nettoyage, `curated/` grossit indéfiniment et un justificatif tardif peut modifier silencieusement un bilan déjà déclaré.
+
+**Politique** : début février N+1 (buffer de deux mois pour les retards de décembre), figer l'année N en déplaçant ses justificatifs et son bilan vers `archive/closed-N/`. Une seule commande, idempotente.
+
+Ajouter cette fonction à `~/.zshrc` (ou `~/.bashrc`) :
+
+```bash
+sncf-close-year() {
+  local YR="$1"
+  local DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
+  local DEST="$DRIVE/archive/closed-$YR"
+  mkdir -p "$DEST"
+  find "$DRIVE/curated" -maxdepth 1 -type f \
+       -name "justificatif-*-${YR}[0-1][0-9][0-3][0-9]*.pdf" \
+       -exec mv {} "$DEST/" \;
+  mv "$DRIVE/bilans/bilan-depenses-train-${YR}".* "$DEST/" 2>/dev/null || true
+  echo "annee $YR cloturee dans $DEST"
+}
+```
+
+Usage :
+
+```bash
+sncf-close-year 2026   # debut fevrier 2027
+```
+
+Propriétés :
+- **Idempotent** : re-jouer ne fait rien si `curated/` ne contient plus rien pour cette année.
+- **Rattrapage tardif** : un justificatif 2026 arrivant en mai 2027 est traité normalement par `sncf-run.sh` (atterrit dans `curated/`), puis un `sncf-close-year 2026` le déplace dans `archive/closed-2026/` et regénère le bilan final. Pas de drift permanent.
+- **Pattern de date strict** (`YYYY[0-1][0-9][0-3][0-9]`) : matche le premier champ date du nom de fichier, pas d'over-match sur un numéro de référence contenant l'année.
 
 ---
 
-## Structure du projet
+## Référence
+
+### Structure du projet
 
 ```
 sncf-trip-proofs/
@@ -380,14 +326,14 @@ sncf-trip-proofs/
 │   ├── draw-bilan-depenses-train.py     ← script de génération du bilan Markdown
 │   └── docs/specs/                      ← spécifications internes
 │
+├── requirements.txt                     ← dépendances Python pinnées
+├── config.example.json                  ← template à copier en config.json
 └── README.md                            ← ce fichier
 ```
 
----
+### Formats de noms produits
 
-## Formats de noms produits
-
-### Justificatifs d'achat (`curate-justificatifs-achat`)
+**Justificatifs d'achat** (`curate-justificatifs-achat`) :
 
 ```
 justificatif-achat-<DATES>-<PRIX>-<REF>[-N].pdf
@@ -401,7 +347,7 @@ justificatif-achat-<DATES>-<PRIX>-<REF>[-N].pdf
     → justificatif-achat-20260423-20260424-57-00ttc-1480540391-20260504.pdf
 ```
 
-### Justificatifs de voyage (`curate-justificatifs-voyage`)
+**Justificatifs de voyage** (`curate-justificatifs-voyage`) :
 
 ```
 justificatif-voyage-<DATE>-<PRIX>-<REF>[-<TCN>][-N].pdf
@@ -412,9 +358,7 @@ justificatif-voyage-brut.pdf
     → justificatif-voyage-20260402-18-50ttc-ne3erm-016487606.pdf
 ```
 
----
-
-## Sortie du bilan (exemple console)
+### Sortie du bilan (exemple console)
 
 ```
 Lecture de : /…/curate-justificatifs-voyage/output
@@ -438,9 +382,7 @@ Lecture de : /…/curate-justificatifs-voyage/output
 
 `[PDF]` = prix extrait du PDF (multi-tickets achat). `[calc]` = montant du nom de fichier.
 
----
-
-## Cas particuliers
+### Cas particuliers
 
 | Situation | Comportement |
 |---|---|
@@ -453,3 +395,13 @@ Lecture de : /…/curate-justificatifs-voyage/output
 | Deux sources au contenu identique | `[DOUBLON SOURCE]` — seul le plus ancien est gardé |
 | Deux fichiers → même nom cible | `[CONFLIT NOM]` — checksum puis numérotation `_1`, `_2`, … |
 | Même commande achat re-téléchargée | `[DOUBLON]` dans le bilan — second fichier ignoré |
+
+---
+
+## Pistes d'évolution
+
+| Sujet | Pourquoi | Direction |
+|---|---|---|
+| **Export CSV / XLSX du bilan** | Le `.md` couvre les frais réels perso (justificatifs sur demande). Pour les notes de frais entreprise demandant un upload tabulaire, copier-coller manuel à court terme. | Étendre `draw-bilan-depenses-train` pour produire `.csv`/`.xlsx` en parallèle (via `csv` stdlib ou `openpyxl`). |
+| **Backup de `archive/`** | `archive/closed-YYYY/` doit être conservée 6 ans (délai de reprise fiscal FR). Un seul cloud = risque (compte suspendu, sync foireux, suppression manuelle). | `rclone copy` mensuel vers un second backend (autre cloud, disque externe, Backblaze B2). Cross-platform. |
+| **Déclenchement automatique** | Aujourd'hui le wrapper est lancé manuellement depuis le terminal. | Raccourci macOS (Shortcuts) ou cron/launchd pour un déclenchement zéro action. Logs déjà branchés sur fichier pour observabilité. |
