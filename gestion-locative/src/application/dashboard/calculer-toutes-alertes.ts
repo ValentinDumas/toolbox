@@ -28,6 +28,7 @@ import type { BienRepository } from '../../domain/patrimoine/bien-repository.js'
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { DeclarationCfeRepository } from '../../domain/fiscalite/cfe/declaration-cfe-repository.js';
 import type { BailIndexationRepository } from '../../domain/locatif/bail-indexation-repository.js';
+import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import { calculerAlertesCfe } from '../../domain/fiscalite/cfe/alerte-cfe-j30.js';
 import { calculerAlertesIrl } from '../../domain/locatif/alerte-irl.js';
 import { calculerAlertesFinBail } from '../../domain/locatif/alerte-fin-bail.js';
@@ -38,6 +39,7 @@ export interface CalculerToutesAlertesDeps {
   bienRepo: BienRepository;
   bailRepo: BailRepository;
   bailIndexationRepo: BailIndexationRepository;
+  locataireRepo: LocataireRepository;
   clock: Clock;
 }
 
@@ -54,10 +56,22 @@ export async function calculerToutesAlertes(
   const maintenant = deps.clock.aujourdhui();
 
   // Chargement des collections en parallèle
-  const [biens, baux] = await Promise.all([
+  const [biens, baux, locataires] = await Promise.all([
     deps.bienRepo.listerTous(),
     deps.bailRepo.listerTous(),
+    deps.locataireRepo.listerTous(),
   ]);
+
+  // Map BailId → nom complet du locataire (résolution par le use case — le domaine ne touche aucun repo)
+  const locatairesParId = new Map(locataires.map((l) => [l.id, l]));
+  const nomLocataireParBail = new Map<BailId, string>(
+    baux
+      .filter((bail) => locatairesParId.has(bail.locataireId))
+      .map((bail) => {
+        const loc = locatairesParId.get(bail.locataireId)!;
+        return [bail.id, `${loc.prenom} ${loc.nom}`] as [BailId, string];
+      }),
+  );
 
   // CFE : DeclarationCfeRepository n'a pas de listerTous → agrégation par bien
   const listesCfe = await Promise.all(biens.map((b) => deps.cfeRepo.listerParBien(b.id)));
@@ -75,9 +89,9 @@ export async function calculerToutesAlertes(
 
   // Appel des 4 fonctions pures domaine
   const alertesCfe = calculerAlertesCfe(declarations, maintenant);
-  const alertesIrl = calculerAlertesIrl(baux, biens, indexationsParBail, maintenant);
+  const alertesIrl = calculerAlertesIrl(baux, biens, indexationsParBail, maintenant, nomLocataireParBail);
   const alertesDiag = calculerAlertesDiagnostic(biens, maintenant);
-  const alertesFinBail = calculerAlertesFinBail(baux, maintenant);
+  const alertesFinBail = calculerAlertesFinBail(baux, maintenant, nomLocataireParBail);
 
   // Fusion + tri ASC global (toutes sources confondues)
   const toutes = [...alertesCfe, ...alertesIrl, ...alertesDiag, ...alertesFinBail];

@@ -66,6 +66,7 @@ export async function plugin(
       bienRepo: opts.bienRepo,
       bailRepo: opts.bailRepo,
       bailIndexationRepo: opts.bailIndexationRepo,
+      locataireRepo: opts.locataireRepo,
       clock: opts.clock,
     });
     const alertesCritiquesAll = toutesAlertes.filter((a) => a.joursRestants <= 7);

@@ -72,7 +72,14 @@ function makeDeps(opts: {
     listerParBail: async () => { throw new Error('non utilisé'); },
   };
 
-  return { bienRepo, bailRepo, cfeRepo, bailIndexationRepo, clock: CLOCK };
+  const locataireRepo = {
+    listerTous: async () => [],
+    trouverParId: async () => null,
+    enregistrer: async () => { throw new Error('non utilisé'); },
+    supprimer: async () => { throw new Error('non utilisé'); },
+  };
+
+  return { bienRepo, bailRepo, cfeRepo, bailIndexationRepo, locataireRepo, clock: CLOCK };
 }
 
 describe('calculerToutesAlertes', () => {

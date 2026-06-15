@@ -18,11 +18,7 @@
     <section aria-labelledby="titre-alertes-critiques" style="margin-bottom: 24px;">
       <header style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
         <h2 id="titre-alertes-critiques">Alertes critiques</h2>
-        <% if (alertesCritiquesTotal > 5) { %>
-          <a href="#toutes-alertes-critiques" aria-label="Voir toutes les alertes critiques">
-            Voir tout (<%= alertesCritiquesTotal %>)
-          </a>
-        <% } %>
+        <%# S2 : pas de lien "Voir tout" en V1 — aucune page dédiée aux alertes critiques n'existe %>
       </header>
       <% if (alertesCritiques.length === 0) { %>
         <p style="color: var(--couleur-neutre); padding: 16px 0;">
@@ -73,7 +69,7 @@
       <header style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
         <h2 id="titre-actions-jour">Actions du jour</h2>
         <% if (actionsJourTotal > 5) { %>
-          <a href="#toutes-actions-jour" aria-label="Voir toutes les actions du jour">
+          <a href="/baux/indexations" aria-label="Voir toutes les actions du jour">
             Voir tout (<%= actionsJourTotal %>)
           </a>
         <% } %>

@@ -23,12 +23,11 @@ Feature: Dashboard — composition 4 sections
     And la page contient 'aria-labelledby="titre-echeances-venir"'
 
   @phase7-dashboard-02
-  Scenario: Top 5 affiché et lien Voir tout présent si plus de 5 alertes critiques
+  Scenario: Top 5 affiché si plus de 5 alertes critiques (pas de lien Voir tout en V1 — WR-01)
     Given 6 alertes critiques existent (joursRestants 1..6)
     When je visite "/"
     Then la réponse a un statut 200
     And la page contient au plus 5 bannières d'alerte
-    And la page contient "Voir tout (6)"
 
   @phase7-dashboard-03
   Scenario: Les alertes critiques sont triées par urgence croissante
