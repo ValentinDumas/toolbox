@@ -193,7 +193,7 @@ Plans:
   2. Le dashboard rend visible la **hiérarchie d'urgence** (en retard / à venir / à jour) sans nécessiter de drill-down pour qualifier la priorité.
   3. Le système notifie l'utilisateur à J-30 et J-7 sur chaque échéance critique : paiement CFE, révision IRL annuelle, expiration DPE / gaz / élec, fin de bail.
   4. Une notification déclenchée renvoie en un clic vers l'écran d'action correspondant (régler CFE, lancer l'indexation, renouveler diagnostic, préparer renouvellement bail).
-**Plans**: 7 plans (6 ✓ + 1 gap-closure)
+**Plans**: 8 plans (6 ✓ + 2 gap-closure)
 Plans:
 - [x] 07-01-PLAN.md — Contrat Alerte unifié + calculerAlertesCfe agrégé (D-AL-01)
 - [x] 07-02-PLAN.md — Calculateurs domaine IRL + fin de bail (DAS-02)
@@ -202,6 +202,7 @@ Plans:
 - [x] 07-05-PLAN.md — Dashboard GET / 4 sections + helpers EJS + partial-bandeau-alerte (DAS-01)
 - [x] 07-06-PLAN.md — Page transversale /baux/indexations + audit a11y (DAS-01)
 - [ ] 07-07-PLAN.md — Gap closure VERIFICATION.md : 'elec' label (WR-02) + ancres mortes accueil.ejs (WR-01) + extra.nomLocataire IRL/fin-bail (WR-03) + réconciliation docs fenêtres juridiques fin-bail/IRL (WR-04/WR-05) (wave 1, gap_closure=true, DAS-01+DAS-02)
+- [ ] 07-08-PLAN.md — Gap closure UAT (test 4) : urlAction alerte diagnostic 404 → /biens/:id#diagnostics-heading (route + ancre existantes) (wave 1, gap_closure=true, DAS-02)
 **UI hint:** yes
 
 ## Progress
