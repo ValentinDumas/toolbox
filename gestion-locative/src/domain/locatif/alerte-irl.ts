@@ -2,7 +2,9 @@
  * Alertes révision IRL J-30 — Phase 7 / DAS-02 / Plan 07-02.
  *
  * Produit des Alerte[] unifiés (contrat D-AL-01) pour les baux actifs dont
- * la date d'anniversaire tombe dans la fenêtre [-30, +30] jours (D-SRC-02).
+ * la date d'anniversaire tombe dans la fenêtre forward-only [0, +30] jours (D-SRC-02).
+ * Note : dateAnniversaireProchaine retourne TOUJOURS une date strictement future
+ * (j >= 1). La borne basse j >= -30 est conservée comme garde défensive inatteignable en V1.
  *
  * Filtres appliqués (D-SRC-03) :
  *   1. bail.actifDepuis !== null → bail jamais activé ignoré.
@@ -32,7 +34,7 @@ import type { Bien } from '../patrimoine/bien.js';
 
 import type { Bail } from './bail.js';
 
-/** Fenêtre d'alerte IRL : J-30 à J+30 (D-SRC-02). Même valeur que CFE. */
+/** Fenêtre d'alerte IRL : forward-only [0, +30] (D-SRC-02). Même valeur que CFE. */
 const FENETRE_ALERTE_JOURS = 30;
 
 /**
@@ -56,7 +58,7 @@ export function estAlerteIrlActive(
   if (indexationDejaPresenteExerciceCourant) return false; // D-SRC-03 IRL
   const dateAnniversaire = bail.dateAnniversaireProchaine(maintenant); // D-91
   const j = joursAvantEcheance(dateAnniversaire, maintenant);
-  return j <= FENETRE_ALERTE_JOURS && j >= -30; // fenêtre [-30, +30]
+  return j <= FENETRE_ALERTE_JOURS && j >= -30; // fenêtre forward-only [0,+30] ; borne -30 défensive (inatteignable en V1)
 }
 
 /**
@@ -71,13 +73,16 @@ export function estAlerteIrlActive(
  * @param biens            Liste des biens (readonly — aucune mutation).
  * @param indexationsParBail  Map bailId → bool (true = déjà indexé exercice courant).
  *                         Construite par le use case 07-04.
- * @param maintenant       Date courante (injectée via Clock).
+ * @param maintenant             Date courante (injectée via Clock).
+ * @param nomLocataireParBail    Map optionnelle BailId → nom complet du locataire.
+ *                               Construite par le use case (jamais un repo dans le domaine).
  */
 export function calculerAlertesIrl(
   baux: readonly Bail[],
   biens: readonly Bien[],
   indexationsParBail: Map<BailId, boolean>,
   maintenant: Temporal.PlainDate,
+  nomLocataireParBail?: Map<BailId, string>,
 ): Alerte[] {
   const biensParId = new Map(biens.map((b) => [b.id, b]));
   const alertes: Alerte[] = [];
@@ -100,7 +105,10 @@ export function calculerAlertesIrl(
         type: 'irl',
         refId: bail.id,
         bienId: bien.id,
-        extra: { adresseBien: bien.adresse.rue },
+        extra: {
+          adresseBien: bien.adresse.rue,
+          nomLocataire: nomLocataireParBail?.get(bail.id) ?? '',
+        },
       },
     });
   }

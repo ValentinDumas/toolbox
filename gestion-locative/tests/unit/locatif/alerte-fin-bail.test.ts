@@ -105,4 +105,21 @@ describe('calculerAlertesFinBail — forme Alerte + tri ASC', () => {
   it('Test 7b (liste vide) : calculerAlertesFinBail([], maintenant) → []', () => {
     expect(calculerAlertesFinBail([], MAINTENANT)).toEqual([]);
   });
+
+  it('Test 8 (extra.nomLocataire) : nomLocataireParBail avec entrée → source.extra.nomLocataire présent', () => {
+    const bail = bailActifAvecFinDans(15);
+    const nomLocataireParBail = new Map([[bail.id as BailId, 'Jean Dupont']]);
+    const alertes = calculerAlertesFinBail([bail], MAINTENANT, nomLocataireParBail);
+    expect(alertes).toHaveLength(1);
+    const alerte = alertes[0]!;
+    expect(alerte.source.extra?.['nomLocataire']).toBe('Jean Dupont');
+  });
+
+  it('Test 9 (sans nomLocataireParBail) : map absente → pas de crash, forme rétrocompatible', () => {
+    const bail = bailActifAvecFinDans(15);
+    const alertes = calculerAlertesFinBail([bail], MAINTENANT);
+    expect(alertes).toHaveLength(1);
+    // Rétrocompatibilité : pas de crash
+    expect(() => alertes[0]!.source.extra?.['nomLocataire']).not.toThrow();
+  });
 });

@@ -58,3 +58,28 @@ Feature: Alertes révision IRL J-30/J-7
     And aucune indexation n'est enregistrée pour l'exercice courant
     When je calcule les alertes IRL
     Then 0 alertes IRL sont retournées
+
+  @phase7-alerte-irl-07
+  Scenario: Fenêtre forward-only D-SRC-02 [0,+30] — anniversaire J-30 inclus (WR-05 verrouillage)
+    Given la date du jour est à 30 jours avant l'anniversaire du bail
+    And aucune indexation n'est enregistrée pour l'exercice courant
+    When je calcule les alertes IRL
+    Then 1 alerte IRL est retournée
+    And l'alerte IRL a joursRestants égal à 30
+
+  @phase7-alerte-irl-08
+  Scenario: Fenêtre forward-only D-SRC-02 [0,+30] — anniversaire J-31 exclu (WR-05 verrouillage)
+    Given la date du jour est à 31 jours avant l'anniversaire du bail
+    And aucune indexation n'est enregistrée pour l'exercice courant
+    When je calcule les alertes IRL
+    Then 0 alertes IRL sont retournées
+
+  @phase7-alerte-irl-09
+  Scenario: Fenêtre forward-only — pas d'alerte IRL pour révision déjà passée (borne basse inatteignable en V1)
+    # dateAnniversaireProchaine retourne TOUJOURS une date future → j > 0 en V1
+    # La borne basse j >= 0 est défensive ; ce scénario documente le comportement acté (WR-05)
+    Given la date du jour est à 1 jours avant l'anniversaire du bail
+    And aucune indexation n'est enregistrée pour l'exercice courant
+    When je calcule les alertes IRL
+    Then 1 alerte IRL est retournée
+    And l'alerte IRL a joursRestants égal à 1

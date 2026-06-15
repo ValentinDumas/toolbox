@@ -40,9 +40,9 @@ export function dateFinBail(bail: Bail): Temporal.PlainDate {
  * Vrai si la fin de bail doit déclencher une alerte.
  *
  * - `bail.actifDepuis === null` → false (D-SRC-03 — brouillon ignoré).
- * - Fenêtre : `j <= 60 && j >= -30` (D-SRC-05 / D-FB-03 — borne supérieure +60
- *   car on laisse une marge de 60 jours après expiration ; borne basse -30 pour
- *   alerter 1 mois avant l'expiration).
+ * - Fenêtre RÉELLE : `j <= 30 && j >= -60` (D-SRC-05 / D-FB-03) — le code alerte
+ *   30 jours AVANT la fin (j positif = jours restants) et jusqu'à 60 jours APRÈS
+ *   (j négatif = jours écoulés depuis la fin). Fenêtre = [-30 avant fin, +60 après fin].
  *
  * @param bail       Bail à évaluer (lu en readonly — aucune mutation).
  * @param maintenant Date courante (injectée via Clock).
@@ -61,10 +61,16 @@ export function estAlerteFinBailActive(bail: Bail, maintenant: Temporal.PlainDat
  * - urlAction : `/baux/{bailId}` — fiche bail (D-FB-02).
  * - Aucune mutation du Bail (D-FB-01 / D-FB-04) : pas de flag cloture, pas de successeur.
  *
- * @param baux       Liste des baux (readonly — aucune mutation).
- * @param maintenant Date courante (injectée via Clock).
+ * @param baux                Liste des baux (readonly — aucune mutation).
+ * @param maintenant          Date courante (injectée via Clock).
+ * @param nomLocataireParBail Map optionnelle BailId → nom complet du locataire.
+ *                            Construite par le use case (jamais un repo dans le domaine).
  */
-export function calculerAlertesFinBail(baux: readonly Bail[], maintenant: Temporal.PlainDate): Alerte[] {
+export function calculerAlertesFinBail(
+  baux: readonly Bail[],
+  maintenant: Temporal.PlainDate,
+  nomLocataireParBail?: Map<string, string>,
+): Alerte[] {
   const alertes: Alerte[] = [];
 
   for (const bail of baux) {
@@ -80,6 +86,7 @@ export function calculerAlertesFinBail(baux: readonly Bail[], maintenant: Tempor
         type: 'fin_bail',
         refId: bail.id,
         bienId: bail.bienId,
+        extra: { nomLocataire: nomLocataireParBail?.get(bail.id) ?? '' },
       },
     });
   }

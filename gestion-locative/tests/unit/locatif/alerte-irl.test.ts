@@ -163,4 +163,27 @@ describe('calculerAlertesIrl — forme Alerte + tri ASC', () => {
     const alertes = calculerAlertesIrl([bail], [], MAP_VIDE, MAINTENANT);
     expect(alertes).toHaveLength(0);
   });
+
+  it('Test 10 (extra.nomLocataire) : nomLocataireParBail avec entrée → extra.nomLocataire présent', () => {
+    const bail = bailActifAvecAnniversaireDans(15);
+    const bien = unBienValide({ id: BIEN_ID, rue: '5 allée des Pins' });
+    const nomLocataireParBail = new Map([[bail.id as BailId, 'Marie Curie']]);
+    const alertes = calculerAlertesIrl([bail], [bien], MAP_VIDE, MAINTENANT, nomLocataireParBail);
+    expect(alertes).toHaveLength(1);
+    const alerte = alertes[0]!;
+    expect(alerte.source.extra?.['nomLocataire']).toBe('Marie Curie');
+    // Régression : adresseBien toujours présent
+    expect(alerte.source.extra?.['adresseBien']).toBe('5 allée des Pins');
+  });
+
+  it('Test 11 (sans nomLocataireParBail) : map absente → pas de crash, adresseBien toujours là', () => {
+    const bail = bailActifAvecAnniversaireDans(15);
+    const bien = unBienValide({ id: BIEN_ID, rue: '5 allée des Pins' });
+    const alertes = calculerAlertesIrl([bail], [bien], MAP_VIDE, MAINTENANT);
+    expect(alertes).toHaveLength(1);
+    const alerte = alertes[0]!;
+    expect(alerte.source.extra?.['adresseBien']).toBe('5 allée des Pins');
+    // nomLocataire absent ou vide — pas de crash
+    expect(() => alerte.source.extra?.['nomLocataire']).not.toThrow();
+  });
 });

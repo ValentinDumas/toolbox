@@ -37,3 +37,22 @@ Feature: Alertes fin de bail
     Given la fin du bail était il y a 61 jours
     When je calcule les alertes fin de bail
     Then 0 alertes fin de bail sont retournées
+
+  @phase7-alerte-fin-bail-05
+  Scenario: Fenêtre juridique D-SRC-05 [-30,+60] — J-30 avant la fin inclus (WR-04 verrouillage)
+    Given la fin du bail est dans 30 jours
+    When je calcule les alertes fin de bail
+    Then 1 alerte fin de bail est retournée
+    And l'alerte fin de bail a joursRestants égal à 30
+
+  @phase7-alerte-fin-bail-06
+  Scenario: Fenêtre juridique D-SRC-05 [-30,+60] — J+60 après la fin inclus (WR-04 verrouillage)
+    Given la fin du bail était il y a 60 jours
+    When je calcule les alertes fin de bail
+    Then 1 alerte fin de bail est retournée
+
+  @phase7-alerte-fin-bail-07
+  Scenario: Fenêtre juridique D-SRC-05 [-30,+60] — J+61 après la fin exclu (WR-04 verrouillage)
+    Given la fin du bail était il y a 61 jours
+    When je calcule les alertes fin de bail
+    Then 0 alertes fin de bail sont retournées
