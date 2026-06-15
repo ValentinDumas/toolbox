@@ -69,7 +69,7 @@ export function libelleTypeAlerte(alerte: Alerte): string {
       const typeDiag = alerte.source.extra?.['typeDiagnostic'];
       if (typeDiag === 'dpe') return 'DPE';
       if (typeDiag === 'gaz') return 'Gaz';
-      if (typeDiag === 'electricite') return 'Électricité';
+      if (typeDiag === 'elec') return 'Électricité';
       return 'Diagnostic';
     }
     case 'fin_bail': {
