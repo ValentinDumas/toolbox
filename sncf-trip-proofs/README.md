@@ -109,8 +109,6 @@ cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 
 ## Utilisation
 
-### Avec configuration (workflow standard)
-
 ```bash
 # 1. Organiser les justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
 python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py          # dry-run
@@ -126,18 +124,7 @@ python3 sncf-trip-proofs/draw-bilan-depenses-train/draw-bilan-depenses-train.py
 
 Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `out` configuré.
 
-### Sans configuration (usage ponctuel)
-
-Sans `config.json`, les scripts utilisent des chemins par défaut relatifs à leur propre dossier :
-
-```bash
-cd sncf-trip-proofs/curate-justificatifs-achat/
-python3 curate-justificatifs-achat.py          # dry-run
-python3 curate-justificatifs-achat.py --real   # applique dans output/
-cd ..
-
-python3 draw-bilan-depenses-train/draw-bilan-depenses-train.py curate-justificatifs-achat/output/ ./bilans/
-```
+Pour enchaîner les 3 commandes en une seule, archiver `inbox/` automatiquement et brancher le tout sur un dossier cloud synchronisé, voir [Workflow cloud](#workflow-cloud-zéro-copier-coller) ci-dessous.
 
 ---
 
