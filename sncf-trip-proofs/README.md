@@ -289,6 +289,12 @@ les mêmes PDFs :
 # ~/.local/bin/sncf-run.sh — adapter REPO et DRIVE puis chmod +x
 set -euo pipefail
 
+# Logs (XDG-conforme — macOS / Linux / Git Bash & WSL sur Windows)
+LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/sncf-trip-proofs"
+mkdir -p "$LOG_DIR"
+exec > >(tee -a "$LOG_DIR/sncf-run.log") 2>&1
+echo "=== $(date '+%Y-%m-%d %H:%M:%S') === sncf-run start ==="
+
 # Lock non-bloquant : refus si une instance tourne deja
 LOCKFILE="${TMPDIR:-/tmp}/sncf-run.lock"
 if ! ( set -o noclobber; echo "$$" > "$LOCKFILE") 2>/dev/null; then
@@ -343,6 +349,12 @@ Propriétés du wrapper :
 - **Lock anti double-exécution** : pattern noclobber + PID (portable, zéro
   dépendance contrairement à `flock` absent de macOS). Trap `EXIT` garantit
   le nettoyage du lock même en cas de crash.
+- **Logs cross-platform** : `$XDG_DATA_HOME/sncf-trip-proofs/sncf-run.log` ou
+  `~/.local/share/sncf-trip-proofs/sncf-run.log` par défaut. Fonctionne sur
+  macOS, Linux et Git Bash/WSL côté Windows. Indispensable quand le wrapper
+  sera déclenché par un Shortcut ou un cron — la sortie console n'est plus
+  visible. Croissance illimitée : à rotater à la main si nécessaire
+  (`logrotate` sur Linux, ou simple troncature périodique).
 
 ---
 
