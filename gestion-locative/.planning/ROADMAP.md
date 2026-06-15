@@ -202,7 +202,7 @@ Plans:
 - [x] 07-05-PLAN.md — Dashboard GET / 4 sections + helpers EJS + partial-bandeau-alerte (DAS-01)
 - [x] 07-06-PLAN.md — Page transversale /baux/indexations + audit a11y (DAS-01)
 - [ ] 07-07-PLAN.md — Gap closure VERIFICATION.md : 'elec' label (WR-02) + ancres mortes accueil.ejs (WR-01) + extra.nomLocataire IRL/fin-bail (WR-03) + réconciliation docs fenêtres juridiques fin-bail/IRL (WR-04/WR-05) (wave 1, gap_closure=true, DAS-01+DAS-02)
-- [ ] 07-08-PLAN.md — Gap closure UAT (test 4) : urlAction alerte diagnostic 404 → /biens/:id#diagnostics-heading (route + ancre existantes) (wave 1, gap_closure=true, DAS-02)
+- [x] 07-08-PLAN.md — Gap closure UAT (test 4) : urlAction alerte diagnostic 404 → /biens/:id#diagnostics-heading (route + ancre existantes) (wave 1, gap_closure=true, DAS-02)
 **UI hint:** yes
 
 ## Progress
@@ -218,4 +218,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Gaps found | 2026-05-21 |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
-| 7. Dashboard & Notifications d'échéances | 6/7 | Gaps found | - |
+| 7. Dashboard & Notifications d'échéances | 7/8 | In Progress|  |

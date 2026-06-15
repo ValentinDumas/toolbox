@@ -50,7 +50,7 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 ### Dashboard
 
 - [ ] **DAS-01** : Le dashboard affiche un récap synthétique (impayés, échéances à venir, actions du jour).
-- [ ] **DAS-02** : Le système envoie des notifications J-30 et J-7 sur les échéances critiques (CFE, IRL, expiration DPE/gaz/élec, fin de bail).
+- [x] **DAS-02** : Le système envoie des notifications J-30 et J-7 sur les échéances critiques (CFE, IRL, expiration DPE/gaz/élec, fin de bail).
 
 ### Travaux
 
@@ -150,7 +150,7 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 | DOC-02 | Phase 4 | Pending |
 | DOC-03 | Phase 4 | Pending |
 | DAS-01 | Phase 7 | Pending |
-| DAS-02 | Phase 7 | Pending |
+| DAS-02 | Phase 7 | Complete |
 | INC-01 | Phase 4 | Pending |
 
 **Coverage:**
