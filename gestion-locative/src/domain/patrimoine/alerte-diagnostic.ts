@@ -59,7 +59,7 @@ export function calculerAlertesDiagnostic(
         joursRestants: j,
         dateEcheance: diag.dateExpiration,
         libelle: `Diagnostic ${diag.type.toUpperCase()}`,
-        urlAction: `/biens/${bien.id}/diagnostics#diag-${diag.type}`,
+        urlAction: `/biens/${bien.id}#diagnostics-heading`,
         source: {
           type: 'diagnostic',
           refId: diag.id,

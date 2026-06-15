@@ -55,7 +55,7 @@ describe('calculerAlertesDiagnostic — DPE dans fenêtre J-15', () => {
     expect(alerte.source.refId).toBe(diag.id);
     expect(alerte.source.bienId).toBe(bien.id);
     expect(alerte.source.extra?.['typeDiagnostic']).toBe('dpe');
-    expect(alerte.urlAction).toBe(`/biens/${bien.id}/diagnostics#diag-dpe`);
+    expect(alerte.urlAction).toBe(`/biens/${bien.id}#diagnostics-heading`);
   });
 });
 

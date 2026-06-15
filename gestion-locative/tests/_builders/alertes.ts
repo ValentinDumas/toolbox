@@ -90,7 +90,7 @@ export function uneAlerteFinBail(overrides: Partial<Alerte> = {}): Alerte {
 
 /**
  * Builder Alerte diagnostic — Phase 7 / DAS-02 / 07-04.
- * Defaults : alerte diagnostic DPE J-5, lien /biens/{bienId}/diagnostics#diag-dpe.
+ * Defaults : alerte diagnostic DPE J-5, lien /biens/{bienId}#diagnostics-heading.
  */
 export function uneAlerteDiagnostic(overrides: Partial<Alerte> = {}): Alerte {
   return {
@@ -98,7 +98,7 @@ export function uneAlerteDiagnostic(overrides: Partial<Alerte> = {}): Alerte {
     joursRestants: 5,
     dateEcheance: Temporal.PlainDate.from('2026-06-16'),
     libelle: 'Diagnostic DPE',
-    urlAction: `/biens/${DEFAULT_BIEN_ID}/diagnostics#diag-dpe`,
+    urlAction: `/biens/${DEFAULT_BIEN_ID}#diagnostics-heading`,
     source: {
       type: 'diagnostic',
       refId: DEFAULT_DIAG_ID,
