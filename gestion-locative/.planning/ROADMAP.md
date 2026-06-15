@@ -17,7 +17,6 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Activation — Bien, Locataire, Bail** - L'utilisateur peut créer son premier dossier locatif complet en une session, sans aucune logique fiscale.
 - [ ] **Phase 2: Quittancement — Échéances, Encaissements, Relances** - L'utilisateur peut générer avis d'échéance et quittances, suivre les paiements et déclencher des relances escaladées.
 - [ ] **Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier** - Le système garantit la conformité juridique du bail meublé (DPE/gaz/élec, EDL contradictoire, indexation IRL avec gel DPE F/G, checklist mobilier décret 2015-981).
-- [ ] **Phase 4: Coffre documentaire & Travaux** - L'utilisateur peut centraliser ses justificatifs (10 ans de rétention) et tracer les tickets d'incidents/travaux avec pièces jointes et coûts.
 - [x] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (passed 2026-05-22 — 3 gap-closure plans 05-09/05-10/05-11 fermèrent CR-01 / CR-03 / CR-06)
 - [x] **Phase 5.1: Hardening hexagonal** - Fermer les 3 violations hexagonales pré-existantes découvertes pendant la clôture du gap CR-06 (Phase 5). (complete 2026-05-22 — 3 ports + 3 adapters extraits, DI propagée, 4 violations fermées. 895/895 tests, 0 imports infra dans `src/application/`)
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
@@ -194,7 +193,15 @@ Plans:
   2. Le dashboard rend visible la **hiérarchie d'urgence** (en retard / à venir / à jour) sans nécessiter de drill-down pour qualifier la priorité.
   3. Le système notifie l'utilisateur à J-30 et J-7 sur chaque échéance critique : paiement CFE, révision IRL annuelle, expiration DPE / gaz / élec, fin de bail.
   4. Une notification déclenchée renvoie en un clic vers l'écran d'action correspondant (régler CFE, lancer l'indexation, renouveler diagnostic, préparer renouvellement bail).
-**Plans**: TBD
+**Plans**: 7 plans (6 ✓ + 1 gap-closure)
+Plans:
+- [x] 07-01-PLAN.md — Contrat Alerte unifié + calculerAlertesCfe agrégé (D-AL-01)
+- [x] 07-02-PLAN.md — Calculateurs domaine IRL + fin de bail (DAS-02)
+- [x] 07-03-PLAN.md — Calculateur diagnostic + agrégateur calculerToutesAlertes (DAS-02)
+- [x] 07-04-PLAN.md — Use case calculerToutesAlertes + filtre exercice courant IRL (DAS-02)
+- [x] 07-05-PLAN.md — Dashboard GET / 4 sections + helpers EJS + partial-bandeau-alerte (DAS-01)
+- [x] 07-06-PLAN.md — Page transversale /baux/indexations + audit a11y (DAS-01)
+- [ ] 07-07-PLAN.md — Gap closure VERIFICATION.md : 'elec' label (WR-02) + ancres mortes accueil.ejs (WR-01) + extra.nomLocataire IRL/fin-bail (WR-03) + réconciliation docs fenêtres juridiques fin-bail/IRL (WR-04/WR-05) (wave 1, gap_closure=true, DAS-01+DAS-02)
 **UI hint:** yes
 
 ## Progress
@@ -210,4 +217,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Gaps found | 2026-05-21 |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
-| 7. Dashboard & Notifications d'échéances | 0/TBD | Not started | - |
+| 7. Dashboard & Notifications d'échéances | 6/7 | Gaps found | - |
