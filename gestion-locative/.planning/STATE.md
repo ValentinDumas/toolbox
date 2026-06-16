@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: Durcissement & mise en main
 status: executing
 stopped_at: Phase 9 context gathered
-last_updated: "2026-06-16T09:52:11.614Z"
-last_activity: 2026-06-16 -- Phase 09 planning complete
+last_updated: "2026-06-16T10:04:09.629Z"
+last_activity: 2026-06-16 -- Phase 09 execution started
 progress:
   total_phases: 4
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** Centraliser factures, quittances, baux et échéances pour simplifier les obligations fiscales LMNP (liasse 2031, 2042 C PRO, CFE, amortissements, plus-value LF 2025) — sans cloud, sans délégation.
-**Current focus:** v1.1 Durcissement & mise en main — roadmap créé (Phases 9–12), prêt à planifier la Phase 9.
+**Current focus:** Phase 09 — finition-qualit-cl-ture-uat-r-conciliation-des-statuts
 
 ## Current Position
 
-Phase: 9 of 12 (Finition qualité — clôture UAT & réconciliation des statuts)
-Plan: — (roadmap créé, pas encore de plan)
-Status: Ready to execute
-Last activity: 2026-06-16 -- Phase 09 planning complete
+Phase: 09 (finition-qualit-cl-ture-uat-r-conciliation-des-statuts) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 09
+Last activity: 2026-06-16 -- Phase 09 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
