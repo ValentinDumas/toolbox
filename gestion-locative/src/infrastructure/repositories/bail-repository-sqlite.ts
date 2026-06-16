@@ -1,5 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { Kysely } from 'kysely';
+import type { Kysely, Transaction } from 'kysely';
 
 import type { DB } from '../db/kysely-types.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
@@ -11,15 +11,19 @@ import { Adresse } from '../../domain/_shared/adresse.js';
 import type { BailId, BienId, LotId, LocataireId } from '../../domain/_shared/identifiants.js';
 import { InventaireItem } from '../../domain/_shared/inventaire-item.js';
 
+type DbOrTrx = Kysely<DB> | Transaction<DB>;
+
 export class BailRepositorySqlite implements BailRepository {
   constructor(private readonly db: Kysely<DB>) {}
 
-  async enregistrer(bail: Bail): Promise<void> {
+  async enregistrer(bail: Bail, trxArg?: unknown): Promise<void> {
     const cautionnementJson = bail.cautionnement
       ? JSON.stringify(bail.cautionnement.toJSON())
       : null;
 
-    await this.db.transaction().execute(async (trx) => {
+    const executor = (trxArg as DbOrTrx | undefined) ?? null;
+
+    const doWrite = async (trx: DbOrTrx) => {
       // Upsert du bail — T-05-03 : Money converti en number (centimes INTEGER)
       await trx
         .insertInto('bail')
@@ -71,7 +75,14 @@ export class BailRepositorySqlite implements BailRepository {
           .values({ bail_id: bail.id, lot_id: lotId })
           .execute();
       }
-    });
+    };
+
+    if (executor !== null) {
+      // Enrôlé dans une transaction externe — écriture directe, pas de transaction imbriquée
+      await doWrite(executor);
+    } else {
+      await this.db.transaction().execute(doWrite);
+    }
   }
 
   async trouverParId(id: BailId): Promise<Bail | null> {

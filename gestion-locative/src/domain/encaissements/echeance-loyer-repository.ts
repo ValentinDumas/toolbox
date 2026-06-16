@@ -5,12 +5,15 @@ import type { EcheanceLoyer, StatutEcheanceLoyer } from './echeance-loyer.js';
  * Port repository EcheanceLoyer.
  * PAS de supprimer — D-74 interdit la suppression physique.
  * Le soft-delete se fait via annule_le (D-60).
+ *
+ * `trxArg` (type opaque dans le port pour ne pas importer Kysely dans le
+ * domaine) permet à un use case d'enrôler les méthodes dans sa transaction.
  */
 export interface EcheanceLoyerRepository {
   enregistrer(echeance: EcheanceLoyer): Promise<void>;
 
   /** Insère N échéances en transaction atomique (génération à l'activation). */
-  enregistrerBatch(echeances: EcheanceLoyer[]): Promise<void>;
+  enregistrerBatch(echeances: EcheanceLoyer[], trxArg?: unknown): Promise<void>;
 
   trouverParId(id: EcheanceLoyerId | string): Promise<EcheanceLoyer | null>;
 
@@ -23,7 +26,7 @@ export interface EcheanceLoyerRepository {
   listerNonPayees(): Promise<EcheanceLoyer[]>;
 
   /** Supprime physiquement des échéances par IDs (D-73 — jamais encaissées, donc hard-delete OK). */
-  supprimerLot(ids: EcheanceLoyerId[]): Promise<void>;
+  supprimerLot(ids: EcheanceLoyerId[], trxArg?: unknown): Promise<void>;
 
   /**
    * Liste toutes les échéances avec filtres optionnels.
