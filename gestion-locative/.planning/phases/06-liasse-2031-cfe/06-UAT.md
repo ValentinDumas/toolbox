@@ -1,5 +1,5 @@
 ---
-status: human-pending
+status: passed
 phase: 06-liasse-2031-cfe
 source:
   - 06-01-SUMMARY.md
@@ -10,10 +10,11 @@ source:
   - 06-06-SUMMARY.md
   - 06-07-SUMMARY.md
 started: 2026-06-09T05:24:09Z
-updated: 2026-06-16T10:30:00Z
-paused_reason: "Verification reportée — sera exécutée juste avant la verif manuelle de la Phase 7 (UI Phase 6+7 testée d'un seul tenant)."
+updated: 2026-06-16T10:45:00Z
+closed_le: 2026-06-16
 executed_by: "Phase 9 / QUA-01 plan 09-01 (Playwright, app live :7878 + cold start :7879)"
-human_pending_reason: "Scénarios 8 (lisibilité PDF) et 9 (accents CSV dans Excel/LibreOffice) = perceptuels → clôturés au plan 09-03 (confirmation bailleur)."
+closed_by: "Phase 9 / plan 09-03 — confirmation perceptuelle bailleur (sc.8 PDF, sc.9 CSV)"
+closure_note: "12/12 scénarios clos (9 pass, 3 pass-with-note, 0 pending). Rapport consolidé : ../09-finition-qualit-cl-ture-uat-r-conciliation-des-statuts/09-UAT-CLOSURE.md"
 ---
 
 ## Current Test
@@ -59,13 +60,13 @@ note: Bandeau jaune S6 « Liasse rectificative — motif : Oubli charge syndic�
 
 ### 8. Export PDF du brouillon
 expected: Sur le brouillon (réel ou micro), section « Exports » avec 2 CTA. Cliquer « Télécharger PDF » télécharge un fichier `brouillon-liasse-{exercice}.pdf` (ou `-rectificative-` si applicable). Le PDF s'ouvre correctement et contient bandeau S1 + sections + tableaux.
-result: [pending]
-note: Partie automatisable OK — `GET …/liasse.pdf` → 200, `content-type: application/pdf`, `Content-Disposition: attachment; filename="brouillon-liasse-2026.pdf"`, en-tête `%PDF`, 38 Ko. Lisibilité réelle (le PDF s'ouvre et est lisible) = perceptuelle → **clôture au plan 09-03 (humain)**.
+result: pass
+note: Partie automatisable OK — `GET …/liasse.pdf` → 200, `content-type: application/pdf`, `Content-Disposition: attachment; filename="brouillon-liasse-2026.pdf"`, en-tête `%PDF`, 38 Ko. Confirmation humaine (plan 09-03, 2026-06-16) : le bailleur a ouvert le PDF, il s'ouvre et fonctionne (lisible, bandeau S1 + sections + tableaux). → clos.
 
 ### 9. Export CSV du brouillon
 expected: Cliquer « Télécharger CSV (expert-comptable) » télécharge `brouillon-liasse-{exercice}.csv` (BOM UTF-8, séparateur `;`, colonnes Annexe;Case;Libellé;Valeur;Sources). Ouvert dans Excel/LibreOffice, les accents s'affichent correctement et aucune cellule ne commence par `=`/`+`/`-`/`@` sans préfixe `'`.
-result: [pending]
-note: Partie automatisable OK — `GET …/liasse.csv` → 200, `text/csv; charset=utf-8`, `filename="brouillon-liasse-2026.csv"`, BOM UTF-8 (EF BB BF) présent, séparateur `;`, colonnes `Annexe;Case;Libellé officiel;Valeur (€);Sources`. Assertion injection : 0 cellule débutant par `=`/`+`/`-`/`@` (ASCII) sur 28 lignes — les `—` sont des cadratins U+2014, pas des moins ASCII. Affichage correct des accents dans Excel/LibreOffice = perceptuel → **clôture au plan 09-03 (humain)**.
+result: pass-with-note
+note: Partie automatisable OK — `GET …/liasse.csv` → 200, `text/csv; charset=utf-8`, `filename="brouillon-liasse-2026.csv"`, BOM UTF-8 (EF BB BF) présent, séparateur `;`, colonnes `Annexe;Case;Libellé officiel;Valeur (€);Sources`. Assertion injection : 0 cellule débutant par `=`/`+`/`-`/`@` (ASCII) sur 28 lignes. Confirmation humaine (plan 09-03, 2026-06-16) : accents corrects + colonnes bien séparées dans le tableur (cœur perceptuel sc.9 = OK). **Réserve non-bloquante** signalée par le bailleur : la colonne « Valeur (€) » contient des montants formatés affichage (« 6 700,00 € » — espace de milliers + symbole €) → non interprétés comme nombres par Excel/LibreOffice (pas sommables par l'expert-comptable). Valeurs correctes et lisibles, donc non bloquant → backlog (cf. 09-UAT-CLOSURE.md « Backlog »).
 
 ### 10. Création + édition d'une déclaration CFE
 expected: Depuis la fiche d'un bien, accéder à « Nouvelle déclaration CFE ». Renseigner millésime (2020-2030), statut (`non_deposee`/`deposee`/`payee`/`exoneree_premiere_annee`/`exoneree_commune`), date de dépôt + montant si statut le requiert. Soumettre : la déclaration apparaît dans la liste CFE du bien. Édition possible avec changements persistés.
@@ -85,12 +86,12 @@ note: Variante **warning** vérifiée live (échéance 10/07/2026, J-24) : banne
 ## Summary
 
 total: 12
-passed: 10
+passed: 12
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 
-(passed inclut 2 pass-with-note : sc.4 et sc.6. pending = sc.8 + sc.9, perceptuels, clôturés au plan 09-03.)
+(passed inclut 3 pass-with-note : sc.4, sc.6, sc.9. sc.8 + sc.9 perceptuels clos par confirmation humaine au plan 09-03 le 2026-06-16. 0 scénario en attente.)
 
 ## Gaps
 
@@ -100,3 +101,4 @@ skipped: 0
 ### Écarts cosmétiques / non-bloquants → backlog (severity minor, hors Phase 9 par D-04)
 - **Brouillons liasse des millésimes pré-2026** : le bloc « Brouillons de liasse » liste toutes les déclarations clôturées ; cliquer une déclaration antérieure à 2026 mène à un 422 « Mapping de la liasse non disponible pour l'année N » (le mapping est révisé chaque janvier — D-L6.3). Comportement attendu mais UX perfectible (on pourrait griser/annoter les lignes sans mapping). Non-bloquant.
 - **Libellé du compteur de réconciliation** : le bandeau indique « N pièces ont changé » ; quand l'écart vient de l'absence totale de pièces vivantes (vs snapshot), le terme « modifiées » est un raccourci. Cosmétique, non-bloquant.
+- **CSV liasse — colonne « Valeur (€) » non numérique** (signalé par le bailleur au checkpoint 09-03, sc.9) : les montants sont formatés pour l'affichage (« 6 700,00 € » avec espace de milliers + symbole €), donc Excel/LibreOffice les traitent comme du texte → non sommables par l'expert-comptable. Valeurs correctes et lisibles ⇒ non-bloquant. Amélioration backlog : ajouter une colonne valeur brute numérique (centimes ou format `1234.56` sans séparateur de milliers ni symbole) destinée au tableur, en gardant la colonne formatée pour la lecture humaine.
