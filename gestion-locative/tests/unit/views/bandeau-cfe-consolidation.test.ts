@@ -47,7 +47,13 @@ async function rendreCfe(joursRestants: number): Promise<string> {
     bienId: 'bien-uuid-1',
     declarationCfeId: 'cfe-uuid-1',
   };
-  return ejs.renderFile(CFE_PARTIAL, { alerte, formatDate }, { async: true });
+  // Note: EJS include() ne fonctionne pas avec async:true — on utilise la forme callback.
+  return new Promise((resolve, reject) => {
+    ejs.renderFile(CFE_PARTIAL, { alerte, formatDate }, {}, (err, str) => {
+      if (err) reject(err);
+      else resolve(str as string);
+    });
+  });
 }
 
 async function rendreAlerte(joursRestants: number): Promise<string> {
@@ -57,18 +63,25 @@ async function rendreAlerte(joursRestants: number): Promise<string> {
     dateEcheance: new Date('2026-09-01'),
     urlAction: '/baux/bail-uuid-1/indexations/irl-uuid-1/editer',
   };
-  return ejs.renderFile(
-    ALERTE_PARTIAL,
-    {
-      alerte,
-      inline: true,
-      formatDate,
-      formaterAlerteUrgence,
-      iconeTypeAlerte,
-      libelleTypeAlerte,
-    },
-    { async: true },
-  );
+  // Note: EJS include() ne fonctionne pas avec async:true — on utilise la forme callback.
+  return new Promise((resolve, reject) => {
+    ejs.renderFile(
+      ALERTE_PARTIAL,
+      {
+        alerte,
+        inline: true,
+        formatDate,
+        formaterAlerteUrgence,
+        iconeTypeAlerte,
+        libelleTypeAlerte,
+      },
+      {},
+      (err, str) => {
+        if (err) reject(err);
+        else resolve(str as string);
+      },
+    );
+  });
 }
 
 describe('bandeau-cfe-consolidation — snapshots avant-refactor', () => {

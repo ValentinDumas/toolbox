@@ -7,12 +7,12 @@
     - titre         : string     → contenu du <strong> (titre composé par l'appelant)
     - texteEcheance : string     → texte « Échéance le … » composé par l'appelant
     - blocActions   : string     → HTML des liens d'action (peut être vide/null)
-    - avecIcone     : boolean    → si true, émet <span aria-hidden="true"><%= icone %></span>
+    - avecIcone     : boolean    → si true, émet span[aria-hidden="true"] avec l'icône
     - icone         : string     → caractère Unicode icône (ignoré si avecIcone = false)
 
   Ce partiel est neutre : il ne lit AUCUN champ spécifique CFE ou Alerte.
   Le calcul de variant/role/ariaLive/style est dérivé uniquement de joursRestants.
-%>
+-%>
 <%
   const j = joursRestants;
   let variant, role, ariaLive;
@@ -40,7 +40,7 @@
   } else {
     styleVariant = "border-left: 4px solid var(--couleur-warning, #C2410C); padding-left: 12px;";
   }
-%>
+-%>
 <aside
   role="<%= role %>"
   aria-live="<%= ariaLive %>"
