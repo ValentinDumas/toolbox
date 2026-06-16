@@ -132,8 +132,8 @@ describe('GET /echeances/:id (fiche échéance)', () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toContain('2026-05'); // période
-    expect(res.body).toContain('en_attente'); // statut ou libellé
+    expect(res.body).toMatch(/mai.*2026|2026.*mai/); // période formatée en français
+    expect(res.body).toContain('en_attente'); // statut badge
     expect(res.body).toContain('Alice'); // nom locataire
     expect(res.body).toContain('Saisir un encaissement'); // CTA
   });

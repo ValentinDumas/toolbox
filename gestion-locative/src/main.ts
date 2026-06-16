@@ -277,6 +277,8 @@ export async function creerApp(
     bienRepo: repo,
     locataireRepo,
     echeanceLoyerRepo,
+    encaissementRepo,
+    relanceRepo,
     bailleurRepo,
     pdfRenderer,
     clock,

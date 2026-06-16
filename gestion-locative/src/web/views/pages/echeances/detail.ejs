@@ -1,0 +1,123 @@
+<%- include('../../partials/layout-debut', {
+  titre: 'Fiche échéance — ' + formatPeriode(echeance.periodeDebut, echeance.periodeFin),
+  breadcrumbs: [
+    { url: '/baux', label: 'Baux' },
+    { url: '/baux/' + bail.id, label: 'Bail de ' + locataireNomComplet },
+    { url: '/baux/' + bail.id + '/echeances', label: 'Échéances' },
+    { label: formatPeriode(echeance.periodeDebut, echeance.periodeFin) }
+  ],
+  navActive: 'echeances'
+}) %>
+
+<h1>Fiche échéance — <%= formatPeriode(echeance.periodeDebut, echeance.periodeFin) %></h1>
+
+<section aria-labelledby="titre-echeance-detail" style="margin-bottom: 24px;">
+  <h2 id="titre-echeance-detail">Informations de l'échéance</h2>
+
+  <dl>
+    <dt>Locataire</dt>
+    <dd><a href="/locataires/<%= locataire.id %>"><%= locataireNomComplet %></a></dd>
+
+    <dt>Bail</dt>
+    <dd><a href="/baux/<%= bail.id %>"><%= bail.id.substring(0, 8) %></a></dd>
+
+    <dt>Période</dt>
+    <dd><%= formatDate(echeance.periodeDebut) %> → <%= formatDate(echeance.periodeFin) %></dd>
+
+    <dt>Échéance attendue le</dt>
+    <dd><%= formatDate(echeance.jourEcheanceAttendue) %></dd>
+
+    <dt>Loyer HC</dt>
+    <dd><%= formatMoney(echeance.loyerHc) %></dd>
+
+    <dt>Charges</dt>
+    <dd><%= formatMoney(echeance.montantCharges) %></dd>
+
+    <dt>Total</dt>
+    <dd><strong><%= formatMoney(echeance.total) %></strong></dd>
+
+    <dt>Reste dû</dt>
+    <dd>
+      <% if (resteDu.centimes === 0n) { %>
+        <span style="color: var(--couleur-success, #16a34a);">Soldée</span>
+      <% } else { %>
+        <strong style="color: var(--couleur-destructive, #dc2626);"><%= formatMoney(resteDu) %></strong>
+      <% } %>
+    </dd>
+
+    <dt>Statut</dt>
+    <dd>
+      <% if (echeance.statut === 'payee') { %>
+        <span class="statut-badge statut-badge--payee">Payée</span>
+      <% } else if (echeance.statut === 'partiellement_payee') { %>
+        <span class="statut-badge statut-badge--partiellement_payee">Partiellement payée</span>
+      <% } else if (echeance.statut === 'annulee') { %>
+        <span class="statut-badge statut-badge--annulee">Annulée</span>
+      <% } else { %>
+        <span class="statut-badge statut-badge--en_attente"><%= echeance.statut %></span>
+      <% } %>
+    </dd>
+  </dl>
+</section>
+
+<section aria-labelledby="titre-actions" style="margin-bottom: 24px;">
+  <h2 id="titre-actions">Actions</h2>
+
+  <% if (echeance.statut !== 'annulee' && echeance.statut !== 'payee') { %>
+    <a href="/encaissements/nouveau?echeance=<%= echeance.id %>" role="button">
+      Saisir un encaissement
+    </a>
+    &nbsp;
+  <% } %>
+
+  <% if (echeance.statut !== 'annulee') { %>
+    <a href="/echeances/<%= echeance.id %>/avis-pdf">
+      Télécharger l'avis (PDF)
+    </a>
+  <% } %>
+
+  <% if (niveauDisponible !== null) { %>
+    <div style="margin-top: 12px;">
+      <%- include('../../partials/relance-action', { echeanceId: echeance.id, niveauDisponible: niveauDisponible }) %>
+    </div>
+  <% } %>
+</section>
+
+<section aria-labelledby="titre-encaissements" style="margin-bottom: 24px;">
+  <h2 id="titre-encaissements">Encaissements</h2>
+
+  <% if (encaissements.length === 0) { %>
+    <p style="color: var(--couleur-neutre);">Aucun encaissement enregistré pour cette échéance.</p>
+  <% } else { %>
+    <div role="region" aria-label="Tableau des encaissements">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Montant</th>
+            <th scope="col">Mode</th>
+            <th scope="col">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% encaissements.forEach(function(enc) { %>
+          <tr>
+            <td><%= formatDate(enc.date) %></td>
+            <td><%= formatMoney(enc.montant) %></td>
+            <td><%= enc.mode %></td>
+            <td>
+              <% if (enc.annuleLe !== null) { %>
+                <span>Annulé</span>
+              <% } else { %>
+                <span>Actif</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+
+<%- include('../../partials/layout-fin') %>

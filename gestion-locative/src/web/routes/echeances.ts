@@ -5,6 +5,8 @@ import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
 import type { LocataireRepository } from '../../domain/locatif/locataire-repository.js';
 import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
+import type { EncaissementRepository } from '../../domain/encaissements/encaissement-repository.js';
+import type { RelanceRepository } from '../../domain/encaissements/relance-repository.js';
 import type { BailleurRepository } from '../../domain/identite/bailleur-repository.js';
 import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
 import type { Clock } from '../../domain/_shared/clock.js';
@@ -16,6 +18,8 @@ import { BailIntrouvable } from '../../domain/locatif/erreurs.js';
 import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import { EcheanceLoyerIntrouvable } from '../../domain/encaissements/erreurs.js';
 import { construireAvisEcheance } from '../../infrastructure/pdf/avis-echeance-doc-def.js';
+import { calculerRelanceDisponible } from '../../application/encaissements/calculer-relance-disponible.js';
+import { Money } from '../../domain/_shared/money.js';
 
 const STATUTS_VALIDES: ReadonlySet<string> = new Set([
   'en_attente', 'partiellement_payee', 'payee', 'annulee',
@@ -28,6 +32,8 @@ export async function plugin(
     bienRepo: BienRepository;
     locataireRepo: LocataireRepository;
     echeanceLoyerRepo: EcheanceLoyerRepository;
+    encaissementRepo: EncaissementRepository;
+    relanceRepo: RelanceRepository;
     bailleurRepo: BailleurRepository;
     pdfRenderer: PdfRenderer;
     clock: Clock;
@@ -221,6 +227,54 @@ export async function plugin(
       navActive: 'baux',
       banniereSuccess,
       banniereWarning,
+    });
+  });
+
+  // GET /echeances/:id — fiche échéance (Phase 8 gap-closure ROUTE-ECHEANCES-DETAIL)
+  app.get('/echeances/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    const echeance = await opts.echeanceLoyerRepo.trouverParId(id);
+    if (!echeance) {
+      return reply.code(404).send('Échéance introuvable.');
+    }
+
+    const bail = await opts.bailRepo.trouverParId(echeance.bailId);
+    if (!bail) {
+      return reply.code(404).send('Bail introuvable.');
+    }
+
+    const locataire = await opts.locataireRepo.trouverParId(bail.locataireId);
+    if (!locataire) {
+      return reply.code(404).send('Locataire introuvable.');
+    }
+
+    const [encaissements, relancesActives] = await Promise.all([
+      opts.encaissementRepo.listerParEcheance(id),
+      opts.relanceRepo.listerParEcheance(id),
+    ]);
+
+    const niveauDisponible = calculerRelanceDisponible(echeance, relancesActives, opts.clock.aujourdhui());
+
+    // Reste dû : total − somme des encaissements non annulés
+    const sommePaiee = encaissements
+      .filter((e) => e.annuleLe === null)
+      .reduce((acc, e) => acc.additionner(e.montant), Money.zero());
+    const resteDu = sommePaiee.lte(echeance.total)
+      ? echeance.total.soustraire(sommePaiee)
+      : Money.zero();
+
+    const locataireNomComplet = `${locataire.prenom} ${locataire.nom}`;
+
+    return reply.view('pages/echeances/detail.ejs', {
+      echeance,
+      bail,
+      locataire,
+      locataireNomComplet,
+      encaissements,
+      resteDu,
+      niveauDisponible,
+      navActive: 'echeances',
     });
   });
 
