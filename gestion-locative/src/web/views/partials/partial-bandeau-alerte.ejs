@@ -20,64 +20,28 @@
     - libelleTypeAlerte(alerte)   → libellé français du type
 %>
 <%
-  const j = alerte.joursRestants;
-  let variant, role, ariaLive;
-
-  if (j <= 0) {
-    variant = 'destructive';
-    role = 'alert';
-    ariaLive = 'assertive';
-  } else if (j <= 7) {
-    variant = 'warning-fort';
-    role = 'alert';
-    ariaLive = 'assertive';
-  } else {
-    variant = 'warning';
-    role = 'status';
-    ariaLive = 'polite';
-  }
-
-  const styleBase = "padding: 16px; margin-bottom: 16px;";
-  let styleVariant;
-  if (variant === 'destructive') {
-    styleVariant = "background: var(--couleur-destructive-bg); border-left: 4px solid var(--couleur-destructive);";
-  } else if (variant === 'warning-fort') {
-    styleVariant = "background: var(--couleur-warning-bg, #FFF4E6); border-left: 4px solid var(--couleur-warning, #C2410C);";
-  } else {
-    styleVariant = "border-left: 4px solid var(--couleur-warning, #C2410C); padding-left: 12px;";
-  }
-
   const libelleUrgence = formaterAlerteUrgence(alerte);
   const libelleType    = libelleTypeAlerte(alerte);
   const icone          = iconeTypeAlerte(alerte.type);
+  const titre          = libelleType + " — " + libelleUrgence + ".";
+  const texteEcheance  = "Échéance le " + formatDate(alerte.dateEcheance) + ".";
+  const ariaLabel      = "Alerte " + libelleType;
+
+  let blocActions = null;
+  if (!locals.inline) {
+    let lienAction = '';
+    if (alerte.type === 'cfe') {
+      lienAction = '<a href="https://www.impots.gouv.fr/professionnel/cotisation-fonciere-des-entreprises-cfe"\n           target="_blank" rel="noopener noreferrer" role="button">\n          Régler la CFE sur impots.gouv.fr\n        </a>\n        &nbsp;\n        <a href="' + alerte.urlAction + '">Mettre à jour le statut</a>';
+    } else if (alerte.type === 'irl') {
+      lienAction = '<a href="' + alerte.urlAction + '" role="button">Lancer la révision IRL</a>';
+    } else if (alerte.type === 'diagnostic') {
+      lienAction = '<a href="' + alerte.urlAction + '" role="button">Voir le diagnostic</a>';
+    } else if (alerte.type === 'fin_bail') {
+      lienAction = '<a href="' + alerte.urlAction + '" role="button">Voir le bail</a>';
+    }
+    if (lienAction) {
+      blocActions = '<p>\n        ' + lienAction + '\n      </p>';
+    }
+  }
 %>
-<aside
-  role="<%= role %>"
-  aria-live="<%= ariaLive %>"
-  aria-label="Alerte <%= libelleType %>"
-  style="<%= styleBase %> <%= styleVariant %>"
->
-  <p>
-    <span aria-hidden="true"><%= icone %></span>
-    <strong><%= libelleType %> — <%= libelleUrgence %>.</strong>
-    Échéance le <%= formatDate(alerte.dateEcheance) %>.
-  </p>
-  <% if (!locals.inline) { %>
-    <p>
-      <% if (alerte.type === 'cfe') { %>
-        <a href="https://www.impots.gouv.fr/professionnel/cotisation-fonciere-des-entreprises-cfe"
-           target="_blank" rel="noopener noreferrer" role="button">
-          Régler la CFE sur impots.gouv.fr
-        </a>
-        &nbsp;
-        <a href="<%= alerte.urlAction %>">Mettre à jour le statut</a>
-      <% } else if (alerte.type === 'irl') { %>
-        <a href="<%= alerte.urlAction %>" role="button">Lancer la révision IRL</a>
-      <% } else if (alerte.type === 'diagnostic') { %>
-        <a href="<%= alerte.urlAction %>" role="button">Voir le diagnostic</a>
-      <% } else if (alerte.type === 'fin_bail') { %>
-        <a href="<%= alerte.urlAction %>" role="button">Voir le bail</a>
-      <% } %>
-    </p>
-  <% } %>
-</aside>
+<%- include('_bandeau-cfe-corps', { joursRestants: alerte.joursRestants, ariaLabel, titre, texteEcheance, blocActions, avecIcone: true, icone }) -%>

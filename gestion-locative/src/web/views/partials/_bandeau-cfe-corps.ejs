@@ -1,0 +1,56 @@
+<%#
+  Partiel partagé — Corps du bandeau CFE/alerte paramétré (Phase 10 / DET-01).
+
+  Props :
+    - joursRestants : number     → détermine variant / role / ariaLive / styleVariant
+    - ariaLabel     : string     → valeur de aria-label sur <aside>
+    - titre         : string     → contenu du <strong> (titre composé par l'appelant)
+    - texteEcheance : string     → texte « Échéance le … » composé par l'appelant
+    - blocActions   : string     → HTML des liens d'action (peut être vide/null)
+    - avecIcone     : boolean    → si true, émet span[aria-hidden="true"] avec l'icône
+    - icone         : string     → caractère Unicode icône (ignoré si avecIcone = false)
+
+  Ce partiel est neutre : il ne lit AUCUN champ spécifique CFE ou Alerte.
+  Le calcul de variant/role/ariaLive/style est dérivé uniquement de joursRestants.
+-%>
+<%
+  const j = joursRestants;
+  let variant, role, ariaLive;
+
+  if (j <= 0) {
+    variant = 'destructive';
+    role = 'alert';
+    ariaLive = 'assertive';
+  } else if (j <= 7) {
+    variant = 'warning-fort';
+    role = 'alert';
+    ariaLive = 'assertive';
+  } else {
+    variant = 'warning';
+    role = 'status';
+    ariaLive = 'polite';
+  }
+
+  const styleBase = "padding: 16px; margin-bottom: 16px;";
+  let styleVariant;
+  if (variant === 'destructive') {
+    styleVariant = "background: var(--couleur-destructive-bg); border-left: 4px solid var(--couleur-destructive);";
+  } else if (variant === 'warning-fort') {
+    styleVariant = "background: var(--couleur-warning-bg, #FFF4E6); border-left: 4px solid var(--couleur-warning, #C2410C);";
+  } else {
+    styleVariant = "border-left: 4px solid var(--couleur-warning, #C2410C); padding-left: 12px;";
+  }
+-%>
+<aside
+  role="<%= role %>"
+  aria-live="<%= ariaLive %>"
+  aria-label="<%= ariaLabel %>"
+  style="<%= styleBase %> <%= styleVariant %>"
+>
+  <p>
+    <% if (avecIcone) { %><span aria-hidden="true"><%= icone %></span>
+    <% } %><strong><%= titre %></strong>
+    <%= texteEcheance %>
+  </p>
+  <% if (blocActions) { %><%- blocActions %><% } %>
+</aside>
