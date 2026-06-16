@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Plan executed
+status: Awaiting next milestone
 stopped_at: Completed 07-07-PLAN.md (gap-closure WR-01..05, checkpoint approved)
-last_updated: "2026-06-16T07:15:52.512Z"
-last_activity: 2026-06-16 -- Plan 07-07 complete (gap-closure dashboard alertes WR-01..05)
+last_updated: "2026-06-16T07:47:53.151Z"
+last_activity: 2026-06-16 — Milestone v1.0 completed and archived
 progress:
   total_phases: 9
   completed_phases: 9
@@ -18,20 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-13)
+See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** Centraliser factures, quittances, baux et échéances pour simplifier les obligations fiscales LMNP (liasse 2031, 2042 C PRO, CFE, amortissements, plus-value LF 2025) — sans cloud, sans délégation.
-**Current focus:** Phase 06 — liasse-2031-cfe
+**Current focus:** v1.0 MVP LMNP shippé — planning du prochain milestone (`/gsd-new-milestone`)
 
 ## Current Position
 
-Phase: 7
-Plan: 07-07 complete (gap-closure)
-Status: Plan executed
-Last activity: 2026-06-16 -- Plan 07-07 complete (gap-closure dashboard alertes WR-01..05)
-Next step: Phase 7 verification / clôture
-
-Progress: [██████████] 100%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-16 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -102,14 +99,25 @@ None yet.
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
+Items acknowledged and deferred at milestone close on 2026-06-16 (v1.0). None correspond to an unsatisfied v1 requirement — milestone audit `passed`.
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| debug | g1-validation-500-json | diagnosed (fix landed in gap-closure) | 2026-06-16 |
+| debug | g4-banniere-flash-dupliquee | diagnosed (fix landed in gap-closure) | 2026-06-16 |
+| debug | g8-relance-mailto-pas-ouvert | diagnosed (fix landed in 02-07) | 2026-06-16 |
+| uat | 02-UAT.md | 0 pending scenarios (status not closed) | 2026-06-16 |
+| uat | 03-UAT.md | 0 pending scenarios (status not closed) | 2026-06-16 |
+| uat | 04-HUMAN-UAT.md | resolved (status field stale) | 2026-06-16 |
+| uat | 06-UAT.md | 12 pending human-UAT scenarios (paused) | 2026-06-16 |
+| verification | 01-08-gap-closure-uat-p02 | gaps_found = stale ROADMAP table, now reconciled | 2026-06-16 |
 
 ## Session Continuity
 
 Last session: 2026-06-16T07:15:52.504Z
 Stopped at: Completed 07-07-PLAN.md (gap-closure WR-01..05, checkpoint approved)
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

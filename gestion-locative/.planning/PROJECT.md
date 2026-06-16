@@ -14,21 +14,21 @@ Vision détaillée : [VISION.md](../VISION.md).
 
 ### Validated
 
-<!-- Shipped et confirmé valuable. -->
+<!-- Shipped et confirmé valuable. Détail REQ-ID archivé dans [milestones/v1.0-REQUIREMENTS.md](milestones/v1.0-REQUIREMENTS.md). -->
 
-(Aucun — projet greenfield. Ship pour valider.)
+- ✓ Patrimoine — biens, lots, diagnostics (DPE, gaz, élec, ERP) — v1.0
+- ✓ Locatif — locataires, baux meublés, EDL, indexation IRL, gel DPE F/G, checklist mobilier (décret 2015-981) — v1.0
+- ✓ Encaissements — quittances PDF, avis d'échéance, suivi paiements, relances escaladées, fiche échéance — v1.0
+- ✓ Fiscalité — micro-BIC vs réel, amortissement par composant, brouillon liasse 2031 + annexes 2033, CFE, détection bascule LMP — v1.0
+- ✓ Documents — upload justificatifs, recherche par Bien/Locataire/année, rétention 10 ans — v1.0
+- ✓ Dashboard — impayés, échéances, notifications J-30 / J-7 (CFE, IRL, diagnostics, fin de bail) — v1.0
+- ✓ Travaux — tickets incidents avec pièce jointe + coût — v1.0
 
 ### Active
 
-<!-- Périmètre V1. Détail REQ-ID dans [REQUIREMENTS.md](REQUIREMENTS.md). -->
+<!-- Périmètre prochain milestone. Vide tant que /gsd-new-milestone n'a pas défini v1.1. -->
 
-- [ ] Patrimoine — biens, lots, diagnostics (DPE, gaz, élec)
-- [ ] Locatif — locataires, baux meublés, EDL, indexation IRL, gel DPE F/G, checklist mobilier (décret 2015-981)
-- [ ] Encaissements — quittances PDF, avis d'échéance, suivi paiements, relances escaladées
-- [ ] Fiscalité — micro-BIC vs réel, amortissement par composant, brouillon liasse 2031, CFE, détection bascule LMP
-- [ ] Documents — upload justificatifs, recherche par Bien/Locataire/année, rétention 10 ans
-- [ ] Dashboard — impayés, échéances, notifications J-30 / J-7 (CFE, IRL, diagnostics, fin de bail)
-- [ ] Travaux — tickets incidents avec pièce jointe + coût
+(Aucun — v1.0 shippé. Définir le prochain périmètre via `/gsd-new-milestone`.)
 
 ### Out of Scope
 
@@ -67,6 +67,8 @@ Voir [CLAUDE.md](../CLAUDE.md) §Hors périmètre et [LOGICIEL_GESTION_LOCATIVE.
 
 **Registre des risques** : [RISKS.md](../RISKS.md) — surveillance fiscale annuelle (R1.1), alertes échéances (R2.1), backup/restore (R3.1), pédagogie fiscale (R4.3), maintenance des règles (R5.1).
 
+**État après v1.0 (shippé 2026-06-16)** : ~28 400 LOC TypeScript, 199 fichiers de test, 9 phases / 54 plans. Stack : Fastify + EJS (SSR) + SQLite via Kysely + pdfmake. Couverture 100 % sur le domaine `fiscalite/`. Dette technique connue : 2 partials CFE en double, 2 patterns d'enrichissement `calculerAlertesIrl`, transaction Kysely enveloppante non posée (D-94 accepté). Item différé notable : 12 scénarios d'UAT humaine Phase 06 (liasse 2031/CFE) en pause — cf. STATE.md › Deferred Items.
+
 ## Constraints
 
 - **Architecture** : DDD hexagonal strict — domaine pur, **aucun import technique** (ORM, HTTP, fichier) dans `domain/`. Ports définis par le domaine, implémentés par les adapters. — *[DDD.md](../DDD.md), [CLAUDE.md](../CLAUDE.md) §Règles non négociables*
@@ -82,13 +84,13 @@ Voir [CLAUDE.md](../CLAUDE.md) §Hors périmètre et [LOGICIEL_GESTION_LOCATIVE.
 
 | Décision | Rationale | Outcome |
 |---|---|---|
-| V1 = LMNP location meublée longue durée uniquement | Régime fiscal complexe + fort besoin de centralisation. Autres cas (nue, SCI, tourisme, multi-bailleur) reportés. | — Pending |
-| Local-first / mono-user / SQLite | Autonomie utilisateur, contrôle des données, pas de coût récurrent cloud. | — Pending |
-| Ubiquitous language français dans le code | Cohérence métier ↔ implémentation, traçabilité avec le droit fiscal français. | — Pending |
-| BDD outside-in mandaté pour la logique fiscale | Chaque règle du droit = scénario dédié. 100 % couverture sur amortissement / micro-BIC / plus-value. | — Pending |
-| DDD hexagonal — 6 bounded contexts | Isole le domaine fiscal/locatif des adaptateurs (SQLite, OCR, INSEE IRL, mail). | — Pending |
-| Tech stack applicative non figée à l'init | À décider en `/gsd-discuss-phase 1` selon les contraintes du premier slice MVP. | — Pending |
-| Roadmap structurée en Vertical MVP slices | Permet activation rapide (KPI : créer 1 Bien + 1 Locataire + 1 Bail en première session), aligné BDD outside-in. | — Pending |
+| V1 = LMNP location meublée longue durée uniquement | Régime fiscal complexe + fort besoin de centralisation. Autres cas (nue, SCI, tourisme, multi-bailleur) reportés. | ✓ Good — 26/26 REQ livrés sans scope creep |
+| Local-first / mono-user / SQLite | Autonomie utilisateur, contrôle des données, pas de coût récurrent cloud. | ✓ Good — aucune dépendance cloud sur v1.0 |
+| Ubiquitous language français dans le code | Cohérence métier ↔ implémentation, traçabilité avec le droit fiscal français. | ✓ Good — tenu sur tout le code v1.0 |
+| BDD outside-in mandaté pour la logique fiscale | Chaque règle du droit = scénario dédié. 100 % couverture sur amortissement / micro-BIC / plus-value. | ✓ Good — 100 % couverture `fiscalite/`, 199 fichiers de test |
+| DDD hexagonal — 6 bounded contexts | Isole le domaine fiscal/locatif des adaptateurs (SQLite, OCR, INSEE IRL, mail). | ✓ Good — domaine pur, durci par Phase 5.1 (0 import infra dans `application/`) |
+| Tech stack applicative non figée à l'init | À décider en `/gsd-discuss-phase 1` selon les contraintes du premier slice MVP. | ✓ Good — stack tranchée : TypeScript + Fastify + EJS (SSR) + SQLite/Kysely + pdfmake |
+| Roadmap structurée en Vertical MVP slices | Permet activation rapide (KPI : créer 1 Bien + 1 Locataire + 1 Bail en première session), aligné BDD outside-in. | ✓ Good — chaque phase shippable ; 1 phase de hardening (5.1) + 2 gap-closure (8) insérées |
 
 ## Evolution
 
@@ -108,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state (utilisation, feedback, métriques)
 
 ---
-*Last updated: 2026-05-13 after initialization*
+*Last updated: 2026-06-16 after v1.0 milestone*
