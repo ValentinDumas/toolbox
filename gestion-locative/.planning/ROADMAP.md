@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (passed 2026-05-22 — 3 gap-closure plans 05-09/05-10/05-11 fermèrent CR-01 / CR-03 / CR-06)
 - [x] **Phase 5.1: Hardening hexagonal** - Fermer les 3 violations hexagonales pré-existantes découvertes pendant la clôture du gap CR-06 (Phase 5). (complete 2026-05-22 — 3 ports + 3 adapters extraits, DI propagée, 4 violations fermées. 895/895 tests, 0 imports infra dans `src/application/`)
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
-- [ ] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail).
+- [x] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail). (completed 2026-06-16)
 
 ## Phase Details
 
@@ -201,7 +201,7 @@ Plans:
 - [x] 07-04-PLAN.md — Use case calculerToutesAlertes + filtre exercice courant IRL (DAS-02)
 - [x] 07-05-PLAN.md — Dashboard GET / 4 sections + helpers EJS + partial-bandeau-alerte (DAS-01)
 - [x] 07-06-PLAN.md — Page transversale /baux/indexations + audit a11y (DAS-01)
-- [ ] 07-07-PLAN.md — Gap closure VERIFICATION.md : 'elec' label (WR-02) + ancres mortes accueil.ejs (WR-01) + extra.nomLocataire IRL/fin-bail (WR-03) + réconciliation docs fenêtres juridiques fin-bail/IRL (WR-04/WR-05) (wave 1, gap_closure=true, DAS-01+DAS-02)
+- [x] 07-07-PLAN.md — Gap closure VERIFICATION.md : 'elec' label (WR-02) + ancres mortes accueil.ejs (WR-01) + extra.nomLocataire IRL/fin-bail (WR-03) + réconciliation docs fenêtres juridiques fin-bail/IRL (WR-04/WR-05) (wave 1, gap_closure=true, DAS-01+DAS-02)
 - [x] 07-08-PLAN.md — Gap closure UAT (test 4) : urlAction alerte diagnostic 404 → /biens/:id#diagnostics-heading (route + ancre existantes) (wave 1, gap_closure=true, DAS-02)
 **UI hint:** yes
 
@@ -218,4 +218,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Gaps found | 2026-05-21 |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
-| 7. Dashboard & Notifications d'échéances | 7/8 | In Progress|  |
+| 7. Dashboard & Notifications d'échéances | 8/8 | Complete   | 2026-06-16 |

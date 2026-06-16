@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 7 UI-SPEC approved
-last_updated: "2026-06-15T14:45:21.717Z"
-last_activity: 2026-06-11 -- Phase 07 planning complete
+stopped_at: Completed 07-07-PLAN.md (gap-closure WR-01..05)
+last_updated: "2026-06-16T05:54:21.659Z"
+last_activity: 2026-06-16 -- Plan 07-07 complete (gap-closure dashboard alertes)
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 53
-  completed_plans: 52
-  percent: 98
+  completed_plans: 53
+  percent: 100
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-05-13)
 ## Current Position
 
 Phase: 7
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 07 planning complete
-Next step: /gsd-discuss-phase 6 (Liasse 2031 & CFE)
+Plan: 07-07 complete (gap-closure)
+Status: Plan executed
+Last activity: 2026-06-16 -- Plan 07-07 complete (gap-closure dashboard alertes WR-01..05)
+Next step: Phase 7 verification / clôture
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -88,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Boundary CGI art. 50-0 inclusive : recettes >= 83600 euro = reel (lt strict pour micro_bic eligible)
 - [Phase 05]: BDD step lazy bien creation : pas de pre-creation dans le step contexte N biens actifs, auto-creation par adresse dans les steps recettes/charges
 - [Phase 05]: Content-Disposition RFC 6266 avec helper contentDispositionFilename() dans routes exports.ts
+- [Phase 07-07]: nomLocataire résolu dans le use case (Map<BailId,string>) et injecté en argument optionnel aux calculateurs domaine — le domaine reste pur (aucun repo).
+- [Phase 07-07]: Fenêtre fin-bail réelle [-30 avant fin, +60 après] (D-SRC-05) ; IRL forward-only [0,+30] (D-SRC-02) — docs réconciliées et verrouillées par scénario BDD.
+- [Phase 07-07]: Pas de lien « Voir tout » pour les alertes critiques S2 en V1 (aucune page dédiée) ; « Voir tout » actions du jour → /baux/indexations.
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-15T14:45:21.709Z
-Stopped at: Phase 7 UI-SPEC approved
+Last session: 2026-06-16T05:54:21.659Z
+Stopped at: Completed 07-07-PLAN.md (gap-closure WR-01..05, checkpoint approved)
 Resume file: None
