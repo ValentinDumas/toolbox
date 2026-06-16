@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5.1: Hardening hexagonal** - Fermer les 3 violations hexagonales pré-existantes découvertes pendant la clôture du gap CR-06 (Phase 5). (complete 2026-05-22 — 3 ports + 3 adapters extraits, DI propagée, 4 violations fermées. 895/895 tests, 0 imports infra dans `src/application/`)
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
 - [x] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail). (completed 2026-06-16)
+- [ ] **Phase 8: Gap closure — Fiche échéance & réconciliation tracking** - Fermer le blocker d'intégration v1.0 : implémenter `GET /echeances/:id` (fiche échéance manquante, spec 02-UI-SPEC) cible des CTA morts du dashboard (S3 « Saisir l'encaissement », S4 « Lancer la relance ») et de la liste impayés (« Voir l'échéance »), puis réconcilier REQUIREMENTS.md / ROADMAP Progress (drift de suivi). (audit v1.0 — gaps_found)
 
 ## Phase Details
 
@@ -205,10 +206,24 @@ Plans:
 - [x] 07-08-PLAN.md — Gap closure UAT (test 4) : urlAction alerte diagnostic 404 → /biens/:id#diagnostics-heading (route + ancre existantes) (wave 1, gap_closure=true, DAS-02)
 **UI hint:** yes
 
+### Phase 8: Gap closure — Fiche échéance & réconciliation tracking
+**Goal**: Fermer le blocker d'intégration cross-phase remonté par l'audit v1.0 : la route `GET /echeances/:id` (« fiche échéance » spécifiée dans 02-UI-SPEC.md:117) n'a jamais été livrée, alors que le dashboard (P7) et la liste impayés (P2) y pointent comme CTA principal → 404. Livrer la page + réorienter les liens + réconcilier le suivi (REQUIREMENTS.md, ROADMAP Progress).
+**Depends on**: Phases 2, 7
+**Requirements**: ENC-04, ENC-05, DAS-01 (passent de partiel à satisfait)
+**Success Criteria** (what must be TRUE):
+  1. `GET /echeances/:id` retourne 200 et rend une fiche échéance (période, montant dû, reste dû, statut, locataire/bail) avec ses encaissements et l'action relance disponible ; 404 pour un id inconnu.
+  2. Les 3 CTA morts (accueil.ejs S3 ligne 60, S4 ligne 89 ; impayes/liste.ejs ligne 94) mènent vers une cible existante (plus aucun 404).
+  3. Le lancement de relance depuis le dashboard a un chemin fonctionnel (via la fiche échéance).
+  4. REQUIREMENTS.md et la table Progress ROADMAP reflètent l'état réel sur disque (drift de suivi corrigé).
+**Plans**: 1 plan (gap-closure)
+Plans:
+- [ ] 08-01-PLAN.md — Fiche échéance GET /echeances/:id + correction CTA morts + réconciliation tracking (gap_closure=true)
+**UI hint:** yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -219,3 +234,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Gaps found | 2026-05-21 |
 | 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
 | 7. Dashboard & Notifications d'échéances | 8/8 | Complete   | 2026-06-16 |
+| 8. Gap closure — Fiche échéance & tracking | 0/1 | Planned | - |
