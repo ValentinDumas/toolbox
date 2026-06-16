@@ -115,7 +115,7 @@ describe('Exports brouillon liasse (Phase 6 / Plan 06-05)', () => {
     expect(res.headers['content-type']).toContain('text/csv');
     expect(res.headers['content-disposition']).toMatch(/filename\*=UTF-8''/);
     expect(res.body.charCodeAt(0)).toBe(0xfeff);
-    expect(res.body).toContain('Annexe;Case;Libellé officiel;Valeur (€);Sources');
+    expect(res.body).toContain('Annexe;Case;Libellé officiel;Valeur (€);Valeur (brut);Sources');
   });
 
   it('GET .pdf — 404 sur id inexistant', async () => {

@@ -34,11 +34,14 @@ export interface ExporterCsvBrouillonLiasse {
 /**
  * Use case — exporter le brouillon liasse au format CSV (Phase 6 / FIS-05 / D-L6.4).
  *
- * Colonnes : `Annexe;Case;Libellé officiel;Valeur (€);Sources`.
+ * Colonnes : `Annexe;Case;Libellé officiel;Valeur (€);Valeur (brut);Sources`.
  * - Séparateur principal `;` (Excel français).
  * - Séparateur sources `|` (anti-CSV-injection).
  * - BOM `﻿` pour Excel français.
- * - `Money.enEuros()` formate avec espace insécable U+00A0.
+ * - `Money.enEuros()` formate avec espace insécable U+00A0 (lecture humaine).
+ * - `Valeur (brut)` = valeur numérique brute (point décimal, sans séparateur de milliers
+ *   ni symbole, ex. `12000.00`) — exploitable comme nombre par Excel/LibreOffice (expert-comptable).
+ *   Vide pour les cases sans valeur (mention « à compléter manuellement », `—`).
  */
 export async function exporterCsvBrouillonLiasse(
   commande: ExporterCsvBrouillonLiasseCommande,
@@ -47,19 +50,26 @@ export async function exporterCsvBrouillonLiasse(
   const dto = await genererBrouillonLiasse(commande, deps);
 
   const lignes: string[] = [];
-  lignes.push(['Annexe', 'Case', 'Libellé officiel', 'Valeur (€)', 'Sources'].join(SEP));
+  lignes.push(
+    ['Annexe', 'Case', 'Libellé officiel', 'Valeur (€)', 'Valeur (brut)', 'Sources'].join(SEP),
+  );
   for (const section of dto.sections) {
     for (const c of section.cases) {
       const annexe = sanitizeCsvCell(section.annexe);
       const numero = sanitizeCsvCell(c.numero);
       const libelle = sanitizeCsvCell(c.libelleOfficiel);
       const valeur = sanitizeCsvCell(c.valeur ? c.valeur.enEuros() : c.mention ?? '—');
+      // Valeur numérique brute pour exploitation tableur : point décimal, sans séparateur
+      // de milliers ni symbole. Vide quand la case n'a pas de valeur calculée.
+      const valeurBrute = sanitizeCsvCell(
+        c.valeur ? (c.valeur.toSqliteInteger() / 100).toFixed(2) : '',
+      );
       const sources = sanitizeCsvCell(
         (c.sources ?? [])
           .map((s) => `${s.type}:${s.url.split('/').pop() ?? ''}`)
           .join(SEP_SOURCES),
       );
-      lignes.push([annexe, numero, libelle, valeur, sources].join(SEP));
+      lignes.push([annexe, numero, libelle, valeur, valeurBrute, sources].join(SEP));
     }
   }
 

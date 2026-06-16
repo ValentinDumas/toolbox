@@ -65,8 +65,8 @@ note: Partie automatisable OK — `GET …/liasse.pdf` → 200, `content-type: a
 
 ### 9. Export CSV du brouillon
 expected: Cliquer « Télécharger CSV (expert-comptable) » télécharge `brouillon-liasse-{exercice}.csv` (BOM UTF-8, séparateur `;`, colonnes Annexe;Case;Libellé;Valeur;Sources). Ouvert dans Excel/LibreOffice, les accents s'affichent correctement et aucune cellule ne commence par `=`/`+`/`-`/`@` sans préfixe `'`.
-result: pass-with-note
-note: Partie automatisable OK — `GET …/liasse.csv` → 200, `text/csv; charset=utf-8`, `filename="brouillon-liasse-2026.csv"`, BOM UTF-8 (EF BB BF) présent, séparateur `;`, colonnes `Annexe;Case;Libellé officiel;Valeur (€);Sources`. Assertion injection : 0 cellule débutant par `=`/`+`/`-`/`@` (ASCII) sur 28 lignes. Confirmation humaine (plan 09-03, 2026-06-16) : accents corrects + colonnes bien séparées dans le tableur (cœur perceptuel sc.9 = OK). **Réserve non-bloquante** signalée par le bailleur : la colonne « Valeur (€) » contient des montants formatés affichage (« 6 700,00 € » — espace de milliers + symbole €) → non interprétés comme nombres par Excel/LibreOffice (pas sommables par l'expert-comptable). Valeurs correctes et lisibles, donc non bloquant → backlog (cf. 09-UAT-CLOSURE.md « Backlog »).
+result: pass
+note: Partie automatisable OK — `GET …/liasse.csv` → 200, `text/csv; charset=utf-8`, `filename="brouillon-liasse-2026.csv"`, BOM UTF-8 (EF BB BF) présent, séparateur `;`, colonnes `Annexe;Case;Libellé officiel;Valeur (€);Valeur (brut);Sources`. Assertion injection : 0 cellule débutant par `=`/`+`/`-`/`@` (ASCII). Confirmation humaine (plan 09-03, 2026-06-16) : accents corrects + colonnes bien séparées dans le tableur. La réserve signalée par le bailleur (colonne « Valeur (€) » non numérique) a été **corrigée en Phase 9** : ajout d'une colonne `Valeur (brut)` numérique (point décimal, sans séparateur ni symbole, ex. `12000.00`) exploitable par Excel/LibreOffice, la colonne formatée restant pour la lecture humaine. Couvert par `tests/unit/fiscalite/exporter-csv-brouillon-liasse.test.ts`. → upgrade pass-with-note → pass.
 
 ### 10. Création + édition d'une déclaration CFE
 expected: Depuis la fiche d'un bien, accéder à « Nouvelle déclaration CFE ». Renseigner millésime (2020-2030), statut (`non_deposee`/`deposee`/`payee`/`exoneree_premiere_annee`/`exoneree_commune`), date de dépôt + montant si statut le requiert. Soumettre : la déclaration apparaît dans la liste CFE du bien. Édition possible avec changements persistés.
@@ -91,7 +91,7 @@ issues: 0
 pending: 0
 skipped: 0
 
-(passed inclut 3 pass-with-note : sc.4, sc.6, sc.9. sc.8 + sc.9 perceptuels clos par confirmation humaine au plan 09-03 le 2026-06-16. 0 scénario en attente.)
+(passed inclut 2 pass-with-note : sc.4, sc.6. sc.8 + sc.9 perceptuels clos par confirmation humaine au plan 09-03 le 2026-06-16 ; sc.9 upgrade pass-with-note → pass après correction de la colonne CSV numérique. 0 scénario en attente.)
 
 ## Gaps
 
@@ -101,4 +101,4 @@ skipped: 0
 ### Écarts cosmétiques / non-bloquants → backlog (severity minor, hors Phase 9 par D-04)
 - **Brouillons liasse des millésimes pré-2026** : le bloc « Brouillons de liasse » liste toutes les déclarations clôturées ; cliquer une déclaration antérieure à 2026 mène à un 422 « Mapping de la liasse non disponible pour l'année N » (le mapping est révisé chaque janvier — D-L6.3). Comportement attendu mais UX perfectible (on pourrait griser/annoter les lignes sans mapping). Non-bloquant.
 - **Libellé du compteur de réconciliation** : le bandeau indique « N pièces ont changé » ; quand l'écart vient de l'absence totale de pièces vivantes (vs snapshot), le terme « modifiées » est un raccourci. Cosmétique, non-bloquant.
-- **CSV liasse — colonne « Valeur (€) » non numérique** (signalé par le bailleur au checkpoint 09-03, sc.9) : les montants sont formatés pour l'affichage (« 6 700,00 € » avec espace de milliers + symbole €), donc Excel/LibreOffice les traitent comme du texte → non sommables par l'expert-comptable. Valeurs correctes et lisibles ⇒ non-bloquant. Amélioration backlog : ajouter une colonne valeur brute numérique (centimes ou format `1234.56` sans séparateur de milliers ni symbole) destinée au tableur, en gardant la colonne formatée pour la lecture humaine.
+- ~~**CSV liasse — colonne « Valeur (€) » non numérique**~~ — **RÉSOLU (Phase 9)** : ajout d'une colonne `Valeur (brut)` numérique (point décimal, sans séparateur ni symbole) dans `src/application/fiscalite/exporter-csv-brouillon-liasse.ts`, exploitable par Excel/LibreOffice (expert-comptable), la colonne `Valeur (€)` formatée restant pour la lecture humaine. Test : `tests/unit/fiscalite/exporter-csv-brouillon-liasse.test.ts`.

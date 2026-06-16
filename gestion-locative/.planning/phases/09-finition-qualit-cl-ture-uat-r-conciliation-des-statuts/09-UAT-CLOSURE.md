@@ -30,7 +30,7 @@ Source : [`../06-liasse-2031-cfe/06-UAT.md`](../06-liasse-2031-cfe/06-UAT.md) ·
 | 6 | Bandeau réconciliation snapshot≠vivant | ✅ pass-with-note | bandeau rouge + compteur, pas de « Re-calculer » ; flux « modif post-clôture » couvert par `reconciliation.test.ts` |
 | 7 | Liasse rectificative (S6) | ✅ pass | bandeau jaune S6 + lien originale ; originale sans S6 |
 | 8 | Export PDF | ✅ pass | auto : 200/application/pdf/%PDF/filename ; **humain (09-03) : PDF s'ouvre et fonctionne** |
-| 9 | Export CSV | ✅ pass-with-note | auto : BOM+`;`+colonnes+0 injection ; **humain (09-03) : accents OK** ; réserve backlog : colonne « Valeur (€) » non numérique (espace milliers + €) |
+| 9 | Export CSV | ✅ pass | auto : BOM+`;`+colonnes+0 injection ; **humain (09-03) : accents OK** ; réserve « Valeur (€) » non numérique **corrigée** (colonne `Valeur (brut)` ajoutée) → upgrade pass-with-note → pass |
 | 10 | Création + édition CFE | ✅ pass | création + édition persistées via UI live |
 | 11 | Carte + badge CFE | ✅ pass | badge FR officiel évolutif, millésime/échéance/montant |
 | 12 | Banner CFE J-30 (3 variantes) | ✅ pass | warning live (fiche bien + /fiscalite) + lien impots.gouv.fr `target=_blank rel=noopener noreferrer` + suppression si `payee` ; variantes forte/destructive via tests |
@@ -77,7 +77,7 @@ dans le code courant (les docs étaient plus stale qu'estimé).
 
 ## 4. Backlog (écarts cosmétiques non-bloquants — hors Phase 9, D-04)
 
-- **CSV liasse — colonne « Valeur (€) » non numérique** (signalé par le bailleur, sc.9) : montants formatés affichage (« 6 700,00 € »), non sommables dans Excel/LibreOffice. Amélioration : colonne valeur brute numérique pour le tableur.
+- ~~**CSV liasse — colonne « Valeur (€) » non numérique**~~ — **RÉSOLU (Phase 9)** : colonne `Valeur (brut)` numérique ajoutée (`exporter-csv-brouillon-liasse.ts` + test). La colonne formatée reste pour la lecture humaine.
 - **Brouillons liasse pré-2026** : le bloc liste toutes les déclarations clôturées ; les millésimes sans mapping (< 2026) mènent à un 422 explicite. UX perfectible (griser/annoter).
 - **Libellé compteur de réconciliation** : « N pièces ont changé » est un raccourci quand l'écart vient de l'absence de pièces vivantes.
 - **CSS « bizarre »** signalé en Phase 02 (cosmétique).

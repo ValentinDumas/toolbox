@@ -76,8 +76,41 @@ describe('exporterCsvBrouillonLiasse (Phase 6 / Plan 06-05)', () => {
       },
     );
     expect(contenu.charCodeAt(0)).toBe(0xfeff); // BOM
-    expect(contenu).toContain('Annexe;Case;Libellé officiel;Valeur (€);Sources');
+    expect(contenu).toContain('Annexe;Case;Libellé officiel;Valeur (€);Valeur (brut);Sources');
     expect(nomFichier).toBe('brouillon-liasse-2026.csv');
+  });
+
+  it('expose une colonne « Valeur (brut) » numérique exploitable par un tableur (point décimal, sans séparateur de milliers ni symbole)', async () => {
+    const decl = uneDecl();
+    const { contenu } = await exporterCsvBrouillonLiasse(
+      { declarationId: DECL_ID },
+      {
+        declRepo: makeDeclRepo(decl),
+        bailleurRepo: makeBailleurRepo(),
+        mappingProvider: new MappingLiasseProviderEnMemoire(),
+      },
+    );
+    const lignes = contenu.replace(/^﻿/, '').split('\n');
+    const entete = lignes[0]!.split(';');
+    const idxEuros = entete.indexOf('Valeur (€)');
+    const idxBrut = entete.indexOf('Valeur (brut)');
+    expect(idxBrut).toBe(idxEuros + 1); // brut juste après l'affichage
+
+    // Case FC (chiffre d'affaires = 12 000 €) : brut machine = "12000.00", affichage = "12 000,00 €".
+    const ligneFc = lignes.find((l) => {
+      const c = l.split(';');
+      return c[0] === '2033-B' && c[1] === 'FC';
+    });
+    expect(ligneFc).toBeDefined();
+    const cellulesFc = ligneFc!.split(';');
+    expect(cellulesFc[idxEuros]).toContain('000,00'); // affichage humain conservé (virgule décimale)
+    expect(cellulesFc[idxEuros]).toContain('€');
+    expect(cellulesFc[idxBrut]).toBe('12000.00'); // numérique pur : point décimal, pas de séparateur ni €
+
+    // Une case sans valeur (mention « à compléter manuellement ») a une colonne brut vide.
+    const ligneMention = lignes.find((l) => l.includes('à compléter manuellement'));
+    expect(ligneMention).toBeDefined();
+    expect(ligneMention!.split(';')[idxBrut]).toBe('');
   });
 
   it('aucune cellule ne commence par un caractère dangereux après sanitize', async () => {
