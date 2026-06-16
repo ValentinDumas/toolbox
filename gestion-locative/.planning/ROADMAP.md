@@ -57,9 +57,9 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
   3. Les écritures multi-tables sont enveloppées dans une transaction Kysely : un échec partiel déclenche un rollback complet (atomicité vérifiée par scénario).
   4. La suite de tests complète reste verte et sous le seuil de durée (< 30 s).
 **Plans**: 4 plans (2 waves)
-- [ ] 10-01-PLAN.md — DET-01 : consolidation des partiels CFE + snapshot de rendu (wave 1)
-- [ ] 10-02-PLAN.md — DET-02 : unification du chemin calculerAlertesIrl dans routes/baux (wave 1)
-- [ ] 10-03-PLAN.md — DET-03 (fondation) : trxArg dans ports + adaptateurs SQLite (wave 1)
+- [x] 10-01-PLAN.md — DET-01 : consolidation des partiels CFE + snapshot de rendu (wave 1)
+- [x] 10-02-PLAN.md — DET-02 : unification du chemin calculerAlertesIrl dans routes/baux (wave 1)
+- [x] 10-03-PLAN.md — DET-03 (fondation) : trxArg dans ports + adaptateurs SQLite (wave 1)
 - [ ] 10-04-PLAN.md — DET-03 (atomicité) : transaction enveloppante + tests d'injection rollback (wave 2)
 **UI hint**: yes
 
@@ -102,6 +102,6 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
 | 7. Dashboard & Notifications d'échéances | v1.0 | 8/8 | Complete | 2026-06-16 |
 | 8. Gap closure — Fiche échéance & tracking | v1.0 | 1/1 | Complete | 2026-06-16 |
 | 9. Finition qualité — clôture UAT & réconciliation | v1.1 | 0/TBD | Not started | - |
-| 10. Dette technique — consolidation & atomicité | v1.1 | 0/TBD | Not started | - |
+| 10. Dette technique — consolidation & atomicité | v1.1 | 3/4 | In Progress|  |
 | 11. Sauvegarde & sécurité des données | v1.1 | 0/TBD | Not started | - |
 | 12. Packaging & mise en main | v1.1 | 0/TBD | Not started | - |
