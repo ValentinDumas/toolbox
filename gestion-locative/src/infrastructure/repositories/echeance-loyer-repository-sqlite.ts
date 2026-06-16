@@ -1,11 +1,13 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { Kysely } from 'kysely';
+import type { Kysely, Transaction } from 'kysely';
 
 import type { DB } from '../db/kysely-types.js';
 import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
 import { EcheanceLoyer, type StatutEcheanceLoyer } from '../../domain/encaissements/echeance-loyer.js';
 import { Money } from '../../domain/_shared/money.js';
 import type { EcheanceLoyerId, BailId } from '../../domain/_shared/identifiants.js';
+
+type DbOrTrx = Kysely<DB> | Transaction<DB>;
 
 type EcheanceLoyerRow = {
   id: string;
@@ -38,15 +40,24 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
       .execute();
   }
 
-  async enregistrerBatch(echeances: EcheanceLoyer[]): Promise<void> {
-    await this.db.transaction().execute(async (trx) => {
+  async enregistrerBatch(echeances: EcheanceLoyer[], trxArg?: unknown): Promise<void> {
+    const executor = (trxArg as DbOrTrx | undefined) ?? null;
+
+    const doWrite = async (trx: DbOrTrx) => {
       for (const e of echeances) {
         await trx
           .insertInto('echeance_loyer')
           .values(this.versRow(e))
           .execute();
       }
-    });
+    };
+
+    if (executor !== null) {
+      // Enrôlé dans une transaction externe — écriture directe, pas de transaction imbriquée
+      await doWrite(executor);
+    } else {
+      await this.db.transaction().execute(doWrite);
+    }
   }
 
   async trouverParId(id: EcheanceLoyerId | string): Promise<EcheanceLoyer | null> {
@@ -98,9 +109,10 @@ export class EcheanceLoyerRepositorySqlite implements EcheanceLoyerRepository {
     return rows.map((r) => this.versDomaine(r as EcheanceLoyerRow));
   }
 
-  async supprimerLot(ids: EcheanceLoyerId[]): Promise<void> {
+  async supprimerLot(ids: EcheanceLoyerId[], trxArg?: unknown): Promise<void> {
     if (ids.length === 0) return;
-    await this.db
+    const db = (trxArg as DbOrTrx | undefined) ?? this.db;
+    await db
       .deleteFrom('echeance_loyer')
       .where('id', 'in', ids)
       .execute();
