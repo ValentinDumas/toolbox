@@ -26,7 +26,7 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
 
 ### v1.1 Durcissement & mise en main (Phases 9–12)
 
-- [ ] **Phase 9: Finition qualité — clôture UAT & réconciliation des statuts** - Exécuter les 12 scénarios d'UAT liasse 2031/CFE et réconcilier les statuts stale
+- [x] **Phase 9: Finition qualité — clôture UAT & réconciliation des statuts** - Exécuter les 12 scénarios d'UAT liasse 2031/CFE et réconcilier les statuts stale
 - [ ] **Phase 10: Dette technique — consolidation & atomicité** - Consolider partials CFE, unifier `calculerAlertesIrl`, poser la transaction Kysely enveloppante
 - [ ] **Phase 11: Sauvegarde & sécurité des données** - Chiffrement SQLCipher, backup/restore vérifié, conformité RGPD
 - [ ] **Phase 12: Packaging & mise en main** - Binaire installable natif + auto-launch navigateur
