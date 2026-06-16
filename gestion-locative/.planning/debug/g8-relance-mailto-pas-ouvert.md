@@ -1,8 +1,11 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "G8: Cliquer 'Relancer' (niveau 1, 2) ne ouvre pas le mailto: — bouton disparait, POST aboutit (relance enregistrée en BDD), mais le mailto pré-rempli ne s'ouvre pas côté client. Niveau 3 PDF OK."
 created: 2026-05-14T00:00:00Z
-updated: 2026-05-14T00:00:00Z
+updated: 2026-06-16T10:38:00Z
+resolved_le: 2026-06-16
+resolved_by: "Phase 9 / QUA-02 plan 09-02 — réconciliation (D-03 : preuve comportementale + référence code)"
+fix_commit: 78f184c
 ---
 
 ## Current Focus
@@ -146,6 +149,23 @@ fix: |
   Le test couvrant la régression devra vérifier que pour canal='email', la réponse HTTP
   contient le mailtoUri (soit dans le body HTML, soit comme Location header).
 
-verification: (à appliquer dans la phase de fix — couverture du fix par un test unitaire
-  + UAT manuel de répétition test 11 + test 12)
-files_changed: []
+verification: |
+  Re-test comportemental (D-03), Phase 9 — 2026-06-16.
+  Aucune échéance en retard dans la base live (les impayés affichés sont tous futurs,
+  juillet 2026 → juin 2027, « Retard : — » à la date courante 16/06/2026), donc le clic
+  « Relancer (amiable) » n'est pas déclenchable dans l'UI live à cet instant. La preuve
+  comportementale équivalente vient du test d'intégration HTTP qui boote l'app réelle :
+  `tests/integration/web/relances-mailto.test.ts` — T1 « canal email (niveau 1) retourne
+  HTML 200 avec mailto + script auto-trigger + lien retour » asserte :
+    - res.statusCode = 200 et content-type text/html (PAS un simple redirect 302 vers /impayes)
+    - body contient `<a href="mailto:…">` (lien fallback)
+    - body contient `window.location.href` (auto-trigger JS)
+    - body contient `/impayes` (lien retour)
+    - T2 (régression) : canal pdf niveau 3 reste application/pdf (%PDF) inchangé.
+  Suite verte (2/2) le 2026-06-16. Cela confirme le fix : POST /relances canal email rend la
+  page intermédiaire `ouverture-mail.ejs` porteuse du mailtoUri, au lieu de rediriger sans ouvrir le mail.
+files_changed:
+  - src/web/routes/relances.ts:116-126  # canal email rend pages/relances/ouverture-mail.ejs avec mailtoUri
+  - src/web/views/pages/relances/ouverture-mail.ejs:15,23  # lien fallback mailto: + auto-trigger window.location.href
+  - tests/integration/web/relances-mailto.test.ts  # test de régression (T1 email, T2 pdf)
+  # commit 78f184c — fix(02-07): G8 POST /relances canal email rend page ouverture-mail + test régression

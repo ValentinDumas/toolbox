@@ -1,8 +1,11 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Les erreurs de validation dans les formulaires redirigent vers une page avec du json. Par exemple: '{statusCode:500, error:Internal Server Error, message:La surface est obligatoire et doit être > 0 pour un lot de type appartement}'. Il faudrait afficher un message d'erreur sous les champs concernés et empêcher de passer à l'étape suivante."
 created: 2026-05-14T16:00:00Z
-updated: 2026-05-14T16:30:00Z
+updated: 2026-06-16T10:36:00Z
+resolved_le: 2026-06-16
+resolved_by: "Phase 9 / QUA-02 plan 09-02 — réconciliation (D-03 : re-test live + référence code)"
+fix_commit: 6c48786
 ---
 
 ## Current Focus
@@ -110,5 +113,24 @@ fix: |
   inline sous le champ correspondant (`erreurs['lots.0.surface']`) — exactement ce que demande la "truth"
   du gap. Cumulable avec le try/catch (défense-en-profondeur).
 
-verification: ""
-files_changed: []
+verification: |
+  Re-test live (D-03), Phase 9, app sur :7878 — 2026-06-16.
+  La page repro historique (wizard `/wizard/*`) redirige vers /biens après l'onboarding
+  (`estPremierLancement` faux dès qu'un bien existe — src/web/routes/wizard.ts:61-66), donc
+  l'invariant a été rejoué sur la route équivalente reachable `POST /biens` (même use-case
+  `creerBien` → `Lot.creer`, même handler d'erreur global).
+  Scénario : GET /biens/nouveau, lot type `appartement` avec surface vide, soumettre.
+  Résultat observé : HTTP 200, vue `pages/biens/formulaire.ejs` re-rendue (HTML, PAS de JSON
+  500), message inline « La surface est obligatoire et doit être > 0 pour un lot de type
+  appartement ou local commercial. » Aucun « statusCode:500 / Internal Server Error » dans la
+  réponse. Le formulaire reste affiché.
+  Preuve de la défense-en-profondeur : `app.setErrorHandler` (src/main.ts:238-248) bascule
+  HTML vs JSON selon l'en-tête Accept et ne sérialise plus la stack — couvre aussi le chemin
+  wizard (try/catch identique aux 3 étapes).
+files_changed:
+  - src/main.ts:238-248  # setErrorHandler global (HTML vs JSON selon Accept)
+  - src/web/routes/wizard.ts:104-119  # try/catch POST /wizard/bien → re-render erreurs._global
+  - src/web/routes/wizard.ts:172-191  # try/catch POST /wizard/locataire
+  - src/web/routes/wizard.ts:296-321  # try/catch POST /wizard/bail
+  - src/web/schemas/bien-schemas.ts  # superRefine surface (fix robuste, capture Zod avant domaine)
+  # commit 6c48786 — feat(01-08): fix G1 try/catch wizard + setErrorHandler global + superRefine

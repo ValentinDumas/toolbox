@@ -1,8 +1,11 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Bannière flash dupliquée 4/4 — Test 2 (profil bailleur enregistré), Test 3 (bail activé), Test 8 (quittance générée), Test 9 (quittance annulée). Toutes les bannières flash de succès s'affichent en double."
 created: 2026-05-14T00:00:00Z
-updated: 2026-05-14T00:00:00Z
+updated: 2026-06-16T10:37:00Z
+resolved_le: 2026-06-16
+resolved_by: "Phase 9 / QUA-02 plan 09-02 — réconciliation (D-03 : re-test live + référence code)"
+fix_commit: 3ca2f8e
 ---
 
 ## Current Focus
@@ -90,5 +93,20 @@ started: depuis livraison phase 02
 
 root_cause: "Anti-pattern systémique de double include du partial `banniere-success.ejs`. `src/web/views/partials/layout-debut.ejs:24` inclut déjà `banniere-success` avec `locals.banniereSuccess` (rendu N°1 automatique pour toutes les pages utilisant ce layout). Les 5 pages affectées (profil bailleur, baux/detail, quittances/liste, quittances/fiche, relances/liste) ré-incluent ensuite explicitement `banniere-success` avec le même `locals.banniereSuccess` → 2 `<aside class=\"banniere-success\">` identiques dans le DOM. Cause directe des 4 bugs UAT (Tests 2, 3, 8, 9). Les bannières warning ne sont pas affectées car `layout-debut` ne les inclut pas."
 fix: "Choisir UN canal unique. Option recommandée : SUPPRIMER les ré-includes dans les 5 pages (lignes 7-9 de profil.ejs, ligne 9 de baux/detail.ejs, ligne 7 de quittances/liste.ejs, ligne 10 de quittances/fiche.ejs, lignes 11-13 de relances/liste.ejs) et laisser uniquement `layout-debut.ejs:24` rendre la bannière. Cela centralise l'affichage et garantit l'unicité. Option alternative (déconseillée) : retirer l'include du layout — moins bonne car oblige chaque page à se rappeler de l'inclure manuellement."
-verification: ""
-files_changed: []
+verification: |
+  Re-test live (D-03), Phase 9, app sur :7878 — 2026-06-16.
+  Scénario : GET /bailleur, soumettre le formulaire profil (action à bannière succès, Test 2 historique).
+  Assertion DOM : `document.querySelectorAll('.banniere-success')` = 1 seul élément non vide,
+  texte « Profil bailleur enregistré. » → plus de doublon.
+  Référence code : la bannière est rendue à un point unique `src/web/views/partials/layout-debut.ejs:29`
+  (`include('banniere-success', ...)`) ; les 5 ré-includes ont été supprimés (vérifié : 0 occurrence
+  de `banniere-success` dans profil.ejs, baux/detail.ejs, quittances/fiche.ejs, quittances/liste.ejs,
+  relances/liste.ejs).
+files_changed:
+  - src/web/views/partials/layout-debut.ejs:29  # point de rendu unique banniere-success
+  - src/web/views/pages/bailleur/profil.ejs  # ré-include supprimé
+  - src/web/views/pages/baux/detail.ejs  # ré-include supprimé
+  - src/web/views/pages/quittances/fiche.ejs  # ré-include supprimé
+  - src/web/views/pages/quittances/liste.ejs  # ré-include supprimé
+  - src/web/views/pages/relances/liste.ejs  # ré-include supprimé
+  # commit 3ca2f8e — fix(02-07): G4 dédoublonne banniere-success (suppression 5 ré-includes)

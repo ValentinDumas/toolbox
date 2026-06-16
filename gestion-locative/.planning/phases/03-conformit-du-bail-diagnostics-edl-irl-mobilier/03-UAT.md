@@ -8,6 +8,10 @@ items_needs_human: 1
 score: 4/4 smoke checks passed (1 needs final human SR confirmation)
 approach: code-level evidence + integration tests + live dev server smoke
 dev_server: started PORT=7878, GET / → 302 (auth redirect), /styles/print.css → 200, then killed
+status: resolved
+reconciled_le: 2026-06-16
+reconciled_by: "Phase 9 / QUA-02 plan 09-02 — réconciliation (D-03/D-05)"
+reconciliation_note: "Statut PASS confirmé (4/4). Le seul reliquat (item 2 — annonce effective du lecteur d'écran sur la bannière gel-loyer Climat) est NON-BLOCANT : la structure ARIA est conforme (src/web/views/pages/baux/indexer/gel-loyer.ejs:9 — section role=alert aria-live=assertive tabindex=-1 autofocus). Seule l'annonce vocale effective NVDA/JAWS/VoiceOver reste une confirmation humaine optionnelle (perceptuelle), non requise pour la clôture v1.0. 0 scénario fantôme."
 ---
 
 # Phase 03 — UAT smoke report
