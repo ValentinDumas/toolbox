@@ -29,7 +29,7 @@
       <% alertesIrl.forEach(function(alerte) { %>
         <tr>
           <td><a href="/baux/<%= alerte.source.refId %>"><%= alerte.source.extra.adresseBien %></a></td>
-          <td><%= locatairesParBail[alerte.source.refId] %></td>
+          <td><%= alerte.source.extra.nomLocataire %></td>
           <td><%= formatDate(alerte.dateEcheance) %></td>
           <td><%- include('../../partials/partial-bandeau-alerte', { alerte: alerte, inline: true }) %></td>
           <td><a href="/baux/<%= alerte.source.refId %>/indexer" role="button">Lancer la révision</a></td>
