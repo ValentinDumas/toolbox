@@ -3,8 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Durcissement & mise en main
 status: planning
-last_updated: "2026-06-16T09:02:24.067Z"
-last_activity: 2026-06-16
+stopped_at: Phase 9 context gathered
+last_updated: "2026-06-16T09:22:19.203Z"
+last_activity: 2026-06-16 — Roadmap v1.1 créé (4 phases, 10/10 REQ mappés)
 progress:
   total_phases: 4
   completed_phases: 0
@@ -94,9 +95,9 @@ Items acknowledged and deferred at milestone close on 2026-06-16 (v1.0). Ces ite
 
 ## Session Continuity
 
-Last session: 2026-06-16 — Roadmap v1.1 créé
-Stopped at: ROADMAP.md + REQUIREMENTS.md (traceability) + STATE.md écrits pour v1.1
-Resume file: None
+Last session: 2026-06-16T09:22:19.196Z
+Stopped at: Phase 9 context gathered
+Resume file: .planning/phases/09-finition-qualit-cl-ture-uat-r-conciliation-des-statuts/09-CONTEXT.md
 
 ## Operator Next Steps
 
