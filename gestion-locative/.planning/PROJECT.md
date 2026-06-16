@@ -10,6 +10,20 @@ Vision détaillée : [VISION.md](../VISION.md).
 
 **Centraliser factures, quittances, baux et échéances pour simplifier les obligations fiscales LMNP** (liasse 2031, 2042 C PRO, CFE, amortissements par composant, plus-value LF 2025) — sans cloud, sans délégation, sans multi-utilisateur.
 
+## Current Milestone: v1.1 Durcissement & mise en main
+
+**Goal :** Finir et durcir v1.0 pour un usage réel par un bailleur non-dev — sans ajouter de nouvelle capacité métier.
+
+**Target features :**
+- Finition qualité — exécuter et clôturer les 12 scénarios d'UAT humaine de la liasse 2031/CFE (Phase 06) en pause ; réconcilier les statuts UAT/debug stale (Phases 02/03/04).
+- Dette technique — consolider les 2 partials CFE en double + les 2 patterns `calculerAlertesIrl` ; poser la transaction Kysely enveloppante (D-94).
+- Sauvegarde / restauration — BAK-01 : sauvegarde planifiée + restauration testée (SQLite + dossier `documents/`), risque R3.1.
+- Chiffrement au repos — BAK-02 : base SQLite chiffrée (SQLCipher).
+- RGPD — BAK-03 : information locataire, droit à l'effacement, registre de traitement.
+- Packaging installable — binaire natif (DMG/MSI/AppImage) + auto-launch navigateur, au lieu de `pnpm dev`.
+
+**Hors scope v1.1** (→ backlog v1.2+) : OCR factures, simulateurs fiscaux (plus-value LF 2025, micro vs réel, bascule LMP), INSEE auto-indexation IRL, rapprochement bancaire, polish dashboard/notifications, et toute extension de périmètre (bail mobilité/étudiant, multi-bailleur, tourisme, indivision, colocation).
+
 ## Requirements
 
 ### Validated
@@ -26,9 +40,12 @@ Vision détaillée : [VISION.md](../VISION.md).
 
 ### Active
 
-<!-- Périmètre prochain milestone. Vide tant que /gsd-new-milestone n'a pas défini v1.1. -->
+<!-- Périmètre v1.1 Durcissement & mise en main. Détail REQ-ID dans [REQUIREMENTS.md](REQUIREMENTS.md). -->
 
-(Aucun — v1.0 shippé. Définir le prochain périmètre via `/gsd-new-milestone`.)
+- Qualité (QUA) — clôture UAT liasse 2031/CFE + réconciliation des statuts stale — v1.1
+- Dette technique (DET) — partials CFE, patterns IRL, transaction Kysely enveloppante — v1.1
+- Sauvegarde & sécurité (BAK) — backup/restore testé, chiffrement SQLCipher, RGPD — v1.1
+- Packaging (PKG) — app installable + auto-launch navigateur — v1.1
 
 ### Out of Scope
 
@@ -110,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state (utilisation, feedback, métriques)
 
 ---
-*Last updated: 2026-06-16 after v1.0 milestone*
+*Last updated: 2026-06-16 — milestone v1.1 Durcissement & mise en main started*
