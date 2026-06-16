@@ -189,7 +189,25 @@ Adapter les chemins dans `config.json` au point de montage choisi. Les étapes 3
 
 ### Wrapper `sncf-run.sh` (un seul script pour tout enchaîner)
 
-Pour éviter de taper les 3 commandes à la suite, et archiver automatiquement `inbox/` après chaque run :
+Pour éviter de taper les 3 commandes à la suite, et archiver automatiquement `inbox/` après chaque run.
+
+**Installation** :
+
+```bash
+mkdir -p ~/.local/bin
+# coller le script ci-dessous dans ce fichier, puis :
+chmod +x ~/.local/bin/sncf-run.sh
+
+# Vérifier que ~/.local/bin est dans le PATH
+echo $PATH | tr ':' '\n' | grep -q "$HOME/.local/bin" || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc   # ou ~/.bashrc
+
+# Adapter REPO et le default DRIVE en tête du script avant le premier run.
+# Lancer ensuite depuis n'importe quel terminal :
+sncf-run.sh
+```
+
+**Script** :
 
 ```bash
 #!/usr/bin/env bash
