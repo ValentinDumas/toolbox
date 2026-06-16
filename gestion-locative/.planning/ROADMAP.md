@@ -14,12 +14,12 @@ Chaque phase respecte les dépendances DDD (Bien avant Bail ; Bail avant Encaiss
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Activation — Bien, Locataire, Bail** - L'utilisateur peut créer son premier dossier locatif complet en une session, sans aucune logique fiscale.
-- [ ] **Phase 2: Quittancement — Échéances, Encaissements, Relances** - L'utilisateur peut générer avis d'échéance et quittances, suivre les paiements et déclencher des relances escaladées.
-- [ ] **Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier** - Le système garantit la conformité juridique du bail meublé (DPE/gaz/élec, EDL contradictoire, indexation IRL avec gel DPE F/G, checklist mobilier décret 2015-981).
+- [x] **Phase 1: Activation — Bien, Locataire, Bail** - L'utilisateur peut créer son premier dossier locatif complet en une session, sans aucune logique fiscale.
+- [x] **Phase 2: Quittancement — Échéances, Encaissements, Relances** - L'utilisateur peut générer avis d'échéance et quittances, suivre les paiements et déclencher des relances escaladées.
+- [x] **Phase 3: Conformité du bail — Diagnostics, EDL, IRL, Mobilier** - Le système garantit la conformité juridique du bail meublé (DPE/gaz/élec, EDL contradictoire, indexation IRL avec gel DPE F/G, checklist mobilier décret 2015-981).
 - [x] **Phase 5: Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement** - Le système agrège recettes/charges, calcule l'abattement micro-BIC, l'amortissement par composant et alerte sur la bascule LMP. (passed 2026-05-22 — 3 gap-closure plans 05-09/05-10/05-11 fermèrent CR-01 / CR-03 / CR-06)
 - [x] **Phase 5.1: Hardening hexagonal** - Fermer les 3 violations hexagonales pré-existantes découvertes pendant la clôture du gap CR-06 (Phase 5). (complete 2026-05-22 — 3 ports + 3 adapters extraits, DI propagée, 4 violations fermées. 895/895 tests, 0 imports infra dans `src/application/`)
-- [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
+- [x] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
 - [x] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail). (completed 2026-06-16)
 - [x] **Phase 8: Gap closure — Fiche échéance & réconciliation tracking** - Fermer le blocker d'intégration v1.0 : implémenter `GET /echeances/:id` (fiche échéance manquante, spec 02-UI-SPEC) cible des CTA morts du dashboard (S3 « Saisir l'encaissement », S4 « Lancer la relance ») et de la liste impayés (« Voir l'échéance »), puis réconcilier REQUIREMENTS.md / ROADMAP Progress (drift de suivi). (completed 2026-06-16)
 
@@ -234,4 +234,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Complete | 2026-05-22 |
 | 6. Liasse 2031 & CFE | 7/7 | Complete | 2026-06-02 |
 | 7. Dashboard & Notifications d'échéances | 8/8 | Complete | 2026-06-16 |
-| 8. Gap closure — Fiche échéance & tracking | 1/1 | Complete | 2026-06-16 |
+| 8. Gap closure — Fiche échéance & tracking | 1/1 | Complete   | 2026-06-16 |
