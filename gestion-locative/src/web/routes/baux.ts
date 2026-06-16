@@ -162,26 +162,22 @@ export async function plugin(
       );
     }
 
-    const alertesIrl = calculerAlertesIrl(baux, biens, indexationsParBail, maintenant);
-
-    // Enrichir les noms locataires côté route (domaine ne touche pas LocataireRepository)
     const locatairesParId = new Map(locataires.map((l) => [l.id, l]));
-    const locatairesParBail: Record<string, string> = {};
-    for (const alerte of alertesIrl) {
-      const bail = baux.find((b) => b.id === alerte.source.refId);
-      if (bail) {
-        const locataire = locatairesParId.get(bail.locataireId);
-        if (locataire) {
-          locatairesParBail[alerte.source.refId] = `${locataire.prenom} ${locataire.nom}`;
-        }
-      }
-    }
+    const nomLocataireParBail = new Map<BailId, string>(
+      baux
+        .filter((bail) => locatairesParId.has(bail.locataireId))
+        .map((bail) => {
+          const loc = locatairesParId.get(bail.locataireId)!;
+          return [bail.id, `${loc.prenom} ${loc.nom}`] as [BailId, string];
+        }),
+    );
+
+    const alertesIrl = calculerAlertesIrl(baux, biens, indexationsParBail, maintenant, nomLocataireParBail);
 
     return reply.view('pages/baux/indexations.ejs', {
       titre: 'Révisions IRL à venir',
       navActive: 'baux',
       alertesIrl,
-      locatairesParBail,
     });
   });
 
