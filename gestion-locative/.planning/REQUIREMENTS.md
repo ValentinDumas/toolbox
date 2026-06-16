@@ -98,21 +98,21 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 
 | Requirement | Phase | Status |
 |---|---|---|
-| QUA-01 | — | Pending |
-| QUA-02 | — | Pending |
-| DET-01 | — | Pending |
-| DET-02 | — | Pending |
-| DET-03 | — | Pending |
-| BAK-01 | — | Pending |
-| BAK-02 | — | Pending |
-| BAK-03 | — | Pending |
-| PKG-01 | — | Pending |
-| PKG-02 | — | Pending |
+| QUA-01 | Phase 9 | Pending |
+| QUA-02 | Phase 9 | Pending |
+| DET-01 | Phase 10 | Pending |
+| DET-02 | Phase 10 | Pending |
+| DET-03 | Phase 10 | Pending |
+| BAK-01 | Phase 11 | Pending |
+| BAK-02 | Phase 11 | Pending |
+| BAK-03 | Phase 11 | Pending |
+| PKG-01 | Phase 12 | Pending |
+| PKG-02 | Phase 12 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 10 total
-- Mapped to phases: 0 (à remplir par roadmapper)
-- Unmapped: 10
+- Mapped to phases: 10 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-16 — milestone v1.1 Durcissement & mise en main*
