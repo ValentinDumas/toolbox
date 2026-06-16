@@ -13,24 +13,24 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 
 - [x] **PAT-01** : L'utilisateur peut créer, éditer, supprimer un `Bien` (adresse, surface, type, année construction).
 - [x] **PAT-02** : L'utilisateur peut gérer plusieurs `Lot`s dans un `Bien` (appartement, parking, cave).
-- [ ] **PAT-03** : L'utilisateur peut stocker des `Diagnostic`s (DPE, gaz, élec, ERP) avec date d'émission et date d'expiration calculée selon la durée légale.
+- [x] **PAT-03** : L'utilisateur peut stocker des `Diagnostic`s (DPE, gaz, élec, ERP) avec date d'émission et date d'expiration calculée selon la durée légale.
 
 ### Locatif
 
 - [x] **LOC-01** : L'utilisateur peut créer une fiche `Locataire` (identité, contact, garant, pièces).
 - [x] **LOC-02** : L'utilisateur peut créer un `Bail` meublé classique (durée 1 an min, loyer hors charges, forfait ou provisions, dépôt ≤ 2 mois HC, clause IRL).
-- [ ] **LOC-03** : L'utilisateur peut enregistrer l'`EtatDesLieux` d'entrée et de sortie (contradictoire, `Inventaire` mobilier annexé).
-- [ ] **LOC-04** : Le système applique l'indexation IRL à la date anniversaire du bail (génère l'avenant signé).
-- [ ] **LOC-05** : Le système bloque toute indexation à la hausse si DPE F ou G (gel loyer Climat).
-- [ ] **LOC-06** : Le système vérifie la checklist des 12 éléments de mobilier obligatoire (décret 2015-981) et signale tout manquant comme risque de requalification.
+- [x] **LOC-03** : L'utilisateur peut enregistrer l'`EtatDesLieux` d'entrée et de sortie (contradictoire, `Inventaire` mobilier annexé).
+- [x] **LOC-04** : Le système applique l'indexation IRL à la date anniversaire du bail (génère l'avenant signé).
+- [x] **LOC-05** : Le système bloque toute indexation à la hausse si DPE F ou G (gel loyer Climat).
+- [x] **LOC-06** : Le système vérifie la checklist des 12 éléments de mobilier obligatoire (décret 2015-981) et signale tout manquant comme risque de requalification.
 
 ### Encaissements
 
-- [ ] **ENC-01** : L'utilisateur peut générer une `Quittance` PDF pour une période entièrement payée.
-- [ ] **ENC-02** : L'utilisateur peut générer un avis d'échéance PDF (`EcheanceLoyer`).
-- [ ] **ENC-03** : L'utilisateur peut saisir un `Encaissement` (date, montant, mode, statut) ; les paiements partiels n'émettent pas de quittance.
-- [ ] **ENC-04** : Le système calcule les impayés et retards (par locataire, par période).
-- [ ] **ENC-05** : L'utilisateur peut déclencher des `Relance`s escaladées (amiable → mise en demeure) avec templates email.
+- [x] **ENC-01** : L'utilisateur peut générer une `Quittance` PDF pour une période entièrement payée.
+- [x] **ENC-02** : L'utilisateur peut générer un avis d'échéance PDF (`EcheanceLoyer`).
+- [x] **ENC-03** : L'utilisateur peut saisir un `Encaissement` (date, montant, mode, statut) ; les paiements partiels n'émettent pas de quittance.
+- [x] **ENC-04** : Le système calcule les impayés et retards (par locataire, par période).
+- [x] **ENC-05** : L'utilisateur peut déclencher des `Relance`s escaladées (amiable → mise en demeure) avec templates email.
 
 ### Fiscalité
 
@@ -38,14 +38,14 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 - [x] **FIS-02** : Le système calcule l'abattement micro-BIC (50 % longue durée, 30 % tourisme non classé, plancher 305 €) et vérifie le seuil 83 600 €.
 - [x] **FIS-03** : Le système agrège recettes et charges pour le `RegimeFiscal` réel.
 - [x] **FIS-04** : Le système calcule l'amortissement par composant (terrain exclu, ARD reportable, prorata temporis à l'acquisition, plafond résultat avant amortissement).
-- [ ] **FIS-05** : Le système prépare le brouillon de la liasse 2031-SD et des annexes 2033-A à G (régime réel).
-- [ ] **FIS-06** : Le système trace la déclaration CFE (formulaire 1447-C-SD initial) et alerte sur l'échéance de paiement décembre.
+- [x] **FIS-05** : Le système prépare le brouillon de la liasse 2031-SD et des annexes 2033-A à G (régime réel).
+- [x] **FIS-06** : Le système trace la déclaration CFE (formulaire 1447-C-SD initial) et alerte sur l'échéance de paiement décembre.
 
 ### Documents
 
-- [ ] **DOC-01** : L'utilisateur peut uploader des `Justificatif`s (factures, tickets, baux, EDL, diagnostics).
-- [ ] **DOC-02** : L'utilisateur peut rechercher des documents par `Bien`, `Locataire`, ou année fiscale.
-- [ ] **DOC-03** : Le système conserve tous les documents pendant 10 ans (rétention légale fiscale).
+- [x] **DOC-01** : L'utilisateur peut uploader des `Justificatif`s (factures, tickets, baux, EDL, diagnostics).
+- [x] **DOC-02** : L'utilisateur peut rechercher des documents par `Bien`, `Locataire`, ou année fiscale.
+- [x] **DOC-03** : Le système conserve tous les documents pendant 10 ans (rétention légale fiscale).
 
 ### Dashboard
 
@@ -54,7 +54,7 @@ Périmètre initial. Chaque REQ map vers exactement une phase (cf. Traceability)
 
 ### Travaux
 
-- [ ] **INC-01** : L'utilisateur peut créer un incident / ticket de travaux avec pièce jointe et coût.
+- [x] **INC-01** : L'utilisateur peut créer un incident / ticket de travaux avec pièce jointe et coût.
 
 ## v2 Requirements
 
@@ -128,30 +128,30 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 |---|---|---|
 | PAT-01 | Phase 1 | Complete |
 | PAT-02 | Phase 1 | Complete |
-| PAT-03 | Phase 3 | Pending |
+| PAT-03 | Phase 3 | Complete |
 | LOC-01 | Phase 1 | Complete |
 | LOC-02 | Phase 1 | Complete |
-| LOC-03 | Phase 3 | Pending |
-| LOC-04 | Phase 3 | Pending |
-| LOC-05 | Phase 3 | Pending |
-| LOC-06 | Phase 3 | Pending |
-| ENC-01 | Phase 2 | Pending |
-| ENC-02 | Phase 2 | Pending |
-| ENC-03 | Phase 2 | Pending |
-| ENC-04 | Phase 2 | Pending |
-| ENC-05 | Phase 2 | Pending |
+| LOC-03 | Phase 3 | Complete |
+| LOC-04 | Phase 3 | Complete |
+| LOC-05 | Phase 3 | Complete |
+| LOC-06 | Phase 3 | Complete |
+| ENC-01 | Phase 2 | Complete |
+| ENC-02 | Phase 2 | Complete |
+| ENC-03 | Phase 2 | Complete |
+| ENC-04 | Phase 2 | Complete |
+| ENC-05 | Phase 2 | Complete |
 | FIS-01 | Phase 5 | Complete |
 | FIS-02 | Phase 5 | Complete |
 | FIS-03 | Phase 5 | Complete |
 | FIS-04 | Phase 5 | Complete |
-| FIS-05 | Phase 6 | Pending |
-| FIS-06 | Phase 6 | Pending |
-| DOC-01 | Phase 4 | Pending |
-| DOC-02 | Phase 4 | Pending |
-| DOC-03 | Phase 4 | Pending |
+| FIS-05 | Phase 6 | Complete |
+| FIS-06 | Phase 6 | Complete |
+| DOC-01 | Phase 4 | Complete |
+| DOC-02 | Phase 4 | Complete |
+| DOC-03 | Phase 4 | Complete |
 | DAS-01 | Phase 7 | Complete |
 | DAS-02 | Phase 7 | Complete |
-| INC-01 | Phase 4 | Pending |
+| INC-01 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 26 total

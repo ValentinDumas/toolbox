@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5.1: Hardening hexagonal** - Fermer les 3 violations hexagonales pré-existantes découvertes pendant la clôture du gap CR-06 (Phase 5). (complete 2026-05-22 — 3 ports + 3 adapters extraits, DI propagée, 4 violations fermées. 895/895 tests, 0 imports infra dans `src/application/`)
 - [ ] **Phase 6: Liasse 2031 & CFE** - L'utilisateur peut générer le brouillon de la liasse 2031-SD avec annexes 2033-A à G et tracer sa déclaration CFE (1447-C-SD).
 - [x] **Phase 7: Dashboard & Notifications d'échéances** - L'utilisateur dispose d'un récap synthétique (impayés, actions du jour) et reçoit des notifications J-30 / J-7 sur les échéances critiques (CFE, IRL, diagnostics, fin de bail). (completed 2026-06-16)
-- [ ] **Phase 8: Gap closure — Fiche échéance & réconciliation tracking** - Fermer le blocker d'intégration v1.0 : implémenter `GET /echeances/:id` (fiche échéance manquante, spec 02-UI-SPEC) cible des CTA morts du dashboard (S3 « Saisir l'encaissement », S4 « Lancer la relance ») et de la liste impayés (« Voir l'échéance »), puis réconcilier REQUIREMENTS.md / ROADMAP Progress (drift de suivi). (audit v1.0 — gaps_found)
+- [x] **Phase 8: Gap closure — Fiche échéance & réconciliation tracking** - Fermer le blocker d'intégration v1.0 : implémenter `GET /echeances/:id` (fiche échéance manquante, spec 02-UI-SPEC) cible des CTA morts du dashboard (S3 « Saisir l'encaissement », S4 « Lancer la relance ») et de la liste impayés (« Voir l'échéance »), puis réconcilier REQUIREMENTS.md / ROADMAP Progress (drift de suivi). (completed 2026-06-16)
 
 ## Phase Details
 
@@ -217,7 +217,7 @@ Plans:
   4. REQUIREMENTS.md et la table Progress ROADMAP reflètent l'état réel sur disque (drift de suivi corrigé).
 **Plans**: 1 plan (gap-closure)
 Plans:
-- [ ] 08-01-PLAN.md — Fiche échéance GET /echeances/:id + correction CTA morts + réconciliation tracking (gap_closure=true)
+- [x] 08-01-PLAN.md — Fiche échéance GET /echeances/:id + correction CTA morts + réconciliation tracking (gap_closure=true)
 **UI hint:** yes
 
 ## Progress
@@ -229,9 +229,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Activation — Bien, Locataire, Bail | 8/8 | Complete | 2026-05-16 |
 | 2. Quittancement — Échéances, Encaissements, Relances | 7/7 | Complete | 2026-05-16 |
-| 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 0/5 | Planned | - |
-| 4. Coffre documentaire & Travaux | 0/3 | Planned | - |
-| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Gaps found | 2026-05-21 |
-| 6. Liasse 2031 & CFE | 0/TBD | Not started | - |
-| 7. Dashboard & Notifications d'échéances | 8/8 | Complete   | 2026-06-16 |
-| 8. Gap closure — Fiche échéance & tracking | 0/1 | Planned | - |
+| 3. Conformité du bail — Diagnostics, EDL, IRL, Mobilier | 5/5 | Complete | 2026-05-19 |
+| 4. Coffre documentaire & Travaux | 4/4 | Complete | 2026-05-20 |
+| 5. Fiscalité LMNP — Régimes, Recettes/Charges, Amortissement | 8/8 | Complete | 2026-05-22 |
+| 6. Liasse 2031 & CFE | 7/7 | Complete | 2026-06-02 |
+| 7. Dashboard & Notifications d'échéances | 8/8 | Complete | 2026-06-16 |
+| 8. Gap closure — Fiche échéance & tracking | 1/1 | Complete | 2026-06-16 |
