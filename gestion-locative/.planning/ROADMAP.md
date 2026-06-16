@@ -42,7 +42,10 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
   2. Chaque écart constaté pendant l'UAT a un correctif livré et le scénario correspondant repassé au vert (0 scénario en attente).
   3. Les statuts d'UAT des Phases 02/03/04 reflètent l'état réel (clos, 0 scénario fantôme).
   4. Les sessions de debug g1/g4/g8 sont marquées `resolved`, cohérentes avec les correctifs déjà livrés.
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+  - [ ] 09-01-PLAN.md — QUA-01 : exécuter les scénarios liasse automatisables (Playwright) + corriger les écarts bloquants
+  - [ ] 09-02-PLAN.md — QUA-02 : réconcilier g1/g4/g8 + 02/03/04-UAT (re-test live + file:line)
+  - [ ] 09-03-PLAN.md — QUA-01/QUA-02 : confirmation humaine PDF/CSV + rapport Phase 9 consolidé
 
 ### Phase 10: Dette technique — consolidation & atomicité
 **Goal**: Éponger la dette technique connue de v1.0 sous couverture de test existante, sans changement de comportement observable.
