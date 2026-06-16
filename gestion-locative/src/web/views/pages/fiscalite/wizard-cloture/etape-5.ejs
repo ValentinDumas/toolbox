@@ -1,10 +1,10 @@
-<%- include('../../../../partials/layout-debut', {
+<%- include('../../../partials/layout-debut', {
   titre: 'Clôture exercice ' + exercice + ' — Clôturer',
   breadcrumbs: [{ url: '/fiscalite', label: 'Fiscalité' }, { label: 'Clôturer ' + exercice }],
   navActive: 'fiscalite'
 }) %>
 
-<%- include('../../../../partials/wizard-fiscalite-layout', { currentStep: 5 }) %>
+<%- include('../../../partials/wizard-fiscalite-layout', { currentStep: 5 }) %>
 
 <h1>Étape 5 — Clôturer l'exercice <%= exercice %></h1>
 
@@ -25,4 +25,4 @@
   </p>
 </form>
 
-<%- include('../../../../partials/layout-fin') %>
+<%- include('../../../partials/layout-fin') %>
