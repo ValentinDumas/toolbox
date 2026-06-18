@@ -27,7 +27,7 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
 ### v1.1 Durcissement & mise en main (Phases 9–12)
 
 - [x] **Phase 9: Finition qualité — clôture UAT & réconciliation des statuts** - Exécuter les 12 scénarios d'UAT liasse 2031/CFE et réconcilier les statuts stale
-- [ ] **Phase 10: Dette technique — consolidation & atomicité** - Consolider partials CFE, unifier `calculerAlertesIrl`, poser la transaction Kysely enveloppante
+- [x] **Phase 10: Dette technique — consolidation & atomicité** - Consolider partials CFE, unifier `calculerAlertesIrl`, poser la transaction Kysely enveloppante (completed 2026-06-18)
 - [ ] **Phase 11: Sauvegarde & sécurité des données** - Chiffrement SQLCipher, backup/restore vérifié, conformité RGPD
 - [ ] **Phase 12: Packaging & mise en main** - Binaire installable natif + auto-launch navigateur
 
@@ -60,7 +60,7 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
 - [x] 10-01-PLAN.md — DET-01 : consolidation des partiels CFE + snapshot de rendu (wave 1)
 - [x] 10-02-PLAN.md — DET-02 : unification du chemin calculerAlertesIrl dans routes/baux (wave 1)
 - [x] 10-03-PLAN.md — DET-03 (fondation) : trxArg dans ports + adaptateurs SQLite (wave 1)
-- [ ] 10-04-PLAN.md — DET-03 (atomicité) : transaction enveloppante + tests d'injection rollback (wave 2)
+- [x] 10-04-PLAN.md — DET-03 (atomicité) : transaction enveloppante + tests d'injection rollback (wave 2)
 **UI hint**: yes
 
 ### Phase 11: Sauvegarde & sécurité des données
@@ -102,6 +102,6 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
 | 7. Dashboard & Notifications d'échéances | v1.0 | 8/8 | Complete | 2026-06-16 |
 | 8. Gap closure — Fiche échéance & tracking | v1.0 | 1/1 | Complete | 2026-06-16 |
 | 9. Finition qualité — clôture UAT & réconciliation | v1.1 | 0/TBD | Not started | - |
-| 10. Dette technique — consolidation & atomicité | v1.1 | 3/4 | In Progress|  |
+| 10. Dette technique — consolidation & atomicité | v1.1 | 4/4 | Complete   | 2026-06-18 |
 | 11. Sauvegarde & sécurité des données | v1.1 | 0/TBD | Not started | - |
 | 12. Packaging & mise en main | v1.1 | 0/TBD | Not started | - |
