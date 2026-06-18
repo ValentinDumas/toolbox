@@ -37,13 +37,13 @@ Vision détaillée : [VISION.md](../VISION.md).
 - ✓ Documents — upload justificatifs, recherche par Bien/Locataire/année, rétention 10 ans — v1.0
 - ✓ Dashboard — impayés, échéances, notifications J-30 / J-7 (CFE, IRL, diagnostics, fin de bail) — v1.0
 - ✓ Travaux — tickets incidents avec pièce jointe + coût — v1.0
+- ✓ Dette technique (DET-01/02/03) — partial CFE unique, chemin `calculerAlertesIrl` unifié, transaction Kysely enveloppante (atomicité prouvée) — validé en Phase 10 (v1.1)
 
 ### Active
 
 <!-- Périmètre v1.1 Durcissement & mise en main. Détail REQ-ID dans [REQUIREMENTS.md](REQUIREMENTS.md). -->
 
 - Qualité (QUA) — clôture UAT liasse 2031/CFE + réconciliation des statuts stale — v1.1
-- Dette technique (DET) — partials CFE, patterns IRL, transaction Kysely enveloppante — v1.1
 - Sauvegarde & sécurité (BAK) — backup/restore testé, chiffrement SQLCipher, RGPD — v1.1
 - Packaging (PKG) — app installable + auto-launch navigateur — v1.1
 
@@ -127,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state (utilisation, feedback, métriques)
 
 ---
-*Last updated: 2026-06-16 — milestone v1.1 Durcissement & mise en main started*
+*Last updated: 2026-06-18 — Phase 10 complete (dette technique DET-01/02/03 épongée, atomicité Kysely posée)*
