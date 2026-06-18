@@ -1,5 +1,8 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { FastifyInstance } from 'fastify';
+import type { Kysely } from 'kysely';
+
+import type { DB } from '../../infrastructure/db/kysely-types.js';
 
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { BienRepository } from '../../domain/patrimoine/bien-repository.js';
@@ -58,6 +61,7 @@ export async function plugin(
     edlRepo?: EtatDesLieuxRepository;
     bailIndexationRepo?: BailIndexationRepository;
     clock?: Clock;
+    db?: Kysely<DB>;
   },
 ): Promise<void> {
   const clock = opts.clock ?? new ClockSysteme();
@@ -522,13 +526,14 @@ export async function plugin(
 
     // Preview avec patch vide pour afficher les compteurs actuels
     let preview = { aRegenererCount: 0, aPreserverCount: 0, aRegenererIds: [] as import('../../domain/_shared/identifiants.js').EcheanceLoyerId[] };
-    if (opts.echeanceLoyerRepo && opts.encaissementRepo) {
+    if (opts.echeanceLoyerRepo && opts.encaissementRepo && opts.db) {
       const result = await modifierBailActif(
         { bailId: id as BailId, patch: {}, confirmation: 'previsualiser' },
         opts.bailRepo,
         opts.echeanceLoyerRepo,
         opts.encaissementRepo,
         clock,
+        opts.db,
       );
       if (result.kind === 'preview') {
         preview = result.preview;
@@ -587,13 +592,14 @@ export async function plugin(
 
       // Recalculer preview avec les nouvelles valeurs
       let preview = { aRegenererCount: 0, aPreserverCount: 0, aRegenererIds: [] as import('../../domain/_shared/identifiants.js').EcheanceLoyerId[] };
-      if (bail && bail.actifDepuis !== null) {
+      if (bail && bail.actifDepuis !== null && opts.db) {
         const result = await modifierBailActif(
           { bailId: id as BailId, patch: {}, confirmation: 'previsualiser' },
           opts.bailRepo,
           opts.echeanceLoyerRepo,
           opts.encaissementRepo,
           clock,
+          opts.db,
         );
         if (result.kind === 'preview') preview = result.preview;
       }
@@ -629,14 +635,15 @@ export async function plugin(
         : [];
 
       // Preview avec le patch simulé
-      const result = await modifierBailActif(
+      const result = opts.db ? await modifierBailActif(
         { bailId: id as BailId, patch: {}, confirmation: 'previsualiser' },
         opts.bailRepo,
         opts.echeanceLoyerRepo,
         opts.encaissementRepo,
         clock,
-      );
-      const preview = result.kind === 'preview' ? result.preview : { aRegenererCount: 0, aPreserverCount: 0, aRegenererIds: [] };
+        opts.db,
+      ) : null;
+      const preview = result?.kind === 'preview' ? result.preview : { aRegenererCount: 0, aPreserverCount: 0, aRegenererIds: [] };
 
       return reply.view('pages/baux/modifier.ejs', {
         bail,
@@ -700,6 +707,7 @@ export async function plugin(
         opts.echeanceLoyerRepo,
         opts.encaissementRepo,
         clock,
+        opts.db!,
       );
 
       if (result.kind === 'result') {

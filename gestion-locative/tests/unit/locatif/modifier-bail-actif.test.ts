@@ -14,6 +14,18 @@ import type { StatutEcheanceLoyer } from '../../../src/domain/encaissements/eche
 const TODAY = '2026-06-15';
 const CLOCK = ClockFixe.du(TODAY);
 
+/**
+ * Fake db pour tests unitaires à repos stubés : exécute le callback de
+ * transaction immédiatement avec trx=undefined. Les repos stubés acceptent
+ * (et ignorent) ce trxArg, ce qui garde le test pur (pas de SQLite réel).
+ * Les chemins 'previsualiser' n'appellent jamais transaction().
+ */
+const fakeDb = {
+  transaction: () => ({
+    execute: async <T>(fn: (trx: unknown) => Promise<T>): Promise<T> => fn(undefined),
+  }),
+} as never;
+
 function creerBailActif(): Bail {
   return Bail.creer({
     id: crypto.randomUUID() as BailId,
@@ -132,6 +144,7 @@ describe('modifierBailActif', () => {
         repos.echeanceLoyerRepo as never,
         repos.encaissementRepo as never,
         CLOCK,
+        fakeDb,
       ),
     ).rejects.toThrow("Ce bail n'est pas actif");
   });
@@ -170,6 +183,7 @@ describe('modifierBailActif', () => {
       repos.echeanceLoyerRepo as never,
       repos.encaissementRepo as never,
       CLOCK,
+      fakeDb,
     );
 
     expect(result.kind).toBe('preview');
@@ -194,6 +208,7 @@ describe('modifierBailActif', () => {
       repos.echeanceLoyerRepo as never,
       repos.encaissementRepo as never,
       CLOCK,
+      fakeDb,
     );
 
     expect(result.kind).toBe('preview');
@@ -217,6 +232,7 @@ describe('modifierBailActif', () => {
       repos.echeanceLoyerRepo as never,
       repos.encaissementRepo as never,
       CLOCK,
+      fakeDb,
     );
 
     expect(result.kind).toBe('preview');
@@ -244,6 +260,7 @@ describe('modifierBailActif', () => {
       repos.echeanceLoyerRepo as never,
       repos.encaissementRepo as never,
       CLOCK,
+      fakeDb,
     );
 
     expect(result.kind).toBe('result');
@@ -274,6 +291,7 @@ describe('modifierBailActif', () => {
         repos.echeanceLoyerRepo as never,
         repos.encaissementRepo as never,
         CLOCK,
+        fakeDb,
       ),
     ).rejects.toThrow('introuvable');
   });

@@ -153,6 +153,7 @@ describe('atomicité appliquerIndexationIRL — rollback sur échec DB (D-10-05,
       },
       listerParBail: ctx.bailIndexationRepo.listerParBail.bind(ctx.bailIndexationRepo),
       trouverParId: ctx.bailIndexationRepo.trouverParId.bind(ctx.bailIndexationRepo),
+      dernierePourBail: ctx.bailIndexationRepo.dernierePourBail.bind(ctx.bailIndexationRepo),
     };
 
     // Le use case doit propager l'erreur

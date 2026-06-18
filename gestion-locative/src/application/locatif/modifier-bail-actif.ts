@@ -1,5 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill';
+import type { Kysely } from 'kysely';
 
+import type { DB } from '../../infrastructure/db/kysely-types.js';
 import type { BailRepository } from '../../domain/locatif/bail-repository.js';
 import type { EcheanceLoyerRepository } from '../../domain/encaissements/echeance-loyer-repository.js';
 import type { EncaissementRepository } from '../../domain/encaissements/encaissement-repository.js';
@@ -37,7 +39,7 @@ export interface ModifierBailActifCommande {
  * - Preview (toujours calculée) : identifie les échéances futures non payées
  *   sans encaissement actif → à régénérer.
  * - Préserve : échéances payées, annulées, passées, ou avec encaissement actif.
- * - Confirmation 'oui' : transaction atomique suppression + régénération.
+ * - Confirmation 'oui' : transaction atomique suppression + régénération (D-94).
  */
 export async function modifierBailActif(
   commande: ModifierBailActifCommande,
@@ -45,6 +47,7 @@ export async function modifierBailActif(
   echeanceLoyerRepo: EcheanceLoyerRepository,
   encaissementRepo: EncaissementRepository,
   clock: Clock,
+  db: Kysely<DB>,
 ): Promise<PreviewModificationBail | ResultModificationBail> {
   const bail = await bailRepo.trouverParId(commande.bailId);
   if (!bail) {
@@ -93,9 +96,8 @@ export async function modifierBailActif(
     return { kind: 'preview', preview };
   }
 
-  // Étape 2 : appliquer le patch et régénérer
+  // Étape 2 : appliquer le patch et régénérer (atomique — D-94)
   const bailModifie = bail.modifier(commande.patch);
-  await bailRepo.enregistrer(bailModifie);
 
   // Collecter le set des periodeDebut des échéances à régénérer AVANT suppression
   // (matching strict par période plutôt qu'index — CR-01).
@@ -105,33 +107,37 @@ export async function modifierBailActif(
       .map((e) => e.periodeDebut.toString()),
   );
 
-  // Hard-delete des échéances à régénérer (jamais encaissées — D-73 invariant)
-  await echeanceLoyerRepo.supprimerLot(aRegenererIds);
+  await db.transaction().execute(async (trx) => {
+    // Hard-delete des échéances à régénérer (jamais encaissées — D-73 invariant)
+    await echeanceLoyerRepo.supprimerLot(aRegenererIds, trx);
 
-  // Régénérer les périodes supprimées avec le nouveau loyer du bail modifié
-  if (aRegenererIds.length > 0) {
-    // On régénère depuis actifDepuis du bail modifié, puis on filtre uniquement
-    // les périodes correspondant exactement aux échéances supprimées (matching par
-    // periodeDebut, pas par index — sûr face à des préservations non contiguës ou
-    // à un changement de jourEcheance qui décale les dates).
-    const toutesLesEcheances = genererEcheancesPour(
-      bailModifie,
-      bailModifie.actifDepuis!,
-      bailModifie.jourEcheance,
-    );
-
-    const nouvellesEcheances = toutesLesEcheances.filter((e) =>
-      periodesSupprimees.has(e.periodeDebut.toString()),
-    );
-
-    if (nouvellesEcheances.length !== aRegenererIds.length) {
-      throw new InvariantViolated(
-        `Mismatch entre périodes supprimées (${aRegenererIds.length}) et régénérées (${nouvellesEcheances.length})`,
+    // Régénérer les périodes supprimées avec le nouveau loyer du bail modifié
+    if (aRegenererIds.length > 0) {
+      // On régénère depuis actifDepuis du bail modifié, puis on filtre uniquement
+      // les périodes correspondant exactement aux échéances supprimées (matching par
+      // periodeDebut, pas par index — sûr face à des préservations non contiguës ou
+      // à un changement de jourEcheance qui décale les dates).
+      const toutesLesEcheances = genererEcheancesPour(
+        bailModifie,
+        bailModifie.actifDepuis!,
+        bailModifie.jourEcheance,
       );
+
+      const nouvellesEcheances = toutesLesEcheances.filter((e) =>
+        periodesSupprimees.has(e.periodeDebut.toString()),
+      );
+
+      if (nouvellesEcheances.length !== aRegenererIds.length) {
+        throw new InvariantViolated(
+          `Mismatch entre périodes supprimées (${aRegenererIds.length}) et régénérées (${nouvellesEcheances.length})`,
+        );
+      }
+
+      await echeanceLoyerRepo.enregistrerBatch(nouvellesEcheances, trx);
     }
 
-    await echeanceLoyerRepo.enregistrerBatch(nouvellesEcheances);
-  }
+    await bailRepo.enregistrer(bailModifie, trx);
+  });
 
   return {
     kind: 'result',

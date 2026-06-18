@@ -255,7 +255,7 @@ export async function creerApp(
   });
   await app.register(diagnosticsPlugin, { bienRepo: repo });
   await app.register(locatairesPlugin, { repo: locataireRepo, bailRepo, justificatifRepo });
-  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, bailIndexationRepo, clock });
+  await app.register(bauxPlugin, { bailRepo, bienRepo: repo, locataireRepo, activiteBailDetector, echeanceLoyerRepo, encaissementRepo, edlRepo, bailIndexationRepo, clock, db });
   await app.register(indexationsPlugin, {
     bailRepo,
     bienRepo: repo,
