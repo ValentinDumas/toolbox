@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Durcissement & mise en main
-status: executing
+status: ready_to_plan
 stopped_at: Phase 10 context gathered
 last_updated: "2026-06-16T15:01:27.772Z"
 last_activity: 2026-06-16 -- Phase 10 execution started
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
   completed_plans: 3
-  percent: 43
+  percent: 50
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 
 ## Current Position
 
-Phase: 10 (dette-technique-consolidation-atomicit) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 10
-Last activity: 2026-06-16 -- Phase 10 execution started
+Phase: 11
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-18
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 32
+- Total plans completed: 36
 - Average duration: —
 - Total execution time: —
 
@@ -45,6 +45,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | — | — | — | — |
+| 10 | 4 | - | - |
 
 **Recent Trend:**
 

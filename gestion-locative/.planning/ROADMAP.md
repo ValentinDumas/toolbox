@@ -102,6 +102,6 @@ Full v1.0 phase details archived in [milestones/v1.0-ROADMAP.md](milestones/v1.0
 | 7. Dashboard & Notifications d'échéances | v1.0 | 8/8 | Complete | 2026-06-16 |
 | 8. Gap closure — Fiche échéance & tracking | v1.0 | 1/1 | Complete | 2026-06-16 |
 | 9. Finition qualité — clôture UAT & réconciliation | v1.1 | 0/TBD | Not started | - |
-| 10. Dette technique — consolidation & atomicité | v1.1 | 4/4 | Complete   | 2026-06-18 |
+| 10. Dette technique — consolidation & atomicité | v1.1 | 4/4 | Complete    | 2026-06-18 |
 | 11. Sauvegarde & sécurité des données | v1.1 | 0/TBD | Not started | - |
 | 12. Packaging & mise en main | v1.1 | 0/TBD | Not started | - |

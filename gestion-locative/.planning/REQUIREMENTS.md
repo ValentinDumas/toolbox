@@ -18,9 +18,9 @@ Chaque REQ map vers exactement une phase (cf. Traceability, remplie par `gsd-roa
 
 ### Dette technique (DET)
 
-- [ ] **DET-01** : Les 2 partials CFE en double sont consolidés en un seul partiel réutilisable, sans régression d'affichage.
-- [ ] **DET-02** : Les 2 patterns d'enrichissement `calculerAlertesIrl` sont unifiés en un seul chemin, couvert par les scénarios existants.
-- [ ] **DET-03** : La transaction Kysely enveloppante (D-94) est posée sur les écritures multi-tables, garantissant l'atomicité (rollback sur échec partiel).
+- [x] **DET-01** : Les 2 partials CFE en double sont consolidés en un seul partiel réutilisable, sans régression d'affichage.
+- [x] **DET-02** : Les 2 patterns d'enrichissement `calculerAlertesIrl` sont unifiés en un seul chemin, couvert par les scénarios existants.
+- [x] **DET-03** : La transaction Kysely enveloppante (D-94) est posée sur les écritures multi-tables, garantissant l'atomicité (rollback sur échec partiel).
 
 ### Sauvegarde & sécurité des données (BAK)
 
@@ -100,9 +100,9 @@ Quelles phases couvrent quels REQs. Rempli par `gsd-roadmapper` à la création 
 |---|---|---|
 | QUA-01 | Phase 9 | Pending |
 | QUA-02 | Phase 9 | Pending |
-| DET-01 | Phase 10 | Pending |
-| DET-02 | Phase 10 | Pending |
-| DET-03 | Phase 10 | Pending |
+| DET-01 | Phase 10 | Complete |
+| DET-02 | Phase 10 | Complete |
+| DET-03 | Phase 10 | Complete |
 | BAK-01 | Phase 11 | Pending |
 | BAK-02 | Phase 11 | Pending |
 | BAK-03 | Phase 11 | Pending |
