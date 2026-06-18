@@ -118,10 +118,16 @@ export async function appliquerIndexationIRL(
   const dateEffet =
     commande.dateEffet ?? bail.dateAnniversaireProchaine(today).subtract({ years: 1 });
 
-  // 6. Pivot du Bail (copy-on-write) + persist
-  const bailModifie = bail.appliquerIndexation(irlNouveau, dateEffet);
-  await repos.bailRepo.enregistrer(bailModifie);
+  // 6–8. Transaction atomique : pivot bail + régénération écheances + BailIndexation.
+  //
+  // Les lectures (listerParBail, listerParEcheance) restent HORS transaction — elles
+  // sont read-only et n'ont pas besoin d'être enveloppées. Seules les écritures DB
+  // sont enrôlées dans la transaction externe via trxArg.
+  //
+  // D-10-04 : PDF/écriture fichier (étape 9) reste hors transaction — un échec disque
+  // ne doit pas tenir la transaction ouverte.
 
+  // Pré-calcul hors transaction : identifier les écheances à régénérer
   // 7. Régénération des échéances futures (pattern D-73) :
   //    - statut ∈ {'en_attente', 'partiellement_payee'}
   //    - periodeDebut >= dateEffet
@@ -138,27 +144,7 @@ export async function appliquerIndexationIRL(
     aRegenerer.push({ id: e.id as EcheanceLoyerId, periodeDebut: e.periodeDebut });
   }
 
-  let echeancesRegenereesCount = 0;
-  if (aRegenerer.length > 0) {
-    await repos.echeanceLoyerRepo.supprimerLot(aRegenerer.map((e) => e.id));
-    if (bailModifie.actifDepuis !== null) {
-      const nouvelles = genererEcheancesPour(
-        bailModifie,
-        bailModifie.actifDepuis,
-        bailModifie.jourEcheance,
-      );
-      const aRegenererSet = new Set(aRegenerer.map((e) => e.periodeDebut.toString()));
-      const nouvellesFiltrees = nouvelles.filter((n) =>
-        aRegenererSet.has(n.periodeDebut.toString()),
-      );
-      if (nouvellesFiltrees.length > 0) {
-        await repos.echeanceLoyerRepo.enregistrerBatch(nouvellesFiltrees);
-        echeancesRegenereesCount = nouvellesFiltrees.length;
-      }
-    }
-  }
-
-  // 8. Append-only BailIndexation
+  // Construire BailIndexation avant la transaction (pure, pas d'effet de bord)
   const bailIndexation = BailIndexation.creer({
     bailId: bail.id,
     dateEffet,
@@ -169,7 +155,39 @@ export async function appliquerIndexationIRL(
     indexationAppliquee: true,
     raisonNonApplication: null,
   });
-  await repos.bailIndexationRepo.enregistrer(bailIndexation);
+
+  // Pivot du Bail (copy-on-write)
+  const bailModifie = bail.appliquerIndexation(irlNouveau, dateEffet);
+
+  let echeancesRegenereesCount = 0;
+
+  await db.transaction().execute(async (trx) => {
+    // 6. Persist bail modifié
+    await repos.bailRepo.enregistrer(bailModifie, trx);
+
+    // 7. Suppression + régénération des écheances dans la transaction
+    if (aRegenerer.length > 0) {
+      await repos.echeanceLoyerRepo.supprimerLot(aRegenerer.map((e) => e.id), trx);
+      if (bailModifie.actifDepuis !== null) {
+        const nouvelles = genererEcheancesPour(
+          bailModifie,
+          bailModifie.actifDepuis,
+          bailModifie.jourEcheance,
+        );
+        const aRegenererSet = new Set(aRegenerer.map((e) => e.periodeDebut.toString()));
+        const nouvellesFiltrees = nouvelles.filter((n) =>
+          aRegenererSet.has(n.periodeDebut.toString()),
+        );
+        if (nouvellesFiltrees.length > 0) {
+          await repos.echeanceLoyerRepo.enregistrerBatch(nouvellesFiltrees, trx);
+          echeancesRegenereesCount = nouvellesFiltrees.length;
+        }
+      }
+    }
+
+    // 8. Append-only BailIndexation
+    await repos.bailIndexationRepo.enregistrer(bailIndexation, trx);
+  });
 
   // 9. Hors transaction : PDF avenant + écriture fichier (avec compensation log)
   const annee = dateEffet.year;
@@ -200,9 +218,6 @@ export async function appliquerIndexationIRL(
     );
     throw err;
   }
-
-  // Avoid unused-warning on `db` arg (réservé pour transaction future).
-  void db;
 
   return {
     bailIndexationId: bailIndexation.id,
