@@ -29,15 +29,26 @@
 
   let blocActions = null;
   if (!locals.inline) {
+    // CR-02 : urlAction est concaténé dans du HTML brut (blocActions) rendu
+    // sans échappement — on l'échappe ici (comme le faisait l'ancien rendu
+    // échappé) pour préserver la défense en profondeur XSS. Pour une URL
+    // interne sûre, la sortie reste identique.
+    const escAttr = (s) => String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    const url = escAttr(alerte.urlAction);
     let lienAction = '';
     if (alerte.type === 'cfe') {
-      lienAction = '<a href="https://www.impots.gouv.fr/professionnel/cotisation-fonciere-des-entreprises-cfe"\n           target="_blank" rel="noopener noreferrer" role="button">\n          Régler la CFE sur impots.gouv.fr\n        </a>\n        &nbsp;\n        <a href="' + alerte.urlAction + '">Mettre à jour le statut</a>';
+      lienAction = '<a href="https://www.impots.gouv.fr/professionnel/cotisation-fonciere-des-entreprises-cfe"\n           target="_blank" rel="noopener noreferrer" role="button">\n          Régler la CFE sur impots.gouv.fr\n        </a>\n        &nbsp;\n        <a href="' + url + '">Mettre à jour le statut</a>';
     } else if (alerte.type === 'irl') {
-      lienAction = '<a href="' + alerte.urlAction + '" role="button">Lancer la révision IRL</a>';
+      lienAction = '<a href="' + url + '" role="button">Lancer la révision IRL</a>';
     } else if (alerte.type === 'diagnostic') {
-      lienAction = '<a href="' + alerte.urlAction + '" role="button">Voir le diagnostic</a>';
+      lienAction = '<a href="' + url + '" role="button">Voir le diagnostic</a>';
     } else if (alerte.type === 'fin_bail') {
-      lienAction = '<a href="' + alerte.urlAction + '" role="button">Voir le bail</a>';
+      lienAction = '<a href="' + url + '" role="button">Voir le bail</a>';
     }
     if (lienAction) {
       blocActions = '<p>\n        ' + lienAction + '\n      </p>';
