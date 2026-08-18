@@ -234,14 +234,13 @@ INBOX="$DRIVE/inbox"
 CURATED="${SNCF_CURATED:-$DRIVE/curated}"
 ARCHIVE="$DRIVE/archive/$(date +%Y-%m)"
 
-mapfile -t FILES < <(find "$INBOX" -maxdepth 1 -type f -name '*.pdf')
-[[ ${#FILES[@]} -eq 0 ]] && { echo "inbox vide"; exit 0; }
-
-# Snapshot checksums AVANT run
-declare -A SUM_BY_FILE
-for f in "${FILES[@]}"; do
-  SUM_BY_FILE["$f"]=$(shasum -a 256 "$f" | awk '{print $1}')
-done
+# Snapshot checksums AVANT run, dans un fichier "<sha256>  <chemin>".
+# Ni mapfile ni declare -A : le /bin/bash d'Apple est en 3.2, et c'est lui que
+# cron/launchd lance avec un PATH minimal.
+SNAPSHOT=$(mktemp)
+trap 'rm -f "$LOCKFILE" "$SNAPSHOT"' EXIT
+find "$INBOX" -maxdepth 1 -type f -name '*.pdf' -exec shasum -a 256 {} \; > "$SNAPSHOT"
+[[ -s "$SNAPSHOT" ]] || { echo "inbox vide"; exit 0; }
 
 cd "$REPO"
 [[ -x "$REPO/.venv/bin/python3" ]] && PY="$REPO/.venv/bin/python3" || PY="python3"
@@ -253,13 +252,15 @@ cd "$REPO"
 CURATED_SUMS=$(find "$CURATED" -maxdepth 1 -type f -name '*.pdf' \
                -exec shasum -a 256 {} \; | awk '{print $1}' | sort -u)
 mkdir -p "$ARCHIVE"
-for f in "${FILES[@]}"; do
-  if grep -qFx "${SUM_BY_FILE[$f]}" <<<"$CURATED_SUMS"; then
-    mv "$f" "$ARCHIVE/"
+while IFS= read -r line; do
+  sum="${line%% *}"
+  file="${line#*  }"
+  if grep -qFx "$sum" <<<"$CURATED_SUMS"; then
+    mv "$file" "$ARCHIVE/"
   else
-    echo "non-archive : $(basename "$f")" >&2
+    echo "non-archive : $(basename "$file")" >&2
   fi
-done
+done < "$SNAPSHOT"
 ```
 
 Propriétés :
@@ -271,6 +272,7 @@ Propriétés :
 | **Archive uniquement si tout réussit** (`set -e`) | Un crash dans un script Python préserve les sources, on relance, les doublons sont gérés. |
 | **Exécution non-interactive** | `--yes` confirme la regénération sans prompt. Sans terminal et sans `--yes`, le script s'arrête (code 1) au lieu de bloquer sur `input()`. |
 | **Venv auto-détecté** | Utilise `.venv/bin/python3` si présent, sinon `python3` du `PATH`. |
+| **Compatible bash 3.2** | Ni `mapfile` ni `declare -A` : tourne sous le `/bin/bash` d'Apple, celui que cron et launchd lancent avec un PATH minimal. |
 | **Lock anti double-exécution** | Pattern noclobber + PID, portable (`flock` absent de macOS). Trap `EXIT` nettoie le lock même en cas de crash. |
 | **Logs cross-platform** | `$XDG_DATA_HOME/sncf-trip-proofs/sncf-run.log` ou `~/.local/share/sncf-trip-proofs/sncf-run.log`. Fonctionne sur macOS, Linux, Git Bash/WSL sur Windows. Indispensable une fois branché à un Shortcut ou cron. Croissance illimitée : à rotater à la main (`logrotate` ou troncature). |
 
