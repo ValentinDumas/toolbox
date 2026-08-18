@@ -72,3 +72,17 @@ class TestBilanMultiAnnees:
         assert "10,00 €" in r2025
         assert "2 trajet(s) depuis 2 ticket(s) analysé(s) sur 2" in r2026
         assert "34,10 €" in r2026
+
+class TestDateImpossible:
+    def test_31_fevrier_listee_en_erreur(self, tmp_path, monkeypatch):
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated,
+                 "justificatif-voyage-20260231-12-00ttc-bbbbbb.pdf",
+                 "justificatif-voyage-20260316-15-60ttc-d56qej.pdf")
+
+        _run(monkeypatch, curated, out)
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "Fichiers non traités (1)" in rapport
+        assert "justificatif-voyage-20260231-12-00ttc-bbbbbb.pdf" in rapport
+        assert "15,60 €" in rapport

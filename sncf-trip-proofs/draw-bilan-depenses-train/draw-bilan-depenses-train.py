@@ -133,10 +133,15 @@ def _pdf_parse_amount(text: str) -> float | None:
     return float(amount.replace("-", ".")) if amount else None
 
 def parse_date_str(date_str: str) -> tuple[int, int, int] | None:
+    """YYYYMMDD → (année, mois, jour). None si la date n'existe pas au calendrier."""
     if len(date_str) != 8 or not date_str.isdigit():
         return None
     y, m, d = int(date_str[:4]), int(date_str[4:6]), int(date_str[6:8])
-    if not (1 <= m <= 12 and 1 <= d <= 31 and 2000 <= y <= 2100):
+    if not 2000 <= y <= 2100:
+        return None
+    try:
+        date(y, m, d)
+    except ValueError:
         return None
     return y, m, d
 
