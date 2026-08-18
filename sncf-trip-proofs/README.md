@@ -421,8 +421,10 @@ tests fonctionnels de bout en bout (`tests/`) sur les chaînes inbox → output 
 justificatifs → bilans. Aucun vrai PDF requis — l'extraction de texte est
 substituée.
 
-La CI GitHub Actions (`.github/workflows/sncf-trip-proofs-tests.yml`) rejoue la
-suite à chaque push touchant `sncf-trip-proofs/**`.
+La CI GitLab (`.gitlab-ci.yml`, job `sncf-trip-proofs:tests`) rejoue la suite à
+chaque push sur la branche par défaut et sur chaque merge request touchant
+`sncf-trip-proofs/**`. Image `python:3.12` — la variante `-slim` n'embarque pas
+`shasum`, ce qui ferait skipper silencieusement les tests du wrapper.
 
 ### Formats de noms produits
 
