@@ -1,6 +1,9 @@
 # Local config (personal paths — do not commit)
 config.json
 
+# Cache de texte extrait (dérivé, indexé par checksum — jamais versionné)
+.sncf-text-cache.json
+
 # Python virtualenv
 .venv/
 __pycache__/
