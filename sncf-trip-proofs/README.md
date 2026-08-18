@@ -340,6 +340,20 @@ sncf-trip-proofs/
 └── README.md                            ← ce fichier
 ```
 
+### Tests
+
+```bash
+python3 -m pytest -q          # depuis sncf-trip-proofs/
+```
+
+132 tests : parsing (date, montant, référence, TCN), génération du bilan, et
+tests fonctionnels de bout en bout (`tests/`) sur les chaînes inbox → output et
+justificatifs → bilans. Aucun vrai PDF requis — l'extraction de texte est
+substituée.
+
+La CI GitHub Actions (`.github/workflows/sncf-trip-proofs-tests.yml`) rejoue la
+suite à chaque push touchant `sncf-trip-proofs/**`.
+
 ### Formats de noms produits
 
 **Justificatifs d'achat** (`curate-justificatifs-achat`) :
