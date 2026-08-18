@@ -20,7 +20,7 @@ Exemples :
 ```
 curate-justificatifs-achat/
 ├── inbox/                           ← déposer les PDFs bruts ici
-├── output/                          ← fichiers organisés (vidé et recréé à chaque --real)
+├── output/                          ← fichiers organisés (`justificatif-achat-*` regénérés à chaque --real)
 ├── curate-justificatifs-achat.py
 └── README.md
 ```

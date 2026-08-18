@@ -167,18 +167,25 @@ def resolve_conflicts(parsed: list[tuple[Path, "HasFilename | None"]]) -> list[t
 
 # ── Sortie ───────────────────────────────────────────────────────────────────
 
-def wipe_output(output_dir: Path) -> None:
-    """Vide output/ après confirmation. Quitte si refusé."""
-    if output_dir.exists():
-        n = sum(1 for _ in output_dir.iterdir())
-        if n > 0:
-            print(f"\n[OUTPUT] '{output_dir}' sera vidé ({n} fichier(s)) avant regénération.")
-            answer = input("  Confirmer la suppression ? [o/N] ").strip().lower()
-            if answer not in ("o", "oui", "y", "yes"):
-                print("  → annulé")
-                sys.exit(0)
-            shutil.rmtree(output_dir)
-    output_dir.mkdir(exist_ok=True)
+def clear_output(output_dir: Path, prefix: str, in_dir: Path) -> None:
+    """Supprime, après confirmation, les seuls fichiers déjà produits par ce
+    script (préfixe `prefix`). Les fichiers d'un autre script — l'autre
+    curate-*, les bilans — restent intacts."""
+    if output_dir.resolve() == in_dir.resolve():
+        print(f"\n[REFUS] dossier de sortie identique au dossier source : {output_dir}")
+        print("  → corrigez 'out' dans config.json, les sources seraient écrasées.")
+        sys.exit(1)
+
+    obsoletes = sorted(output_dir.glob(f"{prefix}*.pdf")) if output_dir.exists() else []
+    if obsoletes:
+        print(f"\n[OUTPUT] {len(obsoletes)} fichier(s) '{prefix}*' de '{output_dir}' seront regénérés.")
+        answer = input("  Confirmer la suppression ? [o/N] ").strip().lower()
+        if answer not in ("o", "oui", "y", "yes"):
+            print("  → annulé")
+            sys.exit(0)
+        for f in obsoletes:
+            f.unlink()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
 def process_file(path: Path, fields: "HasFilename", output_dir: Path, dry_run: bool,
                  extra_lines: list[str] | None = None) -> bool:
@@ -211,6 +218,7 @@ def run_curate(
     config_in: Path | None,
     config_out: Path | None,
     parse_fields: Callable[[str], "HasFilename"],
+    prefix: str,
     extra_lines: Callable[["HasFilename"], list[str]] | None = None,
 ) -> None:
     parser = argparse.ArgumentParser(description=description)
@@ -219,7 +227,7 @@ def run_curate(
     mode.add_argument("--dry-run", action="store_true", default=True,
                       help="Affiche les noms générés sans toucher aux fichiers (défaut)")
     mode.add_argument("--real", action="store_true", default=False,
-                      help="Vide output/ puis copie les fichiers organisés")
+                      help="Regénère les fichiers de ce script dans output/")
     args = parser.parse_args()
 
     dry_run = not args.real
@@ -241,11 +249,11 @@ def run_curate(
         sys.exit(0)
 
     if not dry_run and not args.fichier:
-        wipe_output(output_dir)
+        clear_output(output_dir, prefix, inbox)
 
     files = deduplicate_sources(files)
 
-    print(f"Mode    : {'DRY-RUN (simulation)' if dry_run else 'RÉEL (output/ régénéré)'}")
+    print(f"Mode    : {'DRY-RUN (simulation)' if dry_run else 'RÉEL (fichiers regénérés)'}")
     print(f"Source  : {inbox}")
     print(f"Sortie  : {output_dir}")
     print(f"Fichiers: {len(files)}")

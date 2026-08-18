@@ -6,7 +6,7 @@ Usage:
 
 Structure attendue :
     inbox/   ← déposer les PDFs bruts ici
-    output/  ← fichiers organisés générés ici (vidé puis recréé à chaque --real)
+    output/  ← fichiers organisés générés ici (`justificatif-voyage-*` regénérés à chaque --real)
 """
 
 import re
@@ -122,6 +122,7 @@ def main():
         config_in=config_in,
         config_out=config_out,
         parse_fields=parse_fields,
+        prefix="justificatif-voyage-",
         extra_lines=lambda f: [f"  TCN       : {f.tcn or '—'}"],
     )
 

@@ -18,7 +18,7 @@ Exemples :
 ```
 curate-justificatifs-voyage/
 ├── inbox/                          ← déposer les PDFs bruts ici
-├── output/                         ← fichiers organisés (vidé et recréé à chaque --real)
+├── output/                         ← fichiers organisés (`justificatif-voyage-*` regénérés à chaque --real)
 ├── curate-justificatifs-voyage.py
 └── README.md
 ```

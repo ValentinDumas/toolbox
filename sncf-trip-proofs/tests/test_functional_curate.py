@@ -90,3 +90,55 @@ class TestChaineVoyage:
         assert [p.name for p in out.glob("*.pdf")] == [
             "justificatif-voyage-20260403-22-00ttc-ne3erm-016487606.pdf"
         ]
+
+class TestSortiePartagee:
+    """Dans le workflow cloud documenté, achat et voyage écrivent tous deux
+    dans curated/. Chaque script ne doit toucher qu'à ses propres fichiers."""
+
+    def test_voyage_neffece_pas_la_sortie_dachat(self, tmp_path, monkeypatch):
+        inbox_a, inbox_v = tmp_path / "inbox-a", tmp_path / "inbox-v"
+        curated = tmp_path / "curated"
+        _pdf(inbox_a, "achat.pdf", b"%PDF-a")
+        _pdf(inbox_v, "voyage.pdf", b"%PDF-v")
+        monkeypatch.setattr("builtins.input", lambda *a: "o")
+
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox_a, curated)
+        _run(voyage, monkeypatch, TEXTE_VOYAGE, inbox_v, curated)
+
+        noms = sorted(p.name for p in curated.glob("*.pdf"))
+        assert noms == [
+            "justificatif-achat-20260402-18-50ttc-1917346212-20260504.pdf",
+            "justificatif-voyage-20260403-22-00ttc-ne3erm-016487606.pdf",
+        ], noms
+
+    def test_relance_remplace_ses_propres_fichiers(self, tmp_path, monkeypatch):
+        inbox, curated = tmp_path / "inbox", tmp_path / "curated"
+        _pdf(inbox, "achat.pdf", b"%PDF-a")
+        perime = _pdf(curated, "justificatif-achat-20250101-10-00ttc-vieux.pdf", b"%PDF-old")
+        monkeypatch.setattr("builtins.input", lambda *a: "o")
+
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated)
+
+        assert not perime.exists(), "un ancien fichier du même script doit être regénéré"
+        assert len(list(curated.glob("*.pdf"))) == 1
+
+    def test_fichier_etranger_preserve(self, tmp_path, monkeypatch):
+        inbox, curated = tmp_path / "inbox", tmp_path / "curated"
+        _pdf(inbox, "achat.pdf", b"%PDF-a")
+        bilan = curated / "bilan-depenses-train-2026.md"
+        curated.mkdir(parents=True, exist_ok=True)
+        bilan.write_text("bilan")
+        monkeypatch.setattr("builtins.input", lambda *a: "o")
+
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated)
+
+        assert bilan.exists(), "un fichier non produit par ce script doit survivre"
+
+    def test_sortie_egale_a_lentree_refusee(self, tmp_path, monkeypatch):
+        inbox = tmp_path / "inbox"
+        source = _pdf(inbox, "achat.pdf", b"%PDF-a")
+
+        with pytest.raises(SystemExit):
+            _run(achat, monkeypatch, TEXTE_ACHAT, inbox, inbox)
+
+        assert source.exists()

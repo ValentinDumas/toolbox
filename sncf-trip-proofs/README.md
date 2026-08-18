@@ -315,14 +315,14 @@ Propriétés :
 sncf-trip-proofs/
 ├── curate-justificatifs-achat/          ← organise les justificatifs d'achat
 │   ├── inbox/                           ← déposer les PDFs bruts d'achat ici
-│   ├── output/                          ← PDFs renommés (vidé et recréé à chaque --real)
+│   ├── output/                          ← PDFs renommés (ses propres fichiers regénérés à chaque --real)
 │   ├── curate-justificatifs-achat.py    ← script d'organisation
 │   ├── docs/specs/                      ← spécifications internes
 │   └── README.md                        ← doc détaillée (formats, comportement, dépannage)
 │
 ├── curate-justificatifs-voyage/         ← organise les justificatifs de voyage
 │   ├── inbox/                           ← déposer les PDFs bruts de voyage ici
-│   ├── output/                          ← PDFs renommés (vidé et recréé à chaque --real)
+│   ├── output/                          ← PDFs renommés (ses propres fichiers regénérés à chaque --real)
 │   ├── curate-justificatifs-voyage.py   ← script d'organisation
 │   ├── docs/specs/                      ← spécifications internes
 │   └── README.md                        ← doc détaillée (formats, comportement, dépannage)
@@ -399,6 +399,8 @@ Lecture de : /…/curate-justificatifs-voyage/output
 | Dossier IN vide | Message "Rien à traiter", pas de fichier généré |
 | Plusieurs années mélangées | Un fichier bilan par année |
 | Fichiers non-PDF dans IN | Ignorés silencieusement |
+| `out` partagé par achat et voyage | Chaque script ne supprime que ses propres `justificatif-<type>-*.pdf` — l'autre sortie et les bilans sont préservés |
+| `out` égal à `in` dans `config.json` | `[REFUS]` — le script s'arrête sans rien supprimer |
 | Deux sources au contenu identique | `[DOUBLON SOURCE]` — seul le plus ancien est gardé |
 | Deux fichiers → même nom cible | `[CONFLIT NOM]` — checksum puis numérotation `_1`, `_2`, … |
 | Même commande achat re-téléchargée | `[DOUBLON]` dans le bilan — second fichier ignoré |
