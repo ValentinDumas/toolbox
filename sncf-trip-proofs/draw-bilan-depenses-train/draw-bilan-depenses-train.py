@@ -170,10 +170,12 @@ def extract_trips_from_pdf(path: Path, total_amount: float, filename: str) -> li
     return trips
 
 
-def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], int]:
+def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], dict[int, int]]:
+    """Renvoie les trajets, les fichiers en erreur, et le nombre de tickets
+    rattaché à chaque année — un bilan annuel ne doit compter que les siens."""
     pdfs = sorted(in_dir.glob("*.pdf"))
     if not pdfs:
-        return [], [], 0
+        return [], [], {}
 
     # Passe 1 : parse noms / fallback PDF
     raw: list[tuple[Path, str, float, str]] = []
@@ -211,15 +213,15 @@ def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], int]:
             seen_refs[ref_base] = pdf.name
         deduped.append((pdf, date_str, amount, ref))
 
-    ticket_count = len(deduped)
-
     # Passe 3 : extraction des Trip individuels
     trips: list[Trip] = []
+    tickets_by_year: dict[int, int] = defaultdict(int)
 
     for pdf, date_str, amount, ref in deduped:
         extracted = extract_trips_from_pdf(pdf, amount, pdf.name)
         if extracted:
             trips.extend(extracted)
+            tickets_by_year[min(t.year for t in extracted)] += 1
             continue
 
         ymd = parse_date_str(date_str)
@@ -230,8 +232,9 @@ def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], int]:
             continue
         y, mo, d = ymd
         trips.append(Trip(filename=pdf.name, amount=amount, year=y, month=mo, day=d, from_pdf=False))
+        tickets_by_year[y] += 1
 
-    return trips, errors, ticket_count
+    return trips, errors, dict(tickets_by_year)
 
 
 def fmt_eur(amount: float) -> str:
@@ -382,7 +385,7 @@ def main():
         print("Rien à traiter.")
         sys.exit(0)
 
-    trips, errors, ticket_count = scan(in_dir)
+    trips, errors, tickets_by_year = scan(in_dir)
 
     years: dict[int, list[Trip]] = defaultdict(list)
     for t in trips:
@@ -394,7 +397,7 @@ def main():
 
     dominant_year = max(years, key=lambda y: len(years[y])) if years else date.today().year
 
-    print(f"\n✓ {len(trips)} trajet(s) extrait(s) depuis {ticket_count} ticket(s)")
+    print(f"\n✓ {len(trips)} trajet(s) extrait(s) depuis {sum(tickets_by_year.values())} ticket(s)")
     if errors:
         print(f"✗ {len(errors)} erreur(s) :")
         for err in errors:
@@ -404,7 +407,8 @@ def main():
 
     generated = []
     for year in sorted(years):
-        report = generate_report(trips, errors if year == dominant_year else [], year, ticket_count)
+        report = generate_report(trips, errors if year == dominant_year else [], year,
+                                 tickets_by_year.get(year, 0))
         out_file = out_dir / f"bilan-depenses-train-{year}.md"
         out_file.write_text(report, encoding="utf-8")
         generated.append(out_file)
