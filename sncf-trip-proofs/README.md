@@ -284,28 +284,35 @@ ARCHIVE="$DRIVE/archive/$(date +%Y-%m)"
 # cron/launchd lance avec un PATH minimal.
 SNAPSHOT=$(mktemp)
 trap 'rm -f "$LOCKFILE" "$SNAPSHOT"' EXIT
+mkdir -p "$INBOX"
 find "$INBOX" -maxdepth 1 -type f -name '*.pdf' -exec shasum -a 256 {} \; > "$SNAPSHOT"
-[[ -s "$SNAPSHOT" ]] || { echo "inbox vide"; exit 0; }
 
+# Les scripts tournent meme si inbox/ est vide : curated/ et bilans/ sont
+# derives du corpus (inbox/ + archive/) et doivent rester reconstructibles.
 cd "$REPO"
 [[ -x "$REPO/.venv/bin/python3" ]] && PY="$REPO/.venv/bin/python3" || PY="python3"
 "$PY" curate-justificatifs-achat/curate-justificatifs-achat.py --real --yes
 "$PY" curate-justificatifs-voyage/curate-justificatifs-voyage.py --real --yes
 "$PY" draw-bilan-depenses-train/draw-bilan-depenses-train.py
 
-# Archive seulement les sources dont le contenu se retrouve dans curated/
-CURATED_SUMS=$(find "$CURATED" -maxdepth 1 -type f -name '*.pdf' \
-               -exec shasum -a 256 {} \; | awk '{print $1}' | sort -u)
-mkdir -p "$ARCHIVE"
-while IFS= read -r line; do
-  sum="${line%% *}"
-  file="${line#*  }"
-  if grep -qFx "$sum" <<<"$CURATED_SUMS"; then
-    mv "$file" "$ARCHIVE/"
-  else
-    echo "non-archive : $(basename "$file")" >&2
-  fi
-done < "$SNAPSHOT"
+# Range les sources du run — elles restent dans le corpus via "in"
+if [[ -s "$SNAPSHOT" ]]; then
+  # Seulement celles dont le contenu se retrouve dans curated/
+  CURATED_SUMS=$(find "$CURATED" -maxdepth 1 -type f -name '*.pdf' \
+                 -exec shasum -a 256 {} \; | awk '{print $1}' | sort -u)
+  mkdir -p "$ARCHIVE"
+  while IFS= read -r line; do
+    sum="${line%% *}"
+    file="${line#*  }"
+    if grep -qFx "$sum" <<<"$CURATED_SUMS"; then
+      mv "$file" "$ARCHIVE/"
+    else
+      echo "non-archive : $(basename "$file")" >&2
+    fi
+  done < "$SNAPSHOT"
+else
+  echo "inbox vide - sorties reconstruites depuis archive/"
+fi
 ```
 
 Propriétés :
@@ -313,6 +320,7 @@ Propriétés :
 | Propriété | Garantie |
 |---|---|
 | **Snapshot avant run** | Un PDF ajouté pendant l'exécution n'est pas archivé par erreur, sera traité au run suivant. |
+| **Inbox vide ≠ rien à faire** | Les scripts tournent quand même : `curated/` et `bilans/` sont dérivés du corpus et restent reconstructibles après un `rm -rf`. |
 | **Archive sélective par checksum** | Seuls les PDFs dont le contenu se retrouve dans `curated/` sont archivés. Un échec OCR/parsing reste visible dans `inbox/` — pas d'erreur silencieuse. |
 | **Archive uniquement si tout réussit** (`set -e`) | Un crash dans un script Python préserve les sources, on relance, les doublons sont gérés. |
 | **Exécution non-interactive** | `--yes` confirme la regénération sans prompt. Sans terminal et sans `--yes`, le script s'arrête (code 1) au lieu de bloquer sur `input()`. |
