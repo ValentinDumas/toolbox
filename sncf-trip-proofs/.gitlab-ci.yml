@@ -4,7 +4,7 @@ stages:
 # Image complète et non -slim : les tests du wrapper exécutent le script bash du
 # README, qui appelle shasum — absent de python:3.12-slim, où ils seraient
 # silencieusement skippés.
-sncf-trip-proofs:tests:
+tests:
   stage: test
   image: python:3.12
   variables:
@@ -12,20 +12,13 @@ sncf-trip-proofs:tests:
   cache:
     key:
       files:
-        - sncf-trip-proofs/requirements.txt
+        - requirements.txt
     paths:
       - .pip-cache
   before_script:
-    - pip install --quiet --root-user-action=ignore -r sncf-trip-proofs/requirements.txt pytest
+    - pip install --quiet --root-user-action=ignore -r requirements.txt pytest
   script:
-    - cd sncf-trip-proofs
     - python -m pytest -q
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - sncf-trip-proofs/**/*
-        - .gitlab-ci.yml
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - sncf-trip-proofs/**/*
-        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH
