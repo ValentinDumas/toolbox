@@ -113,6 +113,7 @@ cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 # 1. Organiser les justificatifs d'achat (JustificatifAchat_SNCFCONNECT.pdf)
 python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py          # dry-run
 python3 sncf-trip-proofs/curate-justificatifs-achat/curate-justificatifs-achat.py --real   # applique
+#   ajouter --yes pour confirmer la regénération sans prompt (cron, launchd, wrapper)
 
 # 2. Organiser les justificatifs de voyage (justificatif-voyage-*.pdf)
 python3 sncf-trip-proofs/curate-justificatifs-voyage/curate-justificatifs-voyage.py          # dry-run
@@ -244,8 +245,8 @@ done
 
 cd "$REPO"
 [[ -x "$REPO/.venv/bin/python3" ]] && PY="$REPO/.venv/bin/python3" || PY="python3"
-"$PY" curate-justificatifs-achat/curate-justificatifs-achat.py --real
-"$PY" curate-justificatifs-voyage/curate-justificatifs-voyage.py --real
+"$PY" curate-justificatifs-achat/curate-justificatifs-achat.py --real --yes
+"$PY" curate-justificatifs-voyage/curate-justificatifs-voyage.py --real --yes
 "$PY" draw-bilan-depenses-train/draw-bilan-depenses-train.py
 
 # Archive seulement les sources dont le contenu se retrouve dans curated/
@@ -268,6 +269,7 @@ Propriétés :
 | **Snapshot avant run** | Un PDF ajouté pendant l'exécution n'est pas archivé par erreur, sera traité au run suivant. |
 | **Archive sélective par checksum** | Seuls les PDFs dont le contenu se retrouve dans `curated/` sont archivés. Un échec OCR/parsing reste visible dans `inbox/` — pas d'erreur silencieuse. |
 | **Archive uniquement si tout réussit** (`set -e`) | Un crash dans un script Python préserve les sources, on relance, les doublons sont gérés. |
+| **Exécution non-interactive** | `--yes` confirme la regénération sans prompt. Sans terminal et sans `--yes`, le script s'arrête (code 1) au lieu de bloquer sur `input()`. |
 | **Venv auto-détecté** | Utilise `.venv/bin/python3` si présent, sinon `python3` du `PATH`. |
 | **Lock anti double-exécution** | Pattern noclobber + PID, portable (`flock` absent de macOS). Trap `EXIT` nettoie le lock même en cas de crash. |
 | **Logs cross-platform** | `$XDG_DATA_HOME/sncf-trip-proofs/sncf-run.log` ou `~/.local/share/sncf-trip-proofs/sncf-run.log`. Fonctionne sur macOS, Linux, Git Bash/WSL sur Windows. Indispensable une fois branché à un Shortcut ou cron. Croissance illimitée : à rotater à la main (`logrotate` ou troncature). |

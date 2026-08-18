@@ -167,7 +167,7 @@ def resolve_conflicts(parsed: list[tuple[Path, "HasFilename | None"]]) -> list[t
 
 # ── Sortie ───────────────────────────────────────────────────────────────────
 
-def clear_output(output_dir: Path, prefix: str, in_dir: Path) -> None:
+def clear_output(output_dir: Path, prefix: str, in_dir: Path, assume_yes: bool = False) -> None:
     """Supprime, après confirmation, les seuls fichiers déjà produits par ce
     script (préfixe `prefix`). Les fichiers d'un autre script — l'autre
     curate-*, les bilans — restent intacts."""
@@ -179,10 +179,14 @@ def clear_output(output_dir: Path, prefix: str, in_dir: Path) -> None:
     obsoletes = sorted(output_dir.glob(f"{prefix}*.pdf")) if output_dir.exists() else []
     if obsoletes:
         print(f"\n[OUTPUT] {len(obsoletes)} fichier(s) '{prefix}*' de '{output_dir}' seront regénérés.")
-        answer = input("  Confirmer la suppression ? [o/N] ").strip().lower()
-        if answer not in ("o", "oui", "y", "yes"):
-            print("  → annulé")
-            sys.exit(0)
+        if not assume_yes:
+            if not sys.stdin.isatty():
+                print("  [REFUS] pas de terminal pour confirmer : relancez avec --yes.")
+                sys.exit(1)
+            answer = input("  Confirmer la suppression ? [o/N] ").strip().lower()
+            if answer not in ("o", "oui", "y", "yes"):
+                print("  → annulé")
+                sys.exit(0)
         for f in obsoletes:
             f.unlink()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -228,6 +232,8 @@ def run_curate(
                       help="Affiche les noms générés sans toucher aux fichiers (défaut)")
     mode.add_argument("--real", action="store_true", default=False,
                       help="Regénère les fichiers de ce script dans output/")
+    parser.add_argument("--yes", action="store_true", default=False,
+                        help="Confirme la regénération sans prompt (cron, launchd, wrapper)")
     args = parser.parse_args()
 
     dry_run = not args.real
@@ -249,7 +255,7 @@ def run_curate(
         sys.exit(0)
 
     if not dry_run and not args.fichier:
-        clear_output(output_dir, prefix, inbox)
+        clear_output(output_dir, prefix, inbox, assume_yes=args.yes)
 
     files = deduplicate_sources(files)
 

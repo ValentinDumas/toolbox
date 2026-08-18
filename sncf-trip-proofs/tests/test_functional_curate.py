@@ -100,10 +100,8 @@ class TestSortiePartagee:
         curated = tmp_path / "curated"
         _pdf(inbox_a, "achat.pdf", b"%PDF-a")
         _pdf(inbox_v, "voyage.pdf", b"%PDF-v")
-        monkeypatch.setattr("builtins.input", lambda *a: "o")
-
-        _run(achat, monkeypatch, TEXTE_ACHAT, inbox_a, curated)
-        _run(voyage, monkeypatch, TEXTE_VOYAGE, inbox_v, curated)
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox_a, curated, argv=("--real", "--yes"))
+        _run(voyage, monkeypatch, TEXTE_VOYAGE, inbox_v, curated, argv=("--real", "--yes"))
 
         noms = sorted(p.name for p in curated.glob("*.pdf"))
         assert noms == [
@@ -115,9 +113,7 @@ class TestSortiePartagee:
         inbox, curated = tmp_path / "inbox", tmp_path / "curated"
         _pdf(inbox, "achat.pdf", b"%PDF-a")
         perime = _pdf(curated, "justificatif-achat-20250101-10-00ttc-vieux.pdf", b"%PDF-old")
-        monkeypatch.setattr("builtins.input", lambda *a: "o")
-
-        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated)
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated, argv=("--real", "--yes"))
 
         assert not perime.exists(), "un ancien fichier du même script doit être regénéré"
         assert len(list(curated.glob("*.pdf"))) == 1
@@ -128,9 +124,7 @@ class TestSortiePartagee:
         bilan = curated / "bilan-depenses-train-2026.md"
         curated.mkdir(parents=True, exist_ok=True)
         bilan.write_text("bilan")
-        monkeypatch.setattr("builtins.input", lambda *a: "o")
-
-        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated)
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated, argv=("--real", "--yes"))
 
         assert bilan.exists(), "un fichier non produit par ce script doit survivre"
 
@@ -142,3 +136,39 @@ class TestSortiePartagee:
             _run(achat, monkeypatch, TEXTE_ACHAT, inbox, inbox)
 
         assert source.exists()
+
+class TestNonInteractif:
+    """Le wrapper sncf-run.sh peut tourner sous cron/launchd : pas de stdin."""
+
+    def test_sans_yes_hors_tty_abandonne_sans_supprimer(self, tmp_path, monkeypatch):
+        inbox, curated = tmp_path / "inbox", tmp_path / "curated"
+        _pdf(inbox, "achat.pdf", b"%PDF-a")
+        existant = _pdf(curated, "justificatif-achat-20250101-10-00ttc-vieux.pdf", b"%PDF-old")
+
+        with pytest.raises(SystemExit) as exc:
+            _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated)
+
+        assert exc.value.code == 1
+        assert existant.exists()
+
+    def test_yes_supprime_sans_prompt(self, tmp_path, monkeypatch):
+        inbox, curated = tmp_path / "inbox", tmp_path / "curated"
+        _pdf(inbox, "achat.pdf", b"%PDF-a")
+        existant = _pdf(curated, "justificatif-achat-20250101-10-00ttc-vieux.pdf", b"%PDF-old")
+
+        def _boom(*a):
+            raise AssertionError("--yes ne doit jamais demander confirmation")
+        monkeypatch.setattr("builtins.input", _boom)
+
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated, argv=("--real", "--yes"))
+
+        assert not existant.exists()
+        assert len(list(curated.glob("*.pdf"))) == 1
+
+    def test_sortie_vide_ne_demande_rien(self, tmp_path, monkeypatch):
+        inbox, curated = tmp_path / "inbox", tmp_path / "curated"
+        _pdf(inbox, "achat.pdf", b"%PDF-a")
+
+        _run(achat, monkeypatch, TEXTE_ACHAT, inbox, curated)
+
+        assert len(list(curated.glob("*.pdf"))) == 1

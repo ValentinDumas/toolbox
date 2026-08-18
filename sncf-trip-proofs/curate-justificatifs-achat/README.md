@@ -90,6 +90,8 @@ python3 curate-justificatifs-achat.py --real
 
 Priorité : argument CLI fichier > `config.json` > `inbox/` et `output/` locaux.
 
+`--yes` confirme la regénération sans prompt — indispensable sous cron/launchd, où l'absence de terminal fait sinon échouer le script (code 1, aucun fichier supprimé).
+
 ---
 
 ## Comportement
