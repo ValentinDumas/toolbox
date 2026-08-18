@@ -12,7 +12,6 @@ Usage:
 
 import re
 import sys
-import json
 import logging
 import warnings
 import argparse
@@ -21,6 +20,9 @@ from datetime import date
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import sncf_common as common
+
 MOIS_FR = {
     1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril",
     5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
@@ -28,19 +30,10 @@ MOIS_FR = {
 }
 
 
+SECTION = "draw-bilan-depenses-train"
+
 def load_config(config_path: Path | None = None) -> tuple[Path | None, Path | None]:
-    if config_path is None:
-        config_path = Path(__file__).parent.parent / "config.json"
-    if not config_path.exists():
-        return None, None
-    try:
-        cfg = json.loads(config_path.read_text(encoding="utf-8"))
-        section = cfg.get("draw-bilan-depenses-train", {})
-        in_path = Path(section["in"]) if section.get("in") else None
-        out_path = Path(section["out"]) if section.get("out") else None
-        return in_path, out_path
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return None, None
+    return common.load_config(SECTION, config_path)
 
 RE_RENAMED_ACHAT = re.compile(
     r"justificatif-achat-(\d{8}(?:-\d{8})?)-(\d{1,4}-\d{2})ttc-(.+)\.pdf",
@@ -133,56 +126,11 @@ def parse_via_pdf(path: Path) -> tuple[str, float] | None:
 
 
 def _pdf_parse_date(text: str) -> str | None:
-    MOIS_MAP = {
-        "janvier": "01", "février": "02", "fevrier": "02",
-        "mars": "03", "avril": "04", "mai": "05", "juin": "06",
-        "juillet": "07", "août": "08", "aout": "08",
-        "septembre": "09", "octobre": "10", "novembre": "11",
-        "décembre": "12", "decembre": "12",
-    }
-    mois_alt = "|".join(MOIS_MAP)
-
-    patterns = [
-        (re.compile(r"(?:Aller|Retour|Departure|Return)\s+(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})", re.IGNORECASE),
-         lambda m: f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"),
-        (re.compile(r"(?:du|le|date)\s+(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})", re.IGNORECASE),
-         lambda m: f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"),
-        (re.compile(rf"(?:du|le|date)\s+(\d{{1,2}})\s+({mois_alt})\s+(\d{{4}})", re.IGNORECASE),
-         lambda m: f"{m.group(3)}{MOIS_MAP[m.group(2).lower()]}{int(m.group(1)):02d}"),
-        (re.compile(rf"\b(\d{{1,2}})\s+({mois_alt})\s+(\d{{4}})\b", re.IGNORECASE),
-         lambda m: f"{m.group(3)}{MOIS_MAP[m.group(2).lower()]}{int(m.group(1)):02d}"),
-        (re.compile(r"\b(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})\b"),
-         lambda m: f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"),
-        (re.compile(r"N°[\w]+-(\d{4})(\d{2})(\d{2})\b"),
-         lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}"),
-    ]
-
-    for pattern, extractor in patterns:
-        match = pattern.search(text)
-        if match:
-            return extractor(match)
-    return None
-
+    return common.parse_date(text)
 
 def _pdf_parse_amount(text: str) -> float | None:
-    m = re.search(r"€\s*(\d{1,4})[,\.](\d{2})\b", text)
-    if m:
-        return float(f"{m.group(1)}.{m.group(2)}")
-
-    m = re.search(r"€\s*(\d{1,4})\b", text)
-    if m:
-        return float(m.group(1))
-
-    m = re.search(r"(?:total|montant)[^\n]*?(\d{1,4})[,\.](\d{2})\s*(?:€|EUR)", text, re.IGNORECASE)
-    if m:
-        return float(f"{m.group(1)}.{m.group(2)}")
-
-    m = re.search(r"(?<!\d)(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?=\s|$|[,;])", text, re.IGNORECASE)
-    if m:
-        return float(f"{m.group(1)}.{m.group(2)}")
-
-    return None
-
+    amount = common.parse_amount(text)
+    return float(amount.replace("-", ".")) if amount else None
 
 def parse_date_str(date_str: str) -> tuple[int, int, int] | None:
     if len(date_str) != 8 or not date_str.isdigit():

@@ -331,6 +331,8 @@ sncf-trip-proofs/
 │   ├── draw-bilan-depenses-train.py     ← script de génération du bilan Markdown
 │   └── docs/specs/                      ← spécifications internes
 │
+├── tests/                               ← tests fonctionnels (chaîne inbox → output)
+├── sncf_common.py                       ← socle partagé (config, OCR, parseurs, dédoublonnage)
 ├── requirements.txt                     ← dépendances Python pinnées
 ├── config.example.json                  ← template à copier en config.json
 └── README.md                            ← ce fichier
