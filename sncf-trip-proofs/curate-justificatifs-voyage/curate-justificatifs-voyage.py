@@ -23,6 +23,8 @@ SECTION = "curate-justificatifs-voyage"
 def load_config(config_path: Path | None = None) -> tuple[Path | None, Path | None]:
     return common.load_config(SECTION, config_path)
 
+# ── Modèle ────────────────────────────────────────────────────────────────────
+
 @dataclass
 class Fields:
     date: str | None
@@ -48,6 +50,8 @@ class Fields:
             f"{tcn_part}{counter_part}.pdf"
         )
 
+# ── Parsers ───────────────────────────────────────────────────────────────────
+
 def parse_fields(text: str) -> Fields:
     return Fields(
         date=_parse_date(text),
@@ -57,6 +61,7 @@ def parse_fields(text: str) -> Fields:
     )
 
 def _parse_date(text: str) -> str | None:
+    # Priorité max : date après "voyage du / aller le / retour le" — évite "Paris, le DD/MM/YYYY"
     m = re.compile(
         r"(?:voyage\s+du|aller\s+le|retour\s+le)\s+(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})",
         re.IGNORECASE,
@@ -64,6 +69,7 @@ def _parse_date(text: str) -> str | None:
     if m:
         return f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"
 
+    # "voyage du 26 mars 2026"
     m = re.compile(
         rf"(?:voyage\s+du|aller\s+le|retour\s+le)\s+(\d{{1,2}})\s+({MOIS_ALT})\s+(\d{{4}})",
         re.IGNORECASE,
@@ -71,10 +77,12 @@ def _parse_date(text: str) -> str | None:
     if m:
         return f"{m.group(3)}{MOIS[m.group(2).lower()]}{int(m.group(1)):02d}"
 
+    # Fallback : premier mois en lettres dans le texte
     m = re.compile(rf"\b(\d{{1,2}})\s+({MOIS_ALT})\s+(\d{{4}})\b", re.IGNORECASE).search(text)
     if m:
         return f"{m.group(3)}{MOIS[m.group(2).lower()]}{int(m.group(1)):02d}"
 
+    # Fallback : première date numérique
     m = re.compile(r"\b(\d{2})[/\-\.](\d{2})[/\-\.](\d{4})\b").search(text)
     if m:
         return f"{m.group(3)}{m.group(2)}{m.group(1)}"
@@ -82,6 +90,7 @@ def _parse_date(text: str) -> str | None:
     return None
 
 def _parse_amount(text: str) -> str | None:
+    # Priorité : ligne "TOTAL" ou "Montant" avec € après
     m = re.compile(
         r"(?:total|montant)[^\n]*?(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?:\s|$|[,;])",
         re.IGNORECASE,
@@ -89,6 +98,9 @@ def _parse_amount(text: str) -> str | None:
     if m:
         return f"{m.group(1)}-{m.group(2)}TTC"
 
+    # Fallback : montant décimal ou entier avec € après
+    # Note: \b ne fonctionne pas après € (non-word char) → lookahead
+    # Protection capital social : limité à ≤4 chiffres entiers
     m = re.compile(
         r"(?<!\d)(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?=\s|$|[,;])"
         r"|(?<!\d)(\d{1,4})\s*(?:€|EUR|euros?)(?=\s|$|[,;])",
@@ -99,12 +111,14 @@ def _parse_amount(text: str) -> str | None:
     return f"{m.group(1)}-{m.group(2)}TTC" if m.group(1) else f"{m.group(3)}-00TTC"
 
 def _parse_ref(text: str) -> str | None:
+    # "Référence de commande NE3ERM" — after "commande" keyword
     m = re.compile(
         r"(?:référence|réf)[^\n]*?commande\s+([A-Z0-9]{5,10})\b",
         re.IGNORECASE,
     ).search(text)
     if m:
         return m.group(1).upper()
+    # "Référence D56QEJ" — ref directly after keyword (no intermediate words)
     m = re.compile(
         r"(?:référence|réf)\s+([A-Z0-9]{5,10})\b",
         re.IGNORECASE,

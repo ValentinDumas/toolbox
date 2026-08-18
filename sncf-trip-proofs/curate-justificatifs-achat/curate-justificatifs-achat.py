@@ -23,6 +23,8 @@ SECTION = "curate-justificatifs-achat"
 def load_config(config_path: Path | None = None) -> tuple[Path | None, Path | None]:
     return common.load_config(SECTION, config_path)
 
+# ── Modèle ────────────────────────────────────────────────────────────────────
+
 @dataclass
 class Fields:
     date: str | None
@@ -53,6 +55,9 @@ def parse_fields(text: str) -> Fields:
         ref=_parse_ref(text),
     )
 
+# ── Parsers ───────────────────────────────────────────────────────────────────
+
+# Toutes les dates de tickets (Aller/Retour/Departure/Return) — couvre les commandes multi-tickets
 RE_TICKET_DATE = re.compile(
     r"(?:Aller|Retour|Departure|Return)\s+(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})",
     re.IGNORECASE,
@@ -65,6 +70,7 @@ def _parse_date(text: str) -> str | None:
         for m in RE_TICKET_DATE.finditer(text)
     })
     if ticket_dates:
+        # 1 jour → "20260423" ; plusieurs jours → "20260423-20260424"
         return ticket_dates[0] if len(ticket_dates) == 1 else f"{ticket_dates[0]}-{ticket_dates[-1]}"
     return common.parse_date(text)
 
@@ -73,10 +79,12 @@ def _parse_amount(text: str) -> str | None:
     return f"{amount}TTC" if amount else None
 
 def _parse_ref(text: str) -> str | None:
+    # Format N°XXXXXXXXXX-YYYYMMDD → garde tout après N°
     m = re.compile(r"N°([\w]+-\d{8})\b").search(text)
     if m:
         return m.group(1)
 
+    # Format N° suivi d'un identifiant numérique long
     m = re.compile(r"N°(\d{8,})\b").search(text)
     if m:
         return m.group(1)

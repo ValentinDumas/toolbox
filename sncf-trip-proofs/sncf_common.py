@@ -61,17 +61,25 @@ def extract_text(path: Path) -> str:
 
 # ── Parseurs génériques (justificatifs d'achat et fallback bilan) ─────────────
 
+# Du plus contextuel au plus permissif : une date qualifiée (Aller, "du…") prime
+# sur une date isolée, qui peut être celle d'émission du document.
 _DATE_PATTERNS: list[tuple[re.Pattern, Callable[[re.Match], str]]] = [
+    # Ligne de trajet (ex: "Aller 30/03/2026")
     (re.compile(r"(?:Aller|Retour|Departure|Return)\s+(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})", re.IGNORECASE),
      lambda m: f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"),
+    # Date numérique avec contexte (ex: "du 30/03/2026", "le 30-03-2026")
     (re.compile(r"(?:du|le|date)\s+(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})", re.IGNORECASE),
      lambda m: f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"),
+    # Date en lettres avec contexte (ex: "le 30 mars 2026")
     (re.compile(rf"(?:du|le|date)\s+(\d{{1,2}})\s+({MOIS_ALT})\s+(\d{{4}})", re.IGNORECASE),
      lambda m: f"{m.group(3)}{MOIS[m.group(2).lower()]}{int(m.group(1)):02d}"),
+    # Date en lettres sans contexte (ex: "30 mars 2026")
     (re.compile(rf"\b(\d{{1,2}})\s+({MOIS_ALT})\s+(\d{{4}})\b", re.IGNORECASE),
      lambda m: f"{m.group(3)}{MOIS[m.group(2).lower()]}{int(m.group(1)):02d}"),
+    # Date numérique seule (ex: "30/03/2026")
     (re.compile(r"\b(\d{1,2})[/\-\.](\d{2})[/\-\.](\d{4})\b"),
      lambda m: f"{m.group(3)}{m.group(2)}{int(m.group(1)):02d}"),
+    # Date ISO dans la référence (ex: N°2668453920-20260330)
     (re.compile(r"N°[\w]+-(\d{4})(\d{2})(\d{2})\b"),
      lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}"),
 ]
@@ -85,8 +93,11 @@ def parse_date(text: str) -> str | None:
     return None
 
 _AMOUNT_PATTERNS = [
+    # Symbole € AVANT le montant (ex: €18,50 ou € 18,50)
     re.compile(r"€\s*(\d{1,4})[,\.](\d{2})\b"),
+    # € avant montant entier (ex: €18)
     re.compile(r"€\s*(\d{1,4})\b"),
+    # Fallback : symbole € APRÈS, ligne total/montant
     re.compile(r"(?:total|montant)[^\n]*?(\d{1,4})[,\.](\d{2})\s*(?:€|EUR)", re.IGNORECASE),
     re.compile(r"(?<!\d)(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?=\s|$|[,;])", re.IGNORECASE),
 ]
