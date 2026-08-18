@@ -367,7 +367,7 @@ def main():
     match len(args.paths):
         case 0:
             config_in, config_out = load_config()
-            in_dir = config_in if config_in else Path.cwd()
+            in_dir = config_in[0] if config_in else Path.cwd()
             out_dir = config_out if config_out else Path.cwd()
         case 1:
             in_dir = out_dir = Path(args.paths[0])

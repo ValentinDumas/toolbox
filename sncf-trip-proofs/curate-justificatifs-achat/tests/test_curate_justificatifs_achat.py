@@ -222,47 +222,54 @@ class TestResolveConflicts:
 class TestLoadConfig:
     def test_missing_config(self, tmp_path):
         in_p, out_p = load_config(tmp_path / "config.json")
-        assert in_p is None
+        assert in_p == []
         assert out_p is None
 
     def test_both_paths_configured(self, tmp_path):
         cfg = tmp_path / "config.json"
         cfg.write_text('{"curate-justificatifs-achat": {"in": "/b/inbox", "out": "/b/output"}}')
         in_p, out_p = load_config(cfg)
-        assert in_p == Path("/b/inbox")
+        assert in_p == [Path("/b/inbox")]
         assert out_p == Path("/b/output")
 
     def test_in_only_configured(self, tmp_path):
         cfg = tmp_path / "config.json"
         cfg.write_text('{"curate-justificatifs-achat": {"in": "/b/inbox", "out": ""}}')
         in_p, out_p = load_config(cfg)
-        assert in_p == Path("/b/inbox")
+        assert in_p == [Path("/b/inbox")]
         assert out_p is None
 
     def test_out_only_configured(self, tmp_path):
         cfg = tmp_path / "config.json"
         cfg.write_text('{"curate-justificatifs-achat": {"out": "/b/output"}}')
         in_p, out_p = load_config(cfg)
-        assert in_p is None
+        assert in_p == []
         assert out_p == Path("/b/output")
 
     def test_malformed_json(self, tmp_path):
         cfg = tmp_path / "config.json"
         cfg.write_text("not valid json{{{")
         in_p, out_p = load_config(cfg)
-        assert in_p is None
+        assert in_p == []
         assert out_p is None
 
     def test_missing_script_section(self, tmp_path):
         cfg = tmp_path / "config.json"
         cfg.write_text('{"other-script": {"in": "/x", "out": "/y"}}')
         in_p, out_p = load_config(cfg)
-        assert in_p is None
+        assert in_p == []
         assert out_p is None
 
     def test_empty_paths_treated_as_none(self, tmp_path):
         cfg = tmp_path / "config.json"
         cfg.write_text('{"curate-justificatifs-achat": {"in": "", "out": ""}}')
         in_p, out_p = load_config(cfg)
-        assert in_p is None
+        assert in_p == []
         assert out_p is None
+
+    def test_in_accepte_une_liste_de_chemins(self, tmp_path):
+        cfg = tmp_path / "config.json"
+        cfg.write_text('{"curate-justificatifs-achat": {"in": ["/b/inbox", "/b/archive"], "out": "/b/out"}}')
+        in_p, out_p = load_config(cfg)
+        assert in_p == [Path("/b/inbox"), Path("/b/archive")]
+        assert out_p == Path("/b/out")

@@ -28,19 +28,29 @@ MOIS_ALT = "|".join(MOIS)
 INBOX = Path("inbox")
 OUTPUT = Path("output")
 
-def load_config(section: str, config_path: Path | None = None) -> tuple[Path | None, Path | None]:
+def load_config(section: str, config_path: Path | None = None) -> tuple[list[Path], Path | None]:
+    """Renvoie (chemins sources, chemin de sortie). "in" accepte un chemin ou une
+    liste : le corpus d'un script curate-* couvre inbox/ ET archive/, sans quoi
+    archiver une source la retirerait du domaine et la sortie ne serait plus
+    reconstructible."""
     if config_path is None:
         config_path = Path(__file__).parent / "config.json"
     if not config_path.exists():
-        return None, None
+        return [], None
     try:
         cfg = json.loads(config_path.read_text(encoding="utf-8"))
         conf = cfg.get(section, {})
-        in_path = Path(conf["in"]) if conf.get("in") else None
+        raw_in = conf.get("in")
+        if isinstance(raw_in, str):
+            in_paths = [Path(raw_in)] if raw_in else []
+        elif isinstance(raw_in, list):
+            in_paths = [Path(p) for p in raw_in if p]
+        else:
+            in_paths = []
         out_path = Path(conf["out"]) if conf.get("out") else None
-        return in_path, out_path
+        return in_paths, out_path
     except (json.JSONDecodeError, KeyError, TypeError):
-        return None, None
+        return [], None
 
 # ── Extraction PDF ────────────────────────────────────────────────────────────
 
@@ -58,6 +68,20 @@ def extract_text(path: Path) -> str:
     import pytesseract
     images = convert_from_bytes(path.read_bytes(), dpi=300)
     return "\n".join(pytesseract.image_to_string(img, lang="fra+eng") for img in images).strip()
+
+TEXT_CACHE = ".sncf-text-cache.json"
+
+def load_text_cache(out_dir: Path) -> dict[str, str]:
+    """Texte déjà extrait, indexé par checksum du PDF. Purement dérivé : le
+    supprimer ne change que le temps du prochain run (OCR à refaire)."""
+    try:
+        return json.loads((out_dir / TEXT_CACHE).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+def save_text_cache(out_dir: Path, cache: dict[str, str]) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / TEXT_CACHE).write_text(json.dumps(cache), encoding="utf-8")
 
 # ── Parseurs génériques (justificatifs d'achat et fallback bilan) ─────────────
 
@@ -125,6 +149,22 @@ def birth_time(path: Path) -> tuple[float, float]:
     st = path.stat()
     return (getattr(st, "st_birthtime", st.st_mtime), st.st_mtime)
 
+def collect_sources(source_dirs: list[Path], output_dir: Path) -> list[Path]:
+    """Tous les PDFs du corpus, récursivement — inbox/ et archive/YYYY-MM/ pour un
+    même justificatif déplacé entre deux runs. La sortie est exclue : elle est
+    dérivée, jamais source."""
+    out = output_dir.resolve()
+    seen: set[Path] = set()
+    files: list[Path] = []
+    for directory in source_dirs:
+        for path in sorted(directory.rglob("*.pdf")):
+            resolved = path.resolve()
+            if resolved in seen or out == resolved.parent or out in resolved.parents:
+                continue
+            seen.add(resolved)
+            files.append(path)
+    return files
+
 def deduplicate_sources(files: list[Path]) -> list[Path]:
     """Passe 1 — supprime les sources au contenu identique avant extraction.
     Garde le plus ancien de chaque groupe, informe l'utilisateur."""
@@ -178,14 +218,17 @@ def resolve_conflicts(parsed: list[tuple[Path, "HasFilename | None"]]) -> list[t
 
 # ── Sortie ───────────────────────────────────────────────────────────────────
 
-def clear_output(output_dir: Path, prefix: str, in_dir: Path, assume_yes: bool = False) -> None:
+def clear_output(output_dir: Path, prefix: str, source_dirs: list[Path], assume_yes: bool = False) -> None:
     """Supprime, après confirmation, les seuls fichiers déjà produits par ce
     script (préfixe `prefix`). Les fichiers d'un autre script — l'autre
     curate-*, les bilans — restent intacts."""
-    if output_dir.resolve() == in_dir.resolve():
-        print(f"\n[REFUS] dossier de sortie identique au dossier source : {output_dir}")
-        print("  → corrigez 'out' dans config.json, les sources seraient écrasées.")
-        sys.exit(1)
+    out = output_dir.resolve()
+    for directory in source_dirs:
+        source = directory.resolve()
+        if out == source or out in source.parents or source in out.parents:
+            print(f"\n[REFUS] sortie et source imbriquées : {output_dir} / {directory}")
+            print("  → corrigez 'in'/'out' dans config.json, les sources seraient écrasées.")
+            sys.exit(1)
 
     obsoletes = sorted(output_dir.glob(f"{prefix}*.pdf")) if output_dir.exists() else []
     if obsoletes:
@@ -230,14 +273,14 @@ def process_file(path: Path, fields: "HasFilename", output_dir: Path, dry_run: b
 
 def run_curate(
     description: str,
-    config_in: Path | None,
+    config_in: list[Path],
     config_out: Path | None,
     parse_fields: Callable[[str], "HasFilename"],
     prefix: str,
     extra_lines: Callable[["HasFilename"], list[str]] | None = None,
 ) -> None:
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("fichier", nargs="?", help="PDF à traiter (optionnel, sinon inbox/)")
+    parser.add_argument("fichier", nargs="?", help="PDF à traiter (optionnel, sinon le corpus)")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", default=True,
                       help="Affiche les noms générés sans toucher aux fichiers (défaut)")
@@ -250,38 +293,48 @@ def run_curate(
     dry_run = not args.real
 
     if args.fichier:
-        inbox = Path(args.fichier).parent
-        output_dir = inbox
+        source_dirs = [Path(args.fichier).parent]
+        output_dir = source_dirs[0]
         files = [Path(args.fichier)]
     else:
-        inbox = config_in if config_in else INBOX
+        source_dirs = config_in or [INBOX]
         output_dir = config_out if config_out else OUTPUT
-        if not inbox.exists():
-            print(f"Dossier '{inbox}' introuvable. Créez-le et déposez vos PDFs dedans.")
+        existing = [d for d in source_dirs if d.exists()]
+        if not existing:
+            print(f"Dossier '{source_dirs[0]}' introuvable. Créez-le et déposez vos PDFs dedans.")
             sys.exit(1)
-        files = sorted(inbox.glob("*.pdf"))
+        source_dirs = existing
+        files = collect_sources(source_dirs, output_dir)
 
     if not files:
-        print(f"Aucun fichier PDF trouvé dans '{inbox}'.")
+        print(f"Aucun fichier PDF trouvé dans {', '.join(str(d) for d in source_dirs)}.")
         sys.exit(0)
 
     if not dry_run and not args.fichier:
-        clear_output(output_dir, prefix, inbox, assume_yes=args.yes)
+        clear_output(output_dir, prefix, source_dirs, assume_yes=args.yes)
 
     files = deduplicate_sources(files)
 
     print(f"Mode    : {'DRY-RUN (simulation)' if dry_run else 'RÉEL (fichiers regénérés)'}")
-    print(f"Source  : {inbox}")
+    print(f"Source  : {', '.join(str(d) for d in source_dirs)}")
     print(f"Sortie  : {output_dir}")
     print(f"Fichiers: {len(files)}")
 
+    cache = load_text_cache(output_dir)
     parsed: list[tuple[Path, HasFilename | None]] = []
     for path in files:
         try:
-            parsed.append((path, parse_fields(extract_text(path))))
+            key = checksum(path)
+            text = cache.get(key)
+            if text is None:
+                text = extract_text(path)
+                cache[key] = text
+            parsed.append((path, parse_fields(text)))
         except Exception as e:
             print(f"\n[ERREUR] {path.name} : lecture impossible : {e}")
             parsed.append((path, None))
+    if not dry_run:
+        save_text_cache(output_dir, cache)
 
     parsed = resolve_conflicts(parsed)
 

@@ -42,9 +42,10 @@ flowchart TD
 
 1. [Installation](#installation)
 2. [Utilisation](#utilisation)
-3. [Workflow cloud (zéro copier-coller)](#workflow-cloud-zéro-copier-coller)
-4. [Référence](#référence)
-5. [Pistes d'évolution](#pistes-dévolution)
+3. [Idempotence](#idempotence)
+4. [Workflow cloud (zéro copier-coller)](#workflow-cloud-zéro-copier-coller)
+5. [Référence](#référence)
+6. [Pistes d'évolution](#pistes-dévolution)
 
 ---
 
@@ -82,19 +83,24 @@ cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 ```json
 {
   "curate-justificatifs-voyage": {
-    "in":  "/Users/alice/Documents/sncf/bruts-voyage",
-    "out": "/Users/alice/Documents/sncf/renommes-voyage"
+    "in":  ["/Users/alice/Documents/sncf/inbox", "/Users/alice/Documents/sncf/archive"],
+    "out": "/Users/alice/Documents/sncf/curated"
   },
   "curate-justificatifs-achat": {
-    "in":  "/Users/alice/Documents/sncf/bruts-achat",
-    "out": "/Users/alice/Documents/sncf/renommes-achat"
+    "in":  ["/Users/alice/Documents/sncf/inbox", "/Users/alice/Documents/sncf/archive"],
+    "out": "/Users/alice/Documents/sncf/curated"
   },
   "draw-bilan-depenses-train": {
-    "in":  "/Users/alice/Documents/sncf/renommes-achat",
+    "in":  "/Users/alice/Documents/sncf/curated",
     "out": "/Users/alice/Documents/sncf/bilans"
   }
 }
 ```
+
+`in` accepte un chemin ou une **liste** de chemins, parcourus récursivement : le
+corpus d'un script couvre `inbox/` **et** `archive/`, sinon archiver un
+justificatif le retirerait des sources et le bilan perdrait l'historique. Voir
+[Idempotence](#idempotence).
 
 > ⚠️ **Avant le premier run**, vérifier que `config.json` ne contient plus les
 > chemins placeholder `/Users/alice/…`. Les dossiers `in`/`out` étant auto-créés,
@@ -129,6 +135,40 @@ Pour enchaîner les 3 commandes en une seule, archiver `inbox/` automatiquement 
 
 ---
 
+## Idempotence
+
+`curated/` et `bilans/` sont **entièrement dérivés** : chaque `--real` les
+reconstruit à partir du corpus de sources. Deux propriétés en découlent, et ce
+sont elles qu'il faut vérifier après toute modification :
+
+```bash
+# 1. rejouer ne change rien
+sncf-run.sh && sncf-run.sh          # aucun diff sur curated/ et bilans/
+
+# 2. les sorties sont reconstructibles
+rm -rf "$DRIVE/curated" "$DRIVE/bilans" && sncf-run.sh   # état identique
+```
+
+Les deux sont couvertes par `tests/test_idempotence.py`, archivage de l'inbox
+entre deux runs inclus.
+
+Ce qui les rend vraies : **les sources ne quittent jamais le domaine**.
+`archive/` n'est pas un cimetière, c'est le corpus — d'où sa présence dans le
+`in` des deux scripts `curate-*`. Ranger un justificatif d'`inbox/` vers
+`archive/2026-08/` ne change rien à ce que produit le run suivant. À l'inverse,
+supprimer un fichier d'`archive/` le retire du bilan : c'est la seule opération
+destructrice du système.
+
+Corollaire utile : un correctif de parsing se repropage sur tout l'historique au
+run suivant, sans manipulation.
+
+**Coût** : chaque run relit tout le corpus. Le texte extrait est mis en cache
+dans `curated/.sncf-text-cache.json`, indexé par checksum du PDF — un fichier
+déjà vu n'est jamais réanalysé, OCR compris. Ce cache est dérivé lui aussi :
+le supprimer ne change que la durée du prochain run.
+
+---
+
 ## Workflow cloud (zéro copier-coller)
 
 Si vos justificatifs vivent sur un cloud (Google Drive, Dropbox, iCloud Drive, OneDrive…), pointez `config.json` directement sur le dossier monté localement par le client desktop. Les scripts lisent/écrivent dans le cloud sans copie manuelle.
@@ -154,8 +194,9 @@ Si vos justificatifs vivent sur un cloud (Google Drive, Dropbox, iCloud Drive, O
    ```
    Justificatifs SNCF/
    ├── inbox/      ← PDFs bruts téléchargés depuis SNCF Connect
-   ├── curated/    ← PDFs renommés (output des scripts curate-*)
-   └── bilans/     ← bilans .md (output de draw-bilan-*)
+   ├── archive/    ← PDFs bruts déjà traités — rangés, toujours sources
+   ├── curated/    ← PDFs renommés (dérivé, reconstructible)
+   └── bilans/     ← bilans .md (dérivé, reconstructible)
    ```
 4. **Marquer offline** : clic droit sur `Justificatifs SNCF/` → « Disponible hors connexion ». Sans ça, Tesseract OCR re-télécharge chaque PDF à chaque accès, lent et fragile.
 5. **Configurer le navigateur** pour télécharger directement dans `inbox/` :
@@ -166,13 +207,17 @@ Si vos justificatifs vivent sur un cloud (Google Drive, Dropbox, iCloud Drive, O
    ```json
    {
      "curate-justificatifs-achat": {
-       "in":  "/Users/<vous>/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF/inbox",
-       "out": "/Users/<vous>/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF/curated"
+       "in":  ["/Users/<vous>/.../Justificatifs SNCF/inbox",
+               "/Users/<vous>/.../Justificatifs SNCF/archive"],
+       "out": "/Users/<vous>/.../Justificatifs SNCF/curated"
      },
-     "curate-justificatifs-voyage": { "in": "...inbox", "out": "...curated" },
+     "curate-justificatifs-voyage": { "in": ["...inbox", "...archive"], "out": "...curated" },
      "draw-bilan-depenses-train":   { "in": "...curated", "out": "...bilans" }
    }
    ```
+
+   `archive/` figure dans `in` : le wrapper y range les justificatifs traités,
+   ils restent le corpus du run suivant.
 
 À partir de là : télécharger un PDF SNCF → il atterrit dans le Drive → lancer les scripts depuis le venv → outputs synchronisés automatiquement.
 
@@ -278,9 +323,14 @@ Propriétés :
 
 ### Clôture annuelle (`sncf-close-year`)
 
-`curated/` est la source de vérité du bilan. Tant qu'il contient les années passées, leurs bilans sont **réécrits à chaque run**. Sans nettoyage, `curated/` grossit indéfiniment et un justificatif tardif peut modifier silencieusement un bilan déjà déclaré.
+Les sources restant dans le corpus, un bilan est **recalculé à chaque run** —
+c'est ce qui garantit qu'il reflète toujours l'ensemble des justificatifs. Clore
+une année, c'est donc figer une **copie de référence** du bilan déclaré, pas
+retirer des sources.
 
-**Politique** : début février N+1 (buffer de deux mois pour les retards de décembre), figer l'année N en déplaçant ses justificatifs et son bilan vers `archive/closed-N/`. Une seule commande, idempotente.
+**Politique** : début février N+1 (buffer de deux mois pour les retards de
+décembre), copier le bilan de l'année N dans `archive/closed-N/`. Toute
+divergence ultérieure devient visible par un simple `diff`.
 
 Ajouter cette fonction à `~/.zshrc` (ou `~/.bashrc`) :
 
@@ -290,11 +340,16 @@ sncf-close-year() {
   local DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
   local DEST="$DRIVE/archive/closed-$YR"
   mkdir -p "$DEST"
-  find "$DRIVE/curated" -maxdepth 1 -type f \
-       -name "justificatif-*-${YR}[0-1][0-9][0-3][0-9]*.pdf" \
-       -exec mv {} "$DEST/" \;
-  mv "$DRIVE/bilans/bilan-depenses-train-${YR}".* "$DEST/" 2>/dev/null || true
-  echo "annee $YR cloturee dans $DEST"
+  cp "$DRIVE/bilans/bilan-depenses-train-$YR.md" "$DEST/" || return 1
+  echo "annee $YR figee dans $DEST"
+}
+
+# verifier plus tard qu'un bilan declare n'a pas derive
+sncf-check-year() {
+  local YR="$1"
+  local DRIVE="${SNCF_DRIVE:-$HOME/Library/CloudStorage/GoogleDrive-<email>/Mon Drive/Justificatifs SNCF}"
+  diff "$DRIVE/archive/closed-$YR/bilan-depenses-train-$YR.md" \
+       "$DRIVE/bilans/bilan-depenses-train-$YR.md" && echo "$YR conforme au bilan declare"
 }
 ```
 
@@ -302,12 +357,17 @@ Usage :
 
 ```bash
 sncf-close-year 2026   # debut fevrier 2027
+sncf-check-year 2026   # a tout moment ensuite
 ```
 
 Propriétés :
-- **Idempotent** : re-jouer ne fait rien si `curated/` ne contient plus rien pour cette année.
-- **Rattrapage tardif** : un justificatif 2026 arrivant en mai 2027 est traité normalement par `sncf-run.sh` (atterrit dans `curated/`), puis un `sncf-close-year 2026` le déplace dans `archive/closed-2026/` et regénère le bilan final. Pas de drift permanent.
-- **Pattern de date strict** (`YYYY[0-1][0-9][0-3][0-9]`) : matche le premier champ date du nom de fichier, pas d'over-match sur un numéro de référence contenant l'année.
+- **Idempotent** : re-jouer récrit la même copie.
+- **Rattrapage tardif visible** : un justificatif 2026 arrivant en mai 2027 est
+  traité normalement, le bilan 2026 est recalculé, et `sncf-check-year 2026`
+  montre exactement ce qui a changé par rapport au bilan déclaré. Pas de dérive
+  silencieuse, dans un sens comme dans l'autre.
+- **Aucune source déplacée** : la seule opération destructrice du système reste
+  la suppression manuelle d'un fichier d'`archive/`.
 
 ---
 
@@ -319,14 +379,14 @@ Propriétés :
 sncf-trip-proofs/
 ├── curate-justificatifs-achat/          ← organise les justificatifs d'achat
 │   ├── inbox/                           ← déposer les PDFs bruts d'achat ici
-│   ├── output/                          ← PDFs renommés (ses propres fichiers regénérés à chaque --real)
+│   ├── output/                          ← PDFs renommés (dérivé, regénéré à chaque --real)
 │   ├── curate-justificatifs-achat.py    ← script d'organisation
 │   ├── docs/specs/                      ← spécifications internes
 │   └── README.md                        ← doc détaillée (formats, comportement, dépannage)
 │
 ├── curate-justificatifs-voyage/         ← organise les justificatifs de voyage
 │   ├── inbox/                           ← déposer les PDFs bruts de voyage ici
-│   ├── output/                          ← PDFs renommés (ses propres fichiers regénérés à chaque --real)
+│   ├── output/                          ← PDFs renommés (dérivé, regénéré à chaque --real)
 │   ├── curate-justificatifs-voyage.py   ← script d'organisation
 │   ├── docs/specs/                      ← spécifications internes
 │   └── README.md                        ← doc détaillée (formats, comportement, dépannage)
@@ -335,7 +395,7 @@ sncf-trip-proofs/
 │   ├── draw-bilan-depenses-train.py     ← script de génération du bilan Markdown
 │   └── docs/specs/                      ← spécifications internes
 │
-├── tests/                               ← tests fonctionnels (chaîne inbox → output)
+├── tests/                               ← tests fonctionnels et d'idempotence (chaîne complète)
 ├── sncf_common.py                       ← socle partagé (config, OCR, parseurs, dédoublonnage)
 ├── requirements.txt                     ← dépendances Python pinnées
 ├── config.example.json                  ← template à copier en config.json
@@ -417,6 +477,9 @@ Lecture de : /…/curate-justificatifs-voyage/output
 | Dossier IN vide | Message "Rien à traiter", pas de fichier généré |
 | Plusieurs années mélangées | Un fichier bilan par année |
 | Fichiers non-PDF dans IN | Ignorés silencieusement |
+| Justificatif déplacé d'`inbox/` vers `archive/` | Aucun effet : `archive/` fait partie du corpus, la sortie du run suivant est identique |
+| `curated/` ou `bilans/` supprimés | Reconstruits à l'identique au run suivant depuis le corpus |
+| Correctif de parsing livré | Se repropage sur tout l'historique au run suivant |
 | `out` partagé par achat et voyage | Chaque script ne supprime que ses propres `justificatif-<type>-*.pdf` — l'autre sortie et les bilans sont préservés |
 | `out` égal à `in` dans `config.json` | `[REFUS]` — le script s'arrête sans rien supprimer |
 | Deux sources au contenu identique | `[DOUBLON SOURCE]` — seul le plus ancien est gardé |

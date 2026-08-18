@@ -77,7 +77,7 @@ Si `sncf-trip-proofs/config.json` contient des chemins non-vides pour `curate-ju
 ```json
 {
   "curate-justificatifs-achat": {
-    "in": "/Users/alice/sncf/inbox-achat",
+    "in": ["/Users/alice/sncf/inbox", "/Users/alice/sncf/archive"],
     "out": "/Users/alice/sncf/output-achat"
   }
 }
@@ -89,6 +89,15 @@ python3 curate-justificatifs-achat.py --real
 ```
 
 Priorité : argument CLI fichier > `config.json` > `inbox/` et `output/` locaux.
+
+`in` accepte un chemin ou une liste, parcourus récursivement : le corpus couvre
+`inbox/` et `archive/`, pour que ranger un justificatif traité ne le retire pas
+des sources. `--real` regénère les `justificatif-achat-*` de la sortie
+à partir de ce corpus — voir la section Idempotence du README racine.
+
+Le texte extrait est mis en cache dans `<out>/.sncf-text-cache.json`, indexé par
+checksum : un PDF déjà analysé n'est jamais relu, OCR compris. Supprimer ce
+fichier ne change que la durée du run suivant.
 
 `--yes` confirme la regénération sans prompt — indispensable sous cron/launchd, où l'absence de terminal fait sinon échouer le script (code 1, aucun fichier supprimé).
 

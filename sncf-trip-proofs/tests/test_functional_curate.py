@@ -34,8 +34,9 @@ def _pdf(directory: Path, name: str, content: bytes) -> Path:
     p.write_bytes(content)
     return p
 
-def _run(mod, monkeypatch, texte, in_dir: Path, out_dir: Path, argv=("--real",)):
-    monkeypatch.setattr(mod, "load_config", lambda *a, **k: (in_dir, out_dir))
+def _run(mod, monkeypatch, texte, in_dir, out_dir: Path, argv=("--real",)):
+    sources = in_dir if isinstance(in_dir, list) else [in_dir]
+    monkeypatch.setattr(mod, "load_config", lambda *a, **k: (sources, out_dir))
     monkeypatch.setattr(common, "extract_text", lambda path: texte)
     monkeypatch.setattr(sys, "argv", ["script", *argv])
     mod.main()
