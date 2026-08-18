@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Copy to <session-name>.sh in this directory to give a project a scripted layout.
+# proj runs it only when the session does not exist yet, so a restored session is
+# never clobbered.
+SESSION=example
+
+tmux new-session -d -s "$SESSION" -n server
+tmux send-keys -t "$SESSION:server" "cd ~/Projects/example && make dev" Enter
+tmux new-window -t "$SESSION" -n agents
+
+# Always pass the session explicitly — omitting it targets the *caller's* session.
+~/.config/tmux/layouts/grid.sh 4 "$SESSION"
+
+tmux select-window -t "$SESSION:server"
+if [ -n "$TMUX" ]; then
+    tmux switch-client -t "$SESSION"
+else
+    tmux attach-session -t "$SESSION"
+fi

@@ -1,0 +1,3 @@
+# Per-project layouts hold personal paths — keep them local.
+projects/*
+!projects/example.sh.tmpl

@@ -6,7 +6,7 @@
 ## Why
 
 tmux turns your terminal into a persistent, scriptable, multi-session workspace:
-- Sessions survive terminal restarts and reboots (with plugins)
+- Sessions survive terminal restarts and reboots
 - Run 8+ parallel agents across worktrees, each in its own tab
 - Close the terminal mid-task, reopen later — everything still running
 - One script spawns a full multi-tab workspace from git worktrees
@@ -18,10 +18,12 @@ tmux turns your terminal into a persistent, scriptable, multi-session workspace:
 | tmux | Terminal multiplexer — manages sessions, windows, panes |
 | tmux -CC | iTerm2 native integration — maps tmux windows to real iTerm2 tabs (macOS only) |
 | TPM | tmux Plugin Manager |
-| tmux-resurrect | Manual save/restore of sessions (prefix + Ctrl-s / Ctrl-r) |
-| tmux-continuum | Auto-saves every 5 min, restores on tmux start |
-| `grid.sh` | Custom script — pane count manager for the focused session (`g` command) |
-| `proj.sh` | Custom script — session switcher/creator (`proj` command) |
+| tmux-resurrect | Serialises and restores sessions, windows, panes, working directories |
+| `bin/proj.sh` | Session switcher/creator — the `proj` command |
+| `bin/grid.sh` | Pane count manager for the focused session — the `g` command |
+| `bin/lib.sh` | Shared helpers: server bootstrap, save/restore, notifications |
+| `config/statusbar.sh` | Right-side status bar: dir · git branch + diff · battery |
+| `install.sh` | Symlinks the checkout into place and installs the plugins |
 
 | Platform | Status |
 |---|---|
@@ -29,88 +31,256 @@ tmux turns your terminal into a persistent, scriptable, multi-session workspace:
 | Linux | **Untested** — instructions provided but unverified |
 | Windows (WSL2) | **Untested** — instructions provided but unverified |
 
+---
+
 ## File Layout
 
-All config lives under `~/.config/tmux/`. No external dependencies.
+Every file that makes this setup work lives in this repository. `install.sh` symlinks
+them where tmux and the shell expect them — nothing is copied, so editing the repo
+edits the live config.
 
 ```
-~/.tmux.conf                        # entry point — just sources ~/.config/tmux/tmux.conf
+tmux-agnostic-setup/            ← the checkout
+  install.sh
+  bin/proj.sh                   session switcher/creator
+  bin/grid.sh                   pane manager
+  bin/lib.sh                    shared helpers (not symlinked; found next to the scripts)
+  config/tmux.conf
+  config/statusbar.sh
+  shell/aliases.sh
+  projects/<name>.sh            optional per-project session scripts (gitignored)
+  projects/example.sh.tmpl      template
+
 ~/.config/tmux/
-  tmux.conf                         # full config: plugins, keybindings, statusbar, resurrect
-  statusbar.sh                      # right-side status: dir · git · battery
-  proj.sh                           # session switcher/creator
-  layouts/
-    grid.sh                         # pane manager — targets focused session
-  projects/                         # optional per-project session scripts
-    <name>.sh                       # proj <name> runs this if present
+  tmux.conf        -> config/tmux.conf
+  statusbar.sh     -> config/statusbar.sh
+  aliases.sh       -> shell/aliases.sh
+  proj.sh          -> bin/proj.sh
+  layouts/grid.sh  -> bin/grid.sh
+  projects         -> projects/
+  plugins/         TPM + tmux-resurrect (installed, not symlinked)
+
+~/.local/bin/
+  proj             -> bin/proj.sh
+  g                -> bin/grid.sh
 
 ~/.local/state/
-  tmux-grid-<session>-last          # pane count per session (auto-managed)
+  tmux-grid-<session>-last       pane count per session
+  tmux-resurrect-save.stamp      save debounce timestamp
+  tmux-restore-in-progress       cold-start guard (transient)
+
+~/.local/share/tmux/resurrect/   session snapshots
 ```
 
 ---
 
 ## Installation
 
-### macOS
+### 1. Install tmux
+
+**macOS**
 
 ```sh
 brew install tmux
+brew install --cask iterm2   # optional, for native tab integration
 ```
 
-Install iTerm2 for native tab integration (optional but recommended):
-
-```sh
-brew install --cask iterm2
-```
-
-### Linux
+**Linux**
 
 > [!WARNING]
-> **Untested.** The commands below are standard for each distro but have not been verified end-to-end with this setup. Adjust as needed and report issues.
+> **Untested.** The commands below are standard for each distro but have not been verified end-to-end with this setup.
 
 ```sh
-# Debian / Ubuntu
-sudo apt update && sudo apt install tmux
-
-# Arch
-sudo pacman -S tmux
-
-# Fedora
-sudo dnf install tmux
+sudo apt update && sudo apt install tmux   # Debian / Ubuntu
+sudo pacman -S tmux                        # Arch
+sudo dnf install tmux                      # Fedora
 ```
 
-No iTerm2 equivalent exists on Linux. Use any terminal emulator (GNOME Terminal, Alacritty, Kitty, etc.). The `tmux -CC` attach command will not work — use plain `tmux attach` instead.
+No iTerm2 equivalent exists on Linux. Use any terminal emulator. `tmux -CC` will not work — use plain `tmux attach`.
 
-### Windows (WSL2)
+**Windows (WSL2)**
 
 > [!WARNING]
-> **Untested.** tmux does not run natively on Windows. WSL2 is required. The steps below have not been verified end-to-end with this setup.
+> **Untested.** tmux does not run natively on Windows; WSL2 is required.
 
-1. Enable WSL2 and install a distro (Ubuntu recommended):
-   ```powershell
-   wsl --install
-   ```
-2. Open the Ubuntu app from the Start menu, then install tmux:
-   ```sh
-   sudo apt update && sudo apt install tmux
-   ```
-3. Use Windows Terminal to access WSL2. The `tmux -CC` flag is iTerm2-only — omit it (use plain `tmux new` / `tmux attach`).
+```powershell
+wsl --install
+```
+
+Then inside the distro: `sudo apt update && sudo apt install tmux`. Use Windows Terminal, and omit `tmux -CC`.
+
+### 2. Run the installer
+
+```sh
+git clone https://github.com/ValentinDumas/toolbox.git
+cd toolbox/tmux-agnostic-setup
+./install.sh
+```
+
+It is idempotent — re-run it after moving the checkout or on a new machine. It:
+
+- symlinks every file listed above, backing up anything real it finds to `<file>.bak`
+- clones TPM into `~/.config/tmux/plugins/` and installs tmux-resurrect
+- appends one guarded block to `~/.zshrc` or `~/.bashrc` that sources `aliases.sh` and puts `~/.local/bin` on `PATH`
+
+```sh
+./install.sh --uninstall   # removes the symlinks and the shell block; keeps plugins and snapshots
+```
+
+The installer refuses to run when `$XDG_CONFIG_HOME` is not `~/.config`: `config/tmux.conf`
+spells the plugin path out in full, and a config pointing at a directory the installer
+never populated loads no plugins at all — silently.
+
+### 3. Restart
+
+```sh
+exec $SHELL -l
+tmux kill-server        # drop any server still running the old config
+proj grid
+```
 
 ---
 
-## TPM + Plugins
+## Save & Restore
 
-Run once after installing tmux (on any OS):
+Sessions, windows, panes and working directories are snapshotted by tmux-resurrect
+into `~/.local/share/tmux/resurrect/`. Restoring is automatic: the first `proj` or `g`
+after a reboot brings the whole workspace back.
+
+**A snapshot is written when:**
+
+| Trigger | Where |
+|---|---|
+| you switch project with `proj <name>` | `bin/proj.sh` |
+| you detach a client (closing the terminal) | `client-detached` hook |
+| a window is created or destroyed | `window-linked` / `window-unlinked` hooks |
+| `prefix + Ctrl-s` | manual, forced, with a desktop notification |
+
+**Restoring** happens in `ensure_server()` (`bin/lib.sh`) on cold start, *before* any
+session is created, and synchronously — so nothing races it. `prefix + Ctrl-r` restores
+on demand.
+
+### Why not tmux-continuum
+
+Continuum is not used, deliberately:
+
+- It disables its own auto-save whenever it counts more than one `tmux` process at
+  server start (`another_tmux_server_running`) — which the wrapper scripts here trigger
+  every time. The failure is silent: no interpolation in `status-right`, no save, no message.
+- Its auto-save rides on `status-right`, so it stops working if the status bar is off or overwritten.
+- Its automatic-start support is a macOS launchd `.plist`.
+
+The hooks above replace it in four lines of `tmux.conf` and behave identically on every platform.
+
+### Guards worth knowing about
+
+Three failure modes are handled explicitly, because each one silently destroys the snapshot
+you are about to restore:
+
+| Guard | Problem it prevents |
+|---|---|
+| `~/.local/state/tmux-restore-in-progress` | Save hooks fire the moment the bootstrap session appears and overwrite the snapshot being restored. The guard is created *before* the server exists; a stale one expires after a minute. |
+| Boot-only snapshot rejection | A save catching a server that holds nothing but `_tas_boot`, or a snapshot with no real windows, is discarded and the previous `last` kept. |
+| `mkdir` lock + 10 s debounce | Concurrent saves leave `last` pointing at a file the other run never finished writing. Manual saves bypass the debounce, never the lock. |
+
+`resurrect`'s own scripts derive their socket from `$TMUX` (`tmux -S "$(tmux_socket)"`),
+so they are always handed to the server via `tmux run-shell` — called from a plain shell
+they expand to `tmux -S ""` and fail with `error creating  (No such file or directory)`.
+
+---
+
+## Sessions
+
+`proj` is the entry point. One session per project.
+
+| Command | Action |
+|---|---|
+| `proj` | Session picker — fzf if installed, else `tmux choose-tree -Zs` |
+| `proj <name>` | Switch to `<name>`, creating it if missing |
+| `proj --save` | Snapshot now (debounced) |
+| `proj --save -n` | Snapshot now, forced, with notification |
+| `proj --restore` | Restore the last snapshot |
+
+Install fzf for the styled picker, which labels `grid` as `(default)`:
 
 ```sh
-git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-
-# Then inside a running tmux session:
-~/.tmux/plugins/tpm/bin/install_plugins
+brew install fzf        # macOS
+sudo apt install fzf    # Debian / Ubuntu
 ```
 
-If plugins are missing after first run: press `prefix + I` inside tmux to trigger installation.
+### The `grid` session
+
+`grid` is the default scratch session — where you land on cold start without a project name.
+Use it for one-off work.
+
+---
+
+## Grid — pane management
+
+`g` manages pane count in the **focused session**.
+
+| Command | Action |
+|---|---|
+| `g` | Restore the session's remembered pane count |
+| `g N` | Set the focused session to exactly N panes |
+| `g+` | Add 1 pane, rebalance ¹ |
+| `g-` | Kill the focused pane, rebalance ¹ |
+
+¹ `g+`/`g-` without a space needs the shell aliases. Via the `~/.local/bin/g` symlink use
+`g +` / `g -` — both forms pass `+` or `-` as the first argument and behave identically.
+
+Pane count persists per session in `~/.local/state/tmux-grid-<session>-last`. `g 4` in
+`work` does not affect `invoice`.
+
+---
+
+## Project Scripts (optional)
+
+Drop `<session-name>.sh` in `projects/` to give a project a scripted layout — specific
+windows, startup commands, a pane count. `proj <name>` runs it **only when the session does
+not exist**, so a restored session is never clobbered.
+
+Start from `projects/example.sh.tmpl`. `projects/*.sh` is gitignored: those files hold
+personal paths.
+
+> Always pass the session name explicitly to `grid.sh` inside a project script —
+> `~/.config/tmux/layouts/grid.sh 4 "$SESSION"`. Omitting it targets the *caller's*
+> session, not the one being launched.
+
+---
+
+## Key Bindings
+
+| Shortcut        | Action                        |
+|-----------------|-------------------------------|
+| `Shift+Left`    | Move to pane left             |
+| `Shift+Right`   | Move to pane right            |
+| `Shift+Up`      | Move to pane up               |
+| `Shift+Down`    | Move to pane down             |
+| `Ctrl-b s`      | Interactive session list      |
+| `prefix Ctrl-s` | Save session + notification   |
+| `prefix Ctrl-r` | Restore session + notification|
+| `prefix g` then `g` | Retile the current window |
+| `prefix g` then `+` / `-` | Grow / shrink the focused pane |
+
+**Why Shift+Arrow:** no prefix needed, instant. `⌥Arrow` conflicts with macOS
+word-navigation, `Ctrl+Arrow` conflicts with some tools — Shift+Arrow does not.
+
+---
+
+## Status Bar
+
+Refreshes every 5 seconds. Reflects the **active pane's** working directory.
+
+| Zone | Content | Example |
+|---|---|---|
+| Left | Session name + window:pane | `dev 0:2` |
+| Right | Dir · Git branch + diff · Battery · Time | `workflow   main +42 -15  ⚡63%  10:52 11-mai-2026` |
+
+Battery comes from `pmset` on macOS and `/sys/class/power_supply/BAT*` on Linux; it is
+omitted where neither exists (most WSL2 setups).
+
+Clipboard on mouse-drag routes to `pbcopy`, `wl-copy` or `xclip`, whichever is present.
 
 ---
 
@@ -144,11 +314,7 @@ If plugins are missing after first run: press `prefix + I` inside tmux to trigge
 
 ### Shell Integration
 
-Install from inside iTerm2:
-
-```
-iTerm2 menu → Install Shell Integration
-```
+Install from inside iTerm2: **iTerm2 menu → Install Shell Integration**.
 
 Adds `iterm2_prompt_mark` to your shell prompt. Enables: jump between prompts (⌘↑/⌘↓), select output of last command, automatic profile switching per directory.
 
@@ -163,449 +329,26 @@ Each tmux window = one iTerm2 tab. Closing a tab kills that tmux window (not the
 
 ---
 
-## tmux Configuration
-
-### `~/.tmux.conf`
-
-Entry point only — sources the real config:
-
-```sh
-source-file ~/.config/tmux/tmux.conf
-```
-
-> tmux 3.1+ auto-loads `~/.config/tmux/tmux.conf` only when `~/.tmux.conf` is absent. Since both exist, the `source-file` line is required.
-
-### `~/.config/tmux/tmux.conf`
-
-Full config in one place:
-
-```sh
-# Plugins
-set -g @plugin 'tmux-plugins/tpm'
-set -g @plugin 'tmux-plugins/tmux-resurrect'
-set -g @plugin 'tmux-plugins/tmux-continuum'
-
-set -g @continuum-restore 'on'
-set -g @continuum-save-interval '5'
-set -g @resurrect-capture-pane-contents 'on'
-
-set -g mouse on
-set -g set-clipboard on
-bind -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
-bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
-
-set -g pane-border-lines heavy
-set -g pane-active-border-style 'fg=#FF87AF'
-set -g pane-border-style 'fg=colour238'
-set -g window-style        'bg=colour234'
-set -g window-active-style 'bg=colour236'
-
-# Status bar
-set -g status on
-set -g status-interval 5
-set -g status-position bottom
-set -g status-left-length 40
-set -g status-right-length 120
-set -g status-left " #S #[fg=colour241]#I:#P "
-set -g status-right "#(~/.config/tmux/statusbar.sh #{pane_current_path})  #[fg=colour241]%H:%M %d-%b-%Y "
-
-# Pane navigation (no prefix)
-bind -n S-Left  select-pane -L
-bind -n S-Right select-pane -R
-bind -n S-Up    select-pane -U
-bind -n S-Down  select-pane -D
-
-run '~/.tmux/plugins/tpm/tpm'
-```
-
-Reload after any change:
-
-```sh
-tmux source-file ~/.tmux.conf
-```
-
----
-
-## Script: statusbar.sh
-
-Save to `~/.config/tmux/statusbar.sh` and make executable (`chmod +x`):
-
-```sh
-PANE_PATH="${1:-$HOME}"
-
-BRANCH=$(git -C "$PANE_PATH" branch --show-current 2>/dev/null)
-if [ -n "$BRANCH" ]; then
-    DIFFSTAT=$(git -C "$PANE_PATH" diff --numstat 2>/dev/null | awk '{add+=$1; del+=$2} END {if (add+del>0) printf "+%d -%d", add, del}')
-    if [ -n "$DIFFSTAT" ]; then
-        GIT=" $BRANCH $DIFFSTAT"
-    else
-        GIT=" $BRANCH"
-    fi
-fi
-
-BAT=$(pmset -g batt 2>/dev/null | grep -o '[0-9]*%' | head -1)
-if [ -n "$BAT" ]; then
-    CHARGING=$(pmset -g batt 2>/dev/null | grep -c 'AC Power')
-    [ "$CHARGING" -gt 0 ] && BAT="⚡$BAT" || BAT="$BAT"
-fi
-
-DIR=$(basename "$PANE_PATH")
-
-OUT="$DIR"
-[ -n "$GIT" ] && OUT="$OUT  $GIT"
-[ -n "$BAT" ] && OUT="$OUT  $BAT"
-echo "$OUT"
-```
-
-> [!WARNING]
-> **Linux/Windows (untested):** The battery section uses `pmset`, which is macOS-only. On Linux, replace the `BAT` block with `acpi -b 2>/dev/null | grep -o '[0-9]*%' | head -1` or remove it entirely if no battery is present. On WSL2, battery info is not reliably accessible from within WSL.
-
----
-
-## Script: grid.sh
-
-Save to `~/.config/tmux/layouts/grid.sh` and make executable (`chmod +x`):
-
-```sh
-set -e
-
-SESSION=${2:-grid}
-STATE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/tmux-grid-last"
-CMD=${1:-$(cat "$STATE_FILE" 2>/dev/null || echo 1)}
-
-pane_count() {
-    tmux list-panes -s -t "$SESSION" 2>/dev/null | wc -l | tr -d ' '
-}
-
-after_resize() {
-    tmux select-layout -t "$SESSION" tiled
-    tmux select-layout -t "$SESSION" tiled
-}
-
-attach() {
-    if [ -n "$TMUX" ]; then
-        tmux switch-client -t "$SESSION"
-    else
-        tmux attach-session -t "$SESSION"
-    fi
-}
-
-if ! tmux info &>/dev/null; then
-    tmux new-session -d -s _boot &>/dev/null || true
-    ~/.tmux/plugins/tmux-resurrect/scripts/restore.sh &>/dev/null || true
-    tmux kill-session -t _boot &>/dev/null || true
-    if ! tmux info &>/dev/null; then
-        tmux new-session -d -s "$SESSION" &>/dev/null || true
-    fi
-    tmux list-windows -t "$SESSION" -F '#I' 2>/dev/null | sort -rn | while read -r win; do
-        [ "$win" -eq 0 ] && break
-        tmux kill-window -t "$SESSION:$win" 2>/dev/null || true
-    done
-    if [ -z "$1" ]; then
-        mkdir -p "$(dirname "$STATE_FILE")"
-        pane_count > "$STATE_FILE"
-        CMD=$(cat "$STATE_FILE")
-    fi
-fi
-
-if [ "$CMD" = "+" ]; then
-    tmux split-window -t "$SESSION"
-    after_resize
-    mkdir -p "$(dirname "$STATE_FILE")"
-    pane_count > "$STATE_FILE"
-    exit 0
-fi
-
-if [ "$CMD" = "-" ]; then
-    tmux kill-pane -t "$SESSION"
-    after_resize
-    mkdir -p "$(dirname "$STATE_FILE")"
-    pane_count > "$STATE_FILE"
-    exit 0
-fi
-
-N=$CMD
-
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-    tmux new-session -d -s "$SESSION"
-fi
-
-if [ -n "$1" ]; then
-    while [ "$(pane_count)" -gt "$N" ]; do
-        last=$(( $(pane_count) - 1 ))
-        tmux kill-pane -t "$SESSION:0.$last"
-    done
-
-    while [ "$(pane_count)" -lt "$N" ]; do
-        tmux split-window -t "$SESSION"
-        tmux select-layout -t "$SESSION" tiled
-    done
-fi
-
-mkdir -p "$(dirname "$STATE_FILE")"
-pane_count > "$STATE_FILE"
-after_resize
-tmux select-pane -t "$SESSION:0.0"
-attach
-```
-
-**How it works:**
-- `SESSION` defaults to `grid` (override with second arg, e.g. `grid.sh 2 work`)
-- State persists in `~/.local/state/tmux-grid-last`
-- Cold-start: if no tmux server is running, a `_boot` session starts the server, tmux-resurrect restores your last saved sessions, then `_boot` is killed
-
----
-
-## Key Bindings
-
-| Shortcut        | Action                        |
-|-----------------|-------------------------------|
-| `Shift+Left`    | Move to pane left             |
-| `Shift+Right`   | Move to pane right            |
-| `Shift+Up`      | Move to pane up               |
-| `Shift+Down`    | Move to pane down             |
-| `Ctrl-b s`      | Interactive session list      |
-| `prefix Ctrl-s` | Save session + notification   |
-| `prefix Ctrl-r` | Restore session (resurrect)   |
-
-**Why Shift+Arrow:** no prefix needed, instant. `⌥Arrow` conflicts with macOS word-navigation, `Ctrl+Arrow` conflicts with some tools — Shift+Arrow does not.
-
----
-
-## Status Bar
-
-Refreshes every 5 seconds. Reflects the **active pane's** working directory.
-
-| Zone | Content | Example |
-|---|---|---|
-| Left | Session name + window:pane | `dev 0:2` |
-| Right | Dir · Git branch + diff · Battery · Time | `workflow   main +42 -15  ⚡63%  10:52 11-mai-2026` |
-
-Script: `~/.config/tmux/statusbar.sh`
-
----
-
-## Grid Sessions
-
-`g` manages pane count in the **focused session** — whichever tmux session your cursor is in.
-
-| Command | Action |
-|---------|--------|
-| `g` | Restore pane count in focused session |
-| `g N` | Set focused session to exactly N panes (e.g. `g 2`, `g 4`) |
-| `g+` | Add 1 pane to focused session, rebalance ¹ |
-| `g-` | Kill focused pane, rebalance ¹ |
-
-¹ `g+`/`g-` (no space) requires zsh aliases. In bash/fish or via symlink, use `g +` / `g -` with a space instead — both forms call the script with `+` or `-` as the first argument and behave identically.
-
-Pane count persists per session in `~/.local/state/tmux-grid-<session>-last`. Each session tracks its own count independently.
-
-### Cold-start
-
-**Cold-start (fresh terminal / tmux server was dead):**
-1. A temporary `_boot` session starts the tmux server.
-2. `tmux-resurrect` restores your last saved sessions (panes, paths, processes).
-3. `_boot` is killed.
-4. `STATE_FILE` is synced to the restored pane count — prevents a mismatch where `STATE_FILE` remembered a different count than what resurrect actually restored.
-
----
-
-## Script: proj.sh
-
-Save to `~/.config/tmux/proj.sh` and make executable (`chmod +x`):
-
-```sh
-#!/usr/bin/env sh
-set -e
-
-tmux start-server 2>/dev/null || true
-# wait for socket to be ready
-_i=0
-while ! tmux list-sessions >/dev/null 2>&1 && [ $_i -lt 10 ]; do
-    sleep 0.1; _i=$((_i + 1))
-done
-
-SESSION="$1"
-
-if [ -z "$SESSION" ]; then
-    if command -v fzf >/dev/null 2>&1; then
-        SESSION=$(tmux list-sessions -F '#S' 2>/dev/null \
-            | sed 's/^grid$/grid (default)/' \
-            | fzf --prompt="session> " --height=10 --border \
-            | sed 's/ (default)$//' || true)
-        [ -z "$SESSION" ] && exit 0
-    else
-        # Built-in tmux session picker (requires active tmux client)
-        tmux choose-tree -Zs
-        exit 0
-    fi
-fi
-
-PROJECT_SCRIPT="$HOME/.config/tmux/projects/${SESSION}.sh"
-if [ -f "$PROJECT_SCRIPT" ]; then
-    sh "$PROJECT_SCRIPT"
-    exit 0
-fi
-
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-    tmux new-session -d -s "$SESSION"
-fi
-
-if [ -n "$TMUX" ]; then
-    tmux switch-client -t "$SESSION"
-else
-    tmux attach-session -t "$SESSION"
-fi
-```
-
-**How it works:**
-
-| Command | Action |
-|---|---|
-| `proj` | Session picker — fzf list if installed, else native `tmux choose-tree` |
-| `proj <name>` | Switch to session (create bare session if missing) |
-| `proj <name>` | If `~/.config/tmux/projects/<name>.sh` exists, run it instead |
-
-`grid` is labeled `(default)` in the fzf picker.
-
-Install fzf for the enhanced picker (with `(default)` label): `brew install fzf`
-
-Without fzf, `proj` opens tmux's native `choose-tree` (same as `prefix + s`).
-
----
-
-## Project Scripts (optional)
-
-Per-project session scripts live in `~/.config/tmux/projects/`. They're opt-in — `proj <name>` works without one (creates a bare session). Add a script when you want a specific window layout and startup commands.
-
-Example `~/.config/tmux/projects/invoice.sh`:
-
-```sh
-#!/usr/bin/env sh
-SESSION=invoice
-
-tmux has-session -t "$SESSION" 2>/dev/null && \
-    tmux switch-client -t "$SESSION" && exit 0
-
-tmux new-session -d -s "$SESSION" -n server
-tmux send-keys -t "$SESSION:server" "cd ~/Projects/invoice-manager && flask run" Enter
-tmux new-window -t "$SESSION" -n agents
-~/.config/tmux/layouts/grid.sh 4 "$SESSION"
-tmux select-window -t "$SESSION:server"
-tmux switch-client -t "$SESSION"
-```
-
-**Naming:** file name must match the session name you pass to `proj`. `proj invoice` → `projects/invoice.sh`.
-
-**Always pass the session name to `grid.sh`:** `grid.sh` infers the session from `tmux display-message` when `$2` is omitted. From inside an existing tmux session, that returns the *current* session — not the one you're launching. Always pass it explicitly:
-
-```sh
-~/.config/tmux/layouts/grid.sh "$1" myproject   # correct
-~/.config/tmux/layouts/grid.sh                  # wrong — picks up caller's session
-```
-
-Minimal project script (pane management only, no custom windows):
-
-```sh
-#!/usr/bin/env sh
-~/.config/tmux/layouts/grid.sh "$1" grid
-```
-
----
-
-## Aliases
-
-### zsh
-
-Paste into `~/.zshrc`:
-
-```sh
-alias g='~/.config/tmux/layouts/grid.sh'
-alias g+='~/.config/tmux/layouts/grid.sh + $([ -n "$TMUX" ] && tmux display-message -p "#S" || echo grid)'
-alias g-='~/.config/tmux/layouts/grid.sh - $([ -n "$TMUX" ] && tmux display-message -p "#S" || echo grid)'
-alias proj='~/.config/tmux/proj.sh'
-```
-
-`g+` and `g-` are valid zsh alias names. They pass the current session name so pane management targets the right session. Reload with `source ~/.zshrc`.
-
-### bash
-
-> [!WARNING]
-> **Untested.** `+` and `-` are invalid in bash alias names — use shell functions instead.
-
-Paste into `~/.bashrc`:
-
-```sh
-g() { ~/.config/tmux/layouts/grid.sh "$@"; }
-```
-
-Then use `g`, `g +`, `g -` (with a space before `+`/`-`). Reload with `source ~/.bashrc`.
-
-### fish
-
-> [!WARNING]
-> **Untested.**
-
-```fish
-function g
-    ~/.config/tmux/layouts/grid.sh $argv
-end
-funcsave g
-```
-
-Use `g`, `g +`, `g -` with a space.
-
----
-
-## PATH Setup (`~/.local/bin`)
-
-For shell-agnostic access — makes `g` and `proj` available without sourcing any shell config (e.g. from scripts, SSH sessions, VS Code terminal):
-
-```sh
-mkdir -p ~/.local/bin
-ln -sf ~/.config/tmux/layouts/grid.sh ~/.local/bin/g
-ln -sf ~/.config/tmux/proj.sh ~/.local/bin/proj
-```
-
-Ensure `~/.local/bin` is in your PATH:
-
-**zsh / bash** — add to `~/.zshrc` or `~/.bashrc`:
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-**fish** — run once:
-```fish
-fish_add_path ~/.local/bin
-```
-
-> [!WARNING]
-> **Linux/Windows (untested):** `~/.local/bin` may already be in PATH on some distros (Ubuntu 20.04+). Run `echo $PATH` to check before adding the export.
-
-With the symlink, always use `g +` and `g -` (space form). The `g+`/`g-` no-space form only works via zsh aliases, not via the `g` binary in PATH.
-
----
-
 ## Auto-Attach on Terminal Open
 
 ### macOS (iTerm2)
 
-Add to `~/.zshrc`:
+Add to `~/.zshrc`, after the installer's block:
 
 ```sh
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "iTerm.app" ]; then
-  tmux -CC new -s dev 2>/dev/null || tmux -CC attach -t dev
+  proj grid
 fi
 ```
 
 ### Linux
 
 > [!WARNING]
-> **Untested.** Behavior varies by terminal emulator. A generic guard that works in most terminals:
+> **Untested.** Behavior varies by terminal emulator.
 
 ```sh
 if [ -z "$TMUX" ] && [ -n "$DISPLAY" ]; then
-  tmux new-session -s dev 2>/dev/null || tmux attach-session -t dev
+  proj grid
 fi
 ```
 
@@ -614,47 +357,29 @@ Remove the `$DISPLAY` check if running headless or over SSH.
 ### Windows Terminal (WSL2)
 
 > [!WARNING]
-> **Untested.** Windows Terminal sets `$WT_SESSION` when running inside WSL2:
+> **Untested.** Windows Terminal sets `$WT_SESSION` when running inside WSL2.
 
 ```sh
 if [ -z "$TMUX" ] && [ -n "$WT_SESSION" ]; then
-  tmux new-session -s dev 2>/dev/null || tmux attach-session -t dev
+  proj grid
 fi
 ```
 
 ---
 
-## Save Notification
-
-`prefix + Ctrl-s` saves the session and fires a native OS notification:
-
-- **macOS** — `osascript` system notification
-- **Linux** — `notify-send` (requires `libnotify`)
-- **WSL** — `powershell.exe` MessageBox (no extra install)
-
-Config in `~/.config/tmux/tmux.conf`:
+## Verify the setup
 
 ```sh
-bind C-s run-shell "~/.tmux/plugins/tmux-resurrect/scripts/save.sh && \
-  (case \"$(uname)\" in \
-    Darwin) osascript -e 'display notification \"Session saved\" with title \"tmux\"' ;; \
-    Linux) if grep -qi microsoft /proc/version 2>/dev/null; then \
-             powershell.exe -Command '...' &>/dev/null; \
-           else notify-send -t 3000 \"tmux\" \"Session saved\"; fi ;; \
-  esac)"
+# plugins actually loaded — empty output means TPM found no plugins
+tmux show-option -gqv @resurrect-save-script-path
+
+# a snapshot exists and describes real windows
+readlink ~/.local/share/tmux/resurrect/last
+grep -c '^window' ~/.local/share/tmux/resurrect/$(readlink ~/.local/share/tmux/resurrect/last)
 ```
 
----
-
-## Verify Auto-Save
-
-```sh
-tmux show-option -gv @continuum-save-interval   # → 5
-tmux show-option -gv @continuum-restore         # → on
-ls -lt ~/.local/share/tmux/resurrect/ | head -5 # snapshots every ~5 min
-```
-
-If empty: run `prefix + I` inside tmux to reinstall plugins.
+End-to-end: `proj demo`, `g 3`, `prefix + Ctrl-s`, `tmux kill-server`, then `proj demo` —
+the three panes come back.
 
 ---
 
@@ -663,10 +388,11 @@ If empty: run `prefix + I` inside tmux to reinstall plugins.
 ```sh
 proj                              # session picker
 proj <name>                       # switch to / create named session
+g N                               # N panes in the focused session
 tmux ls                           # list sessions
 tmux attach -t <name>             # attach (any OS)
 tmux -CC attach -t <name>         # attach with iTerm2 integration (macOS only)
-tmux source-file ~/.tmux.conf     # reload config
+tmux source-file ~/.config/tmux/tmux.conf   # reload config
 ```
 
 ## Key Concepts
