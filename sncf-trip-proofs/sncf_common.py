@@ -39,20 +39,62 @@ def load_config(section: str, config_path: Path | None = None) -> tuple[list[Pat
         return [], None
     try:
         cfg = json.loads(config_path.read_text(encoding="utf-8"))
-        conf = cfg.get(section, {})
-        raw_in = conf.get("in")
-        if isinstance(raw_in, str):
-            in_paths = [Path(raw_in)] if raw_in else []
-        elif isinstance(raw_in, list):
-            in_paths = [Path(p) for p in raw_in if p]
-        else:
-            in_paths = []
-        out_path = Path(conf["out"]) if conf.get("out") else None
-        return in_paths, out_path
-    except (json.JSONDecodeError, KeyError, TypeError):
+    except (OSError, json.JSONDecodeError) as e:
+        # Retomber en silence sur inbox/ ferait tourner le run sur un corpus qui
+        # n'est pas celui voulu, et le bilan produit serait faux sans un mot.
+        print(f"[CONFIG] {config_path} illisible : {e}", file=sys.stderr)
+        print("  → corrigez le JSON, ou supprimez le fichier pour utiliser inbox/ et output/.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(cfg, dict):
+        print(f"[CONFIG] {config_path} : objet JSON attendu à la racine.", file=sys.stderr)
+        sys.exit(1)
+
+    if section not in cfg:
+        print(f"[CONFIG] section '{section}' absente de {config_path} "
+              f"(sections trouvées : {', '.join(cfg) or 'aucune'}).", file=sys.stderr)
+        print("  → repli sur inbox/ et output/ locaux.", file=sys.stderr)
         return [], None
 
+    conf = cfg[section]
+    if not isinstance(conf, dict):
+        print(f"[CONFIG] section '{section}' : objet attendu, trouvé {type(conf).__name__}.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    raw_in = conf.get("in")
+    if isinstance(raw_in, str):
+        in_paths = [Path(raw_in)] if raw_in else []
+    elif isinstance(raw_in, list):
+        in_paths = [Path(p) for p in raw_in if p]
+    elif raw_in is None:
+        in_paths = []
+    else:
+        print(f"[CONFIG] '{section}.in' : chaîne ou liste attendue, "
+              f"trouvé {type(raw_in).__name__}.", file=sys.stderr)
+        sys.exit(1)
+
+    raw_out = conf.get("out")
+    if raw_out is not None and not isinstance(raw_out, str):
+        print(f"[CONFIG] '{section}.out' : chaîne attendue, "
+              f"trouvé {type(raw_out).__name__}.", file=sys.stderr)
+        sys.exit(1)
+
+    return in_paths, Path(raw_out) if raw_out else None
+
 # ── Extraction PDF ────────────────────────────────────────────────────────────
+
+# SNCF Connect sépare les milliers par une espace fine insécable, et l'OCR rend
+# parfois l'espace insécable ordinaire. Sans normalisation, "1 234,50 €" est lu
+# "234,50 €" : mille euros disparaissent du bilan sans le moindre avertissement.
+_SPACES = "\u00a0\u202f\u2007\u2009\u2060"  # insécable, fine insécable, chiffre, fine, gluon
+
+def normalize_text(text: str) -> str:
+    """Ramène les variantes d'espace et de signe moins à leur forme ASCII."""
+    for ch in _SPACES:
+        text = text.replace(ch, " ")
+    return text.replace("−", "-").replace("–", "-")
 
 def extract_text(path: Path) -> str:
     """Texte natif du PDF, avec bascule OCR si le PDF est un scan."""
@@ -60,14 +102,15 @@ def extract_text(path: Path) -> str:
     import pdfplumber
     logging.getLogger("pdfminer").setLevel(logging.ERROR)
     with pdfplumber.open(path) as pdf:
-        text = "\n".join(p.extract_text() or "" for p in pdf.pages).strip()
+        text = normalize_text("\n".join(p.extract_text() or "" for p in pdf.pages).strip())
     if len(text) > 50:
         return text
     print("  [OCR] texte natif insuffisant, passage en OCR…")
     from pdf2image import convert_from_bytes
     import pytesseract
     images = convert_from_bytes(path.read_bytes(), dpi=300)
-    return "\n".join(pytesseract.image_to_string(img, lang="fra+eng") for img in images).strip()
+    return normalize_text(
+        "\n".join(pytesseract.image_to_string(img, lang="fra+eng") for img in images).strip())
 
 TEXT_CACHE = ".sncf-text-cache.json"
 
@@ -110,29 +153,47 @@ _DATE_PATTERNS: list[tuple[re.Pattern, Callable[[re.Match], str]]] = [
 
 def parse_date(text: str) -> str | None:
     """Première date trouvée, au format YYYYMMDD."""
+    text = normalize_text(text)
     for pattern, extract in _DATE_PATTERNS:
         m = pattern.search(text)
         if m:
             return extract(m)
     return None
 
+# Partie entière : avec ou sans séparateur de milliers (normalisé en espace).
+# Un seul groupe de milliers, donc 9 999 € au plus : au-delà ce n'est plus un
+# billet, c'est le capital social en pied de page du justificatif.
+_EUR = r"\d \d{3}|\d{1,4}"
+
 _AMOUNT_PATTERNS = [
     # Symbole € AVANT le montant (ex: €18,50 ou € 18,50)
-    re.compile(r"€\s*(\d{1,4})[,\.](\d{2})\b"),
+    re.compile(rf"€\s*(?P<eur>{_EUR})[,\.](?P<cts>\d{{2}})\b"),
     # € avant montant entier (ex: €18)
-    re.compile(r"€\s*(\d{1,4})\b"),
+    re.compile(rf"€\s*(?P<eur>{_EUR})\b"),
     # Fallback : symbole € APRÈS, ligne total/montant
-    re.compile(r"(?:total|montant)[^\n]*?(\d{1,4})[,\.](\d{2})\s*(?:€|EUR)", re.IGNORECASE),
-    re.compile(r"(?<!\d)(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?=\s|$|[,;])", re.IGNORECASE),
+    re.compile(rf"(?:total|montant)[^\n]*?(?P<eur>{_EUR})[,\.](?P<cts>\d{{2}})\s*(?:€|EUR)", re.IGNORECASE),
+    re.compile(rf"(?<!\d)(?P<eur>{_EUR})[,\.](?P<cts>\d{{2}})\s*(?:€|EUR|euros?)(?=\s|$|[,;])", re.IGNORECASE),
 ]
 
+def _is_negative(text: str, m: re.Match) -> bool:
+    """Un avoir ou un remboursement ne doit pas être compté comme une dépense :
+    lu en positif, il gonflerait la déclaration au lieu de la réduire. Le signe
+    précède soit le nombre ('total : -12,00 €'), soit le symbole ('-€12,00')."""
+    starts = [m.start()] + [m.start(g) for g in ("eur", "eur_seul")
+                            if g in m.groupdict() and m.group(g) is not None]
+    return any(text[:i].rstrip().endswith("-") for i in starts)
+
 def parse_amount(text: str) -> str | None:
-    """Montant trouvé, au format 'EUROS-CENTIMES' (ex. '18-50')."""
+    """Montant trouvé, au format 'EUROS-CENTIMES' (ex. '18-50'). Les montants
+    négatifs sont ignorés : le fichier ressort en champ manquant, donc visible."""
+    text = normalize_text(text)
     for pattern in _AMOUNT_PATTERNS:
-        m = pattern.search(text)
-        if m:
-            cents = m.group(2) if m.lastindex and m.lastindex >= 2 else "00"
-            return f"{m.group(1)}-{cents}"
+        for m in pattern.finditer(text):
+            if _is_negative(text, m):
+                continue
+            euros = m.group("eur").replace(" ", "")
+            cents = m.groupdict().get("cts") or "00"
+            return f"{euros}-{cents}"
     return None
 
 # ── Dédoublonnage et conflits de noms ────────────────────────────────────────

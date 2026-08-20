@@ -67,6 +67,12 @@ class TestParseAmount:
     def test_montant_entier_EUR(self):
         assert _parse_amount("18 EUR") == "18-00TTC"
 
+    def test_separateur_de_milliers(self):
+        assert _parse_amount("Montant total 1\u202f234,50 €") == "1234-50TTC"
+
+    def test_avoir_non_compte_comme_depense(self):
+        assert _parse_amount("Montant total -12,00 €") is None
+
     def test_montant_decimal_euro_apres(self):
         assert _parse_amount("18,50 €") == "18-50TTC"
 
@@ -207,12 +213,15 @@ class TestLoadConfig:
         assert in_p == []
         assert out_p == Path("/a/output")
 
-    def test_malformed_json(self, tmp_path):
+    def test_malformed_json_arrete_le_run(self, tmp_path, capsys):
+        """Un repli silencieux ferait tourner le run sur inbox/ local et
+        produirait une sortie fausse sans le dire."""
         cfg = tmp_path / "config.json"
         cfg.write_text("not valid json{{{")
-        in_p, out_p = load_config(cfg)
-        assert in_p == []
-        assert out_p is None
+        with pytest.raises(SystemExit) as e:
+            load_config(cfg)
+        assert e.value.code == 1
+        assert "[CONFIG]" in capsys.readouterr().err
 
     def test_missing_script_section(self, tmp_path):
         cfg = tmp_path / "config.json"

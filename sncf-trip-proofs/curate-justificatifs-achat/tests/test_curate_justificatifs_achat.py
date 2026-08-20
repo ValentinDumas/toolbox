@@ -103,6 +103,20 @@ class TestParseAmount:
     def test_aucun_montant(self):
         assert _parse_amount("Aucun montant dans ce texte.") is None
 
+    def test_separateur_de_milliers(self):
+        """Lu sans normalisation, "1 234,50 €" rend 234,50 € : mille euros
+        disparaissent du bilan sans aucun avertissement."""
+        assert _parse_amount("Total 1\u202f234,50 €") == "1234-50TTC"
+        assert _parse_amount("Montant total 1\u00a0234,50 EUR") == "1234-50TTC"
+        assert _parse_amount("Total : 1234,50 €") == "1234-50TTC"
+
+    def test_capital_social_hors_de_portee(self):
+        assert _parse_amount("SNCF Connect au capital de 1\u202f000\u202f000 €") != "1000000-00TTC"
+
+    def test_avoir_non_compte_comme_depense(self):
+        """Un remboursement lu en positif gonflerait la déclaration."""
+        assert _parse_amount("Total : -12,00 € (remboursement)") is None
+
 
 # ── 3. Référence ──────────────────────────────────────────────────────────────
 
@@ -246,12 +260,15 @@ class TestLoadConfig:
         assert in_p == []
         assert out_p == Path("/b/output")
 
-    def test_malformed_json(self, tmp_path):
+    def test_malformed_json_arrete_le_run(self, tmp_path, capsys):
+        """Un repli silencieux ferait tourner le run sur inbox/ local et
+        produirait une sortie fausse sans le dire."""
         cfg = tmp_path / "config.json"
         cfg.write_text("not valid json{{{")
-        in_p, out_p = load_config(cfg)
-        assert in_p == []
-        assert out_p is None
+        with pytest.raises(SystemExit) as e:
+            load_config(cfg)
+        assert e.value.code == 1
+        assert "[CONFIG]" in capsys.readouterr().err
 
     def test_missing_script_section(self, tmp_path):
         cfg = tmp_path / "config.json"

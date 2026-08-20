@@ -89,26 +89,32 @@ def _parse_date(text: str) -> str | None:
 
     return None
 
+_EUR = common._EUR
+
 def _parse_amount(text: str) -> str | None:
+    text = common.normalize_text(text)
+
     # Priorité : ligne "TOTAL" ou "Montant" avec € après
     m = re.compile(
-        r"(?:total|montant)[^\n]*?(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?:\s|$|[,;])",
+        rf"(?:total|montant)[^\n]*?(?P<eur>{_EUR})[,\.](?P<cts>\d{{2}})\s*(?:€|EUR|euros?)(?:\s|$|[,;])",
         re.IGNORECASE,
     ).search(text)
-    if m:
-        return f"{m.group(1)}-{m.group(2)}TTC"
+    if m and not common._is_negative(text, m):
+        return f"{m.group('eur').replace(' ', '')}-{m.group('cts')}TTC"
 
     # Fallback : montant décimal ou entier avec € après
     # Note: \b ne fonctionne pas après € (non-word char) → lookahead
     # Protection capital social : limité à ≤4 chiffres entiers
     m = re.compile(
-        r"(?<!\d)(\d{1,4})[,\.](\d{2})\s*(?:€|EUR|euros?)(?=\s|$|[,;])"
-        r"|(?<!\d)(\d{1,4})\s*(?:€|EUR|euros?)(?=\s|$|[,;])",
+        rf"(?<!\d)(?P<eur>{_EUR})[,\.](?P<cts>\d{{2}})\s*(?:€|EUR|euros?)(?=\s|$|[,;])"
+        rf"|(?<!\d)(?P<eur_seul>{_EUR})\s*(?:€|EUR|euros?)(?=\s|$|[,;])",
         re.IGNORECASE,
     ).search(text)
-    if not m:
+    if not m or common._is_negative(text, m):
         return None
-    return f"{m.group(1)}-{m.group(2)}TTC" if m.group(1) else f"{m.group(3)}-00TTC"
+    if m.group("eur"):
+        return f"{m.group('eur').replace(' ', '')}-{m.group('cts')}TTC"
+    return f"{m.group('eur_seul').replace(' ', '')}-00TTC"
 
 def _parse_ref(text: str) -> str | None:
     # "Référence de commande NE3ERM" — after "commande" keyword

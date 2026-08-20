@@ -27,8 +27,8 @@ def _deposer(directory: Path, *noms: str) -> None:
     for n in noms:
         (directory / n).write_bytes(b"pas-un-vrai-pdf")
 
-def _run(monkeypatch, in_dir: Path, out_dir: Path) -> None:
-    monkeypatch.setattr(sys, "argv", ["script", str(in_dir), str(out_dir)])
+def _run(monkeypatch, in_dir: Path, out_dir: Path, source: str = "voyage") -> None:
+    monkeypatch.setattr(sys, "argv", ["script", str(in_dir), str(out_dir), "--source", source])
     bilan.main()
 
 class TestBilanMonoAnnee:
@@ -86,3 +86,42 @@ class TestDateImpossible:
         assert "Fichiers non traités (1)" in rapport
         assert "justificatif-voyage-20260231-12-00ttc-bbbbbb.pdf" in rapport
         assert "15,60 €" in rapport
+
+class TestSourceUnique:
+    """Un même trajet a souvent un justificatif d'achat ET un de voyage, aux
+    références disjointes : les compter tous les deux double la dépense."""
+
+    FICHIERS = (
+        "justificatif-achat-20260402-18-50ttc-1917346212-20260504.pdf",
+        "justificatif-voyage-20260402-18-50ttc-ne3erm-016487606.pdf",
+    )
+
+    def test_achat_est_la_source_par_defaut(self, tmp_path, monkeypatch):
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, *self.FICHIERS)
+
+        monkeypatch.setattr(sys, "argv", ["script", str(curated), str(out)])
+        bilan.main()
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "18,50 €" in rapport
+        assert "37,00 €" not in rapport
+        assert "| Écartés — autre type        | 1 |" in rapport
+
+    def test_source_tous_compte_les_deux(self, tmp_path, monkeypatch):
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, *self.FICHIERS)
+
+        _run(monkeypatch, curated, out, source="tous")
+
+        assert "37,00 €" in (out / "bilan-depenses-train-2026.md").read_text()
+
+    def test_reconciliation_compte_tous_les_pdf_deposes(self, tmp_path, monkeypatch):
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, *self.FICHIERS)
+
+        _run(monkeypatch, curated, out, source="achat")
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "| PDF trouvés dans le dossier | 2 |" in rapport
+        assert "| Retenus (tickets analysés)  | 1 |" in rapport

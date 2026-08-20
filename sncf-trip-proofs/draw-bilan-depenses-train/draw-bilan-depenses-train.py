@@ -76,14 +76,26 @@ class ErrorEntry:
     filename: str
     reason: str
 
+@dataclass
+class Reconciliation:
+    """De combien de PDFs déposés partent les trajets du bilan, et où sont passés
+    les autres. Sans ce compte, un justificatif écarté ne se voit nulle part et
+    le total déclaré est muet sur ce qu'il ne couvre pas."""
+    found: int = 0
+    kept: int = 0
+    other_type: list[str] = field(default_factory=list)
+    duplicates: list[str] = field(default_factory=list)
+
 
 def extract_ref_base(ref: str) -> str:
     m = _RE_REF_BASE.match(ref)
     return m.group(1) if m else ref
 
 
-def parse_renamed_filename(name: str) -> tuple[str, float, str] | None:
-    for pattern in (RE_RENAMED_ACHAT, RE_RENAMED_VOYAGE):
+def parse_renamed_filename(name: str) -> tuple[str, float, str, str] | None:
+    """(dates, montant, référence, type de document) ou None si le nom n'est pas
+    celui produit par un curate-*."""
+    for doc_type, pattern in (("achat", RE_RENAMED_ACHAT), ("voyage", RE_RENAMED_VOYAGE)):
         m = pattern.match(name)
         if not m:
             continue
@@ -93,7 +105,7 @@ def parse_renamed_filename(name: str) -> tuple[str, float, str] | None:
         except ValueError:
             return None
         ref = m.group(3)
-        return date_part, amount, ref
+        return date_part, amount, ref, doc_type
     return None
 
 
@@ -166,21 +178,26 @@ def extract_trips_from_pdf(path: Path, total_amount: float, filename: str) -> li
     legs = list(RE_LEG_DATE_ONLY.finditer(text))
     if not legs:
         return []
-    per_leg = round(total_amount / len(legs), 2)
-    for m in legs:
+    # Le reste de la division va au premier leg : sans ça, 10,00 € sur 3 trajets
+    # totalisent 9,99 € et le bilan ne rend plus le montant du justificatif.
+    per_leg, extra = divmod(round(total_amount * 100), len(legs))
+    for i, m in enumerate(legs):
         d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
         if parse_date_str(f"{y:04d}{mo:02d}{d:02d}") is None:
             continue
-        trips.append(Trip(filename=filename, amount=per_leg, year=y, month=mo, day=d, from_pdf=False))
+        amount = (per_leg + (extra if i == 0 else 0)) / 100
+        trips.append(Trip(filename=filename, amount=amount, year=y, month=mo, day=d, from_pdf=False))
     return trips
 
 
-def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], dict[int, int]]:
-    """Renvoie les trajets, les fichiers en erreur, et le nombre de tickets
-    rattaché à chaque année — un bilan annuel ne doit compter que les siens."""
+def scan(in_dir: Path, source: str = "achat") -> tuple[list[Trip], list[ErrorEntry], dict[int, int], "Reconciliation"]:
+    """Renvoie les trajets, les fichiers en erreur, le nombre de tickets rattaché
+    à chaque année — un bilan annuel ne doit compter que les siens — et le compte
+    de réconciliation entre PDFs déposés et trajets retenus."""
     pdfs = sorted(in_dir.glob("*.pdf"))
+    recon = Reconciliation(found=len(pdfs))
     if not pdfs:
-        return [], [], {}
+        return [], [], {}, recon
 
     # Passe 1 : parse noms / fallback PDF
     raw: list[tuple[Path, str, float, str]] = []
@@ -189,7 +206,13 @@ def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], dict[int, int]]:
     for pdf in pdfs:
         result = parse_renamed_filename(pdf.name)
         if result is not None:
-            date_part, amount, ref = result
+            date_part, amount, ref, doc_type = result
+            # Un même trajet a souvent un justificatif d'achat ET un justificatif
+            # de voyage, aux références disjointes : les compter tous les deux
+            # double la dépense déclarée. Une seule source fait foi par run.
+            if source != "tous" and doc_type != source:
+                recon.other_type.append(pdf.name)
+                continue
             date_str = date_part[:8]
             raw.append((pdf, date_str, amount, ref))
             continue
@@ -213,6 +236,7 @@ def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], dict[int, int]]:
         ref_base = extract_ref_base(ref)
         if ref_base != "unknown" and ref_base in seen_refs:
             print(f"  [DOUBLON] {pdf.name} → même commande que {seen_refs[ref_base]}")
+            recon.duplicates.append(pdf.name)
             continue
         if ref_base != "unknown":
             seen_refs[ref_base] = pdf.name
@@ -239,7 +263,8 @@ def scan(in_dir: Path) -> tuple[list[Trip], list[ErrorEntry], dict[int, int]]:
         trips.append(Trip(filename=pdf.name, amount=amount, year=y, month=mo, day=d, from_pdf=False))
         tickets_by_year[y] += 1
 
-    return trips, errors, dict(tickets_by_year)
+    recon.kept = sum(tickets_by_year.values())
+    return trips, errors, dict(tickets_by_year), recon
 
 
 def fmt_eur(amount: float) -> str:
@@ -263,7 +288,8 @@ def print_debug(trips: list[Trip]) -> None:
     print()
 
 
-def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, ticket_count: int) -> str:
+def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, ticket_count: int,
+                    recon: Reconciliation | None = None, source: str = "achat") -> str:
     year_trips = [t for t in trips if t.year == year]
     total = sum(t.amount for t in year_trips)
     n = len(year_trips)
@@ -340,6 +366,25 @@ def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, tick
             lines.append(f"| {date_label} | {fmt_eur(t.amount):>9} | `{fname}` |")
         lines.append("")
 
+    if recon is not None:
+        lines += [
+            "---",
+            "",
+            "## Réconciliation",
+            "",
+            f"Source retenue : **justificatifs d'{source}**." if source != "tous"
+            else "Source retenue : **tous types de justificatifs**.",
+            "",
+            "| Fichiers | Nombre |",
+            "|----------|--------|",
+            f"| PDF trouvés dans le dossier | {recon.found} |",
+            f"| Retenus (tickets analysés)  | {recon.kept} |",
+            f"| Écartés — autre type        | {len(recon.other_type)} |",
+            f"| Écartés — commande en double| {len(recon.duplicates)} |",
+            f"| Écartés — erreur de lecture | {len(errors)} |",
+            "",
+        ]
+
     if errors:
         lines += [
             "---",
@@ -359,9 +404,13 @@ def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, tick
 def main():
     parser = argparse.ArgumentParser(
         description="Génère un bilan de dépenses train depuis les justificatifs d'achat PDF.",
-        usage="%(prog)s [IN] [OUT]",
+        usage="%(prog)s [IN] [OUT] [--source achat|voyage|tous]",
     )
     parser.add_argument("paths", nargs="*", metavar="PATH")
+    parser.add_argument("--source", choices=("achat", "voyage", "tous"), default="achat",
+                        help="Type de justificatif qui fait foi (défaut : achat). "
+                             "'tous' compte achats et voyages, donc double les "
+                             "trajets couverts par les deux.")
     args = parser.parse_args()
 
     match len(args.paths):
@@ -390,7 +439,7 @@ def main():
         print("Rien à traiter.")
         sys.exit(0)
 
-    trips, errors, tickets_by_year = scan(in_dir)
+    trips, errors, tickets_by_year, recon = scan(in_dir, args.source)
 
     years: dict[int, list[Trip]] = defaultdict(list)
     for t in trips:
@@ -403,6 +452,11 @@ def main():
     dominant_year = max(years, key=lambda y: len(years[y])) if years else date.today().year
 
     print(f"\n✓ {len(trips)} trajet(s) extrait(s) depuis {sum(tickets_by_year.values())} ticket(s)")
+    print(f"  source '{args.source}' : {recon.found} PDF trouvé(s), {recon.kept} retenu(s), "
+          f"{len(recon.other_type)} d'un autre type, {len(recon.duplicates)} en double, "
+          f"{len(errors)} en erreur")
+    for name in recon.other_type:
+        print(f"  [AUTRE TYPE] {name}")
     if errors:
         print(f"✗ {len(errors)} erreur(s) :")
         for err in errors:
@@ -413,7 +467,8 @@ def main():
     generated = []
     for year in sorted(years):
         report = generate_report(trips, errors if year == dominant_year else [], year,
-                                 tickets_by_year.get(year, 0))
+                                 tickets_by_year.get(year, 0),
+                                 recon if year == dominant_year else None, args.source)
         out_file = out_dir / f"bilan-depenses-train-{year}.md"
         out_file.write_text(report, encoding="utf-8")
         generated.append(out_file)

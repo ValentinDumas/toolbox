@@ -24,6 +24,7 @@ extract_ref_base = _mod.extract_ref_base
 fmt_eur = _mod.fmt_eur
 generate_report = _mod.generate_report
 load_config = _mod.load_config
+extract_trips_from_pdf = _mod.extract_trips_from_pdf
 
 
 # ── 1. Reconnaissance des noms de fichiers ────────────────────────────────────
@@ -32,36 +33,38 @@ class TestParseRenamedFilename:
     def test_achat_simple(self):
         r = parse_renamed_filename("justificatif-achat-20260402-18-50ttc-2668453920-20260330.pdf")
         assert r is not None
-        date_part, amount, ref = r
+        date_part, amount, ref, doc_type = r
         assert date_part == "20260402"
         assert amount == 18.50
         assert ref == "2668453920-20260330"
+        assert doc_type == "achat"
 
     def test_achat_multi_dates_utilise_premiere_date(self):
         r = parse_renamed_filename("justificatif-achat-20260423-20260424-57-00ttc-1480540391-20260504.pdf")
         assert r is not None
-        date_part, amount, _ = r
+        date_part, amount, _, _ = r
         assert date_part[:8] == "20260423"
         assert amount == 57.00
 
     def test_voyage_sans_tcn(self):
         r = parse_renamed_filename("justificatif-voyage-20260316-15-60ttc-d56qej.pdf")
         assert r is not None
-        date_part, amount, ref = r
+        date_part, amount, ref, doc_type = r
         assert date_part == "20260316"
         assert amount == 15.60
         assert ref == "d56qej"
+        assert doc_type == "voyage"
 
     def test_voyage_avec_tcn(self):
         r = parse_renamed_filename("justificatif-voyage-20260326-10-00ttc-m56qd3-016404373.pdf")
         assert r is not None
-        _, amount, _ = r
+        _, amount, _, _ = r
         assert amount == 10.00
 
     def test_voyage_avec_suffixe_conflit(self):
         r = parse_renamed_filename("justificatif-voyage-20260416-18-50ttc-n4m4xx-016733616-1.pdf")
         assert r is not None
-        date_part, amount, _ = r
+        date_part, amount, _, _ = r
         assert date_part == "20260416"
         assert amount == 18.50
 
@@ -213,12 +216,15 @@ class TestLoadConfig:
         assert in_p == []
         assert out_p == Path("/c/out")
 
-    def test_malformed_json(self, tmp_path):
+    def test_malformed_json_arrete_le_run(self, tmp_path, capsys):
+        """Un repli silencieux ferait tourner le run sur inbox/ local et
+        produirait une sortie fausse sans le dire."""
         cfg = tmp_path / "config.json"
         cfg.write_text("not valid json{{{")
-        in_p, out_p = load_config(cfg)
-        assert in_p == []
-        assert out_p is None
+        with pytest.raises(SystemExit) as e:
+            load_config(cfg)
+        assert e.value.code == 1
+        assert "[CONFIG]" in capsys.readouterr().err
 
     def test_missing_script_section(self, tmp_path):
         cfg = tmp_path / "config.json"
@@ -240,3 +246,24 @@ class TestLoadConfig:
         in_p, out_p = load_config(cfg)
         assert in_p == [Path("/b/inbox"), Path("/b/archive")]
         assert out_p == Path("/b/out")
+
+
+# ── 7. Répartition d'un justificatif multi-trajets ────────────────────────────
+
+class TestSplitEntreTrajets:
+    """Le bilan doit rendre le montant du justificatif au centime : un arrondi
+    par trajet fait perdre des centimes que la déclaration ne retrouve plus."""
+
+    def _texte(self, n: int) -> str:
+        return "\n".join(f"Aller 0{i}/03/2026 Paris → Lyon" for i in range(1, n + 1))
+
+    def test_le_reste_de_la_division_n_est_pas_perdu(self, monkeypatch):
+        monkeypatch.setattr(_mod, "_read_pdf_text", lambda path: self._texte(3))
+        trips = extract_trips_from_pdf(Path("x.pdf"), 10.00, "x.pdf")
+        assert len(trips) == 3
+        assert round(sum(t.amount for t in trips), 2) == 10.00
+
+    def test_division_exacte_inchangee(self, monkeypatch):
+        monkeypatch.setattr(_mod, "_read_pdf_text", lambda path: self._texte(2))
+        trips = extract_trips_from_pdf(Path("x.pdf"), 57.00, "x.pdf")
+        assert [t.amount for t in trips] == [28.50, 28.50]

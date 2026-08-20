@@ -21,8 +21,8 @@ flowchart TD
     CV --> OV[/"justificatif-voyage-date-prix-ref.pdf"/]:::artifact
     CA --> OA[/"justificatif-achat-date-prix-ref.pdf"/]:::artifact
 
-    OV --> B["draw-bilan-depenses-train"]:::script
-    OA --> B
+    OA --> B["draw-bilan-depenses-train (--source achat)"]:::script
+    OV -.->|"écarté du total,<br/>compté en réconciliation"| B
 
     B --> R[/"bilan-depenses-train-YYYY.md"/]:::artifact
 
@@ -79,6 +79,11 @@ cp sncf-trip-proofs/config.example.json sncf-trip-proofs/config.json
 ```
 
 Éditer `config.json` avec vos chemins réels. Les dossiers `in` et `out` sont créés automatiquement si besoin. Les fichiers sources ne sont **jamais modifiés**.
+
+Un `config.json` illisible ou mal typé **arrête le run** (`[CONFIG]`, code 1) : un
+repli silencieux sur `inbox/` ferait tourner la chaîne sur un corpus qui n'est pas
+le vôtre et produirait un bilan faux sans le dire. Section absente = repli sur
+`inbox/`/`output/`, signalé sur stderr.
 
 ```json
 {
@@ -416,10 +421,11 @@ sncf-trip-proofs/
 python3 -m pytest -q          # depuis sncf-trip-proofs/
 ```
 
-132 tests : parsing (date, montant, référence, TCN), génération du bilan, et
+151 tests : parsing (date, montant, référence, TCN), génération du bilan, et
 tests fonctionnels de bout en bout (`tests/`) sur les chaînes inbox → output et
 justificatifs → bilans. Aucun vrai PDF requis — l'extraction de texte est
-substituée.
+substituée : un changement de gabarit chez SNCF Connect ne serait donc pas vu
+par la CI, seul un run réel le révèle.
 
 La CI GitLab (`.gitlab-ci.yml`, job `tests`) rejoue la suite à chaque push et sur
 chaque merge request. Image `python:3.12` — la variante `-slim` n'embarque pas
@@ -455,10 +461,11 @@ justificatif-voyage-brut.pdf
 ### Sortie du bilan (exemple console)
 
 ```
-Lecture de : /…/curate-justificatifs-voyage/output
+Lecture de : /…/curated
 22 fichier(s) PDF trouvé(s)
 
 ✓ 22 trajet(s) extrait(s) depuis 22 ticket(s)
+  source 'achat' : 22 PDF trouvé(s), 22 retenu(s), 0 d'un autre type, 0 en double, 0 en erreur
 
 ── Détail des trajets ──────────────────────────────
 
@@ -491,6 +498,10 @@ Lecture de : /…/curate-justificatifs-voyage/output
 | Correctif de parsing livré | Se repropage sur tout l'historique au run suivant |
 | `out` partagé par achat et voyage | Chaque script ne supprime que ses propres `justificatif-<type>-*.pdf` — l'autre sortie et les bilans sont préservés |
 | `out` égal à `in` dans `config.json` | `[REFUS]` — le script s'arrête sans rien supprimer |
+| Un trajet a un justificatif d'achat **et** un de voyage | Seul l'achat compte (`--source achat`, défaut) — le voyage est listé `[AUTRE TYPE]` et compté en réconciliation. Sans ce filtre, la dépense serait déclarée en double |
+| Montant à quatre chiffres (`1 234,50 €`) | Séparateur de milliers normalisé avant parsing — sans ça, `234,50 €` était retenu |
+| Avoir ou remboursement (`-12,00 €`) | Non compté comme une dépense : le champ montant ressort manquant, donc visible |
+| `config.json` illisible | `[CONFIG]` — le run s'arrête, aucun repli silencieux |
 | Deux sources au contenu identique | `[DOUBLON SOURCE]` — seul le plus ancien est gardé |
 | Deux fichiers → même nom cible | `[CONFLIT NOM]` — checksum puis numérotation `_1`, `_2`, … |
 | Même commande achat re-téléchargée | `[DOUBLON]` dans le bilan — second fichier ignoré |
@@ -501,6 +512,8 @@ Lecture de : /…/curate-justificatifs-voyage/output
 
 | Sujet | Pourquoi | Direction |
 |---|---|---|
+| **Sort du justificatif de voyage** | Le bilan est bâti sur les seuls justificatifs d'achat (`--source achat`). Les justificatifs de voyage sont curés et archivés, mais ne comptent pas : rien ne permet de rapprocher leurs références de celles des achats, donc rien ne garantit qu'on ne compte pas deux fois le même trajet. | Décider de leur rôle : pièce jointe conservée sans être comptée, ou rapprochement par (date, montant) avec levée d'ambiguïté manuelle sur les aller-retours du même jour. |
+| **Séparation perso / pro** | Le corpus est global : un trajet personnel entre dans le bilan comme les autres, et rien ne permet de l'en sortir. | Convention de sous-dossier dans `curated/`, ou fichier d'exclusion listant des références. |
 | **Export CSV / XLSX du bilan** | Le `.md` couvre les frais réels perso (justificatifs sur demande). Pour les notes de frais entreprise demandant un upload tabulaire, copier-coller manuel à court terme. | Étendre `draw-bilan-depenses-train` pour produire `.csv`/`.xlsx` en parallèle (via `csv` stdlib ou `openpyxl`). |
 | **Backup de `archive/`** | `archive/closed-YYYY/` doit être conservée 6 ans (délai de reprise fiscal FR). Un seul cloud = risque (compte suspendu, sync foireux, suppression manuelle). | `rclone copy` mensuel vers un second backend (autre cloud, disque externe, Backblaze B2). Cross-platform. |
 | **Déclenchement automatique** | Aujourd'hui le wrapper est lancé manuellement depuis le terminal. | Raccourci macOS (Shortcuts) ou cron/launchd pour un déclenchement zéro action. Logs déjà branchés sur fichier pour observabilité. |

@@ -36,6 +36,7 @@ TEXTES = {
     "achat.pdf": "Justificatif d'achat N°1917346212-20260504\nAller 02/04/2026\nRetour 04/04/2026\nTotal : 57,00 €",
     "voyage-2026.pdf": "Justificatif de voyage du 16/03/2026\nRéférence commande D56QEJ\nTCN 016487606\nMontant total 15,60 €",
     "voyage-2025.pdf": "Justificatif de voyage du 12/12/2025\nRéférence commande AB12CD\nTCN 016400111\nMontant total 42,00 €",
+    "achat-2025.pdf": "Justificatif d'achat N°1480540391-20251215\nAller 12/12/2025\nTotal : 42,00 €",
 }
 
 @pytest.fixture
@@ -105,6 +106,6 @@ class TestIdempotence:
         _run_chaine(monkeypatch, drive)
 
         curated = sorted(p.name for p in (drive / "curated").glob("*.pdf"))
-        assert len(curated) == 3, curated
+        assert len(curated) == 4, curated
         assert (drive / "bilans" / "bilan-depenses-train-2025.md").exists()
         assert "57,00 €" in (drive / "bilans" / "bilan-depenses-train-2026.md").read_text()
