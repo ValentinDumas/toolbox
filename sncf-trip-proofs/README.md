@@ -21,8 +21,8 @@ flowchart TD
     CV --> OV[/"justificatif-voyage-date-prix-ref.pdf"/]:::artifact
     CA --> OA[/"justificatif-achat-date-prix-ref.pdf"/]:::artifact
 
-    OA --> B["draw-bilan-depenses-train (--source achat)"]:::script
-    OV -.->|"écarté du total,<br/>compté en réconciliation"| B
+    OA --> B["draw-bilan-depenses-train (--source auto)"]:::script
+    OV -.->|"rattaché à son achat,<br/>ou compté s'il est orphelin"| B
 
     B --> R[/"bilan-depenses-train-YYYY.md"/]:::artifact
 
@@ -135,6 +135,52 @@ python3 sncf-trip-proofs/draw-bilan-depenses-train/draw-bilan-depenses-train.py
 ```
 
 Le bilan `bilan-depenses-train-YYYY.md` est généré dans le dossier `out` configuré.
+
+### Quel justificatif compte dans le total
+
+Un même trajet donne souvent **deux** documents, un justificatif d'achat et un
+justificatif de voyage, dont les références appartiennent à des espaces disjoints
+(`1917346212-20260504` contre `ne3erm`). Comptés tous les deux, ils doublent la
+dépense déclarée. Le bilan les rapproche donc, en mode `auto` par défaut :
+
+| Cas | Traitement |
+|---|---|
+| Justificatif de voyage de même date et même montant qu'un trajet d'achat | Rattaché — la dépense n'est comptée qu'une fois |
+| Justificatif de voyage qu'aucun achat ne couvre | Compté comme trajet : c'est un trajet dont le justificatif d'achat n'a jamais été téléchargé |
+| Trajet d'achat au montant réparti à parts égales (multi-trajets sans prix par trajet) | Rapproché sur la date seule, **signalé** dans le bilan pour arbitrage manuel — aucun montant n'est comparable |
+
+`--source achat`, `--source voyage` ou `--source tous` forcent le comportement.
+Le détail est dans la section « Réconciliation » de chaque bilan.
+
+### Justificatif de voyage — délai de 60 jours
+
+Le justificatif de voyage n'est téléchargeable que **60 jours** après le départ,
+et pas avant 24 à 48 h après le dernier trajet. Passé ce délai il n'est plus
+récupérable : aucun formulaire ni demande au service client ne permet de le
+rattraper.
+
+**Que faire si le délai est dépassé** — se replier sur le **justificatif
+d'achat**, disponible jusqu'à **13 mois** après la date d'arrivée du voyage,
+depuis « Billets » → le trajet → « Justificatifs d'achat et de voyage ». C'est la
+source que le bilan privilégie par défaut, précisément parce qu'elle survit dix
+fois plus longtemps.
+
+Au-delà de 13 mois, plus aucun document n'est récupérable côté SNCF Connect.
+D'où la règle : **télécharger dans les jours qui suivent le trajet**, pas au
+moment de déclarer.
+
+À savoir aussi :
+
+- Le justificatif de voyage n'existe que pour les billets achetés sur le site ou
+  l'appli SNCF Connect.
+- Eurostar, OUIGO, FlixBus et BlaBlaCar Bus n'en délivrent pas — pour ces
+  trajets, seul le justificatif d'achat existe.
+- Sans compte : se déconnecter, onglet « Billets », référence de dossier
+  (`RGTPLS`) + nom de la commande.
+
+Sources : [justificatif de voyage](https://www.sncf-connect.com/aide/vos-justificatifs-de-voyage)
+et [justificatif d'achat](https://www.sncf-connect.com/aide/le-justificatif-d-achat),
+FAQ SNCF Connect, consultées le 2026-08-20.
 
 Pour enchaîner les 3 commandes en une seule, archiver `inbox/` automatiquement et brancher le tout sur un dossier cloud synchronisé, voir [Workflow cloud](#workflow-cloud-zéro-copier-coller) ci-dessous.
 
@@ -421,7 +467,7 @@ sncf-trip-proofs/
 python3 -m pytest -q          # depuis sncf-trip-proofs/
 ```
 
-151 tests : parsing (date, montant, référence, TCN), génération du bilan, et
+154 tests : parsing (date, montant, référence, TCN), génération du bilan, et
 tests fonctionnels de bout en bout (`tests/`) sur les chaînes inbox → output et
 justificatifs → bilans. Aucun vrai PDF requis — l'extraction de texte est
 substituée : un changement de gabarit chez SNCF Connect ne serait donc pas vu
@@ -498,7 +544,9 @@ Lecture de : /…/curated
 | Correctif de parsing livré | Se repropage sur tout l'historique au run suivant |
 | `out` partagé par achat et voyage | Chaque script ne supprime que ses propres `justificatif-<type>-*.pdf` — l'autre sortie et les bilans sont préservés |
 | `out` égal à `in` dans `config.json` | `[REFUS]` — le script s'arrête sans rien supprimer |
-| Un trajet a un justificatif d'achat **et** un de voyage | Seul l'achat compte (`--source achat`, défaut) — le voyage est listé `[AUTRE TYPE]` et compté en réconciliation. Sans ce filtre, la dépense serait déclarée en double |
+| Un trajet a un justificatif d'achat **et** un de voyage | `[RAPPROCHÉ]` — la dépense n'est comptée qu'une fois. Sans ce rapprochement, elle serait déclarée en double |
+| Trajet dont seul le justificatif de voyage existe (achat jamais téléchargé) | `[VOYAGE ORPHELIN]` — compté comme trajet, il reste dans le total |
+| Voyage rapproché d'un achat au montant réparti | `[RAPPROCHÉ PAR DATE]` — listé dans le bilan, à vérifier à la main |
 | Montant à quatre chiffres (`1 234,50 €`) | Séparateur de milliers normalisé avant parsing — sans ça, `234,50 €` était retenu |
 | Avoir ou remboursement (`-12,00 €`) | Non compté comme une dépense : le champ montant ressort manquant, donc visible |
 | `config.json` illisible | `[CONFIG]` — le run s'arrête, aucun repli silencieux |
@@ -512,7 +560,7 @@ Lecture de : /…/curated
 
 | Sujet | Pourquoi | Direction |
 |---|---|---|
-| **Sort du justificatif de voyage** | Le bilan est bâti sur les seuls justificatifs d'achat (`--source achat`). Les justificatifs de voyage sont curés et archivés, mais ne comptent pas : rien ne permet de rapprocher leurs références de celles des achats, donc rien ne garantit qu'on ne compte pas deux fois le même trajet. | Décider de leur rôle : pièce jointe conservée sans être comptée, ou rapprochement par (date, montant) avec levée d'ambiguïté manuelle sur les aller-retours du même jour. |
+| **Rapprochement sur les valeurs** | Le mode `auto` rapproche achat et voyage sur (date, montant) faute de référence commune. Quand le montant de l'achat vient d'une répartition à parts égales, seule la date rapproche : la ligne est signalée, mais l'arbitrage reste humain. | Rapprocher sur une donnée réellement commune si SNCF Connect en expose une (numéro de dossier présent dans les deux PDF), ce qui supprimerait l'heuristique. |
 | **Séparation perso / pro** | Le corpus est global : un trajet personnel entre dans le bilan comme les autres, et rien ne permet de l'en sortir. | Convention de sous-dossier dans `curated/`, ou fichier d'exclusion listant des références. |
 | **Export CSV / XLSX du bilan** | Le `.md` couvre les frais réels perso (justificatifs sur demande). Pour les notes de frais entreprise demandant un upload tabulaire, copier-coller manuel à court terme. | Étendre `draw-bilan-depenses-train` pour produire `.csv`/`.xlsx` en parallèle (via `csv` stdlib ou `openpyxl`). |
 | **Backup de `archive/`** | `archive/closed-YYYY/` doit être conservée 6 ans (délai de reprise fiscal FR). Un seul cloud = risque (compte suspendu, sync foireux, suppression manuelle). | `rclone copy` mensuel vers un second backend (autre cloud, disque externe, Backblaze B2). Cross-platform. |

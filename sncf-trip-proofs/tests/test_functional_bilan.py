@@ -96,7 +96,8 @@ class TestSourceUnique:
         "justificatif-voyage-20260402-18-50ttc-ne3erm-016487606.pdf",
     )
 
-    def test_achat_est_la_source_par_defaut(self, tmp_path, monkeypatch):
+    def test_le_voyage_rattache_a_son_achat_n_est_pas_recompte(self, tmp_path, monkeypatch):
+        """Mode auto (défaut) : même date, même montant → une seule dépense."""
         curated, out = tmp_path / "curated", tmp_path / "bilans"
         _deposer(curated, *self.FICHIERS)
 
@@ -106,6 +107,31 @@ class TestSourceUnique:
         rapport = (out / "bilan-depenses-train-2026.md").read_text()
         assert "18,50 €" in rapport
         assert "37,00 €" not in rapport
+        assert "| Rattaché à un achat déjà compté (date + montant) | 1 |" in rapport
+
+    def test_voyage_orphelin_compte_comme_trajet(self, tmp_path, monkeypatch):
+        """Un trajet dont le justificatif d'achat n'a jamais été téléchargé — le
+        cas du délai de 60 jours — doit rester dans le total."""
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated,
+                 "justificatif-achat-20260402-18-50ttc-1917346212-20260504.pdf",
+                 "justificatif-voyage-20260510-42-00ttc-ab12cd-016400111.pdf")
+
+        monkeypatch.setattr(sys, "argv", ["script", str(curated), str(out)])
+        bilan.main()
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "60,50 €" in rapport
+        assert "| Compté comme trajet, aucun achat ne le couvre    | 1 |" in rapport
+
+    def test_source_achat_ecarte_le_voyage(self, tmp_path, monkeypatch):
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, *self.FICHIERS)
+
+        _run(monkeypatch, curated, out, source="achat")
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "18,50 €" in rapport
         assert "| Écartés — autre type        | 1 |" in rapport
 
     def test_source_tous_compte_les_deux(self, tmp_path, monkeypatch):
@@ -115,6 +141,25 @@ class TestSourceUnique:
         _run(monkeypatch, curated, out, source="tous")
 
         assert "37,00 €" in (out / "bilan-depenses-train-2026.md").read_text()
+
+    def test_rapprochement_par_date_signale_quand_le_montant_vient_d_un_split(self, tmp_path, monkeypatch):
+        """Un achat multi-trajets réparti à parts égales n'a aucun montant
+        comparable : la machine rapproche sur la date et le dit."""
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated,
+                 "justificatif-achat-20260402-20260404-57-00ttc-1917346212-20260504.pdf",
+                 "justificatif-voyage-20260402-30-00ttc-ne3erm-016487606.pdf")
+        texte = "Aller 02/04/2026 Paris → Lyon\nRetour 04/04/2026 Lyon → Paris"
+        monkeypatch.setattr(bilan, "_read_pdf_text",
+                            lambda path: texte if "achat" in path.name else None)
+
+        monkeypatch.setattr(sys, "argv", ["script", str(curated), str(out)])
+        bilan.main()
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "57,00 €" in rapport
+        assert "| Rattaché par date seule, montant non vérifié     | 1 |" in rapport
+        assert "justificatif-voyage-20260402-30-00ttc-ne3erm-016487606.pdf" in rapport
 
     def test_reconciliation_compte_tous_les_pdf_deposes(self, tmp_path, monkeypatch):
         curated, out = tmp_path / "curated", tmp_path / "bilans"

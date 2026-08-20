@@ -39,25 +39,37 @@ python3 draw-bilan-depenses-train.py curate-justificatifs-achat/output/ ./bilans
 # Depuis le répertoire courant (IN = OUT = .)
 python3 draw-bilan-depenses-train.py
 
-# Compter les justificatifs de voyage plutôt que ceux d'achat
-python3 draw-bilan-depenses-train.py ./curated/ ./bilans/ --source voyage
+# Forcer un seul type de justificatif
+python3 draw-bilan-depenses-train.py ./curated/ ./bilans/ --source achat
 ```
 
 ### `--source` — quel justificatif fait foi
 
 Un même trajet donne souvent **deux** documents : un justificatif d'achat et un
 justificatif de voyage. Leurs références appartiennent à des espaces disjoints
-(`1917346212-20260504` contre `ne3erm`), donc rien ne permet de les rapprocher :
-comptés tous les deux, ils **doublent la dépense déclarée**.
+(`1917346212-20260504` contre `ne3erm`) : aucun identifiant commun ne permet de
+les rapprocher, et comptés tous les deux ils **doublent la dépense déclarée**.
+Le rapprochement se fait donc sur les valeurs — date et montant.
 
 | Valeur | Effet |
 |---|---|
-| `achat` (défaut) | Seuls les `justificatif-achat-*` alimentent le bilan. C'est la source qui porte le prix et le détail des trajets. |
+| `auto` (défaut) | Les achats font foi. Un justificatif de voyage de même date et même montant qu'un trajet d'achat lui est **rattaché** et n'est pas recompté ; un voyage qu'aucun achat ne couvre **devient un trajet**. |
+| `achat` | Seuls les `justificatif-achat-*` alimentent le bilan, les voyages sont écartés du total. |
 | `voyage` | Seuls les `justificatif-voyage-*` alimentent le bilan. |
-| `tous` | Les deux — à n'utiliser que si le corpus ne contient jamais les deux documents pour un même trajet. |
+| `tous` | Les deux, sans rapprochement — à n'utiliser que si le corpus ne contient jamais les deux documents pour un même trajet. |
 
-Les fichiers de l'autre type ne sont pas des erreurs : ils sont comptés dans la
-section « Réconciliation » du bilan et listés en console en `[AUTRE TYPE]`.
+Un trajet n'absorbe qu'un seul justificatif de voyage : un aller-retour dans la
+journée avec deux justificatifs s'apparie 1-1 avec ses deux legs.
+
+**Le cas que la machine ne tranche pas** — quand un justificatif d'achat couvre
+plusieurs trajets sans prix par trajet, ses montants viennent d'une répartition à
+parts égales et ne correspondent à aucun montant imprimé. Le rapprochement se
+fait alors sur la **date seule**, et la ligne est listée en `[RAPPROCHÉ PAR DATE]`
+dans la console et nommément dans la section « Réconciliation » du bilan : c'est
+le seul endroit où le total repose sur une supposition, et il est signalé.
+
+Le détail de ce qu'est devenu chaque justificatif de voyage — rattaché, rattaché
+par date, compté comme trajet — figure dans cette même section.
 
 ### Via config.json (optionnel)
 
@@ -103,7 +115,8 @@ Un fichier `bilan-depenses-train-YYYY.md` par année détectée, contenant :
 - Détail par mois
 - Liste des voyages par mois avec date et montant
 - Section "Réconciliation" : combien de PDF déposés, combien retenus, et pourquoi
-  les autres ont été écartés (autre type, commande en double, erreur de lecture)
+  les autres ont été écartés (autre type, commande en double, erreur de lecture),
+  puis ce qu'est devenu chaque justificatif de voyage en mode `auto`
 - Section "Fichiers non traités" si des erreurs sont survenues
 
 ---
@@ -113,7 +126,9 @@ Un fichier `bilan-depenses-train-YYYY.md` par année détectée, contenant :
 | Situation | Comportement |
 |---|---|
 | Nom de fichier reconnu | Extraction depuis le nom — rapide, sans lire le PDF |
-| Nom reconnu mais d'un autre type que `--source` | Écarté du total, compté en « Réconciliation » |
+| Nom reconnu mais d'un autre type que `--source` | Écarté du total, compté en « Réconciliation » (modes `achat` et `voyage`) |
+| Justificatif de voyage rattachable à un achat | Rattaché, non recompté (mode `auto`) |
+| Justificatif de voyage orphelin | Compté comme trajet — cas d'un achat jamais téléchargé (mode `auto`) |
 | Justificatif multi-trajets sans prix par trajet | Montant réparti à parts égales, le reste de la division allant au premier trajet — la somme rend le montant du justificatif au centime |
 | Nom non reconnu | Fallback lecture PDF pour extraire date et montant |
 | PDF illisible | Signalé dans le bilan, non comptabilisé |

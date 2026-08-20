@@ -69,6 +69,9 @@ class Trip:
     month: int
     day: int
     from_pdf: bool = field(default=False)
+    # Montant issu d'une répartition à parts égales, donc jamais celui qu'affiche
+    # un justificatif de voyage : le rapprochement doit s'y faire sur la date.
+    split: bool = field(default=False)
 
 
 @dataclass
@@ -85,6 +88,10 @@ class Reconciliation:
     kept: int = 0
     other_type: list[str] = field(default_factory=list)
     duplicates: list[str] = field(default_factory=list)
+    # Mode auto : ce qu'est devenu chaque justificatif de voyage.
+    attached: list[str] = field(default_factory=list)
+    attached_by_date: list[str] = field(default_factory=list)
+    promoted: list[str] = field(default_factory=list)
 
 
 def extract_ref_base(ref: str) -> str:
@@ -186,53 +193,18 @@ def extract_trips_from_pdf(path: Path, total_amount: float, filename: str) -> li
         if parse_date_str(f"{y:04d}{mo:02d}{d:02d}") is None:
             continue
         amount = (per_leg + (extra if i == 0 else 0)) / 100
-        trips.append(Trip(filename=filename, amount=amount, year=y, month=mo, day=d, from_pdf=False))
+        trips.append(Trip(filename=filename, amount=amount, year=y, month=mo, day=d,
+                          from_pdf=False, split=True))
     return trips
 
 
-def scan(in_dir: Path, source: str = "achat") -> tuple[list[Trip], list[ErrorEntry], dict[int, int], "Reconciliation"]:
-    """Renvoie les trajets, les fichiers en erreur, le nombre de tickets rattaché
-    à chaque année — un bilan annuel ne doit compter que les siens — et le compte
-    de réconciliation entre PDFs déposés et trajets retenus."""
-    pdfs = sorted(in_dir.glob("*.pdf"))
-    recon = Reconciliation(found=len(pdfs))
-    if not pdfs:
-        return [], [], {}, recon
+Entry = tuple[Path, str, float, str]
 
-    # Passe 1 : parse noms / fallback PDF
-    raw: list[tuple[Path, str, float, str]] = []
-    errors: list[ErrorEntry] = []
-
-    for pdf in pdfs:
-        result = parse_renamed_filename(pdf.name)
-        if result is not None:
-            date_part, amount, ref, doc_type = result
-            # Un même trajet a souvent un justificatif d'achat ET un justificatif
-            # de voyage, aux références disjointes : les compter tous les deux
-            # double la dépense déclarée. Une seule source fait foi par run.
-            if source != "tous" and doc_type != source:
-                recon.other_type.append(pdf.name)
-                continue
-            date_str = date_part[:8]
-            raw.append((pdf, date_str, amount, ref))
-            continue
-
-        print(f"  [FALLBACK PDF] {pdf.name}")
-        fallback = parse_via_pdf(pdf)
-        if fallback is None:
-            reason = "Nom non reconnu et lecture PDF échouée"
-            print(f"  ✗ {pdf.name} → {reason}")
-            errors.append(ErrorEntry(filename=pdf.name, reason=reason))
-            continue
-
-        date_str, amount = fallback
-        raw.append((pdf, date_str, amount, "unknown"))
-
-    # Passe 2 : déduplication par ref_base
+def _deduplicate(entries: list[Entry], recon: "Reconciliation") -> list[Entry]:
+    """Une même commande re-téléchargée ne doit compter qu'une fois."""
     seen_refs: dict[str, str] = {}
-    deduped: list[tuple[Path, str, float, str]] = []
-
-    for pdf, date_str, amount, ref in raw:
+    deduped: list[Entry] = []
+    for pdf, date_str, amount, ref in entries:
         ref_base = extract_ref_base(ref)
         if ref_base != "unknown" and ref_base in seen_refs:
             print(f"  [DOUBLON] {pdf.name} → même commande que {seen_refs[ref_base]}")
@@ -241,12 +213,12 @@ def scan(in_dir: Path, source: str = "achat") -> tuple[list[Trip], list[ErrorEnt
         if ref_base != "unknown":
             seen_refs[ref_base] = pdf.name
         deduped.append((pdf, date_str, amount, ref))
+    return deduped
 
-    # Passe 3 : extraction des Trip individuels
+def _to_trips(entries: list[Entry], errors: list[ErrorEntry],
+              tickets_by_year: dict[int, int]) -> list[Trip]:
     trips: list[Trip] = []
-    tickets_by_year: dict[int, int] = defaultdict(int)
-
-    for pdf, date_str, amount, ref in deduped:
+    for pdf, date_str, amount, _ref in entries:
         extracted = extract_trips_from_pdf(pdf, amount, pdf.name)
         if extracted:
             trips.extend(extracted)
@@ -262,10 +234,115 @@ def scan(in_dir: Path, source: str = "achat") -> tuple[list[Trip], list[ErrorEnt
         y, mo, d = ymd
         trips.append(Trip(filename=pdf.name, amount=amount, year=y, month=mo, day=d, from_pdf=False))
         tickets_by_year[y] += 1
+    return trips
+
+def _match_voyages(voyages: list[Entry], trips: list[Trip],
+                   recon: "Reconciliation") -> list[Entry]:
+    """Rattache chaque justificatif de voyage au trajet d'achat qui porte déjà la
+    même dépense, et renvoie ceux qui n'ont rien trouvé. Les références des deux
+    documents appartiennent à des espaces disjoints : le rapprochement ne peut se
+    faire que sur les valeurs, et un trajet n'absorbe qu'un justificatif."""
+    consumed: set[int] = set()
+    orphans: list[Entry] = []
+
+    for entry in voyages:
+        pdf, date_str, amount, _ref = entry
+        ymd = parse_date_str(date_str)
+        if ymd is None:
+            orphans.append(entry)
+            continue
+        jour = ymd
+
+        exact = next((i for i, t in enumerate(trips)
+                      if i not in consumed and (t.year, t.month, t.day) == jour
+                      and abs(t.amount - amount) < 0.005), None)
+        if exact is not None:
+            consumed.add(exact)
+            recon.attached.append(pdf.name)
+            print(f"  [RAPPROCHÉ] {pdf.name} → {trips[exact].filename}")
+            continue
+
+        # Le montant d'un trajet issu d'une répartition à parts égales ne
+        # correspond à aucun montant imprimé : la date seule peut rapprocher,
+        # et la ligne est signalée pour que l'arbitrage reste humain.
+        par_date = next((i for i, t in enumerate(trips)
+                         if i not in consumed and (t.year, t.month, t.day) == jour
+                         and t.split), None)
+        if par_date is not None:
+            consumed.add(par_date)
+            recon.attached_by_date.append(pdf.name)
+            print(f"  [RAPPROCHÉ PAR DATE] {pdf.name} → {trips[par_date].filename} "
+                  f"(montant non vérifié)")
+            continue
+
+        recon.promoted.append(pdf.name)
+        print(f"  [VOYAGE ORPHELIN] {pdf.name} → compté comme trajet à part entière")
+        orphans.append(entry)
+
+    return orphans
+
+def scan(in_dir: Path, source: str = "auto") -> tuple[list[Trip], list[ErrorEntry], dict[int, int], "Reconciliation"]:
+    """Renvoie les trajets, les fichiers en erreur, le nombre de tickets rattaché
+    à chaque année — un bilan annuel ne doit compter que les siens — et le compte
+    de réconciliation entre PDFs déposés et trajets retenus."""
+    pdfs = sorted(in_dir.glob("*.pdf"))
+    recon = Reconciliation(found=len(pdfs))
+    if not pdfs:
+        return [], [], {}, recon
+
+    # Passe 1 : parse noms / fallback PDF
+    achats: list[Entry] = []
+    voyages: list[Entry] = []
+    errors: list[ErrorEntry] = []
+
+    for pdf in pdfs:
+        result = parse_renamed_filename(pdf.name)
+        if result is not None:
+            date_part, amount, ref, doc_type = result
+            # Un même trajet a souvent un justificatif d'achat ET un justificatif
+            # de voyage, aux références disjointes : les compter tous les deux
+            # double la dépense déclarée.
+            if source in ("achat", "voyage") and doc_type != source:
+                recon.other_type.append(pdf.name)
+                continue
+            entry = (pdf, date_part[:8], amount, ref)
+            (voyages if source == "auto" and doc_type == "voyage" else achats).append(entry)
+            continue
+
+        print(f"  [FALLBACK PDF] {pdf.name}")
+        fallback = parse_via_pdf(pdf)
+        if fallback is None:
+            reason = "Nom non reconnu et lecture PDF échouée"
+            print(f"  ✗ {pdf.name} → {reason}")
+            errors.append(ErrorEntry(filename=pdf.name, reason=reason))
+            continue
+
+        date_str, amount = fallback
+        achats.append((pdf, date_str, amount, "unknown"))
+
+    # Passe 2 : déduplication par ref_base, puis extraction des Trip
+    tickets_by_year: dict[int, int] = defaultdict(int)
+    trips = _to_trips(_deduplicate(achats, recon), errors, tickets_by_year)
+
+    # Passe 3 (mode auto) : le justificatif de voyage vaut preuve d'un trajet
+    # déjà compté, ou trajet à lui seul si aucun achat ne le couvre — c'est le
+    # cas des trajets dont le justificatif d'achat n'a jamais été téléchargé.
+    if voyages:
+        orphans = _match_voyages(_deduplicate(voyages, recon), trips, recon)
+        trips.extend(_to_trips(orphans, errors, tickets_by_year))
 
     recon.kept = sum(tickets_by_year.values())
     return trips, errors, dict(tickets_by_year), recon
 
+
+def _libelle_source(source: str) -> str:
+    return {
+        "auto": "Source retenue : **justificatifs d'achat**, complétés par les "
+                "justificatifs de voyage qu'aucun achat ne couvre.",
+        "achat": "Source retenue : **justificatifs d'achat**.",
+        "voyage": "Source retenue : **justificatifs de voyage**.",
+        "tous": "Source retenue : **tous types de justificatifs**, sans rapprochement.",
+    }[source]
 
 def fmt_eur(amount: float) -> str:
     return f"{amount:,.2f} €".replace(",", " ").replace(".", ",")
@@ -372,8 +449,7 @@ def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, tick
             "",
             "## Réconciliation",
             "",
-            f"Source retenue : **justificatifs d'{source}**." if source != "tous"
-            else "Source retenue : **tous types de justificatifs**.",
+            _libelle_source(source),
             "",
             "| Fichiers | Nombre |",
             "|----------|--------|",
@@ -384,6 +460,25 @@ def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, tick
             f"| Écartés — erreur de lecture | {len(errors)} |",
             "",
         ]
+
+        if source == "auto":
+            lines += [
+                "### Justificatifs de voyage",
+                "",
+                "| Devenu | Nombre |",
+                "|--------|--------|",
+                f"| Rattaché à un achat déjà compté (date + montant) | {len(recon.attached)} |",
+                f"| Rattaché par date seule, montant non vérifié     | {len(recon.attached_by_date)} |",
+                f"| Compté comme trajet, aucun achat ne le couvre    | {len(recon.promoted)} |",
+                "",
+            ]
+            if recon.attached_by_date:
+                lines += [
+                    "Rapprochements à vérifier à la main — le trajet d'achat correspondant "
+                    "a un montant réparti à parts égales, donc non comparable :",
+                    "",
+                ]
+                lines += [f"- `{name}`" for name in recon.attached_by_date] + [""]
 
     if errors:
         lines += [
@@ -407,10 +502,12 @@ def main():
         usage="%(prog)s [IN] [OUT] [--source achat|voyage|tous]",
     )
     parser.add_argument("paths", nargs="*", metavar="PATH")
-    parser.add_argument("--source", choices=("achat", "voyage", "tous"), default="achat",
-                        help="Type de justificatif qui fait foi (défaut : achat). "
-                             "'tous' compte achats et voyages, donc double les "
-                             "trajets couverts par les deux.")
+    parser.add_argument("--source", choices=("auto", "achat", "voyage", "tous"), default="auto",
+                        help="Quels justificatifs comptent (défaut : auto — les achats "
+                             "font foi, un justificatif de voyage rattaché à un achat "
+                             "n'est pas recompté, un voyage orphelin devient un trajet). "
+                             "'tous' compte les deux sans rapprochement, donc double les "
+                             "trajets couverts par les deux documents.")
     args = parser.parse_args()
 
     match len(args.paths):
@@ -455,6 +552,10 @@ def main():
     print(f"  source '{args.source}' : {recon.found} PDF trouvé(s), {recon.kept} retenu(s), "
           f"{len(recon.other_type)} d'un autre type, {len(recon.duplicates)} en double, "
           f"{len(errors)} en erreur")
+    if args.source == "auto":
+        print(f"  justificatifs de voyage : {len(recon.attached)} rattaché(s) à un achat, "
+              f"{len(recon.attached_by_date)} rattaché(s) par date seule, "
+              f"{len(recon.promoted)} compté(s) comme trajet")
     for name in recon.other_type:
         print(f"  [AUTRE TYPE] {name}")
     if errors:
