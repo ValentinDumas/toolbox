@@ -53,23 +53,32 @@ Le rapprochement se fait donc sur les valeurs — date et montant.
 
 | Valeur | Effet |
 |---|---|
-| `auto` (défaut) | Les achats font foi. Un justificatif de voyage de même date et même montant qu'un trajet d'achat lui est **rattaché** et n'est pas recompté ; un voyage qu'aucun achat ne couvre **devient un trajet**. |
+| `auto` (défaut) | Les achats font foi. Un justificatif de voyage dont la date tombe dans la plage d'une commande d'achat, et dont le montant tient dans ce qu'il reste du total de cette commande, lui est **rattaché** et n'est pas recompté ; un voyage qu'aucune commande ne couvre **devient un trajet**. |
 | `achat` | Seuls les `justificatif-achat-*` alimentent le bilan, les voyages sont écartés du total. |
 | `voyage` | Seuls les `justificatif-voyage-*` alimentent le bilan. |
 | `tous` | Les deux, sans rapprochement — à n'utiliser que si le corpus ne contient jamais les deux documents pour un même trajet. |
 
-Un trajet n'absorbe qu'un seul justificatif de voyage : un aller-retour dans la
-journée avec deux justificatifs s'apparie 1-1 avec ses deux legs.
+Le rapprochement se fait au niveau de la **commande**, pas du trajet. Un
+aller-retour acheté en une fois ne produit qu'un justificatif d'achat, souvent un
+seul trajet daté du premier jour et portant le total : ses deux justificatifs de
+voyage ne correspondent alors à aucun montant de trajet. La commande est donc
+traitée comme un budget — plage de dates et total — que les justificatifs de
+voyage consomment.
 
-**Le cas que la machine ne tranche pas** — quand un justificatif d'achat couvre
-plusieurs trajets sans prix par trajet, ses montants viennent d'une répartition à
-parts égales et ne correspondent à aucun montant imprimé. Le rapprochement se
-fait alors sur la **date seule**, et la ligne est listée en `[RAPPROCHÉ PAR DATE]`
-dans la console et nommément dans la section « Réconciliation » du bilan : c'est
-le seul endroit où le total repose sur une supposition, et il est signalé.
+**Quand le rapprochement est certain** : les justificatifs de voyage rattachés
+épuisent exactement le total de la commande (28,50 + 28,50 sur une commande à
+57,00), ou chacun tombe sur un trajet de même date et même montant.
+
+**Quand il ne l'est pas** : la commande n'est que partiellement couverte — un
+seul justificatif de voyage récupéré sur deux, ou un montant qui ne correspond à
+aucun trajet. Le total ne bouge pas, mais la ligne est listée en
+`[À VÉRIFIER]` dans la console et nommément dans la section « Réconciliation »
+du bilan. C'est le seul endroit où le rapprochement repose sur une supposition,
+et il est signalé.
 
 Le détail de ce qu'est devenu chaque justificatif de voyage — rattaché, rattaché
-par date, compté comme trajet — figure dans cette même section.
+sur une commande partiellement couverte, ou compté comme trajet — figure dans
+cette même section.
 
 ### Via config.json (optionnel)
 

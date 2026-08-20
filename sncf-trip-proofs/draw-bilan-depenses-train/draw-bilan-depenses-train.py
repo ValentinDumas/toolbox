@@ -69,9 +69,6 @@ class Trip:
     month: int
     day: int
     from_pdf: bool = field(default=False)
-    # Montant issu d'une répartition à parts égales, donc jamais celui qu'affiche
-    # un justificatif de voyage : le rapprochement doit s'y faire sur la date.
-    split: bool = field(default=False)
 
 
 @dataclass
@@ -194,17 +191,34 @@ def extract_trips_from_pdf(path: Path, total_amount: float, filename: str) -> li
             continue
         amount = (per_leg + (extra if i == 0 else 0)) / 100
         trips.append(Trip(filename=filename, amount=amount, year=y, month=mo, day=d,
-                          from_pdf=False, split=True))
+                          from_pdf=False))
     return trips
 
 
 Entry = tuple[Path, str, float, str]
 
+@dataclass
+class AchatDoc:
+    """Un justificatif d'achat, vu comme une dépense couvrant une plage de dates.
+    Un aller-retour acheté en une commande n'est qu'un document, dont le total
+    couvre plusieurs justificatifs de voyage : rapprocher trajet par trajet
+    laisserait ces voyages orphelins et recompterait la commande entière."""
+    filename: str
+    start: tuple[int, int, int]
+    end: tuple[int, int, int]
+    total: float
+    trips: list[int] = field(default_factory=list)
+    attached: list[str] = field(default_factory=list)
+    budget: float = 0.0
+
+    def couvre(self, jour: tuple[int, int, int]) -> bool:
+        return self.start <= jour <= self.end
+
 def _deduplicate(entries: list[Entry], recon: "Reconciliation") -> list[Entry]:
     """Une même commande re-téléchargée ne doit compter qu'une fois."""
     seen_refs: dict[str, str] = {}
     deduped: list[Entry] = []
-    for pdf, date_str, amount, ref in entries:
+    for pdf, date_part, amount, ref in entries:
         ref_base = extract_ref_base(ref)
         if ref_base != "unknown" and ref_base in seen_refs:
             print(f"  [DOUBLON] {pdf.name} → même commande que {seen_refs[ref_base]}")
@@ -212,72 +226,105 @@ def _deduplicate(entries: list[Entry], recon: "Reconciliation") -> list[Entry]:
             continue
         if ref_base != "unknown":
             seen_refs[ref_base] = pdf.name
-        deduped.append((pdf, date_str, amount, ref))
+        deduped.append((pdf, date_part, amount, ref))
     return deduped
 
 def _to_trips(entries: list[Entry], errors: list[ErrorEntry],
-              tickets_by_year: dict[int, int]) -> list[Trip]:
-    trips: list[Trip] = []
-    for pdf, date_str, amount, _ref in entries:
-        extracted = extract_trips_from_pdf(pdf, amount, pdf.name)
-        if extracted:
-            trips.extend(extracted)
-            tickets_by_year[min(t.year for t in extracted)] += 1
+              tickets_by_year: dict[int, int], trips: list[Trip],
+              docs: list[AchatDoc] | None = None) -> None:
+    """Ajoute les trajets de chaque justificatif à `trips`, et le justificatif
+    lui-même à `docs` quand le rapprochement en aura besoin."""
+    for pdf, date_part, amount, _ref in entries:
+        date_str = date_part[:8]
+        produced = extract_trips_from_pdf(pdf, amount, pdf.name)
+        if produced:
+            tickets_by_year[min(t.year for t in produced)] += 1
+        else:
+            ymd = parse_date_str(date_str)
+            if ymd is None:
+                reason = f"Date invalide : {date_str}"
+                print(f"  ✗ {pdf.name} → {reason}")
+                errors.append(ErrorEntry(filename=pdf.name, reason=reason))
+                continue
+            y, mo, d = ymd
+            produced = [Trip(filename=pdf.name, amount=amount, year=y, month=mo, day=d,
+                             from_pdf=False)]
+            tickets_by_year[y] += 1
+
+        indices = list(range(len(trips), len(trips) + len(produced)))
+        trips.extend(produced)
+
+        if docs is None:
             continue
 
-        ymd = parse_date_str(date_str)
-        if ymd is None:
-            reason = f"Date invalide : {date_str}"
-            print(f"  ✗ {pdf.name} → {reason}")
-            errors.append(ErrorEntry(filename=pdf.name, reason=reason))
-            continue
-        y, mo, d = ymd
-        trips.append(Trip(filename=pdf.name, amount=amount, year=y, month=mo, day=d, from_pdf=False))
-        tickets_by_year[y] += 1
-    return trips
+        # La plage couverte vient du nom (`20260402-20260404`) élargie aux dates
+        # réellement extraites du PDF : un justificatif de voyage tombant un jour
+        # quelconque de cette plage appartient à cette commande.
+        jours = [(t.year, t.month, t.day) for t in produced]
+        for bornes in (date_part[:8], date_part[9:17]):
+            ymd = parse_date_str(bornes) if len(bornes) == 8 else None
+            if ymd:
+                jours.append(ymd)
+        docs.append(AchatDoc(filename=pdf.name, start=min(jours), end=max(jours),
+                             total=max(amount, sum(t.amount for t in produced)),
+                             trips=indices, budget=max(amount, sum(t.amount for t in produced))))
 
-def _match_voyages(voyages: list[Entry], trips: list[Trip],
+def _match_voyages(voyages: list[Entry], trips: list[Trip], docs: list[AchatDoc],
                    recon: "Reconciliation") -> list[Entry]:
-    """Rattache chaque justificatif de voyage au trajet d'achat qui porte déjà la
-    même dépense, et renvoie ceux qui n'ont rien trouvé. Les références des deux
+    """Rattache chaque justificatif de voyage à la commande d'achat qui porte déjà
+    la dépense, et renvoie ceux qu'aucune ne couvre. Les références des deux
     documents appartiennent à des espaces disjoints : le rapprochement ne peut se
-    faire que sur les valeurs, et un trajet n'absorbe qu'un justificatif."""
+    faire que sur les valeurs — la date doit tomber dans la plage de la commande,
+    et le montant tenir dans ce qu'il reste de son total."""
     consumed: set[int] = set()
     orphans: list[Entry] = []
+    exact_par_doc: dict[int, int] = defaultdict(int)
 
-    for entry in voyages:
-        pdf, date_str, amount, _ref = entry
-        ymd = parse_date_str(date_str)
-        if ymd is None:
+    for entry in sorted(voyages, key=lambda e: e[1]):
+        pdf, date_part, amount, _ref = entry
+        jour = parse_date_str(date_part[:8])
+        if jour is None:
             orphans.append(entry)
             continue
-        jour = ymd
 
-        exact = next((i for i, t in enumerate(trips)
-                      if i not in consumed and (t.year, t.month, t.day) == jour
-                      and abs(t.amount - amount) < 0.005), None)
-        if exact is not None:
-            consumed.add(exact)
-            recon.attached.append(pdf.name)
-            print(f"  [RAPPROCHÉ] {pdf.name} → {trips[exact].filename}")
+        candidats = [i for i, doc in enumerate(docs)
+                     if doc.couvre(jour) and doc.budget >= amount - 0.005]
+        if not candidats:
+            recon.promoted.append(pdf.name)
+            print(f"  [VOYAGE ORPHELIN] {pdf.name} → compté comme trajet à part entière")
+            orphans.append(entry)
             continue
 
-        # Le montant d'un trajet issu d'une répartition à parts égales ne
-        # correspond à aucun montant imprimé : la date seule peut rapprocher,
-        # et la ligne est signalée pour que l'arbitrage reste humain.
-        par_date = next((i for i, t in enumerate(trips)
-                         if i not in consumed and (t.year, t.month, t.day) == jour
-                         and t.split), None)
-        if par_date is not None:
-            consumed.add(par_date)
-            recon.attached_by_date.append(pdf.name)
-            print(f"  [RAPPROCHÉ PAR DATE] {pdf.name} → {trips[par_date].filename} "
-                  f"(montant non vérifié)")
-            continue
+        # Un trajet au montant identique le même jour lève toute ambiguïté.
+        exact = next(
+            ((i, t) for i in candidats for t in docs[i].trips
+             if t not in consumed
+             and (trips[t].year, trips[t].month, trips[t].day) == jour
+             and abs(trips[t].amount - amount) < 0.005),
+            None,
+        )
+        i = exact[0] if exact else candidats[0]
+        if exact:
+            consumed.add(exact[1])
+            exact_par_doc[i] += 1
 
-        recon.promoted.append(pdf.name)
-        print(f"  [VOYAGE ORPHELIN] {pdf.name} → compté comme trajet à part entière")
-        orphans.append(entry)
+        docs[i].budget -= amount
+        docs[i].attached.append(pdf.name)
+        print(f"  [RAPPROCHÉ] {pdf.name} → {docs[i].filename}")
+
+    # Un rapprochement est certain quand les voyages rattachés épuisent le total
+    # de la commande, ou quand chacun est tombé sur un trajet de même montant.
+    # Sinon la commande est partiellement couverte : le total ne bouge pas, mais
+    # la ligne est signalée pour que l'arbitrage reste humain.
+    for i, doc in enumerate(docs):
+        if not doc.attached:
+            continue
+        certain = abs(doc.budget) < 0.005 or exact_par_doc[i] == len(doc.attached)
+        cible = recon.attached if certain else recon.attached_by_date
+        cible.extend(doc.attached)
+        if not certain:
+            print(f"  [À VÉRIFIER] {doc.filename} : {len(doc.attached)} justificatif(s) "
+                  f"de voyage rattaché(s), {fmt_eur(doc.budget)} du total non couvert")
 
     return orphans
 
@@ -305,7 +352,7 @@ def scan(in_dir: Path, source: str = "auto") -> tuple[list[Trip], list[ErrorEntr
             if source in ("achat", "voyage") and doc_type != source:
                 recon.other_type.append(pdf.name)
                 continue
-            entry = (pdf, date_part[:8], amount, ref)
+            entry = (pdf, date_part, amount, ref)
             (voyages if source == "auto" and doc_type == "voyage" else achats).append(entry)
             continue
 
@@ -322,14 +369,16 @@ def scan(in_dir: Path, source: str = "auto") -> tuple[list[Trip], list[ErrorEntr
 
     # Passe 2 : déduplication par ref_base, puis extraction des Trip
     tickets_by_year: dict[int, int] = defaultdict(int)
-    trips = _to_trips(_deduplicate(achats, recon), errors, tickets_by_year)
+    trips: list[Trip] = []
+    docs: list[AchatDoc] = []
+    _to_trips(_deduplicate(achats, recon), errors, tickets_by_year, trips, docs)
 
-    # Passe 3 (mode auto) : le justificatif de voyage vaut preuve d'un trajet
-    # déjà compté, ou trajet à lui seul si aucun achat ne le couvre — c'est le
-    # cas des trajets dont le justificatif d'achat n'a jamais été téléchargé.
+    # Passe 3 (mode auto) : le justificatif de voyage vaut preuve d'une dépense
+    # déjà comptée, ou trajet à lui seul si aucune commande ne le couvre — c'est
+    # le cas des trajets dont le justificatif d'achat n'a jamais été téléchargé.
     if voyages:
-        orphans = _match_voyages(_deduplicate(voyages, recon), trips, recon)
-        trips.extend(_to_trips(orphans, errors, tickets_by_year))
+        orphans = _match_voyages(_deduplicate(voyages, recon), trips, docs, recon)
+        _to_trips(orphans, errors, tickets_by_year, trips)
 
     recon.kept = sum(tickets_by_year.values())
     return trips, errors, dict(tickets_by_year), recon
@@ -467,15 +516,15 @@ def generate_report(trips: list[Trip], errors: list[ErrorEntry], year: int, tick
                 "",
                 "| Devenu | Nombre |",
                 "|--------|--------|",
-                f"| Rattaché à un achat déjà compté (date + montant) | {len(recon.attached)} |",
-                f"| Rattaché par date seule, montant non vérifié     | {len(recon.attached_by_date)} |",
-                f"| Compté comme trajet, aucun achat ne le couvre    | {len(recon.promoted)} |",
+                f"| Rattaché à une commande, rapprochement certain    | {len(recon.attached)} |",
+                f"| Rattaché, commande partiellement couverte         | {len(recon.attached_by_date)} |",
+                f"| Compté comme trajet, aucune commande ne le couvre | {len(recon.promoted)} |",
                 "",
             ]
             if recon.attached_by_date:
                 lines += [
-                    "Rapprochements à vérifier à la main — le trajet d'achat correspondant "
-                    "a un montant réparti à parts égales, donc non comparable :",
+                    "Rapprochements à vérifier à la main — la commande n'est que "
+                    "partiellement couverte par ses justificatifs de voyage :",
                     "",
                 ]
                 lines += [f"- `{name}`" for name in recon.attached_by_date] + [""]
@@ -553,8 +602,8 @@ def main():
           f"{len(recon.other_type)} d'un autre type, {len(recon.duplicates)} en double, "
           f"{len(errors)} en erreur")
     if args.source == "auto":
-        print(f"  justificatifs de voyage : {len(recon.attached)} rattaché(s) à un achat, "
-              f"{len(recon.attached_by_date)} rattaché(s) par date seule, "
+        print(f"  justificatifs de voyage : {len(recon.attached)} rattaché(s), "
+              f"{len(recon.attached_by_date)} sur commande partiellement couverte, "
               f"{len(recon.promoted)} compté(s) comme trajet")
     for name in recon.other_type:
         print(f"  [AUTRE TYPE] {name}")

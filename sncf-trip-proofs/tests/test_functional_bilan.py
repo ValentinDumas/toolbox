@@ -107,7 +107,7 @@ class TestSourceUnique:
         rapport = (out / "bilan-depenses-train-2026.md").read_text()
         assert "18,50 €" in rapport
         assert "37,00 €" not in rapport
-        assert "| Rattaché à un achat déjà compté (date + montant) | 1 |" in rapport
+        assert "| Rattaché à une commande, rapprochement certain    | 1 |" in rapport
 
     def test_voyage_orphelin_compte_comme_trajet(self, tmp_path, monkeypatch):
         """Un trajet dont le justificatif d'achat n'a jamais été téléchargé — le
@@ -122,7 +122,7 @@ class TestSourceUnique:
 
         rapport = (out / "bilan-depenses-train-2026.md").read_text()
         assert "60,50 €" in rapport
-        assert "| Compté comme trajet, aucun achat ne le couvre    | 1 |" in rapport
+        assert "| Compté comme trajet, aucune commande ne le couvre | 1 |" in rapport
 
     def test_source_achat_ecarte_le_voyage(self, tmp_path, monkeypatch):
         curated, out = tmp_path / "curated", tmp_path / "bilans"
@@ -142,7 +142,7 @@ class TestSourceUnique:
 
         assert "37,00 €" in (out / "bilan-depenses-train-2026.md").read_text()
 
-    def test_rapprochement_par_date_signale_quand_le_montant_vient_d_un_split(self, tmp_path, monkeypatch):
+    def test_montant_non_comparable_signale_la_commande_partiellement_couverte(self, tmp_path, monkeypatch):
         """Un achat multi-trajets réparti à parts égales n'a aucun montant
         comparable : la machine rapproche sur la date et le dit."""
         curated, out = tmp_path / "curated", tmp_path / "bilans"
@@ -158,8 +158,55 @@ class TestSourceUnique:
 
         rapport = (out / "bilan-depenses-train-2026.md").read_text()
         assert "57,00 €" in rapport
-        assert "| Rattaché par date seule, montant non vérifié     | 1 |" in rapport
+        assert "| Rattaché, commande partiellement couverte         | 1 |" in rapport
         assert "justificatif-voyage-20260402-30-00ttc-ne3erm-016487606.pdf" in rapport
+
+    ALLER_RETOUR = "justificatif-achat-20260402-20260404-57-00ttc-1917346212-20260504.pdf"
+
+    def test_aller_retour_en_une_commande_ne_laisse_pas_de_voyage_orphelin(self, tmp_path, monkeypatch):
+        """Une commande couvrant aller et retour produit un seul trajet daté du
+        premier jour et portant le total : ses deux justificatifs de voyage ne
+        correspondent à aucun montant de trajet. Rapprochés au niveau du trajet
+        ils repartaient orphelins, et la commande était comptée trois fois."""
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, self.ALLER_RETOUR,
+                 "justificatif-voyage-20260402-28-50ttc-ne3erm-016487606.pdf",
+                 "justificatif-voyage-20260404-28-50ttc-ne3t6x-016487554.pdf")
+
+        monkeypatch.setattr(sys, "argv", ["script", str(curated), str(out)])
+        bilan.main()
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "57,00 €" in rapport
+        assert "114,00 €" not in rapport
+        assert "| Rattaché à une commande, rapprochement certain    | 2 |" in rapport
+        assert "| Compté comme trajet, aucune commande ne le couvre | 0 |" in rapport
+
+    def test_commande_partiellement_couverte_est_signalee(self, tmp_path, monkeypatch):
+        """Un seul des deux justificatifs de voyage récupéré : le total ne bouge
+        pas, mais la commande n'est pas entièrement justifiée — il faut le dire."""
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, self.ALLER_RETOUR,
+                 "justificatif-voyage-20260402-28-50ttc-ne3erm-016487606.pdf")
+
+        monkeypatch.setattr(sys, "argv", ["script", str(curated), str(out)])
+        bilan.main()
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "57,00 €" in rapport
+        assert "| Rattaché, commande partiellement couverte         | 1 |" in rapport
+
+    def test_voyage_hors_de_la_plage_de_la_commande_reste_un_trajet(self, tmp_path, monkeypatch):
+        curated, out = tmp_path / "curated", tmp_path / "bilans"
+        _deposer(curated, self.ALLER_RETOUR,
+                 "justificatif-voyage-20260420-28-50ttc-zz99zz-016400999.pdf")
+
+        monkeypatch.setattr(sys, "argv", ["script", str(curated), str(out)])
+        bilan.main()
+
+        rapport = (out / "bilan-depenses-train-2026.md").read_text()
+        assert "85,50 €" in rapport
+        assert "| Compté comme trajet, aucune commande ne le couvre | 1 |" in rapport
 
     def test_reconciliation_compte_tous_les_pdf_deposes(self, tmp_path, monkeypatch):
         curated, out = tmp_path / "curated", tmp_path / "bilans"

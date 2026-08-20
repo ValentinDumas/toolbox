@@ -145,9 +145,9 @@ dépense déclarée. Le bilan les rapproche donc, en mode `auto` par défaut :
 
 | Cas | Traitement |
 |---|---|
-| Justificatif de voyage de même date et même montant qu'un trajet d'achat | Rattaché — la dépense n'est comptée qu'une fois |
-| Justificatif de voyage qu'aucun achat ne couvre | Compté comme trajet : c'est un trajet dont le justificatif d'achat n'a jamais été téléchargé |
-| Trajet d'achat au montant réparti à parts égales (multi-trajets sans prix par trajet) | Rapproché sur la date seule, **signalé** dans le bilan pour arbitrage manuel — aucun montant n'est comparable |
+| Justificatif de voyage dont la date tombe dans la plage d'une commande d'achat et dont le montant tient dans son total | Rattaché — la dépense n'est comptée qu'une fois. Un aller-retour acheté en une commande absorbe ainsi ses deux justificatifs de voyage |
+| Justificatif de voyage qu'aucune commande ne couvre | Compté comme trajet : c'est un trajet dont le justificatif d'achat n'a jamais été téléchargé |
+| Commande partiellement couverte (un seul justificatif de voyage sur deux, ou montant non comparable) | Rattaché quand même, total inchangé, mais **signalé** dans le bilan pour arbitrage manuel |
 
 `--source achat`, `--source voyage` ou `--source tous` forcent le comportement.
 Le détail est dans la section « Réconciliation » de chaque bilan.
@@ -467,7 +467,7 @@ sncf-trip-proofs/
 python3 -m pytest -q          # depuis sncf-trip-proofs/
 ```
 
-154 tests : parsing (date, montant, référence, TCN), génération du bilan, et
+157 tests : parsing (date, montant, référence, TCN), génération du bilan, et
 tests fonctionnels de bout en bout (`tests/`) sur les chaînes inbox → output et
 justificatifs → bilans. Aucun vrai PDF requis — l'extraction de texte est
 substituée : un changement de gabarit chez SNCF Connect ne serait donc pas vu
@@ -545,8 +545,9 @@ Lecture de : /…/curated
 | `out` partagé par achat et voyage | Chaque script ne supprime que ses propres `justificatif-<type>-*.pdf` — l'autre sortie et les bilans sont préservés |
 | `out` égal à `in` dans `config.json` | `[REFUS]` — le script s'arrête sans rien supprimer |
 | Un trajet a un justificatif d'achat **et** un de voyage | `[RAPPROCHÉ]` — la dépense n'est comptée qu'une fois. Sans ce rapprochement, elle serait déclarée en double |
+| Aller-retour acheté en une commande, avec un justificatif de voyage par sens | `[RAPPROCHÉ]` sur la commande — les deux voyages consomment son total, aucun n'est orphelin |
 | Trajet dont seul le justificatif de voyage existe (achat jamais téléchargé) | `[VOYAGE ORPHELIN]` — compté comme trajet, il reste dans le total |
-| Voyage rapproché d'un achat au montant réparti | `[RAPPROCHÉ PAR DATE]` — listé dans le bilan, à vérifier à la main |
+| Commande partiellement couverte par ses justificatifs de voyage | `[À VÉRIFIER]` — listé dans le bilan, à relire à la main |
 | Montant à quatre chiffres (`1 234,50 €`) | Séparateur de milliers normalisé avant parsing — sans ça, `234,50 €` était retenu |
 | Avoir ou remboursement (`-12,00 €`) | Non compté comme une dépense : le champ montant ressort manquant, donc visible |
 | `config.json` illisible | `[CONFIG]` — le run s'arrête, aucun repli silencieux |
