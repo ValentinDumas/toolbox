@@ -102,6 +102,46 @@ le vôtre et produirait un bilan faux sans le dire. Section absente = repli sur
 }
 ```
 
+### Lier son dossier de justificatifs au projet
+
+Plutôt que de recopier des chemins de Drive à rallonge dans `config.json`, on peut
+poser un lien symbolique dans le projet et pointer la config dessus :
+
+```bash
+ln -s "$HOME/Chemin/Vers/Justificatifs SNCF/inbox"   sncf-trip-proofs/inbox
+ln -s "$HOME/Chemin/Vers/Justificatifs SNCF/curated" sncf-trip-proofs/curated
+```
+
+Les scripts traversent le lien sans rien savoir de particulier : le parcours
+récursif des sources le suit, et le garde-fou « sortie et source imbriquées »
+résout les chemins réels avant de comparer — un lien qui ferait pointer `in` et
+`out` sur le même dossier déclenche toujours le `[REFUS]`.
+
+**Ce qu'un lien ne fait pas : ouvrir des droits.** macOS résout la cible avant
+d'autoriser l'accès. Un lien vers `~/Documents`, `~/Desktop`, `~/Downloads`,
+iCloud Drive ou `~/Library/CloudStorage/…` rend `Operation not permitted`
+exactement comme le chemin direct, tant que le binaire qui exécute les scripts
+n'a pas l'**Accès complet au disque** (Réglages Système → Confidentialité et
+sécurité). Vérifié : lien créé, lecture refusée à travers lui.
+
+Deux façons de faire tourner les scripts sans accorder cet accès :
+
+| Approche | Effet |
+|---|---|
+| Placer le corpus hors zone protégée — `~/sncf-justificatifs/`, un point de montage Drive personnalisé, ou le projet lui-même | Aucun droit spécial requis, les scripts lisent normalement |
+| Accorder l'Accès complet au disque au terminal | Le corpus peut rester dans le Drive ou `Documents` |
+
+**Côté sécurité**, le lien n'ajoute aucun droit, donc aucun risque de ce côté.
+Le vrai risque est le versionnement : un justificatif est **nominatif** — nom,
+trajets, dates — et un lien commité expose en plus l'arborescence locale. Le
+`.gitignore` couvre donc `inbox`, `output`, `curated`, `bilans`, `archive` et
+tout `*.pdf`, liens symboliques compris. À vérifier après avoir créé le lien :
+
+```bash
+git check-ignore -v sncf-trip-proofs/inbox   # doit afficher la règle qui l'ignore
+git status --porcelain sncf-trip-proofs      # ne doit rien montrer d'inattendu
+```
+
 `in` accepte un chemin ou une **liste** de chemins, parcourus récursivement : le
 corpus d'un script couvre `inbox/` **et** `archive/`, sinon archiver un
 justificatif le retirerait des sources et le bilan perdrait l'historique. Voir

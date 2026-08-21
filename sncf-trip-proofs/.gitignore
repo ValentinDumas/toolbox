@@ -8,3 +8,13 @@ config.json
 .venv/
 __pycache__/
 *.pyc
+
+# Corpus local, ou lien symbolique vers le corpus. Les justificatifs sont
+# nominatifs (nom, trajets, dates) : ni eux ni le lien qui pointe dessus ne
+# doivent partir sur un remote.
+inbox
+output
+curated
+bilans
+archive
+*.pdf
