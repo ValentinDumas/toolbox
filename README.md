@@ -47,3 +47,12 @@ Flux complet : `inspect code` → `dispatch` → `review` → répéter.
 | `curate-justificatifs-voyage` | Organise les justificatifs de **voyage** → `JustificatifVoyage_DATE_PRIX_REF.pdf` |
 | `curate-justificatifs-achat` | Organise les justificatifs d'**achat** → `justificatif_achat_DATE_PRIX_REF.pdf` |
 | `draw-bilan-depenses-train` | Génère un bilan `.md` par année (totaux par mois) |
+
+### Photos vers Drive — Raccourci iOS
+
+[`photos-vers-drive/`](photos-vers-drive/README.md) — raccourci iPhone : choisir un dossier (Google Drive ou autre emplacement de Fichiers), prendre une série de photos, les retrouver nommées `<sujet>-<AAAA-MM-JJ-HHmm>-<n>` dans ce dossier, sans passer par la galerie.
+
+| Composant | Rôle |
+|---|---|
+| `build.py` | Génère le `.shortcut` à signer avec `shortcuts sign` (Mac connecté à iCloud) |
+| `docs/construction-manuelle.md` | Construction pas à pas sur iPhone, sans Mac ni iCloud |
