@@ -26,6 +26,12 @@ photo en cours.
 
 ## Installation
 
+Deux voies :
+
+- **Sans Mac ni iCloud** : construire le raccourci à la main dans l'app Raccourcis —
+  pas à pas dans [`docs/construction-manuelle.md`](docs/construction-manuelle.md).
+- **Généré** : `build.py` + signature sur un Mac connecté à iCloud, ci-dessous.
+
 ### Prérequis
 
 - Mac connecté à iCloud (Réglages Système → identifiant Apple) — requis par
