@@ -229,6 +229,10 @@ Use it for one-off work.
 ¹ `g+`/`g-` without a space needs the shell aliases. Via the `~/.local/bin/g` symlink use
 `g +` / `g -` — both forms pass `+` or `-` as the first argument and behave identically.
 
+Rebalance keeps the grid square: 2 panes side by side, 3 = two on top + one full-width
+below, 4 = 2×2, and so on (tmux `tiled`, except `even-horizontal` at 2 since `tiled`
+stacks two panes vertically).
+
 Pane count persists per session in `~/.local/state/tmux-grid-<session>-last`. `g 4` in
 `work` does not affect `invoice`.
 

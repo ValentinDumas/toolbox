@@ -30,10 +30,16 @@ pane_count() {
     tmux list-panes -s -t "$SESSION" 2>/dev/null | wc -l | tr -d ' '
 }
 
+# tiled fills rows left to right, the odd pane spanning the last row; it
+# stacks two panes vertically though, hence even-horizontal for N=2.
 # tmux needs the layout applied twice to settle pane sizes after a split.
 after_resize() {
-    tmux select-layout -t "$SESSION" tiled
-    tmux select-layout -t "$SESSION" tiled
+    if [ "$(pane_count)" -eq 2 ]; then
+        tmux select-layout -t "$SESSION:0" even-horizontal
+    else
+        tmux select-layout -t "$SESSION:0" tiled
+        tmux select-layout -t "$SESSION:0" tiled
+    fi
 }
 
 remember() {
