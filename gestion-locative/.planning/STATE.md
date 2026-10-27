@@ -1,16 +1,17 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.1
 milestone_name: Durcissement & mise en main
+current_phase: 11
 status: ready_to_plan
-stopped_at: Phase 10 context gathered
-last_updated: "2026-06-16T15:01:27.772Z"
-last_activity: 2026-06-16 -- Phase 10 execution started
+stopped_at: Phase 11 context gathered
+last_updated: "2026-10-27T11:17:12.105Z"
+last_activity: 2026-06-18
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 7
   percent: 50
 ---
 
@@ -30,7 +31,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-06-18
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -96,9 +97,9 @@ Items acknowledged and deferred at milestone close on 2026-06-16 (v1.0). Ces ite
 
 ## Session Continuity
 
-Last session: 2026-06-16T14:27:30.872Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-dette-technique-consolidation-atomicit/10-CONTEXT.md
+Last session: 2026-10-27T11:17:11.816Z
+Stopped at: Phase 11 context gathered
+Resume file: .planning/phases/11-sauvegarde-s-curit-des-donn-es/11-CONTEXT.md
 
 ## Operator Next Steps
 
