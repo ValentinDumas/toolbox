@@ -686,9 +686,10 @@ export async function plugin(
         : null;
 
       const { Cautionnement } = await import('../../domain/locatif/cautionnement.js');
+      // Formulaire sans champs cautionnement : `undefined` conserve celui du bail (CR-03)
       const cautionnement = cautionnementCommande
         ? Cautionnement.creer(cautionnementCommande)
-        : null;
+        : undefined;
 
       const result = await modifierBailActif(
         {
