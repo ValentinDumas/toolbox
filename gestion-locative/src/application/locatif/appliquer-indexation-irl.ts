@@ -22,6 +22,7 @@ import type { PdfRenderer } from '../../domain/encaissements/pdf-renderer.js';
 import type { AvenantIRLBuilder } from '../../domain/locatif/avenant-irl-builder.js';
 import { BailIntrouvable, GelLoyerClimatActif } from '../../domain/locatif/erreurs.js';
 import { BienIntrouvable } from '../../domain/patrimoine/erreurs.js';
+import { InvariantViolated } from '../../domain/_shared/erreurs.js';
 import { BailleurAbsent } from '../../domain/identite/erreurs.js';
 import { LocataireIntrouvable } from '../../domain/locatif/erreurs.js';
 import { genererEcheancesPour } from '../encaissements/activer-bail.js';
@@ -158,6 +159,13 @@ export async function appliquerIndexationIRL(
 
   // Pivot du Bail (copy-on-write)
   const bailModifie = bail.appliquerIndexation(irlNouveau, dateEffet);
+  const actifDepuis = bailModifie.actifDepuis;
+  // Sans actifDepuis, on supprimerait les échéances sans pouvoir les régénérer (CR-01)
+  if (aRegenerer.length > 0 && actifDepuis === null) {
+    throw new InvariantViolated(
+      `appliquerIndexationIRL : bail ${bail.id} porte des échéances à régénérer mais n'est pas actif`,
+    );
+  }
 
   let echeancesRegenereesCount = 0;
 
@@ -166,22 +174,16 @@ export async function appliquerIndexationIRL(
     await repos.bailRepo.enregistrer(bailModifie, trx);
 
     // 7. Suppression + régénération des écheances dans la transaction
-    if (aRegenerer.length > 0) {
+    if (aRegenerer.length > 0 && actifDepuis !== null) {
       await repos.echeanceLoyerRepo.supprimerLot(aRegenerer.map((e) => e.id), trx);
-      if (bailModifie.actifDepuis !== null) {
-        const nouvelles = genererEcheancesPour(
-          bailModifie,
-          bailModifie.actifDepuis,
-          bailModifie.jourEcheance,
-        );
-        const aRegenererSet = new Set(aRegenerer.map((e) => e.periodeDebut.toString()));
-        const nouvellesFiltrees = nouvelles.filter((n) =>
-          aRegenererSet.has(n.periodeDebut.toString()),
-        );
-        if (nouvellesFiltrees.length > 0) {
-          await repos.echeanceLoyerRepo.enregistrerBatch(nouvellesFiltrees, trx);
-          echeancesRegenereesCount = nouvellesFiltrees.length;
-        }
+      const nouvelles = genererEcheancesPour(bailModifie, actifDepuis, bailModifie.jourEcheance);
+      const aRegenererSet = new Set(aRegenerer.map((e) => e.periodeDebut.toString()));
+      const nouvellesFiltrees = nouvelles.filter((n) =>
+        aRegenererSet.has(n.periodeDebut.toString()),
+      );
+      if (nouvellesFiltrees.length > 0) {
+        await repos.echeanceLoyerRepo.enregistrerBatch(nouvellesFiltrees, trx);
+        echeancesRegenereesCount = nouvellesFiltrees.length;
       }
     }
 

@@ -37,6 +37,7 @@ import { unLocataireValide, unBailIndexableValide } from '../../../_builders/loc
 import type { BailIndexationRepository } from '../../../../src/domain/locatif/bail-indexation-repository.js';
 import type { BailIndexation } from '../../../../src/domain/locatif/bail-indexation.js';
 import { appliquerIndexationIRL } from '../../../../src/application/locatif/appliquer-indexation-irl.js';
+import { InvariantViolated } from '../../../../src/domain/_shared/erreurs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../../../migrations');
@@ -196,6 +197,46 @@ describe('atomicité appliquerIndexationIRL — rollback sur échec DB (D-10-05,
     // Rollback attendu : aucune ligne bail_indexations
     const indexations = await ctx.bailIndexationRepo.listerParBail(ctx.bailId);
     expect(indexations.length).toBe(0);
+
+    await ctx.db.destroy();
+  });
+
+  it('refuse sans rien écrire quand le bail porte des échéances à régénérer mais pas de actifDepuis (CR-01)', async () => {
+    const ctx = await setupDb();
+    await ctx.db.updateTable('bail').set({ actif_depuis: null }).where('id', '=', ctx.bailId).execute();
+
+    await expect(
+      appliquerIndexationIRL(
+        {
+          bailId: ctx.bailId,
+          irlTrimestre: '2025-T4',
+          irlValeur: '145.47',
+          dateEffet: Temporal.PlainDate.from('2026-05-01'),
+        },
+        {
+          bailRepo: ctx.bailRepo,
+          bienRepo: ctx.bienRepo,
+          locataireRepo: ctx.locataireRepo,
+          bailleurRepo: ctx.bailleurRepo,
+          echeanceLoyerRepo: ctx.echeanceLoyerRepo,
+          encaissementRepo: ctx.encaissementRepo,
+          bailIndexationRepo: ctx.bailIndexationRepo,
+        },
+        {
+          pdfRenderer: { genererBuffer: async () => Buffer.from('fake') } as never,
+          avenantIRLBuilder: { construire: () => ({}) } as never,
+          stockage: { ecrireAvenant: async (_a: number, n: string) => `avenants/2026/${n}` },
+          clock: ClockFixe.du('2026-05-15'),
+        },
+        ctx.db,
+      ),
+    ).rejects.toThrow(InvariantViolated);
+
+    const echeancesApres = await ctx.echeanceLoyerRepo.listerParBail(ctx.bailId);
+    expect(echeancesApres.length).toBe(2);
+    const bailApres = await ctx.bailRepo.trouverParId(ctx.bailId);
+    expect(bailApres!.loyerHc.toCentimes()).toBe(80_000n);
+    expect(await ctx.bailIndexationRepo.listerParBail(ctx.bailId)).toHaveLength(0);
 
     await ctx.db.destroy();
   });
