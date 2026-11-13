@@ -60,6 +60,8 @@ Tout ce qui sort de ce périmètre — location nue, SCI à l'IS, meublé de tou
 - **Ubiquitous language** : tout identifiant du code reflète le vocabulaire métier français (`Bail`, `Quittance`, `Locataire`, `IRL`, `ARD`, `CFE`…), jamais traduit en anglais.
 - **Domaine pur** : aucun import technique (ORM, HTTP, fichier) dans le cœur du domaine — ports & adapters strict.
 - **Docs commitées avec le code** : tout changement de comportement met à jour la doc dans la **même PR**.
+- **Workflow GSD** (souvent >25k tokens) : `node .claude/gsd-core/bin/gsd-tools.cjs init <workflow>` d'abord
+  (phase, chemins, bloquants), puis lecture par sections ciblées, jamais en entier.
 
 ## Hors périmètre (V1)
 
